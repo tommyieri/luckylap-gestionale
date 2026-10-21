@@ -1,15 +1,20 @@
 import { formatEuroAmount, localReportDate } from "../finance/model";
 import { euroCents, isUuid, record, safeInteger } from "../sales/model";
+import type { CanonicalShopifyOrder } from "../shopify/canonical-model";
 
 export type FinanceWorkKind = "record_finance_entry" | "void_finance_entry";
 export type FinanceWorkCommand = { operationId: string; kind: FinanceWorkKind; payload: Record<string, unknown>; retry?: boolean };
 export type FinanceWorkResult = { status: "success"; entryId: string; replayed: boolean; message: string } | { status: "rejected"; code: string; message: string } | { status: "uncertain"; message: string };
 export type ManualEntry = { id: string; date: string; type: "income" | "expense"; cents: number; description: string; account: string | null; category: string | null; source: "manual_declaration" | "legacy_unclassified"; createdAt: string; createdBy: string; void: FinanceVoid | null };
 export type FinanceVoid = { id: string; entryId: string; reason: string; createdAt: string; createdBy: string };
-export type SalesFact = { id: string; orderId: string; paymentId: string | null; kind: "sale_observed" | "payment_reported" | "sale_cancellation_observed"; cents: number; occurredAt: string; reviewStatus: string };
-export type DeclaredPayment = { id: string; orderId: string; cents: number; method: string; occurredAt: string; reference: string | null };
-export type FinanceOrder = { id: string; channel: string; reference: string | null; totalCents: number; cancelledCents: number; refundDueCents: number };
-export type FinanceWorkSnapshot = { entries: ManualEntry[]; facts: SalesFact[]; payments: DeclaredPayment[]; orders: FinanceOrder[] };
+export type ObservationSource = "manual_declaration" | "shopify_observation";
+export type SalesFact = { id: string; orderId: string; paymentId: string | null; refundId:string|null;source:ObservationSource;kind: "sale_observed" | "payment_reported" | "sale_cancellation_observed" | "refund_observed"; cents: number; occurredAt: string; reviewStatus: string };
+export type DeclaredPayment = { id: string; orderId: string; source:ObservationSource;cents: number; method: string; occurredAt: string; reference: string | null };
+export type FinanceOrder = { id: string; source:"manual_declaration"|"shopify_canonical";channel: string; reference: string | null; totalCents: number; cancelledCents: number; refundDueCents: number };
+export type ObservedRefund = {id:string;orderId:string;transactionGid:string;cents:number;occurredAt:string};
+export type ShopifyFinancials = {orderId:string;sourceUpdatedAt:string;observedAt:string;taxesIncluded:boolean;totals:CanonicalShopifyOrder["totals"]};
+export type ShopifyTransactionObservation = {orderId:string;transactionGid:string;kind:string;status:string;cents:number;currency:"EUR";gateway:string|null;parentGid:string|null;processedAt:string|null;sourceUpdatedAt:string;observedAt:string};
+export type FinanceWorkSnapshot = { entries: ManualEntry[]; facts: SalesFact[]; payments: DeclaredPayment[]; orders: FinanceOrder[];refunds:ObservedRefund[];shopifyFinancials:ShopifyFinancials[];shopifyTransactions:ShopifyTransactionObservation[] };
 
 export function centsLabel(value: number) {
   const n = BigInt(value), sign = n < 0n ? "-" : "", abs = n < 0n ? -n : n;

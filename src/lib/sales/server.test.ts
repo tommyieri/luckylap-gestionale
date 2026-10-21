@@ -27,7 +27,7 @@ describe("caller-scoped sales reads and writes", () => {
     const result = await readSalesWorkspace(f.client);
     expect(result.status).toBe("ready");
     expect(f.auth.getUser).toHaveBeenCalledOnce();
-    expect(f.from.mock.calls.every(call => !["order_payments", "commercial_facts", "finance_entries", "finance_import_transactions"].includes(call[0]))).toBe(true);
+    expect(f.from.mock.calls.every(call => !["order_payments", "commercial_facts", "finance_entries", "finance_import_transactions","shopify_refund_observations","shopify_order_financials","shopify_transaction_observations"].includes(call[0]))).toBe(true);
     expect(f.rpc).not.toHaveBeenCalled();
   });
   it("does not run a command for a missing membership despite founder metadata", async () => {
@@ -51,6 +51,12 @@ describe("caller-scoped sales reads and writes", () => {
     const f = fixture();
     expect(await executeSalesCommand(f.client, { operationId: syntheticId(90), kind: "complete_production", payload: { requirement_id: syntheticId(6), quantity: 1, occurred_at: "2026-10-21T08:00:00Z", reason: "Synthetic checked production" } })).toMatchObject({ status: "rejected", code: "production_permission_required" });
     expect(f.rpc).not.toHaveBeenCalled();
+  });
+  it("lets the database distinguish external production while manual registrations are closed",async()=>{
+    const f=fixture({role:"production",enabled:false});const command={operationId:syntheticId(90),kind:"complete_production",payload:{requirement_id:syntheticId(6),quantity:1,occurred_at:"2026-10-21T08:00:00Z",reason:"Synthetic checked production"}};expect((await executeSalesCommand(f.client,command)).status).toBe("success");expect(f.rpc).toHaveBeenCalledWith("complete_production",{p_operation_id:command.operationId,p_payload:command.payload});f.rpc.mockResolvedValue({data:null,error:{code:"42501",message:"sales_disabled"}});expect(await executeSalesCommand(f.client,command)).toMatchObject({status:"rejected",code:"sales_disabled"});
+  });
+  it("explains the database's ban on manual commands against Shopify source orders",async()=>{
+    const f=fixture();f.rpc.mockResolvedValue({data:null,error:{code:"22023",message:"external_order_managed_by_shopify"}});expect(await executeSalesCommand(f.client,syntheticSale())).toMatchObject({status:"rejected",code:"external_order_managed_by_shopify"});
   });
   it("maps only known database rejections and preserves uncertainty on unknown/network failures", async () => {
     const f = fixture();

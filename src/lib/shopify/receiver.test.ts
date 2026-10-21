@@ -90,6 +90,14 @@ describe("Shopify durable receiver boundary", () => {
     const response = await receiveShopifyWebhook(notificationRequest(), { environment, persist });
     expect(response.status).toBe(200); expect(await response.json()).toEqual({ received: true, ...receipt, replayed: true });
   });
+  it.each(["orders/fulfilled", "orders/partially_fulfilled"])("persists %s only as a verified order-read cue", async (topic) => {
+    const persist = vi.fn().mockResolvedValue({ ok: true, receipt });
+    const response = await receiveShopifyWebhook(notificationRequest({ fulfillment_status: "partial", fulfillments: [{ id: 456, line_items: [{ quantity: 99 }] }] },
+      { "x-shopify-topic": topic }), { environment, persist });
+    expect(response.status).toBe(200);
+    expect(persist.mock.calls[0]![0]).toMatchObject({ topic, orderGid: "gid://shopify/Order/123", requiresCanonicalRead: true });
+    expect(JSON.stringify(persist.mock.calls[0]![0])).not.toMatch(/fulfillment_status|line_items|quantity/);
+  });
   it.each(["error", "throw"])("does not acknowledge failed persistence (%s)", async (failure) => {
     const persist = vi.fn(async (): Promise<ShopifyInboxResult> => { if (failure === "throw") throw new Error("secret database internals");
       return { ok: false, error: "persistence_unavailable" }; });

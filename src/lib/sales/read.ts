@@ -35,22 +35,25 @@ export function salesSnapshotFromRows(rows: SalesRows): SalesSnapshot {
   if (enabled && !startedAt) fail();
   const variants = rows.variants.map(raw => { const r = obj(raw); return { itemId: id(r.stock_item_id), color: str(r.color), size: str(r.size) }; });
   unique(variants.map(r => r.itemId));
-  const items = rows.items.map(raw => { const r = obj(raw); const variant = variants.find(v => v.itemId === r.id); if (!variant) fail(); return { id: id(r.id), sku: str(r.sku), name: `${str(r.name)} · ${variant.color} · ${variant.size}`, active: bool(r.active), costCents: cents(r.unit_cost_eur), priceCents: cents(r.list_price_eur) }; });
-  const locations = rows.locations.map(raw => { const r = obj(raw); return { id: id(r.id), code: str(r.code), name: str(r.name), active: bool(r.active) }; });
-  unique(items.map(r => r.id)); unique(locations.map(r => r.id));
+  const items = rows.items.map(raw => { const r = obj(raw); const variant = variants.find(v => v.itemId === r.id); if (!variant) fail();const name=str(r.name),suffix=` · ${variant.color} · ${variant.size}`; return { id: id(r.id), sku: str(r.sku), name: name.endsWith(suffix)?name:`${name}${suffix}`, active: bool(r.active), costCents: cents(r.unit_cost_eur), priceCents: cents(r.list_price_eur) }; });
+  const allLocations = rows.locations.map(raw => { const r = obj(raw); return { id: id(r.id), code: str(r.code), name: str(r.name), active: bool(r.active),type:str(r.location_type) }; });
+  unique(items.map(r => r.id)); unique(allLocations.map(r => r.id));
+  const locations=allLocations.filter(row=>["Magazzino","Negozio Conto Vendita"].includes(row.type)),allLocationIds=new Set(allLocations.map(row=>row.id));
   if (!items.length || !locations.length) fail();
   const itemIds = new Set(items.map(r => r.id)), locationIds = new Set(locations.map(r => r.id));
   // The shared stock view also contains packaging; this module totals products.
-  const availability = rows.availability.map(raw => { const r = obj(raw); return { itemId: id(r.stock_item_id), locationId: id(r.location_id), onHand: maybeInt(r.on_hand), reserved: int(r.reserved), available: maybeInt(r.available) }; }).filter(row => itemIds.has(row.itemId));
+  const productAvailability = rows.availability.map(raw => { const r = obj(raw); return { itemId: id(r.stock_item_id), locationId: id(r.location_id), onHand: maybeInt(r.on_hand), reserved: int(r.reserved), available: maybeInt(r.available) }; }).filter(row => itemIds.has(row.itemId));
+  if(productAvailability.some(row=>!allLocationIds.has(row.locationId)))fail();
+  const availability=productAvailability.filter(row=>locationIds.has(row.locationId));
   unique(availability.map(r => `${r.itemId}:${r.locationId}`));
   for (const r of availability) if (!itemIds.has(r.itemId) || !locationIds.has(r.locationId) || (r.onHand === null ? r.available !== null || r.reserved !== 0 : r.onHand - r.reserved !== r.available)) fail();
-  const orders: SalesOrder[] = rows.orders.map(raw => { const r = obj(raw); return { id: id(r.id), operationId: id(r.operation_id), channel: choice(r.channel, ["direct", "etsy", "manual_other"]), reference: r.external_reference === null ? null : str(r.external_reference), occurredAt: date(r.occurred_at), totalCents: int(r.total_cents), cancelledCents: int(r.cancelled_cents), refundDueCents: int(r.refund_due_cents), paymentState: choice(r.payment_state, ["paid", "unpaid"]), fulfillmentState: choice(r.fulfillment_state, ["unfulfilled", "partial", "fulfilled", "cancelled"]), orderState: choice(r.order_state, ["confirmed", "partially_cancelled", "cancelled"]), lines: [] }; });
+  const orders: SalesOrder[] = rows.orders.map(raw => { const r = obj(raw),source=choice(r.source_kind,["manual_declaration","shopify_canonical"]) as SalesOrder["source"]; return { id: id(r.id), operationId: id(r.operation_id), source, channel: choice(r.channel, source==="shopify_canonical"?["shopify_web","shopify_pos"]:["direct", "etsy", "manual_other"]), reference: r.external_reference === null ? null : str(r.external_reference), occurredAt: date(r.occurred_at), totalCents: int(r.total_cents), cancelledCents: int(r.cancelled_cents), refundDueCents: int(r.refund_due_cents), paymentState: choice(r.payment_state, source==="shopify_canonical"?["unpaid","partially_paid","paid","partially_refunded","refunded"]:["paid", "unpaid"]), fulfillmentState: choice(r.fulfillment_state, ["unfulfilled", "partial", "fulfilled", "cancelled"]), orderState: choice(r.order_state, ["confirmed", "partially_cancelled", "cancelled"]), lines: [] }; });
   unique(orders.map(r => r.id)); unique(orders.map(r => r.operationId));
-  const lines: SalesLine[] = rows.lines.map(raw => { const r = obj(raw); return { id: id(r.id), orderId: id(r.order_id), itemId: id(r.stock_item_id), locationId: id(r.location_id), sku: str(r.sku_snapshot), quantity: int(r.quantity), fulfilled: int(r.fulfilled_quantity), cancelled: int(r.cancelled_quantity), priceCents: int(r.unit_price_cents), discountCents: int(r.discount_cents), totalCents: int(r.line_total_cents), cancelledCents: int(r.cancelled_amount_cents), costCents: maybeInt(r.unit_cost_cents), reserved: 0 }; });
+  const lines: SalesLine[] = rows.lines.map(raw => { const r = obj(raw); return { id: id(r.id), orderId: id(r.order_id), source:choice(r.source_kind,["manual_declaration","shopify_canonical"]) as SalesLine["source"],itemId: id(r.stock_item_id), locationId: id(r.location_id), sku: str(r.sku_snapshot), quantity: int(r.quantity), fulfilled: int(r.fulfilled_quantity), cancelled: int(r.cancelled_quantity), priceCents: int(r.unit_price_cents), discountCents: int(r.discount_cents), totalCents: int(r.line_total_cents), cancelledCents: int(r.cancelled_amount_cents), costCents: maybeInt(r.unit_cost_cents), reserved: 0 }; });
   unique(lines.map(r => r.id));
   for (const line of lines) {
     const order = orders.find(r => r.id === line.orderId);
-    if (!order || !itemIds.has(line.itemId) || !locationIds.has(line.locationId) || line.quantity < 1 || line.fulfilled + line.cancelled > line.quantity || line.priceCents * line.quantity - line.discountCents !== line.totalCents || line.cancelledCents > line.totalCents) fail();
+    if (!order || order.source!==line.source || !itemIds.has(line.itemId) || !locationIds.has(line.locationId) || line.quantity < 1 || line.fulfilled + line.cancelled > line.quantity || BigInt(line.priceCents) * BigInt(line.quantity) - BigInt(line.discountCents) !== BigInt(line.totalCents) || line.cancelledCents > line.totalCents) fail();
     order.lines.push(line);
   }
   const reservations = rows.reservations.map(raw => { const r = obj(raw); return { lineId: id(r.order_line_id), itemId: id(r.stock_item_id), locationId: id(r.location_id), quantity: int(r.reserved_quantity) }; });
@@ -69,7 +72,7 @@ export function salesSnapshotFromRows(rows: SalesRows): SalesSnapshot {
     const deficit = requirement ? requirement.required - requirement.completed - requirement.cancelled : 0;
     if (line.reserved + deficit !== line.quantity - line.fulfilled - line.cancelled) fail();
   }
-  for (const order of orders) if (!order.lines.length || order.lines.reduce((sum, l) => sum + l.totalCents, 0) !== order.totalCents || order.lines.reduce((sum, l) => sum + l.cancelledCents, 0) !== order.cancelledCents) fail();
+  for (const order of orders) if (!order.lines.length || order.cancelledCents>order.totalCents || order.source==="manual_declaration"&&(order.lines.reduce((sum, l) => sum + BigInt(l.totalCents), 0n) !== BigInt(order.totalCents) || order.lines.reduce((sum, l) => sum + BigInt(l.cancelledCents), 0n) !== BigInt(order.cancelledCents))) fail();
   orders.sort((a, b) => b.occurredAt.localeCompare(a.occurredAt));
   return { enabled, startedAt, items, locations, availability, orders, requirements };
 }

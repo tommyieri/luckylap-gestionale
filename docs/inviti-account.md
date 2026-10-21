@@ -29,6 +29,10 @@ Il template recupero usa lo stesso percorso con `type=recovery`. Impostare `Site
 
 Il servizio email predefinito Supabase ha restrizioni su destinatari, frequenza e disponibilità; non va presentato come SMTP di produzione illimitato. Il piano Free non impedisce l’implementazione del percorso, ma l’invio affidabile ai cinque collaboratori richiede una configurazione SMTP ammessa o una consegna amministrativa sicura dei link generati, entro la loro scadenza. Non vengono attivati servizi a pagamento o abbonamenti. Riferimento: [SMTP Supabase](https://supabase.com/docs/guides/auth/auth-smtp).
 
+## Attivazione reale del 21 ottobre 2026
+
+Il titolare ha inserito e confermato personalmente le tre password nel modulo locale privato. I cinque account sono confermati, entrambe le credenziali di area configurate e il nuovo accesso del founder verificato su Vercel. Nessuna email inviata. I vecchi file locali con link monouso sono stati eliminati e il server temporaneo di configurazione fermato. Il controllo Origin del modulo locale è stato corretto da `no-referrer` a `same-origin`, dopo riproduzione innocua nel browser; controllo Origin esatto e nonce CSRF rimangono attivi.
+
 ## Verifica e limiti
 
 I test con dati sintetici verificano parser dei link, tipo e lunghezza hash, nuovo minimo di sei caratteri e limite in byte anche con emoji, conferma password, scambio token, `getUser` e membership, rifiuto dei metadata come ruolo, tutela degli eventuali fattori preesistenti, errori riservati, `updateUser` e logout fallito dopo password salvata. I test dei gate verificano inoltre grant DB corrente, assenza di bypass AAL, ruoli ammessi e chiusura della sessione. Auth è simulato; queste prove non inviano email o mutazioni al progetto cloud.

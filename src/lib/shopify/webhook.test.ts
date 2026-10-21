@@ -101,7 +101,7 @@ describe("Shopify HTTPS order notification boundary", () => {
     expect(distinct.ok && distinct.notification.eventId).toBe(eventId);
   });
 
-  it.each(["orders/create", "orders/updated", "orders/paid", "orders/cancelled"])(
+  it.each(["orders/create", "orders/updated", "orders/paid", "orders/cancelled", "orders/fulfilled", "orders/partially_fulfilled"])(
     "accepts the supported snapshot topic %s without interpreting its effect", (topic) => {
       const input = fixture(); input.headers.set("x-shopify-topic", topic);
       const result = readShopifyOrderNotification(input);

@@ -1,6 +1,6 @@
 # App interna Shopify: preparazione LuckyLap
 
-Ricerca su fonti ufficiali verificata il **21 ottobre 2026**. Destinazione comunicata dal founder: `qrtmdm-i1.myshopify.com`, piano Basic, nuova app interna `LuckyLap Gestionale`. In questa attività non sono stati aperti accessi autenticati, creati app, installazioni, grant o webhook, né riletti catalogo/ordini del negozio.
+Ricerca su fonti ufficiali verificata il **21 ottobre 2026**. Destinazione comunicata dal founder: `qrtmdm-i1.myshopify.com`, piano Basic, nuova app interna `LuckyLap Gestionale`. App interna **creata e installata** con autorizzazione esplicita del founder il 21 ottobre 2026, versione `luckylap-internal-1`, API 2026-10. Il grant client credentials è stato verificato: soli `read_products` e `read_orders`, scadenza 24 ore. Le credenziali sono configurate esclusivamente sul server Vercel LuckyLap. Sottoscrizioni e avvio sono tracciati nel [deployment](deployment.md).
 
 ## Percorso compatibile con Basic e senza nuovi abbonamenti
 
@@ -22,17 +22,17 @@ Plus serve ad alcune possibilità di installazione multipla, non a questo singol
 6. In **Installs → Install app**, scegliere il negozio reale LuckyLap e verificare gli scope prima di **Install**. Shopify può mostrare una pagina di consenso OAuth.
 7. In **Settings / App settings → Credentials**, recuperare Client ID e Client secret per la configurazione privata del server. Non incollarli in chat, documenti, screenshot condivisi o repository.
 
-I passaggi 3–7 seguono la [guida ufficiale alla creazione di app dal Dev Dashboard](https://shopify.dev/docs/apps/build/dev-dashboard/create-apps-using-dev-dashboard). Le etichette possono seguire la lingua dell’admin. Nessuno di questi passaggi è stato eseguito automaticamente durante questa ricerca.
+I passaggi 3–7 seguono la [guida ufficiale alla creazione di app dal Dev Dashboard](https://shopify.dev/docs/apps/build/dev-dashboard/create-apps-using-dev-dashboard). Le etichette possono seguire la lingua dell’admin. Il percorso è stato completato dopo l’autorizzazione del founder; in questa UI l’installazione era disponibile dal menu della riga app, voce «Installa app».
 
 ## Scope minimi da verificare nella versione
 
 | Scope | Quando serve |
 | --- | --- |
 | `read_products` | Rilettura del catalogo e mapping esatto dei GID variante/SKU/prezzi. |
-| `read_orders` | Ordini, righe, transazioni e dati di evasione esposti dall’ordine; notifiche snapshot `orders/create`, `orders/updated`, `orders/paid`, `orders/cancelled`. Copre normalmente gli ultimi 60 giorni. |
-| `read_fulfillments` | Necessario quando si aggiungeranno i topic distinti `fulfillments/create` e `fulfillments/update`. Non abilitarli sul receiver attuale, che accetta soltanto i quattro snapshot ordine. |
+| `read_orders` | Ordini, righe, transazioni e dati di evasione esposti dall’ordine; notifiche snapshot `orders/create`, `orders/updated`, `orders/paid`, `orders/cancelled`, `orders/fulfilled`, `orders/partially_fulfilled`. Copre normalmente gli ultimi 60 giorni. |
+| `read_fulfillments` | Necessario per gli eventuali topic distinti `fulfillments/create` e `fulfillments/update`. Questi due topic non appartengono al receiver corrente. I due eventi `orders/*fulfilled` sono invece snapshot Order e usano `read_orders`. |
 
-Per il receiver attuale bastano i primi due; il terzo è identificato per l’estensione delle notifiche di evasione. Non richiedere `write_orders`, `write_inventory`, `write_products`, `read_customers`, pagamenti Shopify o `read_all_orders` per questa fase. Lo storico oltre sessanta giorni richiederebbe approvazione separata: non è necessario per avviare gli eventi nuovi rispettando il cutover concordato. [Riferimento scope](https://shopify.dev/docs/api/usage/access-scopes), [topic webhook 2026-10](https://shopify.dev/docs/api/admin-graphql/2026-10/enums/WebhookSubscriptionTopic).
+Per i sei topic del receiver bastano i primi due scope. Non richiedere `write_orders`, `write_inventory`, `write_products`, `read_customers`, pagamenti Shopify o `read_all_orders` per questa fase. Lo storico oltre sessanta giorni richiederebbe approvazione separata: non è necessario per avviare gli eventi nuovi rispettando il cutover concordato. La documentazione 2026-10 conferma i topic, gli scope e il payload Order; il receiver conserva solo il riferimento verificato e il worker rilegge lo stato completo. [Riferimento scope](https://shopify.dev/docs/api/usage/access-scopes), [topic webhook 2026-10](https://shopify.dev/docs/api/admin-graphql/2026-10/enums/WebhookSubscriptionTopic), [payload ufficiali](https://shopify.dev/docs/api/admin-rest/2026-10/resources/webhook).
 
 La lettura dell’oggetto GraphQL `Fulfillment` è già ammessa con `read_orders`; lo scope richiesto dai suoi webhook dedicati è un requisito distinto. Non aggiungere permessi di scrittura evasione per leggere gli eventi. [Oggetto Fulfillment 2026-10](https://shopify.dev/docs/api/admin-graphql/2026-10/objects/Fulfillment).
 
@@ -50,14 +50,14 @@ Se l’app deve agire su shop esterni all’organizzazione, client credentials n
 
 HMAC usa **il Client secret dell’app**, sul corpo raw, non l’access token a scadenza. Il nostro endpoint è `/api/integrations/shopify/webhook`, protocollo `X-Shopify-*`, versione `2026-10`. Dominio e secret devono provenire dalla configurazione del server, non dalla richiesta. [Verifica delle consegne HTTPS](https://shopify.dev/docs/apps/build/webhooks/verify-deliveries).
 
-Il [receiver implementato](./shopify-receiver.md) richiede `SHOPIFY_SHOP_DOMAIN=qrtmdm-i1.myshopify.com`, `SHOPIFY_CLIENT_SECRET`, URL Supabase e chiave privata Supabase server. `SHOPIFY_CLIENT_ID` sarà inoltre necessario al futuro worker per il grant; attualmente il receiver non richiede un token Admin. I valori privati vanno configurati direttamente nell’ambiente server senza pubblicarli o trasmetterli in chat.
+Il [receiver implementato](./shopify-receiver.md) richiede `SHOPIFY_SHOP_DOMAIN=qrtmdm-i1.myshopify.com`, `SHOPIFY_CLIENT_SECRET`, URL Supabase e chiave privata Supabase server. `SHOPIFY_CLIENT_ID` è usato dal worker per il grant; il receiver non richiede un token Admin. I valori privati vanno configurati direttamente nell’ambiente server senza pubblicarli o trasmetterli in chat.
 
-La persistenza in inbox produce soltanto un job `awaiting_app`. Non sono implementati il rinnovo token, la lettura canonica e la transazione degli effetti Shopify nel core. Perciò installare l’app e configurare HMAC non autorizza a dichiarare la sincronizzazione completa; non sottoscrivere eventi reali prima del completamento del worker e della verifica end-to-end. L’inventario commerciale Shopify non sostituisce l’apertura fisica derivata dal Drive.
+La persistenza in inbox produce un job duraturo. Il worker implementa rinnovo token, lettura canonica, transazione degli effetti e retry; la sua applicazione cloud va verificata prima di attivare i sei topic. La sola ricevuta webhook non dimostra l’applicazione degli effetti. L’inventario commerciale Shopify non sostituisce l’apertura fisica derivata dal Drive.
 
 ## Prerequisiti ancora aperti, senza nuove scelte di piano
 
 - Verificare nell’account del titolare l’organizzazione Shopify corretta e il diritto di sviluppare/installare l’app. La ricerca non ha ispezionato quell’account.
-- Creare, rilasciare e installare **LuckyLap Gestionale** nel negozio indicato; scegliere due scope per il receiver corrente, oppure aggiungere `read_fulfillments` quando l’adattatore evasione sarà pronto.
+- Creare, rilasciare e installare **LuckyLap Gestionale** nel negozio indicato, con `read_products` e `read_orders` per i sei topic del receiver corrente.
 - Configurare in modo privato Client ID/secret e la chiave tecnica Supabase per il server, verificando che appartengano alle destinazioni corrette. Nessun valore è richiesto in chat.
 - Completare worker, rinnovo token, lettura canonica e applicazione idempotente degli effetti, usando il cutover già concordato e senza import storico automatico. Solo dopo verificare una consegna controllata e attivare le sottoscrizioni ammesse.
 

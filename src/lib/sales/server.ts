@@ -8,10 +8,10 @@ const selections = {
   settings: ["app_settings", "manual_sales_enabled,sales_started_at"],
   items: ["stock_items", "id,sku,name,active,unit_cost_eur,list_price_eur"],
   variants: ["product_variants", "stock_item_id,color,size"],
-  locations: ["stock_locations", "id,code,name,active"],
+  locations: ["stock_locations", "id,code,name,active,location_type"],
   availability: ["operational_stock_availability", "stock_item_id,location_id,on_hand,reserved,available"],
-  orders: ["sales_orders", "id,operation_id,channel,external_reference,occurred_at,total_cents,cancelled_cents,refund_due_cents,payment_state,fulfillment_state,order_state"],
-  lines: ["sales_order_lines", "id,order_id,stock_item_id,location_id,sku_snapshot,quantity,fulfilled_quantity,cancelled_quantity,unit_price_cents,discount_cents,line_total_cents,cancelled_amount_cents,unit_cost_cents"],
+  orders: ["sales_orders", "id,operation_id,source_kind,channel,external_reference,occurred_at,total_cents,cancelled_cents,refund_due_cents,payment_state,fulfillment_state,order_state"],
+  lines: ["sales_order_lines", "id,order_id,source_kind,stock_item_id,location_id,sku_snapshot,quantity,fulfilled_quantity,cancelled_quantity,unit_price_cents,discount_cents,line_total_cents,cancelled_amount_cents,unit_cost_cents"],
   reservations: ["stock_reservations", "order_line_id,stock_item_id,location_id,reserved_quantity"],
   requirements: ["production_requirements", "id,order_line_id,required_quantity,completed_quantity,cancelled_quantity,status"],
 } as const;
@@ -51,6 +51,7 @@ const knownErrors: Record<string, string> = {
   order_cancelled: "L’ordine è già annullato.",
   payment_already_recorded: "Per questo ordine è già dichiarato un incasso. Verifica l’ordine.",
   payment_amount_mismatch: "L’incasso deve coincidere con l’intero importo ancora dovuto.",
+  external_order_managed_by_shopify: "Questo ordine è gestito da Shopify: consegne, annulli e pagamenti si aggiornano dalla fonte. Puoi registrare la produzione consentita dal tuo ruolo.",
 };
 
 /** Fresh Auth + membership before each RPC; never accept a client-supplied role. */
@@ -66,9 +67,10 @@ export async function executeSalesCommand(supabase: SupabaseClient, value: unkno
     if (command.kind === "complete_production" && !["founder", "production"].includes(access.member.role)) return isRetry ? cannotVerify() : { status: "rejected", code: "production_permission_required", message: knownErrors.production_permission_required };
     const settings = await supabase.from("app_settings").select("manual_sales_enabled,sales_started_at").eq("id", true).single();
     if (settings.error || !settings.data) return isRetry ? cannotVerify() : { status: "rejected", code: "unavailable", message: "Verifica dell’avvio non disponibile. Nessun invio eseguito." };
-    if ((!settings.data.manual_sales_enabled || !settings.data.sales_started_at) && !command.retry) return { status: "rejected", code: "sales_disabled", message: knownErrors.sales_disabled };
+    if ((!settings.data.manual_sales_enabled || !settings.data.sales_started_at) && !command.retry && command.kind!=="complete_production") return { status: "rejected", code: "sales_disabled", message: knownErrors.sales_disabled };
     // When disabled, a frozen retry may still recover its original receipt.
-    // The database rejects every new write while the flag is off.
+    // The database rejects new manual writes while the flag is off, but permits
+    // real production for externally managed orders independently of that flag.
     submitted = true;
     const { data, error } = await supabase.rpc(command.kind, { p_operation_id: command.operationId, p_payload: command.payload });
     if (error) {

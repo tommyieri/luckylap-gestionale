@@ -3,10 +3,11 @@ export type CommandKind = (typeof COMMAND_KINDS)[number];
 export type SalesCommand = { operationId: string; kind: CommandKind; payload: Record<string, unknown>; retry?: boolean };
 export type CommandResult = { status: "success"; orderId: string; replayed: boolean; message: string } | { status: "rejected"; message: string; code: string } | { status: "uncertain"; message: string };
 export type SalesItem = { id: string; sku: string; name: string; active: boolean; costCents: number | null; priceCents: number | null };
-export type SalesLocation = { id: string; code: string; name: string; active: boolean };
+export type SalesLocation = { id: string; code: string; name: string; active: boolean;type:string };
 export type Availability = { itemId: string; locationId: string; onHand: number | null; reserved: number; available: number | null };
-export type SalesLine = { id: string; orderId: string; itemId: string; locationId: string; sku: string; quantity: number; fulfilled: number; cancelled: number; priceCents: number; discountCents: number; totalCents: number; cancelledCents: number; costCents: number | null; reserved: number };
-export type SalesOrder = { id: string; operationId: string; channel: string; reference: string | null; occurredAt: string; totalCents: number; cancelledCents: number; refundDueCents: number; paymentState: string; fulfillmentState: string; orderState: string; lines: SalesLine[] };
+export type SalesSource = "manual_declaration" | "shopify_canonical";
+export type SalesLine = { id: string; orderId: string; source: SalesSource; itemId: string; locationId: string; sku: string; quantity: number; fulfilled: number; cancelled: number; priceCents: number; discountCents: number; totalCents: number; cancelledCents: number; costCents: number | null; reserved: number };
+export type SalesOrder = { id: string; operationId: string; source: SalesSource; channel: string; reference: string | null; occurredAt: string; totalCents: number; cancelledCents: number; refundDueCents: number; paymentState: string; fulfillmentState: string; orderState: string; lines: SalesLine[] };
 export type ProductionRequirement = { id: string; lineId: string; required: number; completed: number; cancelled: number; status: string };
 export type SalesSnapshot = { enabled: boolean; startedAt: string | null; items: SalesItem[]; locations: SalesLocation[]; availability: Availability[]; orders: SalesOrder[]; requirements: ProductionRequirement[] };
 
@@ -19,9 +20,12 @@ export function euroCents(value: unknown, max = 9000000000000000): number | null
   const result = BigInt(whole) * 100n + BigInt(fraction.padEnd(2, "0"));
   return result <= BigInt(max) ? Number(result) : null;
 }
-export function money(cents: number | null) { return cents === null ? "Da verificare" : new Intl.NumberFormat("it-IT", { style: "currency", currency: "EUR" }).format(cents / 100); }
-export function moneyInput(cents: number | null) { return cents === null ? "" : `${Math.floor(cents / 100)},${String(cents % 100).padStart(2, "0")}`; }
+export function money(cents: number | bigint | null) { if(cents===null)return "Da verificare";const n=BigInt(cents),abs=n<0n?-n:n;return `${n<0n?"-":""}${new Intl.NumberFormat("it-IT").format(abs/100n)},${String(abs%100n).padStart(2,"0")}\u00a0€`; }
+export function moneyInput(cents: number | null) { return cents === null ? "" : `${BigInt(cents)/100n},${String(BigInt(cents)%100n).padStart(2, "0")}`; }
 export const quantityLabel = (value: number | null) => value === null ? "Da verificare" : String(value);
+export const isExternalSalesOrder = (order: Pick<SalesOrder,"source">) => order.source === "shopify_canonical";
+export const salesChannelLabel: Record<string,string> = { direct:"Diretta",etsy:"Etsy",manual_other:"Altro manuale",shopify_web:"Shopify · Online",shopify_pos:"Shopify POS" };
+export function salesOrderLabel(order: {id:string;reference:string|null}) { const gid=/^gid:\/\/shopify\/Order\/([1-9]\d*)$/.exec(order.reference??"");return gid?`Ordine Shopify ${gid[1]}`:order.reference||`Ordine ${order.id.slice(0,8).toUpperCase()}`; }
 
 function exactKeys(value: Record<string, unknown>, required: string[], allowed = required) { return required.every(key => key in value) && Object.keys(value).every(key => allowed.includes(key)); }
 function text(value: unknown, min: number, max: number) { return typeof value === "string" && value.trim().length >= min && value.trim().length <= max; }

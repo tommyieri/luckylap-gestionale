@@ -11,6 +11,7 @@ export async function readPackagingWorkspace(supabase: SupabaseClient) {
   const read = (table: string, columns: string, idColumn = "id", packagingOnly = false) => readTeamPages((after, limit) => {
     let query = supabase.from(table).select(columns, { count: "exact" }).order(idColumn).limit(limit);
     if (packagingOnly) query = query.eq("kind", "packaging");
+    if (table === "stock_locations") query = query.eq("active", true);
     if (after !== null) query = query.gt(idColumn, after);
     return query;
   }, idColumn);

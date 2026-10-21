@@ -32,4 +32,5 @@ describe("sales form commands", () => {
     f.set(`quantity:${syntheticId(5)}`, "0");
     expect(() => quantityCommandPayload(f, "fulfill_order_lines", syntheticId(3), [syntheticId(5)])).toThrow();
   });
+  it("does not let direct/event sales draw physical stock from LCM",()=>{const snapshot=salesSnapshotFromRows(syntheticRows());snapshot.locations.push({id:syntheticId(100),code:"NEG01",name:"LCM",type:"Negozio Conto Vendita",active:true});const f=form();f.set("locationId",syntheticId(100));expect(()=>newSalePayload(f,snapshot)).toThrow("LCM è riservato al conto vendita");});
 });

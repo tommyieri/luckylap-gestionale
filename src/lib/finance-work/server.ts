@@ -18,13 +18,20 @@ export async function financeWorkAccess(supabase: SupabaseClient) {
 const selections={
   entries:["finance_entries","id,entry_date,entry_type,amount_cents,description,account_label,category,source_kind,review_status,created_at,created_by"],
   voids:["finance_entry_voids","id,finance_entry_id,reason,created_at,created_by"],
-  facts:["commercial_facts","id,order_id,payment_id,fact_kind,amount_cents,currency,occurred_at,source_kind,review_status"],
+  facts:["commercial_facts","id,order_id,payment_id,refund_id,fact_kind,amount_cents,currency,occurred_at,source_kind,review_status"],
   payments:["order_payments","id,order_id,method,amount_cents,currency,occurred_at,declared_reference,source_kind"],
-  orders:["sales_orders","id,channel,external_reference,total_cents,cancelled_cents,refund_due_cents"],
+  orders:["sales_orders","id,source_kind,channel,external_reference,total_cents,cancelled_cents,refund_due_cents"],
+  refunds:["shopify_refund_observations","id,order_id,transaction_gid,amount_cents,occurred_at,source_kind"],
+  shopifyFinancials:["shopify_order_financials","order_id,source_updated_at,totals,taxes_included,observed_at"],
+  shopifyTransactions:["shopify_transaction_observations","order_id,transaction_gid,kind,status,amount_cents,currency,gateway,parent_gid,processed_at,source_updated_at,observed_at"],
 } as const;
 export async function readFinanceWork(supabase: SupabaseClient) {
   const access=await financeWorkAccess(supabase); if(access.status!=="authorized")return access;
-  const entries=await Promise.all(Object.entries(selections).map(async([key,[table,columns]])=>[key,await readCompletePages((from,to)=>supabase.from(table).select(columns,{count:"exact"}).order("id").range(from,to))]));
+  const entries=await Promise.all(Object.entries(selections).map(async([key,[table,columns]])=>[key,await readCompletePages((from,to)=>{
+    let query=supabase.from(table).select(columns as string,{count:"exact"}).order(key==="shopifyFinancials"||key==="shopifyTransactions"?"order_id":"id");
+    if(key==="shopifyTransactions")query=query.order("transaction_gid");
+    return query.range(from,to);
+  })]));
   return {status:"ready" as const,member:access.member,snapshot:financeWorkFromRows(Object.fromEntries(entries) as WorkRows)};
 }
 const messages:Record<string,string>={

@@ -10,6 +10,7 @@ export async function readStockWorkspace(supabase: SupabaseClient) {
   if (access.status !== "member") return access;
   const read = (table: string, columns: string) => readTeamPages((after, limit) => {
     let query = supabase.from(table).select(columns, { count: "exact" }).order("id").limit(limit);
+    if (table === "stock_locations") query = query.eq("active", true);
     if (after !== null) query = query.gt("id", after);
     return query;
   });

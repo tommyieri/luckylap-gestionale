@@ -76,11 +76,11 @@ export function StockAdjustmentForm({ snapshot, userId, itemId, locationId, setI
         <option value="">Scegli uno SKU</option>{snapshot.items.map(row => <option key={row.id} value={row.id} disabled={!row.active}>{row.sku} · {row.name}{!row.active ? " · Non attivo" : ""}</option>)}
       </select></label>
       <label htmlFor="stock-location">Magazzino<select id="stock-location" value={locationId} onChange={event => setLocationId(event.target.value)} required>
-        <option value="">Scegli un magazzino</option>{snapshot.locations.map(row => <option key={row.id} value={row.id} disabled={!row.active}>{row.code} · {row.name}{!row.active ? " · Non attivo" : ""}</option>)}
+        <option value="">Scegli un magazzino</option>{snapshot.locations.map(row => <option key={row.id} value={row.id} disabled={!row.active}>{row.name}{!row.active ? " · Non attivo" : ""}</option>)}
       </select></label>
     </fieldset>
     {selected && <div className={styles.selectionResult}>
-      <p className={styles.selectionName}>{item.sku}<span>{location.code} · {location.name}</span></p>
+      <p className={styles.selectionName}>{item.sku}<span>{location.name}</span></p>
       <dl className={styles.quantities}>
         <div><dt>Fisico</dt><dd>{stockQuantity(quantities?.onHand)}</dd></div>
         <div><dt>Riservato</dt><dd>{stockQuantity(quantities?.reserved)}</dd></div>
@@ -90,7 +90,7 @@ export function StockAdjustmentForm({ snapshot, userId, itemId, locationId, setI
     </div>}
     {command && <div className={styles.pending}>
       <h3>Rettifica da verificare</h3>
-      <p>{snapshot.items.find(row => row.id === command.itemId)?.sku ?? command.itemId} · {snapshot.locations.find(row => row.id === command.locationId)?.code ?? command.locationId}</p>
+      <p>{snapshot.items.find(row => row.id === command.itemId)?.sku ?? command.itemId} · {snapshot.locations.find(row => row.id === command.locationId)?.name ?? command.locationId}</p>
       <p><strong>{command.delta > 0 ? "+" : ""}{stockQuantity(command.delta)} unità</strong> · {command.reason}</p>
       <p>I dati sono congelati. Il pulsante conserva lo stesso riferimento e controlla se il movimento è già nel registro.</p>
       <button type="button" className="button button-primary" disabled={pending || blocked} onClick={() => send({ ...command, retry: true })}>{pending ? "Verifica in corso…" : "Verifica lo stesso invio"}</button>

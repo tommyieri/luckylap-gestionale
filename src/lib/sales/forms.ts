@@ -25,7 +25,7 @@ export function newSalePayload(form: FormData, snapshot: SalesSnapshot): Record<
   const payload = { schema_version: 1, channel: string(form, "channel"), occurred_at: occurred, location_id: string(form, "locationId"), lines,
     fulfillment_mode: string(form, "mode"), ...(reference ? { external_reference: reference } : {}), ...(reason ? { reason } : {}),
     payment: string(form, "paymentState") === "paid" ? { status: "paid", method: string(form, "method"), amount_cents: total, occurred_at: occurred, ...(paymentReference ? { reference: paymentReference } : {}) } : { status: "unpaid" } };
-  if (!snapshot.locations.some(row => row.id === payload.location_id && row.active)) bad("Scegli il magazzino coinvolto nella vendita.");
+  if (!snapshot.locations.some(row => row.id === payload.location_id && row.active&&row.type==="Magazzino")) bad("Le vendite dirette, gli eventi e gli altri canali manuali utilizzano Magadzino. LCM è riservato al conto vendita.");
   if (!parseSalesCommand({ operationId: "00000000-0000-4000-8000-000000000000", kind: "register_manual_sale", payload })) bad("Controlla canale, modalità, metodo di pagamento, data e riferimenti. Etsy richiede un riferimento ordine.");
   return payload;
 }

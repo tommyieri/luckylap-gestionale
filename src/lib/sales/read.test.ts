@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { readSalesPages, salesSnapshotFromRows } from "./read";
-import { syntheticId, syntheticRows } from "./fixtures";
+import { syntheticId, syntheticRows, externalSyntheticRows } from "./fixtures";
 
 describe("complete sales reads", () => {
   it("reads all exact-count pages and refuses shortened data or changing counts", async () => {
@@ -36,4 +36,14 @@ describe("complete sales reads", () => {
     expect(snapshot.availability).toHaveLength(1);
     expect(snapshot.availability[0].onHand).toBe(5);
   });
+  it.each(["shopify_web","shopify_pos"])("reads %s and extra order components while preserving original line economics",channel=>{
+    const snapshot=salesSnapshotFromRows(externalSyntheticRows(channel));expect(snapshot.orders[0]).toMatchObject({source:"shopify_canonical",channel,paymentState:"partially_paid",totalCents:9002});expect(snapshot.orders[0].lines[0].totalCents).toBe(8002);
+  });
+  it("refuses mixed line/order provenance and Shopify payment states on manual orders",()=>{
+    const rows=externalSyntheticRows();(rows.lines[0] as Record<string,unknown>).source_kind="manual_declaration";expect(()=>salesSnapshotFromRows(rows)).toThrow();const manual=syntheticRows();(manual.orders[0] as Record<string,unknown>).payment_state="partially_paid";expect(()=>salesSnapshotFromRows(manual)).toThrow();
+  });
+  it("restricts the sale's physical locations and availability to warehouses and consignment shops",()=>{
+    const rows=syntheticRows();rows.locations.push({id:syntheticId(100),code:"FORN",name:"Synthetic external",active:true,location_type:"Esterno"});rows.availability.push({stock_item_id:syntheticId(1),location_id:syntheticId(100),on_hand:999,reserved:0,available:999});expect(salesSnapshotFromRows(rows).locations).toHaveLength(1);expect(salesSnapshotFromRows(rows).availability).toHaveLength(1);
+  });
+  it("still rejects an availability row pointing to a missing location",()=>{const rows=syntheticRows();rows.availability.push({stock_item_id:syntheticId(1),location_id:syntheticId(999),on_hand:1,reserved:0,available:1});expect(()=>salesSnapshotFromRows(rows)).toThrow();});
 });

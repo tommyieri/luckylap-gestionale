@@ -4,7 +4,7 @@ import { createHash, createHmac, timingSafeEqual } from "node:crypto";
 export const SHOPIFY_WEBHOOK_API_VERSION = "2026-10" as const;
 export const SHOPIFY_WEBHOOK_MAX_BYTES = 1024 * 1024;
 
-const ORDER_SNAPSHOT_TOPICS = ["orders/create", "orders/updated", "orders/paid", "orders/cancelled"] as const;
+const ORDER_SNAPSHOT_TOPICS = ["orders/create", "orders/updated", "orders/paid", "orders/cancelled", "orders/fulfilled", "orders/partially_fulfilled"] as const;
 type OrderSnapshotTopic = (typeof ORDER_SNAPSHOT_TOPICS)[number];
 type NotificationError =
   | "configuration_required" | "invalid_body_size" | "invalid_signature" | "unexpected_shop"

@@ -5,7 +5,7 @@ import {executeFinanceWork,readFinanceWork} from "./server";
 import {manualCommand,workId,workRows} from "./fixtures";
 beforeEach(()=>{vi.useFakeTimers();vi.setSystemTime(new Date("2026-10-21T18:00:00Z"));});afterEach(()=>vi.useRealTimers());
 function fixture({member=true,role="finance",aal="aal1",finance=true,unlocked=true}={}){
-  const rows=workRows(),tables:Record<string,unknown[]>={finance_entries:rows.entries,finance_entry_voids:rows.voids,commercial_facts:rows.facts,order_payments:rows.payments,sales_orders:rows.orders};
+  const rows=workRows(),tables:Record<string,unknown[]>={finance_entries:rows.entries,finance_entry_voids:rows.voids,commercial_facts:rows.facts,order_payments:rows.payments,sales_orders:rows.orders,shopify_refund_observations:rows.refunds,shopify_order_financials:rows.shopifyFinancials,shopify_transaction_observations:rows.shopifyTransactions};
   const auth={getUser:vi.fn().mockResolvedValue({error:null,data:{user:{id:workId(10),user_metadata:{role:"founder"}}}}),mfa:{getAuthenticatorAssuranceLevel:vi.fn().mockResolvedValue({error:null,data:{currentLevel:aal,nextLevel:"aal2"}})}};
   const from=vi.fn((table:string)=>({select:vi.fn().mockReturnThis(),eq:vi.fn().mockReturnThis(),order:vi.fn().mockReturnThis(),maybeSingle:vi.fn().mockResolvedValue({error:null,data:table==="memberships"?member?{user_id:workId(10),role,active:true,finance_access:finance}:null:{user_id:workId(10),display_name:"Synthetic Finance"}}),range:vi.fn((start:number,end:number)=>Promise.resolve({error:null,count:tables[table]?.length??null,data:tables[table]?.slice(start,end+1)??null}))}));
   const rpc=vi.fn().mockImplementation(async(name,args)=>({error:null,data:name==="sensitive_area_status"?unlocked:{operation_id:args.p_operation_id,entry_id:workId(1),replayed:false}}));
@@ -19,7 +19,7 @@ describe("Finance authorization and command receipts",()=>{
   });
   it("reads sales facts/payments and manual sources only after current member and fresh area grant checks",async()=>{
     const f=fixture(),result=await readFinanceWork(f.client);expect(result.status).toBe("ready");expect(f.auth.getUser).toHaveBeenCalledOnce();
-    expect(f.from.mock.calls.map(call=>call[0])).toEqual(expect.arrayContaining(["commercial_facts","order_payments","finance_entries","finance_entry_voids"]));
+    expect(f.from.mock.calls.map(call=>call[0])).toEqual(expect.arrayContaining(["commercial_facts","order_payments","finance_entries","finance_entry_voids","shopify_refund_observations","shopify_order_financials","shopify_transaction_observations"]));
     expect(f.from.mock.calls.some(call=>call[0]==="finance_import_transactions")).toBe(false);
   });
   it("sends exactly one validated command with the original UUID and payload",async()=>{

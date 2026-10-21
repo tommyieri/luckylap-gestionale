@@ -12,14 +12,15 @@ export function PaymentMethodField() {
 }
 type DraftLine = { key: number; itemId: string; quantity: string; price: string; discount: string };
 export function NewSaleFields({ snapshot, now }: { snapshot: SalesSnapshot; now: string }) {
-  const [locationId, setLocationId] = useState(""), [payment, setPayment] = useState("unpaid"), [mode, setMode] = useState("prepare"), [channel, setChannel] = useState("direct");
+  const manualLocations=snapshot.locations.filter(row=>row.active&&row.type==="Magazzino");
+  const [locationId, setLocationId] = useState(manualLocations.length===1?manualLocations[0].id:""), [payment, setPayment] = useState("unpaid"), [mode, setMode] = useState("prepare"), [channel, setChannel] = useState("direct");
   const [rows, setRows] = useState<DraftLine[]>([{ key: 0, itemId: "", quantity: "1", price: "", discount: "0,00" }]);
   const [nextKey, setNextKey] = useState(1);
   const update = (key: number, patch: Partial<DraftLine>) => setRows(current => current.map(row => row.key === key ? { ...row, ...patch } : row));
   const totals = rows.map(row => { const p = euroCents(row.price), d = euroCents(row.discount), q = Number(row.quantity); return p !== null && d !== null && Number.isInteger(q) && q > 0 && d <= p * q ? p * q - d : null; });
   const total = totals.every(v => v !== null) ? totals.reduce<number>((sum, value) => sum + value!, 0) : null;
   return <>
-    <div className={styles.grid}><label>Canale<select name="channel" value={channel} onChange={e => setChannel(e.target.value)}><option value="direct">Vendita diretta</option><option value="etsy">Etsy</option><option value="manual_other">Altro canale manuale</option></select></label><label>Riferimento ordine {channel === "etsy" ? "· obbligatorio" : "· se disponibile"}<input name="externalReference" maxLength={240} required={channel === "etsy"} placeholder="ID della vendita nella fonte" /></label><label>Magazzino coinvolto<select name="locationId" value={locationId} onChange={e => setLocationId(e.target.value)} required><option value="" disabled>Scegli il magazzino</option>{snapshot.locations.filter(row => row.active).map(row => <option key={row.id} value={row.id}>{row.name} · {row.code}</option>)}</select></label><SaleTimeField now={now} /></div>
+    <div className={styles.grid}><label>Canale<select name="channel" value={channel} onChange={e => setChannel(e.target.value)}><option value="direct">Vendita diretta</option><option value="etsy">Etsy</option><option value="manual_other">Altro canale manuale</option></select></label><label>Riferimento ordine {channel === "etsy" ? "· obbligatorio" : "· se disponibile"}<input name="externalReference" maxLength={240} required={channel === "etsy"} placeholder="ID della vendita nella fonte" /></label><label>Magazzino vendita<select name="locationId" value={locationId} onChange={e => setLocationId(e.target.value)} required><option value="" disabled>Scegli il magazzino</option>{manualLocations.map(row => <option key={row.id} value={row.id}>{row.name}</option>)}</select></label><SaleTimeField now={now} /></div>
     <div className={styles.lineList}>{rows.map((row, index) => {
       const item = snapshot.items.find(item => item.id === row.itemId), available = snapshot.availability.find(a => a.itemId === row.itemId && a.locationId === locationId);
       const unitPrice = euroCents(row.price), discount = euroCents(row.discount), qty = Number(row.quantity), totalLine = totals[index];
