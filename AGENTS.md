@@ -41,11 +41,25 @@ Il merge resta comunque di Tommi.
 
 ## Formattazione
 
-- Se `package.json` non ha ancora lo script `format:check`, il controllo non si applica: scrivi nella pull request che è stato saltato.
-- Usa la configurazione Prettier del progetto, quando c'è.
-- Un commit funzionale non riformatta file che non tocca.
-- Se `format:check` segnala file che non hai toccato, non riformattarli: basta che siano formattati i file modificati nel tuo branch. Scrivi nella pull request quali file segnala.
-- La riformattazione di tutto il repository va in un commit separato, di sola formattazione, con l'OK di Tommi.
+- Tutto il repository è formattato con Prettier: configurazione in `.prettierrc.json`, esclusioni in `.prettierignore`.
+- `npm run format` formatta. `npm run format:check` controlla, e gira anche in CI.
+- `npm run format` passa due volte su tutti i file: con alcune catene di metodi, per esempio `vi.fn().mockResolvedValue({ … })`, Prettier cambia ancora il file al secondo passaggio.
+- Ogni commit deve lasciare il repository formattato: prima di ogni commit esegui `npm run format`, poi `npm run format:check`. Se il controllo segnala ancora file, ripeti `npm run format`.
+- Il commit unico di riformattazione è elencato in `.git-blame-ignore-revs`. Per nasconderlo da `git blame`: `git config blame.ignoreRevsFile .git-blame-ignore-revs`.
+- Gli hash in `.git-blame-ignore-revs` funzionano solo se arrivano su `main` identici. Una pull request che aggiunge un hash a questo file si unisce con «Create a merge commit», mai con «Squash and merge» o «Rebase and merge»: cambiano gli hash e `git blame` torna a mostrare la riformattazione, senza nessun errore. Se il branch viene ribasato prima del merge, scrivi nel file l'hash nuovo del commit di formattazione. Dopo il merge, `git merge-base --is-ancestor <hash> origin/main` deve uscire con 0.
+
+### Branch iniziati prima della riformattazione
+
+Un rebase diretto su `origin/main` dà conflitti in ogni file toccato. Non risolverli a mano: segui questi passi, con l'albero di lavoro pulito. `<style>` è l'hash elencato in `.git-blame-ignore-revs` su `origin/main` (`git show origin/main:.git-blame-ignore-revs`); `<style>^` è il commit precedente, quello che aggiunge Prettier.
+
+1. `git fetch`, poi `git rebase <style>^`. Qui escono solo conflitti veri, con le modifiche arrivate su `main` prima della riformattazione: risolvili come al solito.
+2. `npm ci`: il vecchio `node_modules` non ha Prettier.
+3. `git rebase -X theirs --exec "npm run format && git commit -a --amend --no-edit --allow-empty" <style>`. Qui `-X theirs` è sicuro perché `<style>` cambia solo la formattazione, e `--exec` riformatta ogni commit del branch. Se il rebase si ferma su un file che il tuo branch cancella («deleted in … and modified in HEAD»): `git rm <file>`, poi `git rebase --continue`.
+4. `git rebase origin/main`, e risolvi come al solito eventuali conflitti veri.
+5. `npm run format:check`, poi `git diff --stat origin/main...HEAD`: devono comparire solo i file del tuo lavoro.
+6. Ripubblica il branch con `git push --force-with-lease`.
+
+Se qualcosa non torna, `git rebase --abort` e chiedi a Tommi.
 
 ## Il Mac resta pulito
 

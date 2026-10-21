@@ -8,7 +8,9 @@
     "start": "next start --hostname 127.0.0.1",
     "test": "vitest run",
     "test:db": "node scripts/test-db.mjs",
-    "typecheck": "tsc --noEmit"
+    "typecheck": "tsc --noEmit",
+    "format": "prettier --write . && prettier --write . --log-level warn",
+    "format:check": "prettier --check ."
   },
   "dependencies": {
     "@supabase/ssr": "0.12.7",
@@ -24,6 +26,7 @@
     "@types/react": "19.3.0",
     "@types/react-dom": "19.3.0",
     "pg": "8.23.1",
+    "prettier": "3.9.10",
     "typescript": "7.0.2",
     "vitest": "5.0.5"
   }

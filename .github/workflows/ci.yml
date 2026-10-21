@@ -41,46 +41,21 @@ jobs:
       # La build non richiede variabili d'ambiente: Supabase viene letto solo a runtime.
       - run: npm run build
 
-  # AGENTS.md, «Formattazione»: nelle pull request si controllano solo i file
-  # cambiati. La riformattazione di tutto il repository è un commit a parte,
-  # con l'OK di Tommi. Finché package.json non ha lo script format:check,
-  # il controllo viene saltato con un avviso.
+  # Tutto il repository è formattato con Prettier (.prettierrc.json, .prettierignore).
   formato:
-    name: Formato (file cambiati)
-    if: github.event_name == 'pull_request'
+    name: Formato (Prettier)
     runs-on: ubuntu-24.04
     timeout-minutes: 10
     steps:
       - uses: actions/checkout@v7
         with:
           persist-credentials: false
-          # Serve la storia del branch di destinazione per trovare i file cambiati.
-          fetch-depth: 0
       - uses: actions/setup-node@v7
         with:
           node-version: ${{ env.NODE_VERSION }}
           cache: npm
       - run: npm ci
-      - name: Controlla il formato dei file cambiati
-        env:
-          BASE_REF: ${{ github.base_ref }}
-        run: |
-          set -euo pipefail
-          if ! node -e "process.exit(require('./package.json').scripts?.['format:check'] ? 0 : 1)"; then
-            echo "::notice::package.json non ha ancora lo script format:check: controllo del formato saltato."
-            exit 0
-          fi
-          if [ ! -x node_modules/.bin/prettier ]; then
-            echo "::error::Lo script format:check esiste, ma Prettier non è installato nel progetto. Aggiornare questo job."
-            exit 1
-          fi
-          changed="$RUNNER_TEMP/file-cambiati"
-          git diff --name-only -z --diff-filter=ACMR "origin/${BASE_REF}...HEAD" > "$changed"
-          if [ ! -s "$changed" ]; then
-            echo "Nessun file cambiato da controllare."
-            exit 0
-          fi
-          xargs -0 node_modules/.bin/prettier --check --ignore-unknown --no-error-on-unmatched-pattern < "$changed"
+      - run: npm run format:check
 
   database:
     name: Database (PGlite)
