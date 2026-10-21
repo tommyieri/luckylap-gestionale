@@ -121,7 +121,7 @@ async function fixtureOrder(item, quantity) {
     line = randomUUID();
   await observer.query(
     `insert into public.sales_orders(id,operation_id,payload_sha256,channel,occurred_at,operational_date,total_cents,payment_state,fulfillment_mode,fulfillment_state,created_by)
-    values($1,$2,$3,'direct',clock_timestamp()-interval '1 second',current_date,$4,'unpaid','prepare','unfulfilled',$5)`,
+    values($1,$2,$3,'direct',statement_timestamp()-interval '1 second',((statement_timestamp()-interval '1 second') at time zone 'Europe/Rome')::date,$4,'unpaid','prepare','unfulfilled',$5)`,
     [order, randomUUID(), "0".repeat(64), quantity * 100, actor],
   );
   await observer.query(
