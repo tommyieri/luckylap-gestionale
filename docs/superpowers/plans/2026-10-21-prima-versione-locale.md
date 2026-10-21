@@ -80,8 +80,10 @@ Il founder ha consegnato tre fonti Finance e richiesto un nuovo repository priva
 
 - [x] Creare e verificare `tommyieri/luckylap-gestionale` come privato, con remote dedicato.
 - [x] Analizzare gli allegati in sola lettura, conservando provenienza, input mancanti e conflitti in staging escluso da Git/deploy.
-- [ ] Integrare login personale su invito, membership DB, logout, MFA e caricamento inventario da Supabase senza fallback locale in produzione.
-- [ ] Preparare migrazione/import Finance idempotente e revisione dei duplicati, con test di isolamento e fixture sintetiche.
-- [ ] Eseguire revisione mirata e verifiche finali del codice esteso, poi pubblicare il codice nel repository privato.
+- [x] Integrare login personale su invito, membership DB, logout, MFA e caricamento inventario da Supabase senza fallback locale in produzione.
+- [x] Preparare migrazione/import Finance idempotente e revisione dei duplicati, con test di isolamento e fixture sintetiche.
+- [x] Eseguire revisione mirata e verifiche finali del codice Auth e della pipeline, poi pubblicare il codice nel repository privato (main, 0d544f5).
 - [ ] Collegare il progetto Supabase Free effettivo, applicare e verificare schema/import con sessioni reali. Dipende dal collegamento del plugin da parte del founder.
 - [ ] Pubblicare su una destinazione compatibile: Vercel Hobby non consente l’uso aziendale, nessun upgrade o abbonamento autorizzato.
+
+- [x] Aggiungere vista Finance riservata in sola lettura per batch e movimenti ancora da revisionare, senza alimentare consuntivi; confermare la guardia e il comportamento sul telefono.

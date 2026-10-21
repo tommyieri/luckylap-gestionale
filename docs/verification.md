@@ -12,7 +12,7 @@ Verifica del 21 ottobre 2026. Questo documento distingue l'anteprima locale, il 
 
 ## Applicazione locale
 
-TypeScript, 42 test su quattro file e build Next.js completati con esito positivo prima dell'estensione Auth/Finance. La pagina principale è dinamica, non prerenderizzata con i dati dello snapshot.
+TypeScript, 60 test su dieci file e build Next.js finale completati con esito positivo, incluse Auth e vista Finance. La pagina principale è dinamica, non prerenderizzata con i dati dello snapshot.
 
 Verifica in browser desktop 1440×1000 e telefono 390×844:
 
@@ -25,7 +25,7 @@ Verifica in browser desktop 1440×1000 e telefono 390×844:
 
 La produzione avviata con il flag anteprima e VERCEL impostati restituisce la schermata di configurazione e non contiene SKU o riferimenti allo snapshot.
 
-Estensione Auth completata nel codice: typecheck, **52 test su otto file** e build finale verdi. `/`, `/auth/login` e `/auth/account` sono dinamiche. Senza configurazione, le tre risposte di produzione non espongono lo SKU campione e includono `private, no-store`. Revisione indipendente Auth approvata dopo correzione del QR TOTP: il test di regressione ha osservato la doppia codifica e verifica ora l'URI nativo del SDK. Login, cookie/refresh e challenge TOTP reali rimangono da provare con Supabase configurato.
+Auth e vista Finance completate nel codice: **60 test su dieci file**, typecheck e build finale verdi. `/`, `/auth/login`, `/auth/account` e `/finance` sono dinamiche. Senza configurazione, le quattro risposte di produzione non espongono lo SKU campione o dati Finance e includono `private, no-store`. Revisione indipendente Auth approvata dopo correzione del QR TOTP: il test di regressione ha osservato la doppia codifica e verifica ora l'URI nativo del SDK. Login, cookie/refresh e challenge TOTP reali rimangono da provare con Supabase configurato.
 
 Revisione indipendente del codice approvata dopo le correzioni alla guardia e al salvataggio tra schede. Impeccable: detector eseguito una volta, zero risultati; finish review finale **ship per la prima anteprima locale**, con conferma desktop/mobile e packaging. Non equivale a un'approvazione del servizio multiutente in produzione.
 
@@ -49,4 +49,6 @@ La cartella Documents ha reso alcuni file temporaneamente dataless tramite sincr
 
 ## Attivazione ancora necessaria
 
-Collegamento al progetto Supabase Free scelto, applicazione delle migrazioni dopo verifica della destinazione, import riservati, inviti ai cinque account e prove con sessioni reali. Calendario e note sono ancora locali; rettifiche e sconti hanno il contratto database ma non un flusso operativo attivo nell'interfaccia. Finance, audit e Storage richiedono le rispettive integrazioni. Vercel Hobby è personale non commerciale: il deploy aziendale richiede una destinazione compatibile con il vincolo di nessun abbonamento.
+Collegamento al progetto Supabase Free scelto, applicazione delle migrazioni dopo verifica della destinazione, import riservati, inviti ai cinque account e prove con sessioni reali. Calendario e note sono ancora locali; rettifiche e sconti hanno il contratto database ma non un flusso operativo attivo nell'interfaccia. La vista Finance richiede importazione effettiva e prove con sessioni reali; audit CEO e Storage richiedono ancora le rispettive interfacce e integrazioni. Vercel Hobby è personale non commerciale: il deploy aziendale richiede una destinazione compatibile con il vincolo di nessun abbonamento.
+
+Vista Finance: revisione indipendente approvata e conferma visiva desktop 1440×1000 / telefono 390×844 con sole fixture sintetiche. Verificati filtro per data futura, dettaglio originale, note multilinea nella struttura accessibile, chiusura Escape, assenza di errori console e larghezza mobile 390 con scala 1. La route temporanea QA è stata rimossa; HTTP404 confermato sia in sviluppo sia nella build di produzione. Nessun bypass o dato di prova è incluso nel repository finale.

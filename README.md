@@ -22,7 +22,7 @@ Senza `LUCKYLAP_LOCAL_PREVIEW=true` l'app non espone lo snapshot. Il flag è dis
 - Fonte: `data/inventory-source.json`, trascrizione delle quattro schede di inventario autorizzate. Provenienza e celle sorgenti sono conservate.
 - Dettagli estrazione: `data/inventory-source-notes.md`. Quantità salvate Excel senza ricalcolo; zero e valori mancanti restano distinti.
 - Vendite sospese: non sono stati importati ordini, righe vendita o incassi.
-- I tre file Finance forniti il 21 ottobre sono in analisi locale riservata. Non sono serviti dall'anteprima né inclusi nel repository; nessun saldo viene simulato.
+- I tre file Finance forniti il 21 ottobre sono stati analizzati in locale; l'importazione riservata è pronta offline. Non sono serviti dall'anteprima né inclusi nel repository; nessun saldo viene simulato.
 - Packaging distinto: scatole per T-shirt e adesivi per scatole non sono gli sticker del catalogo Shopify. Le quantità sono da inserire.
 - Costi e margini operativi visibili a tutti; tutti i membri potranno applicare sconti e rettifiche quando il backend sarà attivo. Finance solo founder, Gabriele e Gherardo; audit solo founder.
 - Conto vendita: regola commerciale 60% LuckyLap / 40% negozio e prezzo negozio = prezzo web + 10 EUR. Base fiscale e consuntivi rinviati all'attivazione Vendite.
@@ -53,3 +53,5 @@ Font Barlow di Jeremy Tribby, licenza SIL Open Font License, conservata in `publ
 - Piano operativo: `docs/superpowers/plans/2026-10-21-prima-versione-locale.md`.
 - Progetto Partner: https://github.com/tommyieri/luckylap-partner . Continua a essere sviluppato separatamente con Claude.
 - Repository dedicato e privato: https://github.com/tommyieri/luckylap-gestionale . GitHub conserva il codice; i futuri dati operativi e file riservati appartengono a Supabase.
+
+La route `/finance` è predisposta per leggere da Supabase le importazioni riservate dopo login, membership autorizzata e MFA. Offre ricerca, filtri e dettagli dei movimenti; tutti restano da revisionare. Senza configurazione non carica alcuna copia locale. L’import effettivo è ancora da applicare: `docs/finance-import.md`.

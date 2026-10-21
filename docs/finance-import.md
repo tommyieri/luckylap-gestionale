@@ -72,3 +72,7 @@ Esito locale del 21 ottobre 2026: **152 controlli superati** su PGlite con fixtu
 Questa prova non valida JWT firmati Supabase, MFA reale, PostgREST, email, Storage, SSR o connessioni concorrenti. Il lock è presente nello schema ma la concorrenza tra connessioni non è stata esercitata da PGlite.
 
 Riferimenti ufficiali consultati: [RLS e MFA](https://supabase.com/docs/guides/database/postgres/row-level-security), [sicurezza della Data API](https://supabase.com/docs/guides/api/securing-your-api), [changelog Supabase](https://supabase.com/changelog). Gli avvisi recenti su TLS HTTP e aggiornamenti Postgres sono stati controllati; questo generatore offline non usa quei trasporti né estensioni coinvolte.
+
+## Vista riservata
+
+`/finance` verifica utente, membership abilitata e sessione `aal2` prima di leggere i dati sotto RLS. Elenca batch e movimenti immutabili con ricerca, filtri Pending/data futura e dettaglio delle note multilinea. I filtri usano la data locale originale del movimento; il giorno del report è calcolato in Europe/Rome. Le pagine vengono lette con conteggi esatti e i risultati incompleti sono rifiutati. Nessuna approvazione, somma di cassa o scrittura contabile è presentata come già effettuata. Senza progetto configurato la route mostra lo stato di collegamento richiesto, senza dati locali.
