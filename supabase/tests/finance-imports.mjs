@@ -71,8 +71,8 @@ try {
     create function auth.jwt() returns jsonb language sql stable as $$ select coalesce(nullif(current_setting('request.jwt.claims', true), ''), '{}')::jsonb $$;
     create function auth.uid() returns uuid language sql stable as $$ select (auth.jwt()->>'sub')::uuid $$;
     grant usage on schema auth to anon, authenticated;`);
-  await db.exec(migration('202610210001_initial_schema.sql'));
-  await db.exec(migration('202610210002_finance_imports.sql'));
+  await db.exec(migration('20261021114636_initial_schema.sql'));
+  await db.exec(migration('20261021114642_finance_imports.sql'));
   checks += 2;
   const roles = ['founder', 'production', 'finance', 'logistics', 'consultant', 'outsider', 'inactive', 'production_without_flag'];
   const ids = Object.fromEntries(roles.map((name, index) => [name, `10000000-0000-0000-0000-${String(index + 1).padStart(12, '0')}`]));

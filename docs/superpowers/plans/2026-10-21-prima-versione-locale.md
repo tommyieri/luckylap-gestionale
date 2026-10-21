@@ -55,7 +55,7 @@
 
 ## Task 3 — Predisposizione Supabase e tracciamento
 
-**Files:** `.env.example`, `src/lib/supabase/server.ts`, `src/lib/supabase/client.ts`, `supabase/migrations/202610210001_initial_schema.sql`, `README.md`.
+**Files:** `.env.example`, `src/lib/supabase/server.ts`, `src/lib/supabase/client.ts`, `supabase/migrations/20261021114636_initial_schema.sql`, `README.md`.
 
 **Interfaces:** nessuna credenziale reale nel repository. Account autenticato e membership governano RLS; audit generato dal database. Il client di anteprima non può richiedere dati con privilegi amministrativi.
 

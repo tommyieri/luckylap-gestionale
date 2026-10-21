@@ -1,54 +1,43 @@
-# Verifica della prima versione LuckyLap
+# Verifiche LuckyLap
 
-Verifica del 21 ottobre 2026. Questo documento distingue l'anteprima locale, il codice predisposto per il cloud e le prove che richiedono servizi reali.
+Stato del 21 ottobre 2026. I controlli sul codice, le prove sintetiche PostgreSQL e le prove reali sul progetto Supabase sono distinti. Questo registro viene aggiornato con gli avanzamenti verificati.
 
-## Inventario e vincoli
+## Fonti e import reali
 
-- Fonte iniziale: solo quattro schede autorizzate di LuckyLap_Gestione_inventario.xlsx. 9 modelli, 51 SKU e 102 valori di quantità confrontati con le celle salvate, senza differenze.
-- Valori salvati senza ricalcolo: 214 pezzi centrali e zero nel negozio censito. Non costituiscono una conta fisica certificata. Valori mancanti distinti da zero.
-- Quantità Shopify escluse; nessuna modifica a Drive, Shopify o repository Partner. Nessun ordine o scarico ricostruito dalle fonti Finance.
-- Packaging: due tipologie distinte con quantità e costi da inserire. Il costo storico aggregato presente nel tracker Finance non viene ripartito o usato per inventare scorte.
-- Nessun servizio a pagamento attivato o deploy effettuato. Nuovo repository GitHub privato creato e verificato tramite API.
+Il progetto Supabase Free `annvatqnllkbrtufmgnl`, nell'organizzazione LuckyLapCRM, contiene le cinque migrazioni registrate nel repository. L'inventario autorizzato è stato importato e confrontato con tutte le 102 celle della fonte: 9 modelli, 51 SKU, 214 capi centrali e zero nel negozio censito. Quantità assenti e zero restano distinti. Il founder ha confermato che non sono avvenuti nuovi movimenti dall'avvio del progetto.
 
-## Applicazione locale
+BudgetFlow è stato importato come 144 righe originali non revisionate, con un pending e due date future. I tre documenti Finance originali sono nello Storage privato: byte, dimensioni e SHA-256 confrontati dopo il download. Il tracker COGS e il PDF non alimentano automaticamente contabilità, costi operativi o stock. Le divergenze rimangono da riconciliare con Gherardo. Dettagli in `verifica-import-cloud.md` e `finance-import.md`.
 
-TypeScript, 60 test su dieci file e build Next.js finale completati con esito positivo, incluse Auth e vista Finance. La pagina principale è dinamica, non prerenderizzata con i dati dello snapshot.
+Nessuna modifica al Drive, al catalogo o alle quantità Shopify, né al repository Partner. Nessuna vendita storica ricostruita dai documenti Finance. Nessun abbonamento o trial attivato.
 
-Verifica in browser desktop 1440×1000 e telefono 390×844:
+## Applicazione e database
 
-- Ricerca dello SKU, filtri, dettaglio prodotto con quantità/costi/listini e chiusura tramite Escape.
-- Calendario interno con creazione ed eliminazione di un appuntamento di prova; nessun invito o sincronizzazione esterna.
-- Nota nella prima scheda e attività nella seconda: entrambi conservati e aggiornati. Un evento storage obsoleto non ripristina una vecchia nota. Dati locali corrotti non vengono sovrascritti.
-- Menu mobile, navigazione e tabella compatta: innerWidth, clientWidth, scrollWidth e visualViewport tutti a 390 px, scala 1.
-- Packaging riconoscibile; Vendite senza dati e Finance senza dati reali. Nessun errore o warning nella console finale.
-- Appuntamenti, attività e note di prova eliminati al termine; archivio locale vuoto.
+La versione con Auth, team/calendario/note, audit CEO, vendite, rettifiche stock e documenti Finance ha superato **274 test applicativi su 26 file e la build Next.js**, inclusa la compilazione TypeScript. Tutte le pagine riservate sono dinamiche; i dati non sono incorporati in pagine statiche.
 
-La produzione avviata con il flag anteprima e VERCEL impostati restituisce la schermata di configurazione e non contiene SKU o riferimenti allo snapshot.
+Le suite SQL sintetiche hanno superato **829 controlli PGlite**: 207 schema/inventario, 152 import Finance, 445 ciclo di vendita, 25 documenti Finance. Coprono membership e MFA simulate, RLS, centesimi esatti, idempotenza, permessi, riserve e produzione, evasione parziale, annullamenti e rollback. PGlite non prova la concorrenza tra connessioni PostgreSQL reali.
 
-Auth e vista Finance completate nel codice: **60 test su dieci file**, typecheck e build finale verdi. `/`, `/auth/login`, `/auth/account` e `/finance` sono dinamiche. Senza configurazione, le quattro risposte di produzione non espongono lo SKU campione o dati Finance e includono `private, no-store`. Revisione indipendente Auth approvata dopo correzione del QR TOTP: il test di regressione ha osservato la doppia codifica e verifica ora l'URI nativo del SDK. Login, cookie/refresh e challenge TOTP reali rimangono da provare con Supabase configurato.
+Le funzioni di vendita e rettifica sono state applicate al cloud; nessun ordine o movimento di prova è stato creato nell'inventario reale. Alla verifica di questa versione le vendite manuali e le rettifiche sono ancora disattivate, in attesa della pubblicazione dell'interfaccia verificata. L'attivazione deve fissare il timestamp di avvio, conservando le 214 unità di apertura.
 
-Revisione indipendente del codice approvata dopo le correzioni alla guardia e al salvataggio tra schede. Impeccable: detector eseguito una volta, zero risultati; finish review finale **ship per la prima anteprima locale**, con conferma desktop/mobile e packaging. Non equivale a un'approvazione del servizio multiutente in produzione.
+## Auth e isolamento reali
 
-## Database predisposto
+**52 controlli reali Auth/JWT/TOTP/REST** hanno verificato i cinque ruoli, l'accesso Finance solo per founder/produzione/Finance con MFA aal2, l'audit solo founder con aal2, il rifiuto degli altri ruoli, la revoca immediata della membership, refresh e logout. Gli account temporanei sono stati eliminati e il controllo di pulizia confermato. I cinque account reali sono predisposti senza password e senza invio di email. Dettagli in `verifica-auth-cloud.md`.
 
-La prima migrazione e l'import inventario hanno completato 207 controlli in PostgreSQL embedded PGlite, inclusa la versione con provenienza documentale completa. Ruoli, membership, MFA e claim Auth sono simulati. Verificate quantità, isolamento Finance/audit, permessi operativi, rettifiche con causale e retry idempotenti.
+Le registrazioni pubbliche sono disabilitate. Site URL e redirect Auth sono limitati a `https://luckylap.vercel.app` e `/auth/confirm`. Nessuna chiave amministrativa è nel frontend, nel repository o su Vercel. La chiave pubblica viene accompagnata da RLS e verifica della membership corrente.
 
-Non sono test reali di Supabase Auth, PostgREST, Storage, inviti email, cookie SSR o concorrenza fra connessioni. Migrazioni e import non sono stati applicati a un progetto cloud. Per i controlli residui consultare `docs/backend.md`.
+Gli advisor segnalano il controllo password compromesse disabilitato; nessun upgrade è stato attivato. Le tabelle di ricevute/outbox private hanno RLS senza policy client intenzionalmente, senza grant ai client. I JWT già emessi mantengono la loro scadenza; il blocco immediato dell'accesso avviene mediante membership corrente.
 
-## Fonti Finance ricevute successivamente
+## Interfaccia e ambiente
 
-Tre originali letti senza modifica; hash invariati dopo l'estrazione. Estratti e report riservati in `.private/finance-staging/`, esclusi da Git e deploy mediante `.gitignore` e `.vercelignore`. Nessun dato reale in fixture, bundle browser, localStorage o pagina Finance dell'anteprima.
+Verifiche browser con fixture sintetiche, senza cambiare dati reali: inventario e Finance della prima versione, poi team e audit a 1280 px e telefono 390 px; vendite a 1280/390 px, calcolo sconti e margini, riserve e fabbisogno di produzione. Nessun errore console nell'ultimo round. Route QA eliminate con conferma HTTP 404. I nuovi moduli vengono verificati separatamente prima della pubblicazione.
 
-BudgetFlow: 144 righe, nessun ID nativo o duplicato esatto; un pending e due date future. COGS: codici legacy da mappare, input mancanti preservati. PDF: divergenze conservate come elementi di riconciliazione. Le somme dei movimenti non vengono presentate come saldi bancari, fatturato o utile.
+Impeccable e UI UX Pro Max sono stati usati per la direzione visiva; il detector Impeccable è stato eseguito una volta senza risultati. La prima finish review approvava l'anteprima locale; non sostituisce le prove dei flussi multiutente aggiunti successivamente.
 
-Pipeline offline: **152 controlli PGlite sintetici** superati e revisione indipendente approvata. Il confronto con i byte CSV ha rilevato note multilinea appiattite nel primo staging: creato un nuovo staging fedele, preservando quello precedente e tutti gli originali. Generato SQL riservato con permessi locali 0600, senza applicazione cloud. Import owner-only, idempotenza sullo stesso file e rifiuto integrale degli export sovrapposti; nessuna riga alimenta automaticamente contabilità approvata, Vendite o scorte. Dettagli in `docs/finance-import.md`.
+La sincronizzazione Documents può rendere alcuni file dataless. Test, build e server usano una copia esplicita fuori da Documents, `/private/tmp/luckylap-preview-01a15dda`; i sorgenti nel workspace restano la fonte del repository. Nessun nuovo accesso al Drive è stato richiesto per aggirare il problema locale.
 
-## Ambiente di esecuzione
+## Pubblicazione e limiti ancora aperti
 
-La cartella Documents ha reso alcuni file temporaneamente dataless tramite sincronizzazione cloud. Per evitare falsi errori e blocchi, test, build e server locale usano una copia fuori da Documents: `/private/tmp/luckylap-preview-01a15dda`. I sorgenti modificati rimangono nel workspace e vengono copiati in modo esplicito nel runtime. La copia offline dell'inventario è stata verificata; nessuna nuova lettura o modifica del Drive per risolvere il problema locale.
+La destinazione corretta è il team Vercel **LuckyLap**, account `info@luckylap.com`, progetto `luckylap`, tramite plugin. Le variabili pubbliche Supabase e il dominio `luckylap.vercel.app` sono configurati. Il nuovo avanzamento richiede deploy e controllo finale sulla destinazione corretta; il primo deploy di prova personale non è il sito da usare. Dettagli in `deployment.md`.
 
-## Attivazione ancora necessaria
+La consegna degli accessi deve ancora essere completata: nessuna email è stata inviata. Il servizio email integrato non consente la personalizzazione dei template senza SMTP esterno; non sono stati configurati provider a pagamento. Le pagine di attivazione accettano link monouso personali con token hash.
 
-Collegamento al progetto Supabase Free scelto, applicazione delle migrazioni dopo verifica della destinazione, import riservati, inviti ai cinque account e prove con sessioni reali. Calendario e note sono ancora locali; rettifiche e sconti hanno il contratto database ma non un flusso operativo attivo nell'interfaccia. La vista Finance richiede importazione effettiva e prove con sessioni reali; audit CEO e Storage richiedono ancora le rispettive interfacce e integrazioni. Vercel Hobby è personale non commerciale: il deploy aziendale richiede una destinazione compatibile con il vincolo di nessun abbonamento.
-
-Vista Finance: revisione indipendente approvata e conferma visiva desktop 1440×1000 / telefono 390×844 con sole fixture sintetiche. Verificati filtro per data futura, dettaglio originale, note multilinea nella struttura accessibile, chiusura Escape, assenza di errori console e larghezza mobile 390 con scala 1. La route temporanea QA è stata rimossa; HTTP404 confermato sia in sviluppo sia nella build di produzione. Nessun bypass o dato di prova è incluso nel repository finale.
+Il modulo Shopify dispone di validazione webhook e test, ma non di un collegamento live: servono credenziali permanenti di un'app installata e la relativa sottoscrizione agli eventi. Non viene presentato come sincronizzato. Packaging, contenuti del brand, sviluppo prodotti e lavoro Finance manuale sono in completamento; i loro controlli e import vengono aggiunti al registro dopo verifica.

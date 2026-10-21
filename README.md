@@ -1,35 +1,44 @@
 # LuckyLap Gestionale
 
-Prima versione locale del gestionale interno LuckyLap. L'inventario proviene esclusivamente dall'Excel autorizzato su Drive; le quantità Shopify non vengono utilizzate.
+Gestionale interno per il team LuckyLap. Codice nel repository GitHub privato, app su Vercel e dati in Supabase. Inventario fisico e disponibilità commerciale Shopify restano distinti.
 
-## Avvio
+## Cloud
 
-Richiede Node.js 20.9 o successivo.
+- Repository privato: https://github.com/tommyieri/luckylap-gestionale
+- Vercel: account **info@luckylap.com**, team **LuckyLap**, progetto **luckylap**. Dominio verificato: https://luckylap.vercel.app
+- Supabase: progetto **luckylap-gestionale**, ref `annvatqnllkbrtufmgnl`, organizzazione LuckyLapCRM, piano Free.
+- Nessun abbonamento, trial o componente a pagamento attivato. Stato e limiti: [deployment](docs/deployment.md).
+
+Il collegamento dell'app usa solo URL e chiave pubblicabile Supabase. RLS protegge i dati; nessuna chiave amministrativa è inclusa nel repository, nel bundle o nelle variabili Vercel. `.private/` e le credenziali locali sono escluse anche dal deploy.
+
+## Accessi e dati
+
+Cinque accessi personali predisposti per Tommi, Gabriele, Ettore, Gherardo e Luca. Finance è riservata a Tommi, Gabriele e Gherardo con MFA; controllo CEO al solo founder con MFA. Nessuna registrazione pubblica. Inviti ancora da distribuire: gli account iniziali non hanno password assegnate e non sono state inviate email.
+
+Inventario iniziale: 9 modelli, 51 SKU e 102 celle verificate contro l'Excel Drive autorizzato. 214 capi centrali, zero nel negozio censito. I valori salvati nel file non sono una nuova conta fisica certificata. Nessuna quantità Shopify sovrascrive questi dati. I movimenti operativi successivi passano dal registro del gestionale.
+
+Finance: 144 righe BudgetFlow importate, tutte da verificare. Il CSV, il COGS Tracker Excel e il recap PDF originali sono conservati nello Storage privato e scaricabili soltanto con i permessi Finance e MFA. Le fonti storiche non modificano scorte o costi attuali, e non diventano automaticamente vendite o scritture contabili approvate.
+
+Il calendario interno, le attività e le note condivise sono in `/team`; l'anteprima locale mantiene i propri appunti sul browser, senza importarli automaticamente. Le scritture verificano sessione e membership corrente. La sezione Finance è in `/finance`, gli originali in `/finance/documents`.
+
+Il motore delle vendite collega ordine, incasso dichiarato, riserve, produzione e consegna in transazioni idempotenti. Rimane disabilitato fino alla verifica dell'interfaccia e alla definizione della data di avvio. Nessuno storico vendite è stato importato. Shopify richiede ancora un'applicazione permanente: il parser delle notifiche è predisposto, il collegamento live non è attivo.
+
+Packaging: scatole T-shirt e adesivi delle scatole sono materiali distinti dagli sticker Shopify; quantità e costi non sono stati inventati. Conto vendita: 60% LuckyLap / 40% negozio, listino sito +10 EUR; il riparto fiscale resta da definire prima di automatizzarlo. Il progetto Partner continua separatamente con Claude: https://github.com/tommyieri/luckylap-partner
+
+Nessun originale Drive, quantità Shopify o file del repository Partner è stato modificato.
+
+## Sviluppo locale
+
+Richiede Node.js 20.9 o successivo. Dipendenze e lockfile sono fissati.
 
 ```sh
 npm ci
 npm run dev
 ```
 
-Aprire http://127.0.0.1:3000 . Il comando abilita esplicitamente l'anteprima locale e lega il server a 127.0.0.1.
+Aprire http://127.0.0.1:3000 . Il comando abilita l'anteprima locale, esclusivamente in sviluppo e fuori da Vercel, e lega il server a 127.0.0.1. In produzione l'app richiede Supabase e un account abilitato; non ripiega sullo snapshot JSON locale.
 
-L'anteprima non è un accesso multiutente. Inventario e costi sono uno snapshot iniziale; gli appuntamenti e gli appunti salvati nel browser non sono ancora condivisi con il team. Nessun invito, call o messaggio viene inviato a servizi esterni.
-
-Senza `LUCKYLAP_LOCAL_PREVIEW=true` l'app non espone lo snapshot. Il flag è disabilitato in produzione e su Vercel anche se impostato, e la guardia viene valutata a ogni richiesta. La configurazione Supabase e l'attivazione dell'accesso multiutente richiedono la verifica delle policy sul database.
-
-## Dati e moduli
-
-- Fonte: `data/inventory-source.json`, trascrizione delle quattro schede di inventario autorizzate. Provenienza e celle sorgenti sono conservate.
-- Dettagli estrazione: `data/inventory-source-notes.md`. Quantità salvate Excel senza ricalcolo; zero e valori mancanti restano distinti.
-- Vendite sospese: non sono stati importati ordini, righe vendita o incassi.
-- I tre file Finance forniti il 21 ottobre sono stati analizzati in locale; l'importazione riservata è pronta offline. Non sono serviti dall'anteprima né inclusi nel repository; nessun saldo viene simulato.
-- Packaging distinto: scatole per T-shirt e adesivi per scatole non sono gli sticker del catalogo Shopify. Le quantità sono da inserire.
-- Costi e margini operativi visibili a tutti; tutti i membri potranno applicare sconti e rettifiche quando il backend sarà attivo. Finance solo founder, Gabriele e Gherardo; audit solo founder.
-- Conto vendita: regola commerciale 60% LuckyLap / 40% negozio e prezzo negozio = prezzo web + 10 EUR. Base fiscale e consuntivi rinviati all'attivazione Vendite.
-
-Nessun sorgente Drive, quantità Shopify o file del repository Partner è stato modificato. Nessun documento Drive al di fuori del perimetro autorizzato è incluso nell'app. La cartella `.private/` contiene eventuali estrazioni Finance locali ed è esclusa da Git insieme alle credenziali.
-
-## Verifica
+Per usare il database in locale, copiare `.env.example` in `.env.local` e configurare URL e chiave pubblicabile del progetto. Non inserire chiavi segrete nelle variabili `NEXT_PUBLIC_`.
 
 ```sh
 npm test
@@ -37,21 +46,15 @@ npm run typecheck
 npm run build
 ```
 
-I test applicativi non sostituiscono la verifica delle policy RLS su un database Supabase effettivo. Consultare `docs/backend.md` per configurazione, bootstrap e controlli di sicurezza da eseguire prima dell'uso multiutente. `docs/authentication.md` descrive login personale, membership e MFA già implementati, ancora da collegare e verificare sul progetto reale. L'inventario autenticato legge soltanto il database; non usa lo snapshot locale come ripiego.
+I test SQL embedded usano PGlite come dipendenza esterna, dati sintetici e Auth simulato. I report distinguono queste prove dai controlli reali Auth/JWT/MFA/REST e dalla concorrenza PostgreSQL su più connessioni, ancora da verificare prima delle vendite reali.
 
-## Infrastruttura
+## Documentazione
 
-Nessun abbonamento attivato. Supabase Free è il piano cloud previsto; controllare quote e sospensione per inattività prima dell'uso operativo. Foto e file si caricheranno direttamente su Storage privato; evitare una copia indiscriminata dei media.
+- [Accesso e MFA](docs/authentication.md), [inviti e password](docs/inviti-account.md)
+- [Verifica import cloud](docs/verifica-import-cloud.md), [verifica Auth cloud](docs/verifica-auth-cloud.md)
+- [Finance](docs/finance-import.md), [backend](docs/backend.md)
+- [Contratto ecosistema vendite](docs/ecosistema-vendite.md), [motore transazionale](docs/sales-ecosystem-backend.md)
+- [Team condiviso](docs/team-workspace.md), [Shopify](docs/shopify-bridge.md)
+- [Design](DESIGN.md), [ricerca UI UX Pro Max](docs/ui-ux-pro-max-research.md)
 
-Vercel Hobby è limitato all'uso personale non commerciale e non è utilizzato per pubblicare questo gestionale aziendale. Il sorgente è predisposto per Vercel, ma la pubblicazione richiede una soluzione compatibile con i vincoli economici e contrattuali del progetto.
-
-Font Barlow di Jeremy Tribby, licenza SIL Open Font License, conservata in `public/fonts/`. Icone Lucide, licenza ISC.
-
-## Progetto
-
-- Decisioni confermate: `docs/superpowers/specs/2026-10-21-gestionale-luckylap-design.md`.
-- Piano operativo: `docs/superpowers/plans/2026-10-21-prima-versione-locale.md`.
-- Progetto Partner: https://github.com/tommyieri/luckylap-partner . Continua a essere sviluppato separatamente con Claude.
-- Repository dedicato e privato: https://github.com/tommyieri/luckylap-gestionale . GitHub conserva il codice; i futuri dati operativi e file riservati appartengono a Supabase.
-
-La route `/finance` è predisposta per leggere da Supabase le importazioni riservate dopo login, membership autorizzata e MFA. Offre ricerca, filtri e dettagli dei movimenti; tutti restano da revisionare. Senza configurazione non carica alcuna copia locale. L’import effettivo è ancora da applicare: `docs/finance-import.md`.
+Font Barlow di Jeremy Tribby, SIL Open Font License in `public/fonts/`. Icone Lucide, ISC.

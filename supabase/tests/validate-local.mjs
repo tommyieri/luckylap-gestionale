@@ -24,7 +24,7 @@ try {
       $$ select (auth.jwt()->>'sub')::uuid $$;
     grant usage on schema auth to anon, authenticated;
   `);
-  await db.exec(read("../migrations/202610210001_initial_schema.sql"));
+  await db.exec(read("../migrations/20261021114636_initial_schema.sql"));
   checks += 1;
   await db.exec(read("../inventory-initial.sql"));
   const counts = (await db.query(`select

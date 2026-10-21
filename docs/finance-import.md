@@ -4,7 +4,7 @@ Questa fase prepara un import riservato di righe sorgente, tutte `unreviewed`. N
 
 ## File e confini
 
-- `supabase/migrations/202610210002_finance_imports.sql` contiene soltanto lo schema, i vincoli e la funzione di import. Non contiene dati aziendali.
+- `supabase/migrations/20261021114642_finance_imports.sql` contiene soltanto lo schema, i vincoli e la funzione di import. Non contiene dati aziendali.
 - `supabase/generate-finance-import.mjs` confronta lo staging con il CSV originale e genera SQL offline. Non apre connessioni, non usa chiavi API e non scrive sul database.
 - `supabase/tests/finance-imports.mjs` usa esclusivamente dati sintetici.
 - Staging, fonti estratte, report di verifica e SQL con dati reali rimangono in `.private/finance-staging`, esclusa da Git e dal deploy. Non copiarli in `public`, nel bundle Next.js, nelle fixture, nei log o nel `localStorage`.
@@ -58,7 +58,7 @@ node supabase/generate-finance-import.mjs \
 
 Il basename del CSV deve coincidere con quello registrato nello staging. L’output è consentito soltanto come `.sql` direttamente nella directory privata prevista, senza symlink. Il generatore crea anche un report privato e usa creazione esclusiva e permessi `0600`: non sovrascrive un import già preparato. Un secondo tentativo con lo stesso nome di output richiede un nome nuovo o una gestione esplicita dei file locali.
 
-L’SQL contiene `BEGIN`, la chiamata alla funzione privata e `COMMIT`. La generazione effettuata il 21 ottobre 2026 non ha eseguito quel file su Supabase. Prima di un’applicazione cloud occorre verificare il progetto destinatario, installare le migrazioni e controllare permessi effettivi e advisor; poi confermare l’accesso con le sessioni reali dei tre utenti autorizzati e il rifiuto degli altri.
+L’SQL contiene `BEGIN`, la chiamata alla funzione privata e `COMMIT`. Il file è stato successivamente applicato al progetto `annvatqnllkbrtufmgnl` dopo verifica della destinazione e delle policy. Il confronto cloud conferma tutte le 144 righe e i fingerprint; le prove con JWT/MFA reali hanno verificato la matrice dei cinque ruoli usando un account QA separato. Le sessioni personali dei membri richiedono ancora la loro attivazione. Vedere `verifica-import-cloud.md` e `verifica-auth-cloud.md`.
 
 ## Verifica e limiti
 
