@@ -4,7 +4,7 @@ export const TASK_STATUSES = ["todo", "in_progress", "done"] as const;
 export type EventType = (typeof EVENT_TYPES)[number];
 export type TaskStatus = (typeof TASK_STATUSES)[number];
 export type TeamActionState = { error?: string; success?: string; values?: Record<string, string>; participantIds?: string[]; revision?: string };
-export type EventDetails = { summary: string; participantIds: string[]; callUrl: string | null };
+export type EventDetails = { summary: string; participantIds: string[]; callUrl: string | null; typeLabel?: string };
 export type TeamMember = { id: string; name: string; active: boolean };
 export type TeamEvent = { id: string; title: string; startsAt: string; endsAt: string; eventType: EventType; details: EventDetails; createdBy: string };
 export type TeamTask = { id: string; title: string; description: string; status: TaskStatus; dueAt: string | null; assignedTo: string | null; createdBy: string };
@@ -66,7 +66,17 @@ function validatedCallUrl(value: string): string | null {
   return url.href;
 }
 
+function validateEventTypeLabel(value: unknown): asserts value is string {
+  ensure(typeof value === "string" && value.trim().length > 0 && value.length <= 80 && !/[\u0000-\u001f\u007f]/.test(value), "Tipo appuntamento: inserisci una descrizione su una riga, massimo 80 caratteri.");
+}
+
+export function eventTypeLabel(event: Pick<TeamEvent, "eventType" | "details">): string {
+  const labels: Record<EventType, string> = { meeting: "Call / riunione", production: "Produzione", delivery: "Consegna", launch: "Lancio", other: "Altro" };
+  return event.eventType === "other" && event.details.typeLabel ? event.details.typeLabel : labels[event.eventType];
+}
+
 export function encodeEventDetails(details: EventDetails): string {
+  if (details.typeLabel !== undefined) validateEventTypeLabel(details.typeLabel);
   const encoded = JSON.stringify({ format: "luckylap-team-event", version: 1, ...details });
   ensure(encoded.length <= 50000, "I dettagli dell’appuntamento sono troppo lunghi. Riduci descrizione o link.");
   return encoded;
@@ -79,22 +89,25 @@ export function decodeEventDetails(description: string): EventDetails {
   const data = value as Record<string, unknown>;
   try {
     ensure(data.version === 1 && typeof data.summary === "string" && data.summary.length <= 8000 && Array.isArray(data.participantIds) && data.participantIds.length <= 100 && data.participantIds.every(isTeamId) && new Set(data.participantIds).size === data.participantIds.length && (data.callUrl === null || typeof data.callUrl === "string"), "Dettagli non validi.");
-    return { summary: data.summary, participantIds: data.participantIds as string[], callUrl: validatedCallUrl(data.callUrl as string | null ?? "") };
+    if (data.typeLabel !== undefined) validateEventTypeLabel(data.typeLabel);
+    return { summary: data.summary, participantIds: data.participantIds as string[], callUrl: validatedCallUrl(data.callUrl as string | null ?? ""), ...(data.typeLabel !== undefined ? { typeLabel: data.typeLabel as string } : {}) };
   } catch { return { summary: "Dettagli dell’appuntamento non leggibili.", participantIds: [], callUrl: null }; }
 }
 
 export function parseEventForm(form: FormData) {
   const title = field(form, "title", "Titolo", 240, true);
   const eventType = field(form, "eventType", "Tipo appuntamento", 20, true);
-  ensure(EVENT_TYPES.includes(eventType as EventType), "Seleziona un tipo di appuntamento valido.");
+  ensure(eventType === "event" || EVENT_TYPES.includes(eventType as EventType), "Seleziona un tipo di appuntamento valido.");
+  const typeLabel = eventType === "event" ? "Evento" : eventType === "other" ? field(form, "customEventType", "Tipo appuntamento", 80, true) : undefined;
+  if (typeLabel !== undefined) validateEventTypeLabel(typeLabel);
   const startsAt = resolveRomeLocalTime(field(form, "startsAt", "Inizio", 16, true), field(form, "startsOccurrence", "Occorrenza inizio", 10), "L’orario di inizio");
   const endsAt = resolveRomeLocalTime(field(form, "endsAt", "Fine", 16, true), field(form, "endsOccurrence", "Occorrenza fine", 10), "L’orario di fine");
   ensure(endsAt > startsAt, "L’orario di fine deve essere successivo all’inizio.");
   const ids = form.getAll("participantIds");
   ensure(ids.length <= 100 && ids.every(isTeamId) && new Set(ids).size === ids.length, "Partecipanti: seleziona membri validi del team.");
   const participantIds = ids as string[];
-  const details = { summary: field(form, "summary", "Descrizione", 8000), participantIds, callUrl: validatedCallUrl(field(form, "callUrl", "Link call", 2048)) };
-  return { title, description: encodeEventDetails(details), starts_at: startsAt, ends_at: endsAt, event_type: eventType as EventType, participantIds };
+  const details = { summary: field(form, "summary", "Descrizione", 8000), participantIds, callUrl: validatedCallUrl(field(form, "callUrl", "Link call", 2048)), ...(typeLabel !== undefined ? { typeLabel } : {}) };
+  return { title, description: encodeEventDetails(details), starts_at: startsAt, ends_at: endsAt, event_type: (eventType === "event" ? "other" : eventType) as EventType, participantIds };
 }
 
 export function parseTaskForm(form: FormData) {
@@ -121,7 +134,7 @@ export function parseTaskToggleForm(form: FormData) {
 }
 
 export function capturedFormValues(form: FormData): Pick<TeamActionState, "values" | "participantIds"> {
-  const keys = ["title", "summary", "description", "body", "startsAt", "endsAt", "startsOccurrence", "endsOccurrence", "eventType", "callUrl", "dueDate", "assignedTo", "taskId"];
+  const keys = ["title", "summary", "description", "body", "startsAt", "endsAt", "startsOccurrence", "endsOccurrence", "eventType", "customEventType", "callUrl", "dueDate", "assignedTo", "taskId"];
   return { values: Object.fromEntries(keys.map(key => [key, typeof form.get(key) === "string" ? String(form.get(key)).slice(0, 16000) : ""])), participantIds: form.getAll("participantIds").filter(isTeamId).slice(0, 100) };
 }
 

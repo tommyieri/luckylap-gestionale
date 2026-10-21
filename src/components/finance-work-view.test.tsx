@@ -3,7 +3,7 @@ import type{ReactNode}from"react";
 import{renderToStaticMarkup}from"react-dom/server";
 vi.mock("@/lib/sales/model",()=>import("../lib/sales/model"));
 vi.mock("@/lib/finance-work/model",()=>import("../lib/finance-work/model"));
-vi.mock("./finance-work-form",()=>({FinanceWorkForm:({children}:{children:ReactNode})=><form>{children}</form>,FinanceWorkRecovery:()=>null}));
+vi.mock("./finance-work-form",()=>({FinanceWorkForm:({children}:{children:ReactNode})=><form>{children}</form>,FinanceWorkRecovery:()=>null,FinanceAccountCategoryFields:()=>null}));
 import{FinanceWorkView}from"./finance-work-view";
 import{financeWorkFromRows}from"../lib/finance-work/read";
 import{shopifyWorkRows}from"../lib/finance-work/fixtures";

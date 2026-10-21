@@ -1,6 +1,6 @@
 "use client";
 
-import { useActionState, useId } from "react";
+import { useActionState, useId, useState } from "react";
 import { Check, Plus, RotateCcw, Trash2 } from "lucide-react";
 import { createTeamEvent, createTeamNote, createTeamTask, deleteTeamItem, toggleTeamTask } from "../app/team/actions";
 import type { TeamActionState, TeamMember, TeamTask } from "../lib/team/model";
@@ -19,15 +19,21 @@ function Occurrence({ name, label, value }: { name: string; label: string; value
 
 export function NewEventForm({ members }: { members: TeamMember[] }) {
   const [state, action, pending] = useActionState(createTeamEvent, initialState);
+  return <EventFormFields key={state.revision ?? "initial"} state={state} action={action} pending={pending} members={members} />;
+}
+
+function EventFormFields({ state, action, pending, members }: { state: TeamActionState; action: (form: FormData) => void; pending: boolean; members: TeamMember[] }) {
   const id = useId();
-  return <form key={state.revision ?? "initial"} action={action} className={styles.form} aria-label="Nuovo appuntamento">
+  const [eventType, setEventType] = useState(state.values?.eventType || "meeting");
+  return <form action={action} className={styles.form} aria-label="Nuovo appuntamento">
     <fieldset disabled={pending}>
       <legend>Nuovo appuntamento</legend>
       <label>Titolo<input name="title" maxLength={240} required defaultValue={state.values?.title} placeholder="Es. Call produzione" /></label>
       <div className={styles.fieldPair}><label>Inizio<input type="datetime-local" name="startsAt" min="2000-01-01T00:00" max="2100-12-31T23:59" required defaultValue={state.values?.startsAt} /></label><label>Fine<input type="datetime-local" name="endsAt" min="2000-01-01T00:00" max="2100-12-31T23:59" required defaultValue={state.values?.endsAt} /></label></div>
       <p className={styles.help}>Tutti gli orari sono nel fuso Europe/Rome.</p>
       <details className={styles.dst} open={state.error?.includes("si ripete") || undefined}><summary>Orari nel cambio dell’ora</summary><p>Se un orario si ripete nel passaggio all’ora solare, scegli la prima o la seconda occorrenza.</p><div className={styles.fieldPair}><Occurrence name="startsOccurrence" label="Occorrenza inizio" value={state.values?.startsOccurrence} /><Occurrence name="endsOccurrence" label="Occorrenza fine" value={state.values?.endsOccurrence} /></div></details>
-      <label>Tipo<select name="eventType" defaultValue={state.values?.eventType || "meeting"}><option value="meeting">Call / riunione</option><option value="production">Produzione</option><option value="delivery">Consegna</option><option value="launch">Lancio</option><option value="other">Altro</option></select></label>
+      <label>Tipo<select name="eventType" value={eventType} onChange={event => setEventType(event.target.value)}><option value="meeting">Call / riunione</option><option value="production">Produzione</option><option value="delivery">Consegna</option><option value="launch">Lancio</option><option value="event">Evento</option><option value="other">Altro</option></select></label>
+      {eventType === "other" && <label>Specifica il tipo<input name="customEventType" maxLength={80} required defaultValue={state.values?.customEventType} placeholder="Es. Shooting fotografico" /></label>}
       <fieldset className={styles.participants}><legend>Partecipanti <span>facoltativi</span></legend>{members.filter(member => member.active).map(member => <label key={member.id}><input type="checkbox" name="participantIds" value={member.id} defaultChecked={state.participantIds?.includes(member.id)} />{member.name}</label>)}</fieldset>
       <label>Link della call <span>facoltativo</span><input type="url" name="callUrl" maxLength={2048} placeholder="https://…" defaultValue={state.values?.callUrl} aria-describedby={`${id}-link-help`} /></label><p id={`${id}-link-help`} className={styles.help}>Il link viene salvato nell’agenda. I partecipanti non ricevono inviti o email.</p>
       <label>Descrizione <span>facoltativa</span><textarea name="summary" rows={3} maxLength={8000} defaultValue={state.values?.summary} /></label>

@@ -33,6 +33,22 @@ describe("Finance source display", () => {
     expect(financeTransactionFromDatabase({ ...row, raw_record: null })).toBeNull();
     expect(financeTransactionFromDatabase({ ...row, occurred_at: "2026-02-31T10:00:00Z" })).toBeNull();
   });
+  it("accepts compact source offsets and preserves their exact text and local calendar day", () => {
+    const compact = { ...row, source_timestamp: "2026-03-17T00:00:00+0100", occurred_at: "2026-03-16T23:00:00+00:00", transaction_date: "2026-03-17" };
+    const normalized = financeTransactionFromDatabase(compact);
+    expect(normalized?.sourceTimestamp).toBe(compact.source_timestamp);
+    expect(normalized?.occurredAt).toBe(compact.occurred_at);
+    expect(normalized?.sourceDate).toBe("2026-03-17");
+    expect(financeTransactionFromDatabase({ ...compact, source_timestamp: "2026-03-17T00:00:00+01:00" })).not.toBeNull();
+    expect(financeTransactionFromDatabase({ ...compact, occurred_at: "2026-03-17T00:00:00Z" })).toBeNull();
+    const leap = { ...row, source_timestamp: "2024-02-29T23:30:00-1200", occurred_at: "2024-03-01T11:30:00Z", transaction_date: "2024-02-29" };
+    expect(financeTransactionFromDatabase(leap)?.sourceTimestamp).toBe(leap.source_timestamp);
+  });
+  it("rejects malformed offset boundaries, invalid calendar dates and time rollover", () => {
+    for (const source of ["2026-03-17T00:00:00+2400", "2026-03-17T00:00:00+2360", "2026-03-17T00:00:00+24:00", "2026-03-17T00:00:00+01:60", "2026-03-17T00:00:00+010", "2026-03-17T00:00:00+01", "2026-03-17T00:00:00+0a00", "2026-02-29T00:00:00+0100", "2026-02-30T00:00:00+0100", "2026-13-17T00:00:00+0100", "2026-03-00T00:00:00+0100", "2026-03-17T24:00:00+0100", "2026-03-17T00:60:00+0100", "2026-03-17T00:00:60+0100", "2026-03-17T00:00:00"]) {
+      expect(financeTransactionFromDatabase({ ...row, source_timestamp: source, transaction_date: source.slice(0, 10) })).toBeNull();
+    }
+  });
   it("fails closed on invalid batches and unsupported review status", () => {
     expect(financeBatchFromDatabase(batch)?.sourceRowCount).toBe(1);
     expect(financeBatchFromDatabase(null)).toBeNull();

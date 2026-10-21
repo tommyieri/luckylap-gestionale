@@ -110,3 +110,15 @@ describe("team Server Actions authorization and mutations", () => {
     expect(mocks.revalidate).not.toHaveBeenCalled();
   });
 });
+
+
+it.each([ ["event", "", "Evento"], ["other", "Shooting", "Shooting"] ])("persists %s using the existing shared event columns", async (eventType, customEventType, label) => {
+  const { calls } = client({ data: { id }, error: null });
+  const result = await createTeamEvent({}, form({ title: "Momento del team", startsAt: "2026-10-21T10:00", endsAt: "2026-10-21T11:00", eventType, customEventType }));
+  expect(result.success).toMatch(/Appuntamento aggiunto/);
+  expect(calls).toHaveLength(1);
+  const row = calls[0].methods.find(method => method.name === "insert")?.args[0] as Record<string, unknown>;
+  expect(row.event_type).toBe("other");
+  expect(JSON.parse(String(row.description)).typeLabel).toBe(label);
+  expect(row).not.toHaveProperty("customEventType");
+});

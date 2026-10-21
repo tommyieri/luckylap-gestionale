@@ -4,14 +4,12 @@ import Link from "next/link";
 import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { ArrowLeft, CalendarDays, ExternalLink, RefreshCw } from "lucide-react";
-import { formatRomeDate, formatRomeDateTime, type TeamSnapshot } from "../lib/team/model";
+import { eventTypeLabel, formatRomeDate, formatRomeDateTime, type TeamSnapshot } from "../lib/team/model";
 import { DeleteTeamForm, NewEventForm, NewNoteForm, NewTaskForm, ToggleTaskForm } from "./team-workspace-forms";
 import styles from "./team-workspace.module.css";
 
-const eventLabels = { meeting: "Call / riunione", production: "Produzione", delivery: "Consegna", launch: "Lancio", other: "Appuntamento" };
-
 export function TeamWorkspace({ snapshot, displayName, loadedAt }: { snapshot: TeamSnapshot; displayName: string; loadedAt: string }) {
-  const [showPast, setShowPast] = useState(false);
+  const [showPast, setShowPast] = useState(true);
   const [refreshing, startRefresh] = useTransition();
   const router = useRouter();
   const memberName = (id: string | null) => snapshot.members.find(member => member.id === id)?.name ?? (id ? "Membro non disponibile" : "Da assegnare");
@@ -21,7 +19,7 @@ export function TeamWorkspace({ snapshot, displayName, loadedAt }: { snapshot: T
     <header className={styles.header}><Link href="/" className={styles.brand} aria-label="LuckyLap, workspace">LuckyLap</Link><span className={styles.area}><CalendarDays size={15} aria-hidden="true" />Team</span><Link href="/auth/account" className={styles.account}>{displayName}<span>Il tuo account</span></Link></header>
     <main id="team-content" className={styles.main} tabIndex={-1}>
       <Link href="/" className={styles.back}><ArrowLeft size={14} aria-hidden="true" />Torna al workspace</Link>
-      <div className={styles.heading}><div><h1>Il lavoro del team.</h1><p>Calendario, attività e idee condivisi tra i membri di LuckyLap.</p></div><button className="button button-secondary" onClick={() => startRefresh(() => router.refresh())} disabled={refreshing}><RefreshCw size={14} aria-hidden="true" />{refreshing ? "Aggiornamento…" : "Aggiorna"}</button></div>
+      <div className={styles.heading}><div><h1>Il lavoro del team.</h1><p>Tutti gli eventi, le attività, le note e le idee del team, anche senza assegnatario.</p></div><button className="button button-secondary" onClick={() => startRefresh(() => router.refresh())} disabled={refreshing}><RefreshCw size={14} aria-hidden="true" />{refreshing ? "Aggiornamento…" : "Aggiorna"}</button></div>
       <nav aria-label="Sezioni del team" className={styles.navigation}><a href="#calendario">Calendario e call</a><a href="#attivita">Attività</a><a href="#note">Note e idee</a></nav>
       <p className={styles.sharedNotice}>Le modifiche sono salvate nel workspace condiviso. Per leggere le modifiche degli altri membri, usa Aggiorna. Orari Europe/Rome.</p>
 
@@ -29,7 +27,7 @@ export function TeamWorkspace({ snapshot, displayName, loadedAt }: { snapshot: T
         <div className={styles.sectionHeading}><h2 id="calendar-title">Calendario e call <span>{snapshot.events.length}</span></h2><label className={styles.filter}><input type="checkbox" checked={showPast} onChange={event => setShowPast(event.target.checked)} />Mostra anche passati</label></div>
         <div className={styles.columns}><div className={styles.list}>
           {events.length === 0 ? <div className={styles.empty}><h3>{snapshot.events.length ? "Nessun appuntamento in programma." : "Il calendario è pronto."}</h3><p>Aggiungi una call, una consegna o un momento di lavoro per il team.</p></div> : <ul className={styles.items}>{events.map(event => <li key={event.id} className={styles.event}>
-            <div className={styles.itemMeta}><span>{eventLabels[event.eventType]}</span><time dateTime={event.startsAt}>{formatRomeDateTime(event.startsAt)}</time></div>
+            <div className={styles.itemMeta}><span>{eventTypeLabel(event)}</span><time dateTime={event.startsAt}>{formatRomeDateTime(event.startsAt)}</time></div>
             <h3>{event.title}</h3><p className={styles.timeEnd}>Fine: <time dateTime={event.endsAt}>{formatRomeDateTime(event.endsAt)}</time></p>
             {event.details.participantIds.length > 0 && <p className={styles.participantNames}>Con {event.details.participantIds.map(memberName).join(", ")}</p>}
             {event.details.summary && <p className={styles.bodyText}>{event.details.summary}</p>}
@@ -41,7 +39,7 @@ export function TeamWorkspace({ snapshot, displayName, loadedAt }: { snapshot: T
 
       <section id="attivita" className={styles.section} aria-labelledby="tasks-title">
         <div className={styles.sectionHeading}><h2 id="tasks-title">Attività <span>{snapshot.tasks.length}</span></h2><span>{snapshot.tasks.filter(task => task.status !== "done").length} da completare</span></div>
-        <div className={styles.columns}><div className={styles.list}>{snapshot.tasks.length === 0 ? <div className={styles.empty}><h3>Il prossimo passo, per tutti.</h3><p>Assegna un’attività e una scadenza al team.</p></div> : <ul className={styles.items}>{snapshot.tasks.map(task => <li key={task.id} className={styles.task}>
+        <div className={styles.columns}><div className={styles.list}>{snapshot.tasks.length === 0 ? <div className={styles.empty}><h3>Il prossimo passo, per tutti.</h3><p>Aggiungi un’attività, con o senza assegnatario.</p></div> : <ul className={styles.items}>{snapshot.tasks.map(task => <li key={task.id} className={styles.task}>
           <div className={styles.itemMeta}><span>{task.status === "done" ? "Completata" : task.status === "in_progress" ? "In corso" : "Da fare"}</span><span>{memberName(task.assignedTo)}</span></div><h3 className={task.status === "done" ? styles.done : undefined}>{task.title}</h3>
           {task.dueAt && <p className={styles.timeEnd}>Scadenza: <time dateTime={task.dueAt}>{formatRomeDate(task.dueAt)}</time></p>}{task.description && <p className={styles.bodyText}>{task.description}</p>}
           <div className={styles.itemActions}><ToggleTaskForm task={task} /><DeleteTeamForm table="tasks" id={task.id} title={task.title} /></div>

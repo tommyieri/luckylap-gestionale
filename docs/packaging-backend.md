@@ -1,36 +1,73 @@
-# Materiali packaging: contratto database
+# Packaging T-shirt: prenotazioni, consegne e rettifiche
 
-La migrazione `20261021125127_packaging_materials.sql`, creata con la CLI Supabase ufficiale `migration new`, aggiunge due comandi atomici sui registri già esistenti. Non contiene materiali, SKU, quantità o costi predefiniti. Non è stata applicata al cloud dall'autore di questo modulo.
+Il packaging comprende due materiali distinti dai prodotti venduti:
 
-I materiali sono `stock_items.kind = packaging` con dettaglio in `packaging_items`, distinti dalle varianti prodotto e dagli adesivi retail Shopify. La scatola contiene la T-shirt; il tipo `sticker` descrive l'adesivo della scatola. Nessuna distinta o consumo automatico per ordine è stato assunto.
+- **Scatola T-shirt**, dimensioni **30 × 22,5 × 2,5 cm**.
+- **Adesivo per scatola**.
 
-## RPC pubbliche
+La conta iniziale autorizzata è di **100 unità ciascuno in MAG01**. Non sono stati inventati costi o prezzi: restano `NULL`. Gli SKU `PACK-TSHIRT-BOX` e `PACK-BOX-STICKER` sono identificativi interni dei materiali; gli UUID sono generati dal database.
 
-Entrambe ricevono `(p_operation_id uuid, p_payload jsonb)` e restituiscono `{operation_id, stock_item_id, movement_id, replayed}`. `movement_id` è NULL se la creazione non include una conta. Wrapper SECURITY INVOKER, processori nello schema privato, membership corrente obbligatoria per tutti e cinque i ruoli, nessun DML diretto concesso ai client.
+La migrazione forward `20261021164548_packaging_automatic_consumption.sql`, generata con `supabase@2.121.0 migration new`, aggiunge l'automazione. Le quindici migrazioni precedenti restano invariate. Applicare la migrazione non crea i materiali, non imposta quantità e non rielabora le consegne storiche.
 
-| RPC | Payload esatto |
-| --- | --- |
-| `create_packaging_material` | `schema_version: 1`, `sku` testo 1–120, `name` testo 1–240, `packaging_type: box/sticker/other`, `specifications: null/testo ≤2000`, `unit_cost_cents: null/intero 0–999999999999`, `location_id: uuid`, `initial_quantity: null/intero 0–1000000000`. Tutte le chiavi sono presenti; sconosciute rifiutate. |
-| `initialize_packaging_count` | `schema_version: 1`, `stock_item_id: uuid`, `location_id: uuid`, `quantity: intero 0–1000000000`, `reason` testo 3–500. Solo materiale packaging attivo e saldo sconosciuto. |
+## Attivazione e confine temporale
 
-SKU, nome, specifiche e causale vengono ripuliti degli spazi esterni; specifiche vuote diventano NULL. Lo SKU mantiene il formato dichiarato dall'utente. SKU già presente nel catalogo, anche se prodotto, viene rifiutato. Location esplicita e attiva obbligatoria.
+Dopo revisione, l'owner esegue una sola operazione atomica:
 
-La creazione salva anagrafica, dettaglio packaging e un saldo NULL nella location scelta. Se una conta è dichiarata, aggiunge un movimento opening nella stessa transazione: **zero dichiarato è valido**, quantità assente resta ignota senza movimento zero inventato. Il costo opzionale è convertito esattamente da centesimi interi a EUR con due decimali; NULL non diventa zero. Nessun prezzo di vendita, margine, spesa Finance o pagamento viene inventato.
-
-La conta separata può inizializzare anche una location ancora senza saldo del materiale: crea NULL e poi opening sotto lock nella stessa transazione. Una quantità già nota, incluso zero, impedisce un'altra apertura con UUID diverso. Le variazioni successive usano `/stock` e `adjust_stock`; il loader stock include già entrambi i kind prodotto e packaging.
-
-## Sicurezza e idempotenza
-
-`stock_adjustments_enabled` deve essere true per **nuove** mutazioni. Il modulo non lo attiva. Le ricevute append-only nello schema privato contengono attore, tipo comando, digest SHA-256 del payload canonico ed esito. Stesso UUID/attore/tipo/payload restituisce la ricevuta prima del controllo del flag, quindi il retry è recuperabile anche dopo una disattivazione. Un altro payload, tipo o attore viene rifiutato. Ogni movimento fisico ha un UUID effetto separato, persistito nella ricevuta.
-
-La membership è verificata prima del replay: se l'accesso o una validazione preliminare falliscono durante un retry, l'interfaccia deve conservare il tentativo come incerto. Per la conta, il recupero deve rimanere disponibile anche quando il modulo originale scompare perché la quantità è ormai nota. Non inviare un nuovo UUID per risolvere una risposta persa.
-
-Errori macchina: `membership_required` e `stock_mutations_disabled` (42501), `invalid_payload`, `idempotency_conflict`, `known_stock`, `unknown_packaging`, `invalid_location` (22023), `sku_already_exists` (23505). Non esporre stack, query o parametri grezzi al browser. Le tabelle operative mantengono RLS e audit esistenti; la nuova tabella delle ricevute ha RLS, nessun grant client e blocco UPDATE/DELETE.
-
-## Verifica locale
-
-```sh
-node supabase/tests/packaging-materials.mjs /private/tmp/luckylap-sql-validation/node_modules/@electric-sql/pglite/dist/index.js
+```sql
+select private.activate_tshirt_packaging();
 ```
 
-**125 verifiche PASS** con fixture sintetiche e Auth simulato: tutti i ruoli, outsider/revoca, zero distinto da NULL, costo esatto o ignoto, anagrafica distinta dai prodotti, idempotenza e conflitti, flag, conta ripetuta, location mancante, campi alterati e rollback atomico di anagrafica/saldo/ricevuta quando fallisce il registro movimenti. Nessuna mutazione cloud, fonte Drive, vendita reale o abbonamento. Concorrenza su connessioni PostgreSQL reali e interfaccia integrata restano da verificare separatamente.
+La funzione richiede la location attiva `MAG01` di tipo `Magazzino`, crea le due anagrafiche e due movimenti `opening` da 100, registra `started_at` con l'orologio database e conserva l'insieme degli ordini T-shirt ancora aperti. Una ripetizione restituisce la stessa configurazione con `replayed=true`, senza nuove quantità o modifica della data di avvio. Un materiale conflittuale o una conta preesistente diversa da 100 richiedono revisione esplicita: non vengono sovrascritti.
+
+Gli helper di attivazione e revisione non sono eseguibili da `anon`, `authenticated` o `service_role`. La procedura è riservata all'owner, fuori dal browser. Non è un controllo capace di limitare un amministratore infrastrutturale compromesso.
+
+Solo gli eventi inseriti dopo l'attivazione, con `fulfilled_at`/`occurred_at` successivo o uguale a `started_at`, possono consumare automaticamente. Nessuna consegna manuale/LCM antecedente viene retro-consumata. Una futura consegna reale di un vecchio ordine manuale può consumare normalmente.
+
+Shopify usa attualmente `fulfillment.updatedAt` nella proiezione della data consegna. Per non interpretare una modifica tardiva come una nuova consegna, gli ordini Shopify creati prima dell'avvio e non presenti tra gli ordini T-shirt aperti all'attivazione generano una verifica packaging bloccata, senza prelievo automatico. La verifica non interrompe import, stock prodotto o Finance.
+
+## Contratto dell'automazione
+
+| Evento | Effetto packaging |
+| --- | --- |
+| T-shirt da preparare, anche se in produzione | Prenota una scatola e un adesivo per ogni unità ancora da consegnare |
+| Nuova consegna manuale, Shopify web o POS | Consuma una scatola e un adesivo per ogni T-shirt effettivamente consegnata |
+| Consegna parziale | Consuma esclusivamente il nuovo delta; conserva la prenotazione residua |
+| Ripetizione del medesimo effetto | Nessun doppio consumo |
+| Cappellini o sticker retail | Nessun consumo packaging |
+| Trasferimento in conto vendita o rientro invenduto | Nessun consumo packaging |
+| Vendita LCM confermata | Consuma scatola e adesivo da MAG01, senza seconda variazione del prodotto centrale |
+| Cancellazione residuo ordine | Libera il residuo prenotato; non ripristina quanto già consumato |
+| Rimborso | Non rigenera materiale consumato |
+
+I trigger osservano `fulfillment_lines` e `consignment_sales`; non chiamano API Shopify e non cambiano le proiezioni economiche. Le prenotazioni sono domanda derivata dal residuo di `sales_order_lines`, non un vincolo che possa bloccare una vendita per mancanza di scatole.
+
+`packaging_consumptions` conserva una ricevuta per origine, evento e materiale. Il richiesto e il consumato sono distinti. Ogni prelievo reale ha un movimento stock `adjustment` con causale di confezionamento e metadati `kind=packaging_consumption`, oltre alla ricevuta append-only `packaging_consumption_entries`. Il totale degli inserimenti coincide con il consumato aggregato. Un lock advisory comune e i lock dei saldi serializzano i prelievi tra ordini diversi e riconciliazioni.
+
+## Carenze e recupero
+
+Se servono 3 scatole ma ne risulta una sola, il registro preleva **1**, il saldo fisico diventa **0** e la ricevuta conserva **2 unità da riconciliare**. Non viene inventato un saldo negativo né presentato il consumo richiesto come interamente registrato. Un saldo sconosciuto conserva tutta la richiesta in sospeso. Le quantità restano indicate come provvisorie finché i consumi mancanti non sono verificati.
+
+Un errore tecnico nella parte packaging annulla solo il suo sottoblocco e apre `packaging_automation_failures`: la consegna prodotto continua. Il recupero esplicito ritenta questi effetti e i consumi incompleti. Un nuovo tentativo può prelevare solo la quantità ancora mancante. La ricevuta del comando rende idempotenti anche retry di rete e doppio invio.
+
+Dall'interfaccia, aggiornare la conta quando necessario e usare **Registra consumi mancanti**. Questa azione non approva automaticamente le consegne storiche sospette. Per quelle, l'owner verifica la provenienza e usa una causale esplicita su ciascuna ricevuta:
+
+```sql
+select private.approve_packaging_review('<UUID_RICEVUTA_VERIFICATA>', '<CAUSALE_VERIFICA>');
+```
+
+I placeholder richiedono UUID e causale reali. L'approvazione è registrata nell'audit e preleva solo materiale effettivamente disponibile. Se resta una carenza, la ricevuta rimane incompleta e recuperabile.
+
+## Rettifica della quantità
+
+`adjust_packaging_quantity` accetta un identificativo operazione, materiale, quantità fisica contata, causale e `expected_quantity` letto al momento della conta. Dopo il lock, il database confronta il saldo attuale con quello atteso. Se una consegna lo ha cambiato, rifiuta la modifica con `packaging_quantity_changed`: l'utente rilegge e verifica la conta. Una richiesta già confermata viene riconosciuta dalla ricevuta prima del controllo del saldo o del flag di sospensione.
+
+Tutti i cinque ruoli attivi possono rettificare e riconciliare quando `stock_adjustments_enabled` è attivo. Nessun client aggiorna direttamente saldi, ricevute, configurazione o audit. Le letture passano da RLS; `packaging_material_status` è una vista `security_invoker`. I helper privilegiati sono privati, hanno `search_path=''` e grant espliciti. I dati della UI non comprendono documenti o importi Finance.
+
+## Verifica
+
+- `supabase/tests/packaging-automation.mjs`: **73 controlli PGlite** con Auth simulata, comprese attivazione/replay, prenotazioni, consegne parziali, canali Shopify, LCM, cappellini/sticker, carenze, recupero, CAS e permessi. Fixture sintetiche soltanto.
+- Revisione indipendente: **92 controlli PGlite** sulla medesima SQL, includendo guardia ordini storici e privilegi degli helper.
+- `supabase/tests/packaging-concurrency.mjs`: prova indipendente su **PostgreSQL 17.11 reale**, due worker e un osservatore, **6 controlli** su CAS concorrente e doppia consegna concorrente. Auth e ordini sono sintetici; nessun servizio cloud.
+- Vitest packaging: **58 test** tra modelli, server, vecchie primitive di creazione/conta e nuova UI semplificata. Typecheck passato.
+
+Queste prove locali usano Auth simulata e non attestano la verifica JWT. La migrazione è stata applicata al progetto LuckyLap il 21 ottobre 2026, versione `20261021164548`. L’attivazione owner è avvenuta alle `2026-10-21T16:45:56.51745+00:00`: due materiali da 100 in Magadzino, nessun consumo pregresso. La verifica cloud successiva conferma 214 unità prodotto, zero ordini, 144 movimenti Finance importati e cinque membri attivi. Nessun ordine o movimento di vendita sintetico è stato scritto nel progetto cloud. I grant degli helper di attivazione/revisione risultano negati ad anon, authenticated e service_role; il comando operativo richiede membership corrente.

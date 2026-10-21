@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { decodeEventDetails, encodeEventDetails, parseEventForm, parseNoteForm, parseTaskForm, resolveRomeLocalTime } from "./model";
+import { capturedFormValues, decodeEventDetails, encodeEventDetails, eventTypeLabel, parseEventForm, parseNoteForm, parseTaskForm, resolveRomeLocalTime } from "./model";
 
 const memberId = "00000000-0000-4000-8000-000000000001";
 const form = (values: Record<string, string>) => {
@@ -60,4 +60,38 @@ describe("internal team workspace input boundary", () => {
     expect(() => encodeEventDetails({ summary: "x".repeat(51000), participantIds: [], callUrl: null })).toThrow(/troppo lunghi/);
     expect(() => parseEventForm(form({ ...base, callUrl: "https://example.test/" + "é".repeat(1000) }))).toThrow(/normalizzato/);
   });
+});
+
+
+describe("shared event categories", () => {
+  const eventInput = { title: "Evento del team", startsAt: "2026-10-21T10:00", endsAt: "2026-10-21T11:00" };
+  it("persists Evento through the existing other database kind and structured details", () => {
+    const event = parseEventForm(form({ ...eventInput, eventType: "event" }));
+    expect(event.event_type).toBe("other");
+    expect(decodeEventDetails(event.description).typeLabel).toBe("Evento");
+    expect(event.description.length).toBeLessThanOrEqual(50000);
+  });
+  it("round-trips the free Other label while keeping ordinary details and legacy records compatible", () => {
+    const event = parseEventForm(form({ ...eventInput, eventType: "other", customEventType: "  Shooting e incontro partner  ", summary: "Agenda condivisa" }));
+    expect(event.event_type).toBe("other");
+    expect(decodeEventDetails(event.description)).toEqual({ summary: "Agenda condivisa", participantIds: [], callUrl: null, typeLabel: "Shooting e incontro partner" });
+    expect(decodeEventDetails("Appunti precedenti")).toEqual({ summary: "Appunti precedenti", participantIds: [], callUrl: null });
+  });
+  it.each(["", " ", "x".repeat(81), "Tipo\nnon valido"])("rejects an invalid free Other label %j", customEventType => {
+    expect(() => parseEventForm(form({ ...eventInput, eventType: "other", customEventType }))).toThrow(/tipo/i);
+  });
+  it("accepts an 80-character label and rejects malformed serialized type metadata", () => {
+    const event = parseEventForm(form({ ...eventInput, eventType: "other", customEventType: "x".repeat(80) }));
+    expect(decodeEventDetails(event.description).typeLabel).toHaveLength(80);
+    expect(decodeEventDetails(JSON.stringify({ format: "luckylap-team-event", version: 1, summary: "Agenda", participantIds: [], callUrl: null, typeLabel: "x".repeat(81) })).summary).toMatch(/non leggibili/);
+  });
+});
+
+
+it("keeps the free type label after validation errors and renders only the selected event category", () => {
+  const input = form({ eventType: "other", customEventType: "Shooting" });
+  expect(capturedFormValues(input).values?.customEventType).toBe("Shooting");
+  expect(eventTypeLabel({ eventType: "other", details: { summary: "", participantIds: [], callUrl: null, typeLabel: "Shooting" } })).toBe("Shooting");
+  expect(eventTypeLabel({ eventType: "other", details: { summary: "", participantIds: [], callUrl: null } })).toBe("Altro");
+  expect(eventTypeLabel({ eventType: "delivery", details: { summary: "", participantIds: [], callUrl: null, typeLabel: "Shooting" } })).toBe("Consegna");
 });
