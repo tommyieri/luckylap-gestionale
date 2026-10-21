@@ -1,0 +1,12 @@
+node_modules/
+.next/
+.env*
+!.env.example
+*.tsbuildinfo
+.superpowers/
+.impeccable/review/
+data/*raw*
+.DS_Store
+.private/
+.vercel/
+.supabase/

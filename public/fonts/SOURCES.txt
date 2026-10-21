@@ -1,0 +1,8 @@
+Self-hosted Barlow and Barlow Condensed fonts.
+Source: official Google Fonts repository, downloaded 2026-10-21.
+https://github.com/google/fonts/tree/main/ofl/barlow
+https://github.com/google/fonts/tree/main/ofl/barlowcondensed
+
+Files: Barlow-Regular.ttf, Barlow-Medium.ttf, Barlow-SemiBold.ttf,
+Barlow-Bold.ttf, BarlowCondensed-BoldItalic.ttf.
+Licenses: OFL-Barlow.txt and OFL-BarlowCondensed.txt (SIL Open Font License).

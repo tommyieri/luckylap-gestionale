@@ -1,0 +1,2461 @@
+{
+  "schema_version": 1,
+  "source": {
+    "title": "LuckyLap_Gestione_inventario.xlsx",
+    "url": "https://docs.google.com/spreadsheets/d/1yl89YStNLwRE4C3AVZjSCUoyjmIMepAl/edit",
+    "file_id": "1yl89YStNLwRE4C3AVZjSCUoyjmIMepAl",
+    "drive_modified_at": "2026-10-12T19:21:50.653Z",
+    "download_sha256": "5f7d07251c74bba829004f2e83bba00d029b47f12699f3e040afc049fa69200e",
+    "extracted_at_utc": "2026-10-21T10:28:39.328453+00:00",
+    "inventory_as_of_date": null,
+    "authority": "user_designated_inventory_workbook",
+    "quantity_mode": "saved_excel_cached_values_without_recalculation",
+    "sheets_read": [
+      "Anagrafica Prodotti",
+      "Varianti (SKU)",
+      "Magazzini",
+      "Assortimento"
+    ],
+    "drive_access_mode": "read_only",
+    "source_recalculated": false,
+    "migration_completed": false,
+    "shopify_inventory_used": false,
+    "shopify_inventory_written": false
+  },
+  "semantics": {
+    "zero": "Explicit numeric zero from the source remains 0.",
+    "missing": "Missing source values remain null; they are never converted to zero.",
+    "identifiers": "SKU, model and location codes retain their exact source values.",
+    "monetary_unit": "EUR",
+    "excluded_data": [
+      "Vendite rows",
+      "Produzione rows",
+      "Movimenti rows",
+      "order history",
+      "financial documents",
+      "personal addresses and contacts",
+      "free-text notes",
+      "other Drive documents"
+    ],
+    "packaging": "Dedicated boxes and box-label stickers have no records in this snapshot.",
+    "source_totals": "Network quantities, targets, suggested reorder quantities and valuations are copied saved values, not recomputed."
+  },
+  "stock_columns": [
+    {
+      "column": "E",
+      "location_code": "MAG01",
+      "location_name": "Magazzino Centrale",
+      "header_cell": "E5"
+    },
+    {
+      "column": "F",
+      "location_code": "NEG01",
+      "location_name": "Negozio Milano",
+      "header_cell": "F5"
+    }
+  ],
+  "unassigned_stock_columns": [
+    "G",
+    "H",
+    "I",
+    "J",
+    "K",
+    "L",
+    "M",
+    "N"
+  ],
+  "record_counts": {
+    "products": 9,
+    "variants": 51,
+    "locations": 4,
+    "inventory": 51
+  },
+  "products": [
+    {
+      "model": "GT3RS",
+      "category": "T-shirt",
+      "available_sizes": "XS,S,M,L,XL,XXL",
+      "sale_price_eur": 40,
+      "supplier_cost_eur": 13.2,
+      "production_lead_days": 30,
+      "active_source_value": "Si",
+      "source": {
+        "sheet": "Anagrafica Prodotti",
+        "row": 5,
+        "range": "A5:G5"
+      }
+    },
+    {
+      "model": "964",
+      "category": "T-shirt",
+      "available_sizes": "XS,S,M,L,XL,XXL",
+      "sale_price_eur": 45,
+      "supplier_cost_eur": 13.2,
+      "production_lead_days": 30,
+      "active_source_value": "Si",
+      "source": {
+        "sheet": "Anagrafica Prodotti",
+        "row": 6,
+        "range": "A6:G6"
+      }
+    },
+    {
+      "model": "TESTAROSSA",
+      "category": "T-shirt",
+      "available_sizes": "XS,S,M,L,XL,XXL",
+      "sale_price_eur": 55,
+      "supplier_cost_eur": 14.7,
+      "production_lead_days": 30,
+      "active_source_value": "Si",
+      "source": {
+        "sheet": "Anagrafica Prodotti",
+        "row": 7,
+        "range": "A7:G7"
+      }
+    },
+    {
+      "model": "F40",
+      "category": "T-shirt",
+      "available_sizes": "XS,S,M,L,XL,XXL",
+      "sale_price_eur": 45,
+      "supplier_cost_eur": 13.2,
+      "production_lead_days": 30,
+      "active_source_value": "Si",
+      "source": {
+        "sheet": "Anagrafica Prodotti",
+        "row": 8,
+        "range": "A8:G8"
+      }
+    },
+    {
+      "model": "SENNA",
+      "category": "T-shirt",
+      "available_sizes": "XS,S,M,L,XL,XXL",
+      "sale_price_eur": 50,
+      "supplier_cost_eur": 13.7,
+      "production_lead_days": 30,
+      "active_source_value": "Si",
+      "source": {
+        "sheet": "Anagrafica Prodotti",
+        "row": 9,
+        "range": "A9:G9"
+      }
+    },
+    {
+      "model": "SL",
+      "category": "T-shirt",
+      "available_sizes": "XS,S,M,L,XL,XXL",
+      "sale_price_eur": 45,
+      "supplier_cost_eur": 13.2,
+      "production_lead_days": 30,
+      "active_source_value": "Si",
+      "source": {
+        "sheet": "Anagrafica Prodotti",
+        "row": 10,
+        "range": "A10:G10"
+      }
+    },
+    {
+      "model": "Cappellino Pole Position",
+      "category": "Cappellino",
+      "available_sizes": "UNICA",
+      "sale_price_eur": 20,
+      "supplier_cost_eur": 2.6,
+      "production_lead_days": 60,
+      "active_source_value": "Si",
+      "source": {
+        "sheet": "Anagrafica Prodotti",
+        "row": 11,
+        "range": "A11:G11"
+      }
+    },
+    {
+      "model": "Cappellino 964",
+      "category": "Cappellino",
+      "available_sizes": "UNICA",
+      "sale_price_eur": 20,
+      "supplier_cost_eur": 2.6,
+      "production_lead_days": 60,
+      "active_source_value": "Si",
+      "source": {
+        "sheet": "Anagrafica Prodotti",
+        "row": 12,
+        "range": "A12:G12"
+      }
+    },
+    {
+      "model": "Cappellino Signature 3D",
+      "category": "Cappellino",
+      "available_sizes": "UNICA",
+      "sale_price_eur": 20,
+      "supplier_cost_eur": 2.2,
+      "production_lead_days": 60,
+      "active_source_value": "Si",
+      "source": {
+        "sheet": "Anagrafica Prodotti",
+        "row": 13,
+        "range": "A13:G13"
+      }
+    }
+  ],
+  "variants": [
+    {
+      "sku": "LL-TS-GT3-NB-XS",
+      "model": "GT3RS",
+      "color": "Blu",
+      "size": "XS",
+      "active_source_value": "Si",
+      "source": {
+        "sheet": "Varianti (SKU)",
+        "row": 5,
+        "range": "A5:E5"
+      }
+    },
+    {
+      "sku": "LL-TS-GT3-NB-S",
+      "model": "GT3RS",
+      "color": "Blu",
+      "size": "S",
+      "active_source_value": "Si",
+      "source": {
+        "sheet": "Varianti (SKU)",
+        "row": 6,
+        "range": "A6:E6"
+      }
+    },
+    {
+      "sku": "LL-TS-GT3-NB-M",
+      "model": "GT3RS",
+      "color": "Blu",
+      "size": "M",
+      "active_source_value": "Si",
+      "source": {
+        "sheet": "Varianti (SKU)",
+        "row": 7,
+        "range": "A7:E7"
+      }
+    },
+    {
+      "sku": "LL-TS-GT3-NB-L",
+      "model": "GT3RS",
+      "color": "Blu",
+      "size": "L",
+      "active_source_value": "Si",
+      "source": {
+        "sheet": "Varianti (SKU)",
+        "row": 8,
+        "range": "A8:E8"
+      }
+    },
+    {
+      "sku": "LL-TS-GT3-NB-XL",
+      "model": "GT3RS",
+      "color": "Blu",
+      "size": "XL",
+      "active_source_value": "Si",
+      "source": {
+        "sheet": "Varianti (SKU)",
+        "row": 9,
+        "range": "A9:E9"
+      }
+    },
+    {
+      "sku": "LL-TS-GT3-NB-XXL",
+      "model": "GT3RS",
+      "color": "Blu",
+      "size": "XXL",
+      "active_source_value": "Si",
+      "source": {
+        "sheet": "Varianti (SKU)",
+        "row": 10,
+        "range": "A10:E10"
+      }
+    },
+    {
+      "sku": "LL-TS-GT3-WH-XS",
+      "model": "GT3RS",
+      "color": "Bianco",
+      "size": "XS",
+      "active_source_value": "Si",
+      "source": {
+        "sheet": "Varianti (SKU)",
+        "row": 11,
+        "range": "A11:E11"
+      }
+    },
+    {
+      "sku": "LL-TS-GT3-WH-S",
+      "model": "GT3RS",
+      "color": "Bianco",
+      "size": "S",
+      "active_source_value": "Si",
+      "source": {
+        "sheet": "Varianti (SKU)",
+        "row": 12,
+        "range": "A12:E12"
+      }
+    },
+    {
+      "sku": "LL-TS-GT3-WH-M",
+      "model": "GT3RS",
+      "color": "Bianco",
+      "size": "M",
+      "active_source_value": "Si",
+      "source": {
+        "sheet": "Varianti (SKU)",
+        "row": 13,
+        "range": "A13:E13"
+      }
+    },
+    {
+      "sku": "LL-TS-GT3-WH-L",
+      "model": "GT3RS",
+      "color": "Bianco",
+      "size": "L",
+      "active_source_value": "Si",
+      "source": {
+        "sheet": "Varianti (SKU)",
+        "row": 14,
+        "range": "A14:E14"
+      }
+    },
+    {
+      "sku": "LL-TS-GT3-WH-XL",
+      "model": "GT3RS",
+      "color": "Bianco",
+      "size": "XL",
+      "active_source_value": "Si",
+      "source": {
+        "sheet": "Varianti (SKU)",
+        "row": 15,
+        "range": "A15:E15"
+      }
+    },
+    {
+      "sku": "LL-TS-GT3-WH-XXL",
+      "model": "GT3RS",
+      "color": "Bianco",
+      "size": "XXL",
+      "active_source_value": "Si",
+      "source": {
+        "sheet": "Varianti (SKU)",
+        "row": 16,
+        "range": "A16:E16"
+      }
+    },
+    {
+      "sku": "LL-TS-964-NB-XS",
+      "model": "964",
+      "color": "Blu",
+      "size": "XS",
+      "active_source_value": "Si",
+      "source": {
+        "sheet": "Varianti (SKU)",
+        "row": 17,
+        "range": "A17:E17"
+      }
+    },
+    {
+      "sku": "LL-TS-964-NB-S",
+      "model": "964",
+      "color": "Blu",
+      "size": "S",
+      "active_source_value": "Si",
+      "source": {
+        "sheet": "Varianti (SKU)",
+        "row": 18,
+        "range": "A18:E18"
+      }
+    },
+    {
+      "sku": "LL-TS-964-NB-M",
+      "model": "964",
+      "color": "Blu",
+      "size": "M",
+      "active_source_value": "Si",
+      "source": {
+        "sheet": "Varianti (SKU)",
+        "row": 19,
+        "range": "A19:E19"
+      }
+    },
+    {
+      "sku": "LL-TS-964-NB-L",
+      "model": "964",
+      "color": "Blu",
+      "size": "L",
+      "active_source_value": "Si",
+      "source": {
+        "sheet": "Varianti (SKU)",
+        "row": 20,
+        "range": "A20:E20"
+      }
+    },
+    {
+      "sku": "LL-TS-964-NB-XL",
+      "model": "964",
+      "color": "Blu",
+      "size": "XL",
+      "active_source_value": "Si",
+      "source": {
+        "sheet": "Varianti (SKU)",
+        "row": 21,
+        "range": "A21:E21"
+      }
+    },
+    {
+      "sku": "LL-TS-964-NB-XXL",
+      "model": "964",
+      "color": "Blu",
+      "size": "XXL",
+      "active_source_value": "Si",
+      "source": {
+        "sheet": "Varianti (SKU)",
+        "row": 22,
+        "range": "A22:E22"
+      }
+    },
+    {
+      "sku": "LL-TS-964-WH-XS",
+      "model": "964",
+      "color": "Bianco",
+      "size": "XS",
+      "active_source_value": "Si",
+      "source": {
+        "sheet": "Varianti (SKU)",
+        "row": 23,
+        "range": "A23:E23"
+      }
+    },
+    {
+      "sku": "LL-TS-964-WH-S",
+      "model": "964",
+      "color": "Bianco",
+      "size": "S",
+      "active_source_value": "Si",
+      "source": {
+        "sheet": "Varianti (SKU)",
+        "row": 24,
+        "range": "A24:E24"
+      }
+    },
+    {
+      "sku": "LL-TS-964-WH-M",
+      "model": "964",
+      "color": "Bianco",
+      "size": "M",
+      "active_source_value": "Si",
+      "source": {
+        "sheet": "Varianti (SKU)",
+        "row": 25,
+        "range": "A25:E25"
+      }
+    },
+    {
+      "sku": "LL-TS-964-WH-L",
+      "model": "964",
+      "color": "Bianco",
+      "size": "L",
+      "active_source_value": "Si",
+      "source": {
+        "sheet": "Varianti (SKU)",
+        "row": 26,
+        "range": "A26:E26"
+      }
+    },
+    {
+      "sku": "LL-TS-964-WH-XL",
+      "model": "964",
+      "color": "Bianco",
+      "size": "XL",
+      "active_source_value": "Si",
+      "source": {
+        "sheet": "Varianti (SKU)",
+        "row": 27,
+        "range": "A27:E27"
+      }
+    },
+    {
+      "sku": "LL-TS-964-WH-XXL",
+      "model": "964",
+      "color": "Bianco",
+      "size": "XXL",
+      "active_source_value": "Si",
+      "source": {
+        "sheet": "Varianti (SKU)",
+        "row": 28,
+        "range": "A28:E28"
+      }
+    },
+    {
+      "sku": "LL-TS-512-WH-XS",
+      "model": "TESTAROSSA",
+      "color": "Bianco",
+      "size": "XS",
+      "active_source_value": "Si",
+      "source": {
+        "sheet": "Varianti (SKU)",
+        "row": 29,
+        "range": "A29:E29"
+      }
+    },
+    {
+      "sku": "LL-TS-512-WH-S",
+      "model": "TESTAROSSA",
+      "color": "Bianco",
+      "size": "S",
+      "active_source_value": "Si",
+      "source": {
+        "sheet": "Varianti (SKU)",
+        "row": 30,
+        "range": "A30:E30"
+      }
+    },
+    {
+      "sku": "LL-TS-512-WH-M",
+      "model": "TESTAROSSA",
+      "color": "Bianco",
+      "size": "M",
+      "active_source_value": "Si",
+      "source": {
+        "sheet": "Varianti (SKU)",
+        "row": 31,
+        "range": "A31:E31"
+      }
+    },
+    {
+      "sku": "LL-TS-512-WH-L",
+      "model": "TESTAROSSA",
+      "color": "Bianco",
+      "size": "L",
+      "active_source_value": "Si",
+      "source": {
+        "sheet": "Varianti (SKU)",
+        "row": 32,
+        "range": "A32:E32"
+      }
+    },
+    {
+      "sku": "LL-TS-512-WH-XL",
+      "model": "TESTAROSSA",
+      "color": "Bianco",
+      "size": "XL",
+      "active_source_value": "Si",
+      "source": {
+        "sheet": "Varianti (SKU)",
+        "row": 33,
+        "range": "A33:E33"
+      }
+    },
+    {
+      "sku": "LL-TS-512-WH-XXL",
+      "model": "TESTAROSSA",
+      "color": "Bianco",
+      "size": "XXL",
+      "active_source_value": "Si",
+      "source": {
+        "sheet": "Varianti (SKU)",
+        "row": 34,
+        "range": "A34:E34"
+      }
+    },
+    {
+      "sku": "LL-TS-F40-XS",
+      "model": "F40",
+      "color": "Bianco",
+      "size": "XS",
+      "active_source_value": "Si",
+      "source": {
+        "sheet": "Varianti (SKU)",
+        "row": 35,
+        "range": "A35:E35"
+      }
+    },
+    {
+      "sku": "LL-TS-F40-S",
+      "model": "F40",
+      "color": "Bianco",
+      "size": "S",
+      "active_source_value": "Si",
+      "source": {
+        "sheet": "Varianti (SKU)",
+        "row": 36,
+        "range": "A36:E36"
+      }
+    },
+    {
+      "sku": "LL-TS-F40-M",
+      "model": "F40",
+      "color": "Bianco",
+      "size": "M",
+      "active_source_value": "Si",
+      "source": {
+        "sheet": "Varianti (SKU)",
+        "row": 37,
+        "range": "A37:E37"
+      }
+    },
+    {
+      "sku": "LL-TS-F40-L",
+      "model": "F40",
+      "color": "Bianco",
+      "size": "L",
+      "active_source_value": "Si",
+      "source": {
+        "sheet": "Varianti (SKU)",
+        "row": 38,
+        "range": "A38:E38"
+      }
+    },
+    {
+      "sku": "LL-TS-F40-XL",
+      "model": "F40",
+      "color": "Bianco",
+      "size": "XL",
+      "active_source_value": "Si",
+      "source": {
+        "sheet": "Varianti (SKU)",
+        "row": 39,
+        "range": "A39:E39"
+      }
+    },
+    {
+      "sku": "LL-TS-F40-XXL",
+      "model": "F40",
+      "color": "Bianco",
+      "size": "XXL",
+      "active_source_value": "Si",
+      "source": {
+        "sheet": "Varianti (SKU)",
+        "row": 40,
+        "range": "A40:E40"
+      }
+    },
+    {
+      "sku": "LL-TS-P88-XS",
+      "model": "SENNA",
+      "color": "Bianco",
+      "size": "XS",
+      "active_source_value": "Si",
+      "source": {
+        "sheet": "Varianti (SKU)",
+        "row": 41,
+        "range": "A41:E41"
+      }
+    },
+    {
+      "sku": "LL-TS-P88-S",
+      "model": "SENNA",
+      "color": "Bianco",
+      "size": "S",
+      "active_source_value": "Si",
+      "source": {
+        "sheet": "Varianti (SKU)",
+        "row": 42,
+        "range": "A42:E42"
+      }
+    },
+    {
+      "sku": "LL-TS-P88-M",
+      "model": "SENNA",
+      "color": "Bianco",
+      "size": "M",
+      "active_source_value": "Si",
+      "source": {
+        "sheet": "Varianti (SKU)",
+        "row": 43,
+        "range": "A43:E43"
+      }
+    },
+    {
+      "sku": "LL-TS-P88-L",
+      "model": "SENNA",
+      "color": "Bianco",
+      "size": "L",
+      "active_source_value": "Si",
+      "source": {
+        "sheet": "Varianti (SKU)",
+        "row": 44,
+        "range": "A44:E44"
+      }
+    },
+    {
+      "sku": "LL-TS-P88-XL",
+      "model": "SENNA",
+      "color": "Bianco",
+      "size": "XL",
+      "active_source_value": "Si",
+      "source": {
+        "sheet": "Varianti (SKU)",
+        "row": 45,
+        "range": "A45:E45"
+      }
+    },
+    {
+      "sku": "LL-TS-P88-XXL",
+      "model": "SENNA",
+      "color": "Bianco",
+      "size": "XXL",
+      "active_source_value": "Si",
+      "source": {
+        "sheet": "Varianti (SKU)",
+        "row": 46,
+        "range": "A46:E46"
+      }
+    },
+    {
+      "sku": "LL-TS-300-AZ-XS",
+      "model": "SL",
+      "color": "Azzurro",
+      "size": "XS",
+      "active_source_value": "Si",
+      "source": {
+        "sheet": "Varianti (SKU)",
+        "row": 47,
+        "range": "A47:E47"
+      }
+    },
+    {
+      "sku": "LL-TS-300-AZ-S",
+      "model": "SL",
+      "color": "Azzurro",
+      "size": "S",
+      "active_source_value": "Si",
+      "source": {
+        "sheet": "Varianti (SKU)",
+        "row": 48,
+        "range": "A48:E48"
+      }
+    },
+    {
+      "sku": "LL-TS-300-AZ-M",
+      "model": "SL",
+      "color": "Azzurro",
+      "size": "M",
+      "active_source_value": "Si",
+      "source": {
+        "sheet": "Varianti (SKU)",
+        "row": 49,
+        "range": "A49:E49"
+      }
+    },
+    {
+      "sku": "LL-TS-300-AZ-L",
+      "model": "SL",
+      "color": "Azzurro",
+      "size": "L",
+      "active_source_value": "Si",
+      "source": {
+        "sheet": "Varianti (SKU)",
+        "row": 50,
+        "range": "A50:E50"
+      }
+    },
+    {
+      "sku": "LL-TS-300-AZ-XL",
+      "model": "SL",
+      "color": "Azzurro",
+      "size": "XL",
+      "active_source_value": "Si",
+      "source": {
+        "sheet": "Varianti (SKU)",
+        "row": 51,
+        "range": "A51:E51"
+      }
+    },
+    {
+      "sku": "LL-TS-300-AZ-XXL",
+      "model": "SL",
+      "color": "Azzurro",
+      "size": "XXL",
+      "active_source_value": "Si",
+      "source": {
+        "sheet": "Varianti (SKU)",
+        "row": 52,
+        "range": "A52:E52"
+      }
+    },
+    {
+      "sku": "LL-CAP-PP-PNK",
+      "model": "Cappellino Pole Position",
+      "color": "Rosa",
+      "size": "UNICA",
+      "active_source_value": "Si",
+      "source": {
+        "sheet": "Varianti (SKU)",
+        "row": 53,
+        "range": "A53:E53"
+      }
+    },
+    {
+      "sku": "LL-CAP-964-NB",
+      "model": "Cappellino 964",
+      "color": "Blu",
+      "size": "UNICA",
+      "active_source_value": "Si",
+      "source": {
+        "sheet": "Varianti (SKU)",
+        "row": 54,
+        "range": "A54:E54"
+      }
+    },
+    {
+      "sku": "LL-CAP-3D-GRN",
+      "model": "Cappellino Signature 3D",
+      "color": "Verde",
+      "size": "UNICA",
+      "active_source_value": "Si",
+      "source": {
+        "sheet": "Varianti (SKU)",
+        "row": 55,
+        "range": "A55:E55"
+      }
+    }
+  ],
+  "locations": [
+    {
+      "code": "MAG01",
+      "name": "Magazzino Centrale",
+      "type": "Magazzino",
+      "source": {
+        "sheet": "Magazzini",
+        "row": 5,
+        "range": "A5:C5"
+      }
+    },
+    {
+      "code": "NEG01",
+      "name": "Negozio Milano",
+      "type": "Negozio Conto Vendita",
+      "source": {
+        "sheet": "Magazzini",
+        "row": 6,
+        "range": "A6:C6"
+      }
+    },
+    {
+      "code": "FORN",
+      "name": "Fornitore (esterno)",
+      "type": "Esterno",
+      "source": {
+        "sheet": "Magazzini",
+        "row": 16,
+        "range": "A16:C16"
+      }
+    },
+    {
+      "code": "VEND",
+      "name": "Vendita / Cliente (esterno)",
+      "type": "Esterno",
+      "source": {
+        "sheet": "Magazzini",
+        "row": 17,
+        "range": "A17:C17"
+      }
+    }
+  ],
+  "inventory": [
+    {
+      "sku": "LL-TS-GT3-NB-XS",
+      "model": "GT3RS",
+      "color": "Blu",
+      "size": "XS",
+      "stocks": [
+        {
+          "location_code": "MAG01",
+          "quantity": 2,
+          "source_cell": "E6"
+        },
+        {
+          "location_code": "NEG01",
+          "quantity": 0,
+          "source_cell": "F6"
+        }
+      ],
+      "network_quantity": 2,
+      "central_target_quantity": 3,
+      "suggested_reorder_quantity": 1,
+      "below_target_source_value": "SI",
+      "unit_cost_eur": 13.2,
+      "list_price_eur": 40,
+      "stock_value_at_cost_eur": 26.4,
+      "stock_value_at_sale_price_eur": 80,
+      "source": {
+        "sheet": "Assortimento",
+        "row": 6,
+        "range": "A6:V6"
+      }
+    },
+    {
+      "sku": "LL-TS-GT3-NB-S",
+      "model": "GT3RS",
+      "color": "Blu",
+      "size": "S",
+      "stocks": [
+        {
+          "location_code": "MAG01",
+          "quantity": 1,
+          "source_cell": "E7"
+        },
+        {
+          "location_code": "NEG01",
+          "quantity": 0,
+          "source_cell": "F7"
+        }
+      ],
+      "network_quantity": 1,
+      "central_target_quantity": 3,
+      "suggested_reorder_quantity": 2,
+      "below_target_source_value": "SI",
+      "unit_cost_eur": 13.2,
+      "list_price_eur": 40,
+      "stock_value_at_cost_eur": 13.2,
+      "stock_value_at_sale_price_eur": 40,
+      "source": {
+        "sheet": "Assortimento",
+        "row": 7,
+        "range": "A7:V7"
+      }
+    },
+    {
+      "sku": "LL-TS-GT3-NB-M",
+      "model": "GT3RS",
+      "color": "Blu",
+      "size": "M",
+      "stocks": [
+        {
+          "location_code": "MAG01",
+          "quantity": 3,
+          "source_cell": "E8"
+        },
+        {
+          "location_code": "NEG01",
+          "quantity": 0,
+          "source_cell": "F8"
+        }
+      ],
+      "network_quantity": 3,
+      "central_target_quantity": 3,
+      "suggested_reorder_quantity": 0,
+      "below_target_source_value": "OK",
+      "unit_cost_eur": 13.2,
+      "list_price_eur": 40,
+      "stock_value_at_cost_eur": 39.6,
+      "stock_value_at_sale_price_eur": 120,
+      "source": {
+        "sheet": "Assortimento",
+        "row": 8,
+        "range": "A8:V8"
+      }
+    },
+    {
+      "sku": "LL-TS-GT3-NB-L",
+      "model": "GT3RS",
+      "color": "Blu",
+      "size": "L",
+      "stocks": [
+        {
+          "location_code": "MAG01",
+          "quantity": 0,
+          "source_cell": "E9"
+        },
+        {
+          "location_code": "NEG01",
+          "quantity": 0,
+          "source_cell": "F9"
+        }
+      ],
+      "network_quantity": 0,
+      "central_target_quantity": 3,
+      "suggested_reorder_quantity": 3,
+      "below_target_source_value": "SI",
+      "unit_cost_eur": 13.2,
+      "list_price_eur": 40,
+      "stock_value_at_cost_eur": 0,
+      "stock_value_at_sale_price_eur": 0,
+      "source": {
+        "sheet": "Assortimento",
+        "row": 9,
+        "range": "A9:V9"
+      }
+    },
+    {
+      "sku": "LL-TS-GT3-NB-XL",
+      "model": "GT3RS",
+      "color": "Blu",
+      "size": "XL",
+      "stocks": [
+        {
+          "location_code": "MAG01",
+          "quantity": 2,
+          "source_cell": "E10"
+        },
+        {
+          "location_code": "NEG01",
+          "quantity": 0,
+          "source_cell": "F10"
+        }
+      ],
+      "network_quantity": 2,
+      "central_target_quantity": 3,
+      "suggested_reorder_quantity": 1,
+      "below_target_source_value": "SI",
+      "unit_cost_eur": 13.2,
+      "list_price_eur": 40,
+      "stock_value_at_cost_eur": 26.4,
+      "stock_value_at_sale_price_eur": 80,
+      "source": {
+        "sheet": "Assortimento",
+        "row": 10,
+        "range": "A10:V10"
+      }
+    },
+    {
+      "sku": "LL-TS-GT3-NB-XXL",
+      "model": "GT3RS",
+      "color": "Blu",
+      "size": "XXL",
+      "stocks": [
+        {
+          "location_code": "MAG01",
+          "quantity": 2,
+          "source_cell": "E11"
+        },
+        {
+          "location_code": "NEG01",
+          "quantity": 0,
+          "source_cell": "F11"
+        }
+      ],
+      "network_quantity": 2,
+      "central_target_quantity": 3,
+      "suggested_reorder_quantity": 1,
+      "below_target_source_value": "SI",
+      "unit_cost_eur": 13.2,
+      "list_price_eur": 40,
+      "stock_value_at_cost_eur": 26.4,
+      "stock_value_at_sale_price_eur": 80,
+      "source": {
+        "sheet": "Assortimento",
+        "row": 11,
+        "range": "A11:V11"
+      }
+    },
+    {
+      "sku": "LL-TS-GT3-WH-XS",
+      "model": "GT3RS",
+      "color": "Bianco",
+      "size": "XS",
+      "stocks": [
+        {
+          "location_code": "MAG01",
+          "quantity": 0,
+          "source_cell": "E12"
+        },
+        {
+          "location_code": "NEG01",
+          "quantity": 0,
+          "source_cell": "F12"
+        }
+      ],
+      "network_quantity": 0,
+      "central_target_quantity": 3,
+      "suggested_reorder_quantity": 3,
+      "below_target_source_value": "SI",
+      "unit_cost_eur": 13.2,
+      "list_price_eur": 40,
+      "stock_value_at_cost_eur": 0,
+      "stock_value_at_sale_price_eur": 0,
+      "source": {
+        "sheet": "Assortimento",
+        "row": 12,
+        "range": "A12:V12"
+      }
+    },
+    {
+      "sku": "LL-TS-GT3-WH-S",
+      "model": "GT3RS",
+      "color": "Bianco",
+      "size": "S",
+      "stocks": [
+        {
+          "location_code": "MAG01",
+          "quantity": 0,
+          "source_cell": "E13"
+        },
+        {
+          "location_code": "NEG01",
+          "quantity": 0,
+          "source_cell": "F13"
+        }
+      ],
+      "network_quantity": 0,
+      "central_target_quantity": 3,
+      "suggested_reorder_quantity": 3,
+      "below_target_source_value": "SI",
+      "unit_cost_eur": 13.2,
+      "list_price_eur": 40,
+      "stock_value_at_cost_eur": 0,
+      "stock_value_at_sale_price_eur": 0,
+      "source": {
+        "sheet": "Assortimento",
+        "row": 13,
+        "range": "A13:V13"
+      }
+    },
+    {
+      "sku": "LL-TS-GT3-WH-M",
+      "model": "GT3RS",
+      "color": "Bianco",
+      "size": "M",
+      "stocks": [
+        {
+          "location_code": "MAG01",
+          "quantity": 0,
+          "source_cell": "E14"
+        },
+        {
+          "location_code": "NEG01",
+          "quantity": 0,
+          "source_cell": "F14"
+        }
+      ],
+      "network_quantity": 0,
+      "central_target_quantity": 3,
+      "suggested_reorder_quantity": 3,
+      "below_target_source_value": "SI",
+      "unit_cost_eur": 13.2,
+      "list_price_eur": 40,
+      "stock_value_at_cost_eur": 0,
+      "stock_value_at_sale_price_eur": 0,
+      "source": {
+        "sheet": "Assortimento",
+        "row": 14,
+        "range": "A14:V14"
+      }
+    },
+    {
+      "sku": "LL-TS-GT3-WH-L",
+      "model": "GT3RS",
+      "color": "Bianco",
+      "size": "L",
+      "stocks": [
+        {
+          "location_code": "MAG01",
+          "quantity": 0,
+          "source_cell": "E15"
+        },
+        {
+          "location_code": "NEG01",
+          "quantity": 0,
+          "source_cell": "F15"
+        }
+      ],
+      "network_quantity": 0,
+      "central_target_quantity": 3,
+      "suggested_reorder_quantity": 3,
+      "below_target_source_value": "SI",
+      "unit_cost_eur": 13.2,
+      "list_price_eur": 40,
+      "stock_value_at_cost_eur": 0,
+      "stock_value_at_sale_price_eur": 0,
+      "source": {
+        "sheet": "Assortimento",
+        "row": 15,
+        "range": "A15:V15"
+      }
+    },
+    {
+      "sku": "LL-TS-GT3-WH-XL",
+      "model": "GT3RS",
+      "color": "Bianco",
+      "size": "XL",
+      "stocks": [
+        {
+          "location_code": "MAG01",
+          "quantity": 1,
+          "source_cell": "E16"
+        },
+        {
+          "location_code": "NEG01",
+          "quantity": 0,
+          "source_cell": "F16"
+        }
+      ],
+      "network_quantity": 1,
+      "central_target_quantity": 3,
+      "suggested_reorder_quantity": 2,
+      "below_target_source_value": "SI",
+      "unit_cost_eur": 13.2,
+      "list_price_eur": 40,
+      "stock_value_at_cost_eur": 13.2,
+      "stock_value_at_sale_price_eur": 40,
+      "source": {
+        "sheet": "Assortimento",
+        "row": 16,
+        "range": "A16:V16"
+      }
+    },
+    {
+      "sku": "LL-TS-GT3-WH-XXL",
+      "model": "GT3RS",
+      "color": "Bianco",
+      "size": "XXL",
+      "stocks": [
+        {
+          "location_code": "MAG01",
+          "quantity": 1,
+          "source_cell": "E17"
+        },
+        {
+          "location_code": "NEG01",
+          "quantity": 0,
+          "source_cell": "F17"
+        }
+      ],
+      "network_quantity": 1,
+      "central_target_quantity": 3,
+      "suggested_reorder_quantity": 2,
+      "below_target_source_value": "SI",
+      "unit_cost_eur": 13.2,
+      "list_price_eur": 40,
+      "stock_value_at_cost_eur": 13.2,
+      "stock_value_at_sale_price_eur": 40,
+      "source": {
+        "sheet": "Assortimento",
+        "row": 17,
+        "range": "A17:V17"
+      }
+    },
+    {
+      "sku": "LL-TS-964-NB-XS",
+      "model": "964",
+      "color": "Blu",
+      "size": "XS",
+      "stocks": [
+        {
+          "location_code": "MAG01",
+          "quantity": 4,
+          "source_cell": "E18"
+        },
+        {
+          "location_code": "NEG01",
+          "quantity": 0,
+          "source_cell": "F18"
+        }
+      ],
+      "network_quantity": 4,
+      "central_target_quantity": 3,
+      "suggested_reorder_quantity": 0,
+      "below_target_source_value": "OK",
+      "unit_cost_eur": 13.2,
+      "list_price_eur": 45,
+      "stock_value_at_cost_eur": 52.8,
+      "stock_value_at_sale_price_eur": 180,
+      "source": {
+        "sheet": "Assortimento",
+        "row": 18,
+        "range": "A18:V18"
+      }
+    },
+    {
+      "sku": "LL-TS-964-NB-S",
+      "model": "964",
+      "color": "Blu",
+      "size": "S",
+      "stocks": [
+        {
+          "location_code": "MAG01",
+          "quantity": 4,
+          "source_cell": "E19"
+        },
+        {
+          "location_code": "NEG01",
+          "quantity": 0,
+          "source_cell": "F19"
+        }
+      ],
+      "network_quantity": 4,
+      "central_target_quantity": 3,
+      "suggested_reorder_quantity": 0,
+      "below_target_source_value": "OK",
+      "unit_cost_eur": 13.2,
+      "list_price_eur": 45,
+      "stock_value_at_cost_eur": 52.8,
+      "stock_value_at_sale_price_eur": 180,
+      "source": {
+        "sheet": "Assortimento",
+        "row": 19,
+        "range": "A19:V19"
+      }
+    },
+    {
+      "sku": "LL-TS-964-NB-M",
+      "model": "964",
+      "color": "Blu",
+      "size": "M",
+      "stocks": [
+        {
+          "location_code": "MAG01",
+          "quantity": 4,
+          "source_cell": "E20"
+        },
+        {
+          "location_code": "NEG01",
+          "quantity": 0,
+          "source_cell": "F20"
+        }
+      ],
+      "network_quantity": 4,
+      "central_target_quantity": 3,
+      "suggested_reorder_quantity": 0,
+      "below_target_source_value": "OK",
+      "unit_cost_eur": 13.2,
+      "list_price_eur": 45,
+      "stock_value_at_cost_eur": 52.8,
+      "stock_value_at_sale_price_eur": 180,
+      "source": {
+        "sheet": "Assortimento",
+        "row": 20,
+        "range": "A20:V20"
+      }
+    },
+    {
+      "sku": "LL-TS-964-NB-L",
+      "model": "964",
+      "color": "Blu",
+      "size": "L",
+      "stocks": [
+        {
+          "location_code": "MAG01",
+          "quantity": 0,
+          "source_cell": "E21"
+        },
+        {
+          "location_code": "NEG01",
+          "quantity": 0,
+          "source_cell": "F21"
+        }
+      ],
+      "network_quantity": 0,
+      "central_target_quantity": 3,
+      "suggested_reorder_quantity": 3,
+      "below_target_source_value": "SI",
+      "unit_cost_eur": 13.2,
+      "list_price_eur": 45,
+      "stock_value_at_cost_eur": 0,
+      "stock_value_at_sale_price_eur": 0,
+      "source": {
+        "sheet": "Assortimento",
+        "row": 21,
+        "range": "A21:V21"
+      }
+    },
+    {
+      "sku": "LL-TS-964-NB-XL",
+      "model": "964",
+      "color": "Blu",
+      "size": "XL",
+      "stocks": [
+        {
+          "location_code": "MAG01",
+          "quantity": 9,
+          "source_cell": "E22"
+        },
+        {
+          "location_code": "NEG01",
+          "quantity": 0,
+          "source_cell": "F22"
+        }
+      ],
+      "network_quantity": 9,
+      "central_target_quantity": 3,
+      "suggested_reorder_quantity": 0,
+      "below_target_source_value": "OK",
+      "unit_cost_eur": 13.2,
+      "list_price_eur": 45,
+      "stock_value_at_cost_eur": 118.8,
+      "stock_value_at_sale_price_eur": 405,
+      "source": {
+        "sheet": "Assortimento",
+        "row": 22,
+        "range": "A22:V22"
+      }
+    },
+    {
+      "sku": "LL-TS-964-NB-XXL",
+      "model": "964",
+      "color": "Blu",
+      "size": "XXL",
+      "stocks": [
+        {
+          "location_code": "MAG01",
+          "quantity": 2,
+          "source_cell": "E23"
+        },
+        {
+          "location_code": "NEG01",
+          "quantity": 0,
+          "source_cell": "F23"
+        }
+      ],
+      "network_quantity": 2,
+      "central_target_quantity": 3,
+      "suggested_reorder_quantity": 1,
+      "below_target_source_value": "SI",
+      "unit_cost_eur": 13.2,
+      "list_price_eur": 45,
+      "stock_value_at_cost_eur": 26.4,
+      "stock_value_at_sale_price_eur": 90,
+      "source": {
+        "sheet": "Assortimento",
+        "row": 23,
+        "range": "A23:V23"
+      }
+    },
+    {
+      "sku": "LL-TS-964-WH-XS",
+      "model": "964",
+      "color": "Bianco",
+      "size": "XS",
+      "stocks": [
+        {
+          "location_code": "MAG01",
+          "quantity": 2,
+          "source_cell": "E24"
+        },
+        {
+          "location_code": "NEG01",
+          "quantity": 0,
+          "source_cell": "F24"
+        }
+      ],
+      "network_quantity": 2,
+      "central_target_quantity": 3,
+      "suggested_reorder_quantity": 1,
+      "below_target_source_value": "SI",
+      "unit_cost_eur": 13.2,
+      "list_price_eur": 45,
+      "stock_value_at_cost_eur": 26.4,
+      "stock_value_at_sale_price_eur": 90,
+      "source": {
+        "sheet": "Assortimento",
+        "row": 24,
+        "range": "A24:V24"
+      }
+    },
+    {
+      "sku": "LL-TS-964-WH-S",
+      "model": "964",
+      "color": "Bianco",
+      "size": "S",
+      "stocks": [
+        {
+          "location_code": "MAG01",
+          "quantity": 3,
+          "source_cell": "E25"
+        },
+        {
+          "location_code": "NEG01",
+          "quantity": 0,
+          "source_cell": "F25"
+        }
+      ],
+      "network_quantity": 3,
+      "central_target_quantity": 3,
+      "suggested_reorder_quantity": 0,
+      "below_target_source_value": "OK",
+      "unit_cost_eur": 13.2,
+      "list_price_eur": 45,
+      "stock_value_at_cost_eur": 39.6,
+      "stock_value_at_sale_price_eur": 135,
+      "source": {
+        "sheet": "Assortimento",
+        "row": 25,
+        "range": "A25:V25"
+      }
+    },
+    {
+      "sku": "LL-TS-964-WH-M",
+      "model": "964",
+      "color": "Bianco",
+      "size": "M",
+      "stocks": [
+        {
+          "location_code": "MAG01",
+          "quantity": 3,
+          "source_cell": "E26"
+        },
+        {
+          "location_code": "NEG01",
+          "quantity": 0,
+          "source_cell": "F26"
+        }
+      ],
+      "network_quantity": 3,
+      "central_target_quantity": 3,
+      "suggested_reorder_quantity": 0,
+      "below_target_source_value": "OK",
+      "unit_cost_eur": 13.2,
+      "list_price_eur": 45,
+      "stock_value_at_cost_eur": 39.6,
+      "stock_value_at_sale_price_eur": 135,
+      "source": {
+        "sheet": "Assortimento",
+        "row": 26,
+        "range": "A26:V26"
+      }
+    },
+    {
+      "sku": "LL-TS-964-WH-L",
+      "model": "964",
+      "color": "Bianco",
+      "size": "L",
+      "stocks": [
+        {
+          "location_code": "MAG01",
+          "quantity": 1,
+          "source_cell": "E27"
+        },
+        {
+          "location_code": "NEG01",
+          "quantity": 0,
+          "source_cell": "F27"
+        }
+      ],
+      "network_quantity": 1,
+      "central_target_quantity": 3,
+      "suggested_reorder_quantity": 2,
+      "below_target_source_value": "SI",
+      "unit_cost_eur": 13.2,
+      "list_price_eur": 45,
+      "stock_value_at_cost_eur": 13.2,
+      "stock_value_at_sale_price_eur": 45,
+      "source": {
+        "sheet": "Assortimento",
+        "row": 27,
+        "range": "A27:V27"
+      }
+    },
+    {
+      "sku": "LL-TS-964-WH-XL",
+      "model": "964",
+      "color": "Bianco",
+      "size": "XL",
+      "stocks": [
+        {
+          "location_code": "MAG01",
+          "quantity": 2,
+          "source_cell": "E28"
+        },
+        {
+          "location_code": "NEG01",
+          "quantity": 0,
+          "source_cell": "F28"
+        }
+      ],
+      "network_quantity": 2,
+      "central_target_quantity": 3,
+      "suggested_reorder_quantity": 1,
+      "below_target_source_value": "SI",
+      "unit_cost_eur": 13.2,
+      "list_price_eur": 45,
+      "stock_value_at_cost_eur": 26.4,
+      "stock_value_at_sale_price_eur": 90,
+      "source": {
+        "sheet": "Assortimento",
+        "row": 28,
+        "range": "A28:V28"
+      }
+    },
+    {
+      "sku": "LL-TS-964-WH-XXL",
+      "model": "964",
+      "color": "Bianco",
+      "size": "XXL",
+      "stocks": [
+        {
+          "location_code": "MAG01",
+          "quantity": 3,
+          "source_cell": "E29"
+        },
+        {
+          "location_code": "NEG01",
+          "quantity": 0,
+          "source_cell": "F29"
+        }
+      ],
+      "network_quantity": 3,
+      "central_target_quantity": 3,
+      "suggested_reorder_quantity": 0,
+      "below_target_source_value": "OK",
+      "unit_cost_eur": 13.2,
+      "list_price_eur": 45,
+      "stock_value_at_cost_eur": 39.6,
+      "stock_value_at_sale_price_eur": 135,
+      "source": {
+        "sheet": "Assortimento",
+        "row": 29,
+        "range": "A29:V29"
+      }
+    },
+    {
+      "sku": "LL-TS-512-WH-XS",
+      "model": "TESTAROSSA",
+      "color": "Bianco",
+      "size": "XS",
+      "stocks": [
+        {
+          "location_code": "MAG01",
+          "quantity": 4,
+          "source_cell": "E30"
+        },
+        {
+          "location_code": "NEG01",
+          "quantity": 0,
+          "source_cell": "F30"
+        }
+      ],
+      "network_quantity": 4,
+      "central_target_quantity": 3,
+      "suggested_reorder_quantity": 0,
+      "below_target_source_value": "OK",
+      "unit_cost_eur": 14.7,
+      "list_price_eur": 55,
+      "stock_value_at_cost_eur": 58.8,
+      "stock_value_at_sale_price_eur": 220,
+      "source": {
+        "sheet": "Assortimento",
+        "row": 30,
+        "range": "A30:V30"
+      }
+    },
+    {
+      "sku": "LL-TS-512-WH-S",
+      "model": "TESTAROSSA",
+      "color": "Bianco",
+      "size": "S",
+      "stocks": [
+        {
+          "location_code": "MAG01",
+          "quantity": 1,
+          "source_cell": "E31"
+        },
+        {
+          "location_code": "NEG01",
+          "quantity": 0,
+          "source_cell": "F31"
+        }
+      ],
+      "network_quantity": 1,
+      "central_target_quantity": 3,
+      "suggested_reorder_quantity": 2,
+      "below_target_source_value": "SI",
+      "unit_cost_eur": 14.7,
+      "list_price_eur": 55,
+      "stock_value_at_cost_eur": 14.7,
+      "stock_value_at_sale_price_eur": 55,
+      "source": {
+        "sheet": "Assortimento",
+        "row": 31,
+        "range": "A31:V31"
+      }
+    },
+    {
+      "sku": "LL-TS-512-WH-M",
+      "model": "TESTAROSSA",
+      "color": "Bianco",
+      "size": "M",
+      "stocks": [
+        {
+          "location_code": "MAG01",
+          "quantity": 1,
+          "source_cell": "E32"
+        },
+        {
+          "location_code": "NEG01",
+          "quantity": 0,
+          "source_cell": "F32"
+        }
+      ],
+      "network_quantity": 1,
+      "central_target_quantity": 3,
+      "suggested_reorder_quantity": 2,
+      "below_target_source_value": "SI",
+      "unit_cost_eur": 14.7,
+      "list_price_eur": 55,
+      "stock_value_at_cost_eur": 14.7,
+      "stock_value_at_sale_price_eur": 55,
+      "source": {
+        "sheet": "Assortimento",
+        "row": 32,
+        "range": "A32:V32"
+      }
+    },
+    {
+      "sku": "LL-TS-512-WH-L",
+      "model": "TESTAROSSA",
+      "color": "Bianco",
+      "size": "L",
+      "stocks": [
+        {
+          "location_code": "MAG01",
+          "quantity": 1,
+          "source_cell": "E33"
+        },
+        {
+          "location_code": "NEG01",
+          "quantity": 0,
+          "source_cell": "F33"
+        }
+      ],
+      "network_quantity": 1,
+      "central_target_quantity": 3,
+      "suggested_reorder_quantity": 2,
+      "below_target_source_value": "SI",
+      "unit_cost_eur": 14.7,
+      "list_price_eur": 55,
+      "stock_value_at_cost_eur": 14.7,
+      "stock_value_at_sale_price_eur": 55,
+      "source": {
+        "sheet": "Assortimento",
+        "row": 33,
+        "range": "A33:V33"
+      }
+    },
+    {
+      "sku": "LL-TS-512-WH-XL",
+      "model": "TESTAROSSA",
+      "color": "Bianco",
+      "size": "XL",
+      "stocks": [
+        {
+          "location_code": "MAG01",
+          "quantity": 0,
+          "source_cell": "E34"
+        },
+        {
+          "location_code": "NEG01",
+          "quantity": 0,
+          "source_cell": "F34"
+        }
+      ],
+      "network_quantity": 0,
+      "central_target_quantity": 3,
+      "suggested_reorder_quantity": 3,
+      "below_target_source_value": "SI",
+      "unit_cost_eur": 14.7,
+      "list_price_eur": 55,
+      "stock_value_at_cost_eur": 0,
+      "stock_value_at_sale_price_eur": 0,
+      "source": {
+        "sheet": "Assortimento",
+        "row": 34,
+        "range": "A34:V34"
+      }
+    },
+    {
+      "sku": "LL-TS-512-WH-XXL",
+      "model": "TESTAROSSA",
+      "color": "Bianco",
+      "size": "XXL",
+      "stocks": [
+        {
+          "location_code": "MAG01",
+          "quantity": 5,
+          "source_cell": "E35"
+        },
+        {
+          "location_code": "NEG01",
+          "quantity": 0,
+          "source_cell": "F35"
+        }
+      ],
+      "network_quantity": 5,
+      "central_target_quantity": 3,
+      "suggested_reorder_quantity": 0,
+      "below_target_source_value": "OK",
+      "unit_cost_eur": 14.7,
+      "list_price_eur": 55,
+      "stock_value_at_cost_eur": 73.5,
+      "stock_value_at_sale_price_eur": 275,
+      "source": {
+        "sheet": "Assortimento",
+        "row": 35,
+        "range": "A35:V35"
+      }
+    },
+    {
+      "sku": "LL-TS-F40-XS",
+      "model": "F40",
+      "color": "Bianco",
+      "size": "XS",
+      "stocks": [
+        {
+          "location_code": "MAG01",
+          "quantity": 4,
+          "source_cell": "E36"
+        },
+        {
+          "location_code": "NEG01",
+          "quantity": 0,
+          "source_cell": "F36"
+        }
+      ],
+      "network_quantity": 4,
+      "central_target_quantity": 3,
+      "suggested_reorder_quantity": 0,
+      "below_target_source_value": "OK",
+      "unit_cost_eur": 13.2,
+      "list_price_eur": 45,
+      "stock_value_at_cost_eur": 52.8,
+      "stock_value_at_sale_price_eur": 180,
+      "source": {
+        "sheet": "Assortimento",
+        "row": 36,
+        "range": "A36:V36"
+      }
+    },
+    {
+      "sku": "LL-TS-F40-S",
+      "model": "F40",
+      "color": "Bianco",
+      "size": "S",
+      "stocks": [
+        {
+          "location_code": "MAG01",
+          "quantity": 2,
+          "source_cell": "E37"
+        },
+        {
+          "location_code": "NEG01",
+          "quantity": 0,
+          "source_cell": "F37"
+        }
+      ],
+      "network_quantity": 2,
+      "central_target_quantity": 3,
+      "suggested_reorder_quantity": 1,
+      "below_target_source_value": "SI",
+      "unit_cost_eur": 13.2,
+      "list_price_eur": 45,
+      "stock_value_at_cost_eur": 26.4,
+      "stock_value_at_sale_price_eur": 90,
+      "source": {
+        "sheet": "Assortimento",
+        "row": 37,
+        "range": "A37:V37"
+      }
+    },
+    {
+      "sku": "LL-TS-F40-M",
+      "model": "F40",
+      "color": "Bianco",
+      "size": "M",
+      "stocks": [
+        {
+          "location_code": "MAG01",
+          "quantity": 4,
+          "source_cell": "E38"
+        },
+        {
+          "location_code": "NEG01",
+          "quantity": 0,
+          "source_cell": "F38"
+        }
+      ],
+      "network_quantity": 4,
+      "central_target_quantity": 3,
+      "suggested_reorder_quantity": 0,
+      "below_target_source_value": "OK",
+      "unit_cost_eur": 13.2,
+      "list_price_eur": 45,
+      "stock_value_at_cost_eur": 52.8,
+      "stock_value_at_sale_price_eur": 180,
+      "source": {
+        "sheet": "Assortimento",
+        "row": 38,
+        "range": "A38:V38"
+      }
+    },
+    {
+      "sku": "LL-TS-F40-L",
+      "model": "F40",
+      "color": "Bianco",
+      "size": "L",
+      "stocks": [
+        {
+          "location_code": "MAG01",
+          "quantity": 3,
+          "source_cell": "E39"
+        },
+        {
+          "location_code": "NEG01",
+          "quantity": 0,
+          "source_cell": "F39"
+        }
+      ],
+      "network_quantity": 3,
+      "central_target_quantity": 3,
+      "suggested_reorder_quantity": 0,
+      "below_target_source_value": "OK",
+      "unit_cost_eur": 13.2,
+      "list_price_eur": 45,
+      "stock_value_at_cost_eur": 39.6,
+      "stock_value_at_sale_price_eur": 135,
+      "source": {
+        "sheet": "Assortimento",
+        "row": 39,
+        "range": "A39:V39"
+      }
+    },
+    {
+      "sku": "LL-TS-F40-XL",
+      "model": "F40",
+      "color": "Bianco",
+      "size": "XL",
+      "stocks": [
+        {
+          "location_code": "MAG01",
+          "quantity": 1,
+          "source_cell": "E40"
+        },
+        {
+          "location_code": "NEG01",
+          "quantity": 0,
+          "source_cell": "F40"
+        }
+      ],
+      "network_quantity": 1,
+      "central_target_quantity": 3,
+      "suggested_reorder_quantity": 2,
+      "below_target_source_value": "SI",
+      "unit_cost_eur": 13.2,
+      "list_price_eur": 45,
+      "stock_value_at_cost_eur": 13.2,
+      "stock_value_at_sale_price_eur": 45,
+      "source": {
+        "sheet": "Assortimento",
+        "row": 40,
+        "range": "A40:V40"
+      }
+    },
+    {
+      "sku": "LL-TS-F40-XXL",
+      "model": "F40",
+      "color": "Bianco",
+      "size": "XXL",
+      "stocks": [
+        {
+          "location_code": "MAG01",
+          "quantity": 4,
+          "source_cell": "E41"
+        },
+        {
+          "location_code": "NEG01",
+          "quantity": 0,
+          "source_cell": "F41"
+        }
+      ],
+      "network_quantity": 4,
+      "central_target_quantity": 3,
+      "suggested_reorder_quantity": 0,
+      "below_target_source_value": "OK",
+      "unit_cost_eur": 13.2,
+      "list_price_eur": 45,
+      "stock_value_at_cost_eur": 52.8,
+      "stock_value_at_sale_price_eur": 180,
+      "source": {
+        "sheet": "Assortimento",
+        "row": 41,
+        "range": "A41:V41"
+      }
+    },
+    {
+      "sku": "LL-TS-P88-XS",
+      "model": "SENNA",
+      "color": "Bianco",
+      "size": "XS",
+      "stocks": [
+        {
+          "location_code": "MAG01",
+          "quantity": 6,
+          "source_cell": "E42"
+        },
+        {
+          "location_code": "NEG01",
+          "quantity": 0,
+          "source_cell": "F42"
+        }
+      ],
+      "network_quantity": 6,
+      "central_target_quantity": 3,
+      "suggested_reorder_quantity": 0,
+      "below_target_source_value": "OK",
+      "unit_cost_eur": 13.7,
+      "list_price_eur": 50,
+      "stock_value_at_cost_eur": 82.2,
+      "stock_value_at_sale_price_eur": 300,
+      "source": {
+        "sheet": "Assortimento",
+        "row": 42,
+        "range": "A42:V42"
+      }
+    },
+    {
+      "sku": "LL-TS-P88-S",
+      "model": "SENNA",
+      "color": "Bianco",
+      "size": "S",
+      "stocks": [
+        {
+          "location_code": "MAG01",
+          "quantity": 0,
+          "source_cell": "E43"
+        },
+        {
+          "location_code": "NEG01",
+          "quantity": 0,
+          "source_cell": "F43"
+        }
+      ],
+      "network_quantity": 0,
+      "central_target_quantity": 3,
+      "suggested_reorder_quantity": 3,
+      "below_target_source_value": "SI",
+      "unit_cost_eur": 13.7,
+      "list_price_eur": 50,
+      "stock_value_at_cost_eur": 0,
+      "stock_value_at_sale_price_eur": 0,
+      "source": {
+        "sheet": "Assortimento",
+        "row": 43,
+        "range": "A43:V43"
+      }
+    },
+    {
+      "sku": "LL-TS-P88-M",
+      "model": "SENNA",
+      "color": "Bianco",
+      "size": "M",
+      "stocks": [
+        {
+          "location_code": "MAG01",
+          "quantity": 2,
+          "source_cell": "E44"
+        },
+        {
+          "location_code": "NEG01",
+          "quantity": 0,
+          "source_cell": "F44"
+        }
+      ],
+      "network_quantity": 2,
+      "central_target_quantity": 3,
+      "suggested_reorder_quantity": 1,
+      "below_target_source_value": "SI",
+      "unit_cost_eur": 13.7,
+      "list_price_eur": 50,
+      "stock_value_at_cost_eur": 27.4,
+      "stock_value_at_sale_price_eur": 100,
+      "source": {
+        "sheet": "Assortimento",
+        "row": 44,
+        "range": "A44:V44"
+      }
+    },
+    {
+      "sku": "LL-TS-P88-L",
+      "model": "SENNA",
+      "color": "Bianco",
+      "size": "L",
+      "stocks": [
+        {
+          "location_code": "MAG01",
+          "quantity": 5,
+          "source_cell": "E45"
+        },
+        {
+          "location_code": "NEG01",
+          "quantity": 0,
+          "source_cell": "F45"
+        }
+      ],
+      "network_quantity": 5,
+      "central_target_quantity": 3,
+      "suggested_reorder_quantity": 0,
+      "below_target_source_value": "OK",
+      "unit_cost_eur": 13.7,
+      "list_price_eur": 50,
+      "stock_value_at_cost_eur": 68.5,
+      "stock_value_at_sale_price_eur": 250,
+      "source": {
+        "sheet": "Assortimento",
+        "row": 45,
+        "range": "A45:V45"
+      }
+    },
+    {
+      "sku": "LL-TS-P88-XL",
+      "model": "SENNA",
+      "color": "Bianco",
+      "size": "XL",
+      "stocks": [
+        {
+          "location_code": "MAG01",
+          "quantity": 7,
+          "source_cell": "E46"
+        },
+        {
+          "location_code": "NEG01",
+          "quantity": 0,
+          "source_cell": "F46"
+        }
+      ],
+      "network_quantity": 7,
+      "central_target_quantity": 3,
+      "suggested_reorder_quantity": 0,
+      "below_target_source_value": "OK",
+      "unit_cost_eur": 13.7,
+      "list_price_eur": 50,
+      "stock_value_at_cost_eur": 95.9,
+      "stock_value_at_sale_price_eur": 350,
+      "source": {
+        "sheet": "Assortimento",
+        "row": 46,
+        "range": "A46:V46"
+      }
+    },
+    {
+      "sku": "LL-TS-P88-XXL",
+      "model": "SENNA",
+      "color": "Bianco",
+      "size": "XXL",
+      "stocks": [
+        {
+          "location_code": "MAG01",
+          "quantity": 7,
+          "source_cell": "E47"
+        },
+        {
+          "location_code": "NEG01",
+          "quantity": 0,
+          "source_cell": "F47"
+        }
+      ],
+      "network_quantity": 7,
+      "central_target_quantity": 3,
+      "suggested_reorder_quantity": 0,
+      "below_target_source_value": "OK",
+      "unit_cost_eur": 13.7,
+      "list_price_eur": 50,
+      "stock_value_at_cost_eur": 95.9,
+      "stock_value_at_sale_price_eur": 350,
+      "source": {
+        "sheet": "Assortimento",
+        "row": 47,
+        "range": "A47:V47"
+      }
+    },
+    {
+      "sku": "LL-TS-300-AZ-XS",
+      "model": "SL",
+      "color": "Azzurro",
+      "size": "XS",
+      "stocks": [
+        {
+          "location_code": "MAG01",
+          "quantity": 3,
+          "source_cell": "E48"
+        },
+        {
+          "location_code": "NEG01",
+          "quantity": 0,
+          "source_cell": "F48"
+        }
+      ],
+      "network_quantity": 3,
+      "central_target_quantity": 3,
+      "suggested_reorder_quantity": 0,
+      "below_target_source_value": "OK",
+      "unit_cost_eur": 13.2,
+      "list_price_eur": 45,
+      "stock_value_at_cost_eur": 39.6,
+      "stock_value_at_sale_price_eur": 135,
+      "source": {
+        "sheet": "Assortimento",
+        "row": 48,
+        "range": "A48:V48"
+      }
+    },
+    {
+      "sku": "LL-TS-300-AZ-S",
+      "model": "SL",
+      "color": "Azzurro",
+      "size": "S",
+      "stocks": [
+        {
+          "location_code": "MAG01",
+          "quantity": 2,
+          "source_cell": "E49"
+        },
+        {
+          "location_code": "NEG01",
+          "quantity": 0,
+          "source_cell": "F49"
+        }
+      ],
+      "network_quantity": 2,
+      "central_target_quantity": 3,
+      "suggested_reorder_quantity": 1,
+      "below_target_source_value": "SI",
+      "unit_cost_eur": 13.2,
+      "list_price_eur": 45,
+      "stock_value_at_cost_eur": 26.4,
+      "stock_value_at_sale_price_eur": 90,
+      "source": {
+        "sheet": "Assortimento",
+        "row": 49,
+        "range": "A49:V49"
+      }
+    },
+    {
+      "sku": "LL-TS-300-AZ-M",
+      "model": "SL",
+      "color": "Azzurro",
+      "size": "M",
+      "stocks": [
+        {
+          "location_code": "MAG01",
+          "quantity": 0,
+          "source_cell": "E50"
+        },
+        {
+          "location_code": "NEG01",
+          "quantity": 0,
+          "source_cell": "F50"
+        }
+      ],
+      "network_quantity": 0,
+      "central_target_quantity": 3,
+      "suggested_reorder_quantity": 3,
+      "below_target_source_value": "SI",
+      "unit_cost_eur": 13.2,
+      "list_price_eur": 45,
+      "stock_value_at_cost_eur": 0,
+      "stock_value_at_sale_price_eur": 0,
+      "source": {
+        "sheet": "Assortimento",
+        "row": 50,
+        "range": "A50:V50"
+      }
+    },
+    {
+      "sku": "LL-TS-300-AZ-L",
+      "model": "SL",
+      "color": "Azzurro",
+      "size": "L",
+      "stocks": [
+        {
+          "location_code": "MAG01",
+          "quantity": 0,
+          "source_cell": "E51"
+        },
+        {
+          "location_code": "NEG01",
+          "quantity": 0,
+          "source_cell": "F51"
+        }
+      ],
+      "network_quantity": 0,
+      "central_target_quantity": 3,
+      "suggested_reorder_quantity": 3,
+      "below_target_source_value": "SI",
+      "unit_cost_eur": 13.2,
+      "list_price_eur": 45,
+      "stock_value_at_cost_eur": 0,
+      "stock_value_at_sale_price_eur": 0,
+      "source": {
+        "sheet": "Assortimento",
+        "row": 51,
+        "range": "A51:V51"
+      }
+    },
+    {
+      "sku": "LL-TS-300-AZ-XL",
+      "model": "SL",
+      "color": "Azzurro",
+      "size": "XL",
+      "stocks": [
+        {
+          "location_code": "MAG01",
+          "quantity": 0,
+          "source_cell": "E52"
+        },
+        {
+          "location_code": "NEG01",
+          "quantity": 0,
+          "source_cell": "F52"
+        }
+      ],
+      "network_quantity": 0,
+      "central_target_quantity": 3,
+      "suggested_reorder_quantity": 3,
+      "below_target_source_value": "SI",
+      "unit_cost_eur": 13.2,
+      "list_price_eur": 45,
+      "stock_value_at_cost_eur": 0,
+      "stock_value_at_sale_price_eur": 0,
+      "source": {
+        "sheet": "Assortimento",
+        "row": 52,
+        "range": "A52:V52"
+      }
+    },
+    {
+      "sku": "LL-TS-300-AZ-XXL",
+      "model": "SL",
+      "color": "Azzurro",
+      "size": "XXL",
+      "stocks": [
+        {
+          "location_code": "MAG01",
+          "quantity": 0,
+          "source_cell": "E53"
+        },
+        {
+          "location_code": "NEG01",
+          "quantity": 0,
+          "source_cell": "F53"
+        }
+      ],
+      "network_quantity": 0,
+      "central_target_quantity": 3,
+      "suggested_reorder_quantity": 3,
+      "below_target_source_value": "SI",
+      "unit_cost_eur": 13.2,
+      "list_price_eur": 45,
+      "stock_value_at_cost_eur": 0,
+      "stock_value_at_sale_price_eur": 0,
+      "source": {
+        "sheet": "Assortimento",
+        "row": 53,
+        "range": "A53:V53"
+      }
+    },
+    {
+      "sku": "LL-CAP-PP-PNK",
+      "model": "Cappellino Pole Position",
+      "color": "Rosa",
+      "size": "UNICA",
+      "stocks": [
+        {
+          "location_code": "MAG01",
+          "quantity": 18,
+          "source_cell": "E54"
+        },
+        {
+          "location_code": "NEG01",
+          "quantity": 0,
+          "source_cell": "F54"
+        }
+      ],
+      "network_quantity": 18,
+      "central_target_quantity": 10,
+      "suggested_reorder_quantity": 0,
+      "below_target_source_value": "OK",
+      "unit_cost_eur": 2.6,
+      "list_price_eur": 20,
+      "stock_value_at_cost_eur": 46.8,
+      "stock_value_at_sale_price_eur": 360,
+      "source": {
+        "sheet": "Assortimento",
+        "row": 54,
+        "range": "A54:V54"
+      }
+    },
+    {
+      "sku": "LL-CAP-964-NB",
+      "model": "Cappellino 964",
+      "color": "Blu",
+      "size": "UNICA",
+      "stocks": [
+        {
+          "location_code": "MAG01",
+          "quantity": 40,
+          "source_cell": "E55"
+        },
+        {
+          "location_code": "NEG01",
+          "quantity": 0,
+          "source_cell": "F55"
+        }
+      ],
+      "network_quantity": 40,
+      "central_target_quantity": 10,
+      "suggested_reorder_quantity": 0,
+      "below_target_source_value": "OK",
+      "unit_cost_eur": 2.6,
+      "list_price_eur": 20,
+      "stock_value_at_cost_eur": 104,
+      "stock_value_at_sale_price_eur": 800,
+      "source": {
+        "sheet": "Assortimento",
+        "row": 55,
+        "range": "A55:V55"
+      }
+    },
+    {
+      "sku": "LL-CAP-3D-GRN",
+      "model": "Cappellino Signature 3D",
+      "color": "Verde",
+      "size": "UNICA",
+      "stocks": [
+        {
+          "location_code": "MAG01",
+          "quantity": 45,
+          "source_cell": "E56"
+        },
+        {
+          "location_code": "NEG01",
+          "quantity": 0,
+          "source_cell": "F56"
+        }
+      ],
+      "network_quantity": 45,
+      "central_target_quantity": 10,
+      "suggested_reorder_quantity": 0,
+      "below_target_source_value": "OK",
+      "unit_cost_eur": 2.2,
+      "list_price_eur": 20,
+      "stock_value_at_cost_eur": 99,
+      "stock_value_at_sale_price_eur": 900,
+      "source": {
+        "sheet": "Assortimento",
+        "row": 56,
+        "range": "A56:V56"
+      }
+    }
+  ],
+  "extraction_validation": {
+    "scope": "Structural extraction fidelity only; no physical-stock or Shopify reconciliation.",
+    "sku_sets_match": true,
+    "duplicate_source_identifiers": false,
+    "stock_location_headers_match_exact_source_names": true,
+    "required_formula_caches_missing": false,
+    "source_quantity_cells_checked": 102,
+    "source_output_quantity_mismatches": 0,
+    "blank_sku_placeholder_rows_excluded": [
+      57,
+      58,
+      59,
+      60,
+      61,
+      62,
+      63,
+      64,
+      65,
+      66
+    ]
+  }
+}
