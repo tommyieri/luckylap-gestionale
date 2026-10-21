@@ -1,6 +1,6 @@
 # Worker ordini Shopify
 
-Preparazione tecnica del 21 ottobre 2026. Applicare le migrazioni non crea job cron, segreti, webhook o abbonamenti. Il worker e la pianificazione richiedono configurazione esplicita. La ricevuta del webhook prova la persistenza della notifica; non prova che magazzino e Finance siano già sincronizzati.
+Motore pubblicato il 21 ottobre 2026; connessione reale e pianificazione attivate come documentato nel [deployment](deployment.md). Applicare le migrazioni non crea job cron, segreti, webhook o abbonamenti. Il worker e la pianificazione richiedono configurazione esplicita. La ricevuta del webhook prova la persistenza della notifica; non prova che magazzino e Finance siano già sincronizzati.
 
 ## Endpoint e credenziali
 
