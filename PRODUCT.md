@@ -10,22 +10,22 @@ Il progetto GitHub `tommyieri/luckylap-partner` è la fonte per identità e sist
 
 ## Regole del prodotto
 
-- Fonte scorte: Excel inventario autorizzato su Drive, non Shopify.
-- Vendite in sospeso. Ricevuti i file Finance dal founder: analisi locale riservata, importazione soggetta agli accessi effettivi per i tre autorizzati.
+- Fonte scorte: apertura dall'Excel inventario autorizzato su Drive, poi registro movimenti del gestionale; mai Shopify.
+- Vendite attive dal 21 ottobre 2026, manuali e da Shopify; nessuno storico importato. Finance: 144 righe BudgetFlow importate, tutte da verificare, visibili solo ai tre autorizzati.
 - Costi/margini e operazioni di sconto/rettifica accessibili a tutti i membri.
 - Finance soltanto founder, Gabriele, Gherardo; Controllo soltanto founder.
 - Packaging separato: scatole per T-shirt e adesivi per scatole, diversi dagli sticker Shopify.
 - Conto vendita 60/40 a favore LuckyLap, prezzo in negozio +10 EUR sul web.
 - Calendario interno, senza sincronizzazione Google Calendar o inviti esterni automatici.
 - Drive sola lettura: inventario, grafiche, alcune foto ed eventuali informazioni professionali su Luca; nessun altro documento importato.
-- Nessun abbonamento o pubblicazione commerciale su Vercel Hobby.
+- Nessun abbonamento. L'app è oggi su Vercel Hobby, piano che Vercel riserva all'uso non commerciale: l'hosting resta così finché Tommi non decide (vedi `AGENTS.md`).
 
 ## Stato della consegna
 
-Prima versione locale con snapshot inventario, calendario, attività e note sul browser. L'anteprima non finge un login e non è un sistema già multiutente. Supabase è predisposto separatamente; attivazione e RLS richiedono verifica su database configurato.
+App pubblicata su Vercel con dati in Supabase: cinque account personali, permessi nel database (RLS), password separate per Finance e Controllo CEO. Moduli collegati: inventario (`/`), rettifiche (`/stock`), vendite e ordini Shopify (`/sales`), conto vendita (`/consignment`), packaging (`/packaging`), calendario, attività e note (`/team`), Finance (`/finance`), grafiche (`/assets`), nuovi prodotti (`/development`), Controllo CEO (`/audit`). Partner per ora rimanda al progetto separato. L'anteprima locale, con snapshot inventario e note sul browser, resta solo per lo sviluppo.
 
 ## Esiti attesi
 
 Ritrovare uno SKU con quantità e fonte verificabili. Separare centrale e merce affidata. Preparare call e appuntare decisioni. Sapere quali funzioni sono operative e quali attendono dati o attivazione. Usare l'app sia alla scrivania sia sul telefono.
 
-Specifica aggiornata: `docs/superpowers/specs/2026-10-21-gestionale-luckylap-design.md`.
+Specifica iniziale, in parte superata: `docs/superpowers/specs/2026-10-21-gestionale-luckylap-design.md`. Indice di tutti i documenti: `docs/README.md`.
