@@ -1,18 +1,234 @@
-import{describe,expect,it,vi}from"vitest";vi.mock("server-only",()=>({}));
-import{canonicalCents,canonicalTimestamp,normalizeCanonicalShopifyOrder}from"./canonical-model";import{canonicalIds as ids,canonicalMoney,canonicalRawFixture}from"./canonical-fixtures";
-describe("no-PII canonical Shopify allowlist",()=>{
- it("normalizes original/current quantities, prices, taxes, payments and refund hints independently",()=>{const result=normalizeCanonicalShopifyOrder(canonicalRawFixture(),"synthetic.myshopify.com");expect(result.status).toBe("ready");if(result.status!=="ready")return;expect(result.order).toMatchObject({schemaVersion:1,apiVersion:"2026-10",orderId:ids.order,shopCurrency:"EUR",presentmentCurrency:"EUR",edited:false,hasDiscountCodes:false});expect(result.order.lines[0]).toMatchObject({quantity:2,currentQuantity:1,originalUnitPriceCents:5000,discountedTotalCents:9000,lineDiscountCents:1000,discountAllocationsCents:[1000]});expect(result.order.totals).toMatchObject({originalTotalCents:10000,currentTotalCents:9000,totalRefundedCents:1000,totalReceivedCents:10000});expect(result.order.refunds[0].lines[0]).toMatchObject({restocked:true,restockType:"RETURN",quantity:1});expect(result.order).not.toHaveProperty("stockMovements");expect(result.order).not.toHaveProperty("payments");});
- it("drops malicious extra PII fields and never retains coupon code strings",()=>{const raw=canonicalRawFixture()as unknown as Record<string,any>;raw.order.customer={email:"PRIVATE_SENTINEL"};raw.order.shippingAddress={address1:"PRIVATE_SENTINEL"};raw.order.note="PRIVATE_SENTINEL";raw.order.discountCodes=["PRIVATE_SENTINEL"];raw.lines[0].customAttributes=[{key:"PRIVATE_SENTINEL"}];raw.order.transactions[0].paymentDetails={cardNumber:"PRIVATE_SENTINEL"};const result=normalizeCanonicalShopifyOrder(raw,"synthetic.myshopify.com");expect(result.status).toBe("ready");expect(JSON.stringify(result)).not.toContain("PRIVATE_SENTINEL");if(result.status==="ready")expect(result.order.hasDiscountCodes).toBe(true);});
- it("does not convert missing optional money or nullable quantities to zero",()=>{const raw=canonicalRawFixture();raw.order.subtotalPriceSet=null;raw.order.totalTaxSet=null;raw.order.cartDiscountAmountSet=null;raw.order.totalDiscountsSet=null;raw.fulfillments[0].lines[0].quantity=null;raw.refunds[0].lines[0].id=null;raw.order.transactions[0].processedAt=null;const result=normalizeCanonicalShopifyOrder(raw,"synthetic.myshopify.com");expect(result.status).toBe("ready");if(result.status!=="ready")return;expect(result.order.totals.originalSubtotalCents).toBeNull();expect(result.order.totals.originalTaxCents).toBeNull();expect(result.order.fulfillments[0].lines[0].quantity).toBeNull();expect(result.order.refunds[0].lines[0].id).toBeNull();});
- it.each(["AUTHORIZATION","VOID","EMV_AUTHORIZATION","SUGGESTED_REFUND"])("preserves %s as source kind rather than claiming received cash",kind=>{const raw=canonicalRawFixture();raw.order.transactions[0].kind=kind;raw.order.totalReceivedSet=canonicalMoney();const result=normalizeCanonicalShopifyOrder(raw,"synthetic.myshopify.com");expect(result.status).toBe("ready");if(result.status==="ready"){expect(result.order.transactions[0].kind).toBe(kind);expect(result.order.totals.totalReceivedCents).toBe(0);expect(result.order).not.toHaveProperty("cashReceived");}});
- it("preserves multiple captures and their parent, with stable IDs and explicit gateway",()=>{const raw=canonicalRawFixture(),auth={...raw.order.transactions[0],id:"gid://shopify/OrderTransaction/701",kind:"AUTHORIZATION"};raw.order.transactions=[auth,{...auth,id:"gid://shopify/OrderTransaction/702",kind:"CAPTURE",amountSet:canonicalMoney("40.00"),parentTransaction:{id:auth.id}},{...auth,id:"gid://shopify/OrderTransaction/703",kind:"CAPTURE",amountSet:canonicalMoney("60.00"),parentTransaction:{id:auth.id},gateway:"gift_card"}];raw.order.transactionsCount.count=3;const result=normalizeCanonicalShopifyOrder(raw,"synthetic.myshopify.com");expect(result.status).toBe("ready");if(result.status==="ready")expect(result.order.transactions.map(t=>[t.kind,t.amountCents,t.parentId,t.gateway])).toEqual([["AUTHORIZATION",10000,null,"synthetic_gateway"],["CAPTURE",4000,auth.id,"synthetic_gateway"],["CAPTURE",6000,auth.id,"gift_card"]]);});
- it("keeps POS location, cancellation, test and edit facts without operational guesses",()=>{const raw=canonicalRawFixture();raw.order.sourceName="pos";raw.order.retailLocation={id:ids.location};raw.order.cancelledAt="2026-10-21T13:00:00+02:00";raw.order.test=true;raw.order.edited=true;const result=normalizeCanonicalShopifyOrder(raw,"synthetic.myshopify.com");expect(result.status).toBe("ready");if(result.status==="ready")expect(result.order).toMatchObject({sourceName:"pos",retailLocationId:ids.location,cancelledAt:"2026-10-21T11:00:00.000Z",test:true,edited:true});});
- it.each(["90000000000000.01","1.001","1e3","-0.01","NaN"])("rejects money that cannot become exact safe cents: %s",amount=>{expect(()=>canonicalCents(amount)).toThrow();});
- it("preserves the maximum odd cent without floating point rounding",()=>{expect(canonicalCents("89999999999999.99")).toBe(8999999999999999);expect(canonicalCents("90000000000000.00")).toBe(9000000000000000);});
- it("preserves source revision precision beyond milliseconds while normalizing timezone",()=>{expect(canonicalTimestamp("2026-10-21T13:00:00.123456789+02:00")).toBe("2026-10-21T11:00:00.123456789Z");expect(canonicalTimestamp("2026-10-21T11:00:00.123456789Z")).not.toBe(canonicalTimestamp("2026-10-21T11:00:00.123456788Z"));expect(canonicalTimestamp("2026-10-21T11:00:00.120000Z")).toBe("2026-10-21T11:00:00.120Z");});
- it.each(["EUR_order_USD","USD_money"])("rejects unsupported currency %s",which=>{const raw=canonicalRawFixture();if(which==="EUR_order_USD")raw.order.presentmentCurrencyCode="USD";else raw.lines[0].originalUnitPriceSet=canonicalMoney("50.00","USD");expect(normalizeCanonicalShopifyOrder(raw,"synthetic.myshopify.com")).toMatchObject({status:"review",code:"unsupported_currency"});});
- it.each(["transactions","fulfillments"])("does not accept incomplete or approximate %s counts",which=>{for(const change of[{count:2,precision:"EXACT"},{count:1,precision:"AT_LEAST"}]){const raw=canonicalRawFixture()as unknown as Record<string,any>;raw.order[`${which}Count`]=change;expect(normalizeCanonicalShopifyOrder(raw,"synthetic.myshopify.com")).toMatchObject({status:"review",code:"count_incomplete"});}});
- it.each(["line","transaction","fulfillment","refund"])("rejects duplicate %s identities",which=>{const raw=canonicalRawFixture();if(which==="line")raw.lines.push(raw.lines[0]);if(which==="transaction"){raw.order.transactions.push(raw.order.transactions[0]);raw.order.transactionsCount.count=2;}if(which==="fulfillment"){raw.fulfillments.push(raw.fulfillments[0]);raw.order.fulfillmentsCount.count=2;}if(which==="refund")raw.refunds.push(raw.refunds[0]);expect(normalizeCanonicalShopifyOrder(raw,"synthetic.myshopify.com")).toMatchObject({status:"review",code:"duplicate_identity"});});
- it("rejects foreign parents, original lines and child ownership",()=>{for(const which of["parent","line","order"]){const raw=canonicalRawFixture();if(which==="parent")raw.order.transactions[0].parentTransaction={id:"gid://shopify/OrderTransaction/999"};if(which==="line")raw.refunds[0].lines[0].lineItem.id="gid://shopify/LineItem/999";if(which==="order")raw.fulfillments[0].order.id="gid://shopify/Order/999";expect(normalizeCanonicalShopifyOrder(raw,"synthetic.myshopify.com")).toMatchObject({status:"review",code:"foreign_reference"});}});
- it("refuses missing required values, invalid dates and currentQuantity larger than original",()=>{for(const which of["missing","date","quantity"]){const raw=canonicalRawFixture()as unknown as Record<string,any>;if(which==="missing")delete raw.order.currentTotalTaxSet;if(which==="date")raw.order.createdAt="2026-02-30T11:00:00Z";if(which==="quantity")raw.lines[0].currentQuantity=3;expect(normalizeCanonicalShopifyOrder(raw,"synthetic.myshopify.com")).toMatchObject({status:"review",code:"invalid_shape"});}});
+import { describe, expect, it, vi } from "vitest";
+vi.mock("server-only", () => ({}));
+import {
+  canonicalCents,
+  canonicalTimestamp,
+  normalizeCanonicalShopifyOrder,
+} from "./canonical-model";
+import { canonicalIds as ids, canonicalMoney, canonicalRawFixture } from "./canonical-fixtures";
+describe("no-PII canonical Shopify allowlist", () => {
+  it("normalizes original/current quantities, prices, taxes, payments and refund hints independently", () => {
+    const result = normalizeCanonicalShopifyOrder(canonicalRawFixture(), "synthetic.myshopify.com");
+    expect(result.status).toBe("ready");
+    if (result.status !== "ready") return;
+    expect(result.order).toMatchObject({
+      schemaVersion: 1,
+      apiVersion: "2026-10",
+      orderId: ids.order,
+      shopCurrency: "EUR",
+      presentmentCurrency: "EUR",
+      edited: false,
+      hasDiscountCodes: false,
+    });
+    expect(result.order.lines[0]).toMatchObject({
+      quantity: 2,
+      currentQuantity: 1,
+      originalUnitPriceCents: 5000,
+      discountedTotalCents: 9000,
+      lineDiscountCents: 1000,
+      discountAllocationsCents: [1000],
+    });
+    expect(result.order.totals).toMatchObject({
+      originalTotalCents: 10000,
+      currentTotalCents: 9000,
+      totalRefundedCents: 1000,
+      totalReceivedCents: 10000,
+    });
+    expect(result.order.refunds[0].lines[0]).toMatchObject({
+      restocked: true,
+      restockType: "RETURN",
+      quantity: 1,
+    });
+    expect(result.order).not.toHaveProperty("stockMovements");
+    expect(result.order).not.toHaveProperty("payments");
+  });
+  it("drops malicious extra PII fields and never retains coupon code strings", () => {
+    const raw = canonicalRawFixture() as unknown as Record<string, any>;
+    raw.order.customer = { email: "PRIVATE_SENTINEL" };
+    raw.order.shippingAddress = { address1: "PRIVATE_SENTINEL" };
+    raw.order.note = "PRIVATE_SENTINEL";
+    raw.order.discountCodes = ["PRIVATE_SENTINEL"];
+    raw.lines[0].customAttributes = [{ key: "PRIVATE_SENTINEL" }];
+    raw.order.transactions[0].paymentDetails = { cardNumber: "PRIVATE_SENTINEL" };
+    const result = normalizeCanonicalShopifyOrder(raw, "synthetic.myshopify.com");
+    expect(result.status).toBe("ready");
+    expect(JSON.stringify(result)).not.toContain("PRIVATE_SENTINEL");
+    if (result.status === "ready") expect(result.order.hasDiscountCodes).toBe(true);
+  });
+  it("does not convert missing optional money or nullable quantities to zero", () => {
+    const raw = canonicalRawFixture();
+    raw.order.subtotalPriceSet = null;
+    raw.order.totalTaxSet = null;
+    raw.order.cartDiscountAmountSet = null;
+    raw.order.totalDiscountsSet = null;
+    raw.fulfillments[0].lines[0].quantity = null;
+    raw.refunds[0].lines[0].id = null;
+    raw.order.transactions[0].processedAt = null;
+    const result = normalizeCanonicalShopifyOrder(raw, "synthetic.myshopify.com");
+    expect(result.status).toBe("ready");
+    if (result.status !== "ready") return;
+    expect(result.order.totals.originalSubtotalCents).toBeNull();
+    expect(result.order.totals.originalTaxCents).toBeNull();
+    expect(result.order.fulfillments[0].lines[0].quantity).toBeNull();
+    expect(result.order.refunds[0].lines[0].id).toBeNull();
+  });
+  it.each(["AUTHORIZATION", "VOID", "EMV_AUTHORIZATION", "SUGGESTED_REFUND"])(
+    "preserves %s as source kind rather than claiming received cash",
+    (kind) => {
+      const raw = canonicalRawFixture();
+      raw.order.transactions[0].kind = kind;
+      raw.order.totalReceivedSet = canonicalMoney();
+      const result = normalizeCanonicalShopifyOrder(raw, "synthetic.myshopify.com");
+      expect(result.status).toBe("ready");
+      if (result.status === "ready") {
+        expect(result.order.transactions[0].kind).toBe(kind);
+        expect(result.order.totals.totalReceivedCents).toBe(0);
+        expect(result.order).not.toHaveProperty("cashReceived");
+      }
+    },
+  );
+  it("preserves multiple captures and their parent, with stable IDs and explicit gateway", () => {
+    const raw = canonicalRawFixture(),
+      auth = {
+        ...raw.order.transactions[0],
+        id: "gid://shopify/OrderTransaction/701",
+        kind: "AUTHORIZATION",
+      };
+    raw.order.transactions = [
+      auth,
+      {
+        ...auth,
+        id: "gid://shopify/OrderTransaction/702",
+        kind: "CAPTURE",
+        amountSet: canonicalMoney("40.00"),
+        parentTransaction: { id: auth.id },
+      },
+      {
+        ...auth,
+        id: "gid://shopify/OrderTransaction/703",
+        kind: "CAPTURE",
+        amountSet: canonicalMoney("60.00"),
+        parentTransaction: { id: auth.id },
+        gateway: "gift_card",
+      },
+    ];
+    raw.order.transactionsCount.count = 3;
+    const result = normalizeCanonicalShopifyOrder(raw, "synthetic.myshopify.com");
+    expect(result.status).toBe("ready");
+    if (result.status === "ready")
+      expect(
+        result.order.transactions.map((t) => [t.kind, t.amountCents, t.parentId, t.gateway]),
+      ).toEqual([
+        ["AUTHORIZATION", 10000, null, "synthetic_gateway"],
+        ["CAPTURE", 4000, auth.id, "synthetic_gateway"],
+        ["CAPTURE", 6000, auth.id, "gift_card"],
+      ]);
+  });
+  it("keeps POS location, cancellation, test and edit facts without operational guesses", () => {
+    const raw = canonicalRawFixture();
+    raw.order.sourceName = "pos";
+    raw.order.retailLocation = { id: ids.location };
+    raw.order.cancelledAt = "2026-10-21T13:00:00+02:00";
+    raw.order.test = true;
+    raw.order.edited = true;
+    const result = normalizeCanonicalShopifyOrder(raw, "synthetic.myshopify.com");
+    expect(result.status).toBe("ready");
+    if (result.status === "ready")
+      expect(result.order).toMatchObject({
+        sourceName: "pos",
+        retailLocationId: ids.location,
+        cancelledAt: "2026-10-21T11:00:00.000Z",
+        test: true,
+        edited: true,
+      });
+  });
+  it.each(["90000000000000.01", "1.001", "1e3", "-0.01", "NaN"])(
+    "rejects money that cannot become exact safe cents: %s",
+    (amount) => {
+      expect(() => canonicalCents(amount)).toThrow();
+    },
+  );
+  it("preserves the maximum odd cent without floating point rounding", () => {
+    expect(canonicalCents("89999999999999.99")).toBe(8999999999999999);
+    expect(canonicalCents("90000000000000.00")).toBe(9000000000000000);
+  });
+  it("preserves source revision precision beyond milliseconds while normalizing timezone", () => {
+    expect(canonicalTimestamp("2026-10-21T13:00:00.123456789+02:00")).toBe(
+      "2026-10-21T11:00:00.123456789Z",
+    );
+    expect(canonicalTimestamp("2026-10-21T11:00:00.123456789Z")).not.toBe(
+      canonicalTimestamp("2026-10-21T11:00:00.123456788Z"),
+    );
+    expect(canonicalTimestamp("2026-10-21T11:00:00.120000Z")).toBe("2026-10-21T11:00:00.120Z");
+  });
+  it.each(["EUR_order_USD", "USD_money"])("rejects unsupported currency %s", (which) => {
+    const raw = canonicalRawFixture();
+    if (which === "EUR_order_USD") raw.order.presentmentCurrencyCode = "USD";
+    else raw.lines[0].originalUnitPriceSet = canonicalMoney("50.00", "USD");
+    expect(normalizeCanonicalShopifyOrder(raw, "synthetic.myshopify.com")).toMatchObject({
+      status: "review",
+      code: "unsupported_currency",
+    });
+  });
+  it.each(["transactions", "fulfillments"])(
+    "does not accept incomplete or approximate %s counts",
+    (which) => {
+      for (const change of [
+        { count: 2, precision: "EXACT" },
+        { count: 1, precision: "AT_LEAST" },
+      ]) {
+        const raw = canonicalRawFixture() as unknown as Record<string, any>;
+        raw.order[`${which}Count`] = change;
+        expect(normalizeCanonicalShopifyOrder(raw, "synthetic.myshopify.com")).toMatchObject({
+          status: "review",
+          code: "count_incomplete",
+        });
+      }
+    },
+  );
+  it.each(["line", "transaction", "fulfillment", "refund"])(
+    "rejects duplicate %s identities",
+    (which) => {
+      const raw = canonicalRawFixture();
+      if (which === "line") raw.lines.push(raw.lines[0]);
+      if (which === "transaction") {
+        raw.order.transactions.push(raw.order.transactions[0]);
+        raw.order.transactionsCount.count = 2;
+      }
+      if (which === "fulfillment") {
+        raw.fulfillments.push(raw.fulfillments[0]);
+        raw.order.fulfillmentsCount.count = 2;
+      }
+      if (which === "refund") raw.refunds.push(raw.refunds[0]);
+      expect(normalizeCanonicalShopifyOrder(raw, "synthetic.myshopify.com")).toMatchObject({
+        status: "review",
+        code: "duplicate_identity",
+      });
+    },
+  );
+  it("rejects foreign parents, original lines and child ownership", () => {
+    for (const which of ["parent", "line", "order"]) {
+      const raw = canonicalRawFixture();
+      if (which === "parent")
+        raw.order.transactions[0].parentTransaction = { id: "gid://shopify/OrderTransaction/999" };
+      if (which === "line") raw.refunds[0].lines[0].lineItem.id = "gid://shopify/LineItem/999";
+      if (which === "order") raw.fulfillments[0].order.id = "gid://shopify/Order/999";
+      expect(normalizeCanonicalShopifyOrder(raw, "synthetic.myshopify.com")).toMatchObject({
+        status: "review",
+        code: "foreign_reference",
+      });
+    }
+  });
+  it("refuses missing required values, invalid dates and currentQuantity larger than original", () => {
+    for (const which of ["missing", "date", "quantity"]) {
+      const raw = canonicalRawFixture() as unknown as Record<string, any>;
+      if (which === "missing") delete raw.order.currentTotalTaxSet;
+      if (which === "date") raw.order.createdAt = "2026-02-30T11:00:00Z";
+      if (which === "quantity") raw.lines[0].currentQuantity = 3;
+      expect(normalizeCanonicalShopifyOrder(raw, "synthetic.myshopify.com")).toMatchObject({
+        status: "review",
+        code: "invalid_shape",
+      });
+    }
+  });
 });

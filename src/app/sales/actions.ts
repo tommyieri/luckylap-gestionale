@@ -15,5 +15,10 @@ export async function runSalesCommand(value: unknown): Promise<CommandResult> {
       revalidatePath("/finance");
     }
     return result;
-  } catch { return { status: "uncertain", message: "L’esito non è confermato. Conserva questo tentativo e riprova lo stesso invio." }; }
+  } catch {
+    return {
+      status: "uncertain",
+      message: "L’esito non è confermato. Conserva questo tentativo e riprova lo stesso invio.",
+    };
+  }
 }

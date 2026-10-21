@@ -23,7 +23,11 @@ describe("local workspace", () => {
   });
 
   it("reads the existing storage format and optional appointment metadata", () => {
-    const savedAppointment = { ...appointment, participants: "Tommi, Gabriele", link: "https://example.com/call" };
+    const savedAppointment = {
+      ...appointment,
+      participants: "Tommi, Gabriele",
+      link: "https://example.com/call",
+    };
     const workspace = { appointments: [savedAppointment], tasks: [task], note: "Una nota" };
 
     expect(readLocalWorkspace(JSON.stringify(workspace))).toEqual({ workspace, issue: false });
@@ -47,11 +51,13 @@ describe("local workspace", () => {
   );
 
   it("recovers valid records and marks malformed fields or records", () => {
-    const result = readLocalWorkspace(JSON.stringify({
-      appointments: [appointment, null, { ...appointment, id: "invalid", date: "2026-02-30" }],
-      tasks: [task, null, { id: "task-2", title: "Controllare", done: "yes", due: "invalid" }],
-      note: 42,
-    }));
+    const result = readLocalWorkspace(
+      JSON.stringify({
+        appointments: [appointment, null, { ...appointment, id: "invalid", date: "2026-02-30" }],
+        tasks: [task, null, { id: "task-2", title: "Controllare", done: "yes", due: "invalid" }],
+        note: 42,
+      }),
+    );
 
     expect(result).toEqual({
       workspace: {
@@ -75,24 +81,48 @@ describe("local workspace", () => {
     { title: "   " },
     { id: "" },
   ])("discards an appointment that cannot be rendered safely: %j", (invalidFields) => {
-    const result = readLocalWorkspace(JSON.stringify({
-      appointments: [{ ...appointment, ...invalidFields }], tasks: [], note: "",
-    }));
+    const result = readLocalWorkspace(
+      JSON.stringify({
+        appointments: [{ ...appointment, ...invalidFields }],
+        tasks: [],
+        note: "",
+      }),
+    );
 
     expect(result.workspace.appointments).toEqual([]);
     expect(result.issue).toBe(true);
   });
 
   it("accepts leap dates and midnight while normalizing unsafe optional values", () => {
-    const result = readLocalWorkspace(JSON.stringify({
-      appointments: [{ ...appointment, date: "2024-02-29", time: "00:00", notes: null, participants: 5, link: "javascript:alert(1)" }],
-      tasks: [{ ...task, due: "2026-02-30" }],
-      note: "Conservata",
-    }));
+    const result = readLocalWorkspace(
+      JSON.stringify({
+        appointments: [
+          {
+            ...appointment,
+            date: "2024-02-29",
+            time: "00:00",
+            notes: null,
+            participants: 5,
+            link: "javascript:alert(1)",
+          },
+        ],
+        tasks: [{ ...task, due: "2026-02-30" }],
+        note: "Conservata",
+      }),
+    );
 
     expect(result).toEqual({
       workspace: {
-        appointments: [{ ...appointment, date: "2024-02-29", time: "00:00", notes: "", participants: "", link: "" }],
+        appointments: [
+          {
+            ...appointment,
+            date: "2024-02-29",
+            time: "00:00",
+            notes: "",
+            participants: "",
+            link: "",
+          },
+        ],
         tasks: [{ ...task, due: "" }],
         note: "Conservata",
       },
@@ -100,20 +130,34 @@ describe("local workspace", () => {
     });
   });
 
-  it.each(["https://example.com/call", "http://example.com/call"])("keeps a safe call URL %s", (link) => {
-    const result = readLocalWorkspace(JSON.stringify({ appointments: [{ ...appointment, link }], tasks: [], note: "" }));
-    expect(result.workspace.appointments[0].link).toBe(link);
-    expect(result.issue).toBe(false);
-  });
+  it.each(["https://example.com/call", "http://example.com/call"])(
+    "keeps a safe call URL %s",
+    (link) => {
+      const result = readLocalWorkspace(
+        JSON.stringify({ appointments: [{ ...appointment, link }], tasks: [], note: "" }),
+      );
+      expect(result.workspace.appointments[0].link).toBe(link);
+      expect(result.issue).toBe(false);
+    },
+  );
 
-  it.each(["//example.com/call", "data:text/html,hello", "ftp://example.com", "not a URL"])("removes an unsafe call URL %s", (link) => {
-    const result = readLocalWorkspace(JSON.stringify({ appointments: [{ ...appointment, link }], tasks: [], note: "" }));
-    expect(result.workspace.appointments[0].link).toBe("");
-    expect(result.issue).toBe(true);
-  });
+  it.each(["//example.com/call", "data:text/html,hello", "ftp://example.com", "not a URL"])(
+    "removes an unsafe call URL %s",
+    (link) => {
+      const result = readLocalWorkspace(
+        JSON.stringify({ appointments: [{ ...appointment, link }], tasks: [], note: "" }),
+      );
+      expect(result.workspace.appointments[0].link).toBe("");
+      expect(result.issue).toBe(true);
+    },
+  );
 
   it("does not apply a write over corrupt storage even when valid data is recoverable", () => {
-    const raw = JSON.stringify({ appointments: [appointment, null], tasks: [task], note: "Nota recuperabile" });
+    const raw = JSON.stringify({
+      appointments: [appointment, null],
+      tasks: [task],
+      note: "Nota recuperabile",
+    });
     const result = mergeWorkspaceField(raw, "note", "Nuova nota");
 
     expect(result.issue).toBe(true);

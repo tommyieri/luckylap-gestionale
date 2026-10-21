@@ -11,10 +11,14 @@ describe("permessi dei cinque membri LuckyLap", () => {
     }
   });
   it("limita Finance a founder, Gabriele e Gherardo", () => {
-    expect(TEAM.filter((member) => canAccessModule(member.id, "finance")).map((member) => member.id)).toEqual(["founder", "gabriele", "gherardo"]);
+    expect(
+      TEAM.filter((member) => canAccessModule(member.id, "finance")).map((member) => member.id),
+    ).toEqual(["founder", "gabriele", "gherardo"]);
   });
   it("riserva Controllo al founder", () => {
-    expect(TEAM.filter((member) => canAccessModule(member.id, "control")).map((member) => member.id)).toEqual(["founder"]);
+    expect(
+      TEAM.filter((member) => canAccessModule(member.id, "control")).map((member) => member.id),
+    ).toEqual(["founder"]);
   });
   it("non concede diritti a identità sconosciute", () => {
     expect(canAccessModule("non-invitato", "inventory")).toBe(false);

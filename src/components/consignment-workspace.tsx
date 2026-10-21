@@ -1,49 +1,833 @@
 "use client";
-import Link from"next/link";import{useRouter}from"next/navigation";import{useEffect,useRef,useState,useTransition,type FormEvent}from"react";import{ArrowLeft,ArrowRightLeft,RefreshCw,Store}from"lucide-react";
-import type{VerifiedMember}from"../lib/auth/model";import{runConsignmentCommand}from"../app/consignment/actions";import{consignmentAmount,consignmentMoney as money,consignmentMargin,consignmentPending,consignmentPendingKey,consignmentSplit,formDate,formQuantity,parseConsignmentCommand,quantityLabel,type ConsignmentCommand,type ConsignmentKind,type ConsignmentSnapshot}from"../lib/consignment/model";
-import stock from"./stock-workspace.module.css";import styles from"./consignment-workspace.module.css";
-const commandLabel:Record<ConsignmentKind,string>={transfer_consignment_stock:"Trasferimento di merce",register_consignment_sale:"Vendita in negozio",record_consignment_settlement:"Regolamento ricevuto"};
-const dateLabel=(value:string)=>new Intl.DateTimeFormat("it-IT",{timeZone:"Europe/Rome",dateStyle:"short",timeStyle:"short"}).format(new Date(value));
-export function ConsignmentWorkspace({snapshot,member}:{snapshot:ConsignmentSnapshot;member:VerifiedMember}){
- const router=useRouter(),key=consignmentPendingKey(member.userId),sending=useRef(false);
- const[mode,setMode]=useState<"transfer"|"sale"|"settlement">("transfer"),[itemId,setItemId]=useState(""),[fromId,setFromId]=useState(""),[toId,setToId]=useState(""),[shopId,setShopId]=useState(""),[saleId,setSaleId]=useState(""),[qty,setQty]=useState("");
- const[command,setCommand]=useState<ConsignmentCommand|null>(null),[loaded,setLoaded]=useState(false),[blocked,setBlocked]=useState(false),[notice,setNotice]=useState(""),[success,setSuccess]=useState(false),[epoch,setEpoch]=useState(0);const[pending,startTransition]=useTransition(),[refreshing,refreshTransition]=useTransition();
- const locked=!loaded||blocked||pending||command!==null,item=snapshot.items.find(r=>r.id===itemId),shop=snapshot.locations.find(r=>r.id===shopId),source=snapshot.availability.find(r=>r.itemId===itemId&&r.locationId===fromId),dest=snapshot.availability.find(r=>r.itemId===itemId&&r.locationId===toId);
- const sale=snapshot.sales.find(r=>r.id===saleId),paid=sale?(snapshot.settlements??[]).filter(r=>r.saleId===sale.id).reduce((s,r)=>s+r.amountCents,0):0;
- const split=item?.catalog&&formQuantity(qty)?consignmentSplit(item.catalog.priceCents,formQuantity(qty)!):null;
- const saleCell=snapshot.availability.find(r=>r.itemId===itemId&&r.locationId===shopId),shops=snapshot.locations.filter(r=>r.type==="Negozio Conto Vendita");
- useEffect(()=>{try{const saved=consignmentPending(sessionStorage,member.userId);if(saved){setCommand(saved);setNotice("C’è un’operazione senza esito confermato. Verifica lo stesso invio prima di registrarne un’altra.");}}catch{setBlocked(true);setNotice("Il tentativo conservato non è leggibile o l’archiviazione della sessione non è disponibile. Verifica con Tommi prima di continuare.");}setLoaded(true);},[member.userId]);
- function send(next:ConsignmentCommand){if(sending.current)return;sending.current=true;try{sessionStorage.setItem(key,JSON.stringify(next));}catch{sending.current=false;setSuccess(false);setNotice("Il tentativo non può essere conservato. Nessun nuovo invio eseguito.");return;}setCommand(next);setSuccess(false);
-  startTransition(async()=>{try{const result=await runConsignmentCommand(next);setNotice(result.message);if(result.status==="success"){setSuccess(true);try{sessionStorage.removeItem(key);setCommand(null);setEpoch(v=>v+1);setQty("");}catch{setNotice(`${result.message} Il riferimento resta conservato: verifica di nuovo prima di procedere.`);}router.refresh();}else if(result.status==="rejected"&&result.code!=="idempotency_conflict"){try{sessionStorage.removeItem(key);setCommand(null);}catch{/* Preserve frozen command. */}}}catch{setNotice("Connessione interrotta: l’operazione potrebbe essere già registrata. Verifica lo stesso invio senza crearne un altro.");}finally{sending.current=false;}});
- }
- function submit(event:FormEvent<HTMLFormElement>){event.preventDefault();if(sending.current||locked)return;const f=new FormData(event.currentTarget);let kind:ConsignmentKind,payload:Record<string,unknown>;const occurred_at=formDate(f.get("occurredAt"));
-  if(mode==="transfer"){if(!snapshot.stockEnabled)return;kind="transfer_consignment_stock";payload={schema_version:1,stock_item_id:itemId,from_location_id:fromId,to_location_id:toId,quantity:formQuantity(f.get("quantity")),reason:f.get("reason"),occurred_at};}
-  else if(mode==="sale"){if(!snapshot.stockEnabled||!snapshot.salesEnabled||!item?.catalog)return;kind="register_consignment_sale";payload={schema_version:1,stock_item_id:itemId,location_id:shopId,quantity:formQuantity(f.get("quantity")),reason:f.get("reason"),external_reference:f.get("reference"),occurred_at,shop_domain:item.catalog.shopDomain,variant_gid:item.catalog.variantGid,expected_web_price_cents:item.catalog.priceCents,expected_catalog_observed_at:item.catalog.observedAt};}
-  else{if(!snapshot.canSettle)return;kind="record_consignment_settlement";payload={schema_version:1,sale_id:saleId,amount_cents:consignmentAmount(f.get("amount")),occurred_at,method:f.get("method"),reference:f.get("reference")};}
-  const next=parseConsignmentCommand({operationId:crypto.randomUUID(),kind,payload});if(!next){setSuccess(false);setNotice("Controlla tutti i campi: SKU, magazzini, quantità intera, data e riferimento. Gli importi ammettono al massimo due decimali.");return;}send(next);
- }
- function choices(){return<option value="">Scegli una T-shirt</option>;}
- const controlsDisabled=locked||(mode==="settlement"?!snapshot.canSettle:!snapshot.stockEnabled||(mode==="sale"&&!snapshot.salesEnabled));
- return<div className={stock.page}><a href="#consignment-main" className="skip-link">Vai al conto vendita</a><header className={stock.header}><Link href="/" className={stock.brand}>LuckyLap</Link><span className={stock.area}><Store size={15} aria-hidden="true"/>Conto vendita</span><Link href="/auth/account" className={stock.account}>{member.displayName}<span>Account personale</span></Link></header>
- <main id="consignment-main" className={stock.main} tabIndex={-1}><Link href="/" className={stock.back}><ArrowLeft size={13} aria-hidden="true"/>Torna al magazzino</Link><div className={stock.heading}><div><h1>Le magliette in negozio</h1><p>Affidi, rientri, vendite dichiarate e credito LuckyLap, nello stesso registro.</p></div><button type="button" className="button button-secondary" disabled={pending||refreshing} onClick={()=>refreshTransition(()=>router.refresh())}><RefreshCw size={14} aria-hidden="true"/>{refreshing?"Rilettura…":"Rileggi i dati"}</button></div>
- <p className={stock.explanation}>Il prezzo in negozio è il prezzo del sito + 10 €. Il negozio non applica sconti: a LuckyLap spetta il 60%, al negozio il 40%. Una vendita dichiarata crea un credito; il pagamento ricevuto si registra separatamente in Finance.</p>
- {(!snapshot.stockEnabled||!snapshot.salesEnabled)&&<div className={stock.disabledNotice}><strong>{!snapshot.stockEnabled?"Le modifiche al magazzino sono disattivate.":"Le nuove vendite sono ancora disattivate."}</strong><p>{snapshot.startedAt?`Vendite ammesse dal ${dateLabel(snapshot.startedAt)}.`:"La data di avvio delle vendite non è stata ancora definita."} Gli invii sospesi restano recuperabili con il loro riferimento.</p></div>}
- {command&&<section className={styles.recovery} aria-label="Recupero operazione sospesa"><h2>Invio da verificare · {commandLabel[command.kind]}</h2><p>I dati sono congelati. Questo recupero resta disponibile anche dopo la vendita, il trasferimento o il saldo del credito.</p>{command.kind!=="record_consignment_settlement"||snapshot.canSettle?<details><summary>Dati dell’invio conservato</summary><dl>{Object.entries(command.payload).filter(([k])=>k!=="schema_version").map(([k,v])=><div key={k}><dt>{({stock_item_id:"Articolo",from_location_id:"Da magazzino",to_location_id:"A magazzino",location_id:"Negozio",quantity:"Quantità",reason:"Causale",external_reference:"Riferimento",occurred_at:"Data",shop_domain:"Sito del catalogo",variant_gid:"Variante verificata",expected_web_price_cents:"Prezzo sito (centesimi)",expected_catalog_observed_at:"Versione catalogo",sale_id:"Vendita",amount_cents:"Importo ricevuto (centesimi)",method:"Metodo",reference:"Riferimento"}as Record<string,string>)[k]??k}</dt><dd>{String(v)}</dd></div>)}</dl></details>:<p>Apri Finance per verificare questo regolamento.</p>}<button type="button" className="button button-primary" disabled={pending||blocked} onClick={()=>send({...command,retry:true})}>{pending?"Verifica in corso…":"Verifica lo stesso invio"}</button><small>Riferimento: {command.operationId}</small></section>}
- {notice&&<p role={success?"status":"alert"} className={success?stock.success:stock.feedback}>{notice}</p>}
- <div className={styles.layout}><section className={stock.formSection} aria-labelledby="consignment-form-heading"><div className={styles.tabs}><button type="button" aria-pressed={mode==="transfer"} disabled={locked} onClick={()=>{setMode("transfer");setQty("");}}>Affido o rientro</button><button type="button" aria-pressed={mode==="sale"} disabled={locked} onClick={()=>{setMode("sale");setQty("");}}>Vendita</button>{snapshot.canSettle&&<button type="button" aria-pressed={mode==="settlement"} disabled={locked} onClick={()=>setMode("settlement")}>Regolamento</button>}</div><h2 id="consignment-form-heading" className={styles.formHeading}>{mode==="transfer"?"Sposta merce invenduta":mode==="sale"?"Dichiara una vendita":"Registra un pagamento ricevuto"}</h2>
- <form key={`${mode}-${epoch}`} className={stock.form} onSubmit={submit}><fieldset disabled={controlsDisabled}><legend className="sr-only">{mode==="transfer"?"Dati del trasferimento":mode==="sale"?"Dati della vendita negozio":"Dati del regolamento"}</legend>
- {mode!=="settlement"?<><label htmlFor="consignment-item">T-shirt e SKU<select id="consignment-item" required value={itemId} onChange={e=>setItemId(e.target.value)}>{choices()}{snapshot.items.map(r=><option key={r.id} value={r.id} disabled={!r.active}>{r.sku} · {r.name}{!r.active?" · Non attiva":""}</option>)}</select></label>
- {mode==="transfer"?<><label htmlFor="consignment-from">Da magazzino<select id="consignment-from" required value={fromId} onChange={e=>setFromId(e.target.value)}><option value="">Scegli la provenienza</option>{snapshot.locations.map(r=><option key={r.id} value={r.id} disabled={!r.active}>{r.name}</option>)}</select></label><label htmlFor="consignment-to">A magazzino<select id="consignment-to" required value={toId} onChange={e=>setToId(e.target.value)}><option value="">Scegli la destinazione</option>{snapshot.locations.map(r=><option key={r.id} value={r.id} disabled={!r.active||r.id===fromId||snapshot.locations.find(l=>l.id===fromId)?.type===r.type}>{r.name}</option>)}</select></label>{item&&fromId&&toId&&<p className={stock.help}>Disponibile all’origine: <strong>{quantityLabel(source?.available)}</strong> · Fisico a destinazione: <strong>{quantityLabel(dest?.onHand)}</strong>. Il trasferimento richiede entrambe le quantità già verificate.</p>}</>:<><label htmlFor="consignment-shop">Negozio<select id="consignment-shop" required value={shopId} onChange={e=>setShopId(e.target.value)}><option value="">Scegli il negozio</option>{shops.map(r=><option key={r.id} value={r.id} disabled={!r.active}>{r.name}</option>)}</select></label>{item&&<div className={styles.price}>{item.catalog?<><p>Prezzo del sito <strong>{money(item.catalog.priceCents)}</strong></p><p>Prezzo in negozio <strong>{money(item.catalog.priceCents+1000)}</strong></p><small>Catalogo verificato il {dateLabel(item.catalog.observedAt)}. Nessuno sconto disponibile.</small></>:<p>Manca un collegamento univoco al catalogo attivo. La vendita non può essere registrata.</p>}</div>}{shop&&item&&<p className={stock.help}>Unità libere in negozio: <strong>{quantityLabel(saleCell?.available)}</strong></p>}</>}
- <label htmlFor="consignment-quantity">Quantità<input id="consignment-quantity" name="quantity" type="text" inputMode="numeric" maxLength={6} required value={qty} onChange={e=>setQty(e.target.value)} placeholder="Unità, da 1 a 100.000" autoComplete="off"/></label>
- {mode==="sale"&&split&&<dl className={styles.split}><div><dt>Vendita al pubblico</dt><dd>{money(split.grossCents)}</dd></div><div><dt>Credito LuckyLap · 60%</dt><dd>{money(split.brandClaimCents)}</dd></div><div><dt>Quota negozio · 40%</dt><dd>{money(split.shopShareCents)}</dd></div></dl>}
- <label htmlFor="consignment-reason">Causale<textarea id="consignment-reason" name="reason" rows={3} required minLength={3} maxLength={500} placeholder={mode==="transfer"?"Es. affido di merce al negozio":"Es. vendita comunicata nel rendiconto del negozio"}/></label>
- {mode==="sale"&&<label htmlFor="consignment-sale-reference">Riferimento univoco della riga dichiarata<input id="consignment-sale-reference" name="reference" required maxLength={240} autoComplete="off" placeholder="Es. rendiconto-riga-01"/></label>}</>:<><label htmlFor="consignment-settlement-sale">Vendita da regolare<select id="consignment-settlement-sale" required value={saleId} onChange={e=>setSaleId(e.target.value)}><option value="">Scegli una vendita</option>{snapshot.sales.map(r=>{const paid=(snapshot.settlements??[]).filter(s=>s.saleId===r.id).reduce((n,s)=>n+s.amountCents,0);return<option key={r.id} value={r.id} disabled={paid>=r.brandClaimCents}>{r.reference} · {r.sku} · Residuo {money(r.brandClaimCents-paid)}</option>;})}</select></label>{sale&&<p className={stock.help}>Credito LuckyLap {money(sale.brandClaimCents)} · Già ricevuto {money(paid)} · Residuo <strong>{money(sale.brandClaimCents-paid)}</strong></p>}<label htmlFor="consignment-settlement-amount">Importo ricevuto (€)<input id="consignment-settlement-amount" name="amount" type="text" inputMode="decimal" maxLength={17} required placeholder="Es. 30,00" autoComplete="off"/></label><label htmlFor="consignment-settlement-method">Metodo<select id="consignment-settlement-method" name="method" defaultValue="" required><option value="">Scegli il metodo</option><option value="bank_transfer">Bonifico</option><option value="cash">Contanti</option><option value="other">Altro</option></select></label><label htmlFor="consignment-settlement-reference">Riferimento del pagamento<input id="consignment-settlement-reference" name="reference" required maxLength={240} autoComplete="off"/></label></>}
- <label htmlFor="consignment-date">{mode==="settlement"?"Data del pagamento ricevuto · Europe/Rome":"Data dell’operazione · Europe/Rome"}<input id="consignment-date" name="occurredAt" type="datetime-local" required/></label>
- <p className={stock.help}>{mode==="transfer"?"Solo merce invenduta: il saldo esce da un magazzino ed entra nell’altro nella stessa operazione, senza creare costi o vendite.":mode==="sale"?"Il prezzo viene ricontrollato al salvataggio. La vendita riduce il fisico in negozio e registra il credito, senza dichiarare un incasso. Riparto commerciale sull’intera riga, senza assunzioni sul trattamento IVA.":"Registra soltanto somme effettivamente ricevute da LuckyLap. Il regolamento riduce il credito residuo senza creare una seconda vendita."}</p>
- <button type="submit" className="button button-primary" disabled={mode==="sale"&&!item?.catalog}>{pending?"Registrazione in corso…":mode==="transfer"?"Conferma trasferimento":mode==="sale"?"Registra vendita negozio":"Registra pagamento ricevuto"}</button></fieldset></form>
- {!snapshot.canSettle&&<p className={styles.financeHelp}>Per registrare i regolamenti, apri l’area Finance. <Link href="/auth/area/finance">Sblocca Finance</Link>.</p>}</section>
- <div className={styles.registers}><section className={stock.listSection} aria-labelledby="consignment-stock-heading"><div className={stock.listHeading}><h2 id="consignment-stock-heading">Magliette affidate</h2><span>{snapshot.items.length} SKU · fisico del gestionale</span></div><label className={styles.filter} htmlFor="consignment-stock-shop">Negozio da consultare<select id="consignment-stock-shop" value={shopId} disabled={locked} onChange={e=>setShopId(e.target.value)}><option value="">Scegli un negozio</option>{shops.map(r=><option key={r.id} value={r.id}>{r.name}</option>)}</select></label>{!shopId?<p className={stock.empty}>Scegli il negozio per leggere le quantità. La disponibilità commerciale su Shopify resta distinta dal fisico.</p>:<div className={stock.tableScroll}><table className={stock.table}><thead><tr><th scope="col">T-shirt</th><th scope="col">Fisico</th><th scope="col">Riservato</th><th scope="col">Libero</th></tr></thead><tbody>{snapshot.items.map(r=>{const q=snapshot.availability.find(c=>c.itemId===r.id&&c.locationId===shopId);return<tr key={r.id}><th scope="row"><strong>{r.name}</strong><span>{r.sku}</span></th><td>{quantityLabel(q?.onHand)}</td><td>{quantityLabel(q?.reserved)}</td><td>{quantityLabel(q?.available)}</td></tr>;})}</tbody></table></div>}</section>
- <section className={stock.listSection} aria-labelledby="consignment-sales-heading"><div className={stock.listHeading}><h2 id="consignment-sales-heading">Vendite dichiarate</h2><span>{snapshot.sales.length} dichiarazioni</span></div>{snapshot.sales.length?<ul className={styles.records}>{snapshot.sales.map(r=>{const received=snapshot.settlements?.filter(p=>p.saleId===r.id).reduce((n,p)=>n+p.amountCents,0);return<li key={r.id} id={`consignment-sale-${r.id}`}><h3>{r.sku} · {r.quantity} {r.quantity===1?"maglietta":"magliette"}</h3><p>{r.reference} · {snapshot.locations.find(l=>l.id===r.locationId)?.name} · {dateLabel(r.occurredAt)}</p><dl className={styles.split}><div><dt>Vendita al pubblico</dt><dd>{money(r.grossCents)}</dd></div><div><dt>Credito LuckyLap</dt><dd>{money(r.brandClaimCents)}</dd></div><div><dt>Quota negozio</dt><dd>{money(r.shopShareCents)}</dd></div></dl><p>Costo unitario: {money(r.costCents)} · Prezzo negozio: {money(r.unitShopPriceCents)}</p><p>Margine commerciale LuckyLap: {money(consignmentMargin(r.brandClaimCents,r.costCents,r.quantity))}. Esclude packaging, commissioni e trattamento IVA.</p><p>{r.reason}</p>{received!==undefined?<p className={styles.settled}>Ricevuto: {money(received)} · Residuo: {money(r.brandClaimCents-received)}</p>:<p>Regolamenti visibili nell’area Finance autorizzata.</p>}</li>;})}</ul>:<div className={stock.empty}><h3>Nessuna vendita dichiarata</h3><p>Prima affida le magliette al negozio, poi registra le vendite effettivamente comunicate. Il trasferimento di merce non è una vendita.</p></div>}</section>
- <section className={stock.listSection} aria-labelledby="consignment-transfers-heading"><div className={stock.listHeading}><h2 id="consignment-transfers-heading">Affidi e rientri</h2><span>{snapshot.transfers.length} movimenti</span></div>{snapshot.transfers.length?<ul className={styles.records}>{snapshot.transfers.map(r=><li key={r.id}><h3>{snapshot.items.find(i=>i.id===r.itemId)?.sku} · {quantityLabel(r.quantity)} unità</h3><p>{snapshot.locations.find(l=>l.id===r.fromId)?.name} → {snapshot.locations.find(l=>l.id===r.toId)?.name} · {dateLabel(r.occurredAt)}</p><p>{r.reason}</p></li>)}</ul>:<p className={stock.empty}>Nessun affido o rientro registrato. I due movimenti di magazzino vengono confermati insieme.</p>}</section>
- </div></div><footer className={stock.footer}><span>LuckyLap · conto vendita · solo T-shirt</span><Link href="/stock"><ArrowRightLeft size={12} aria-hidden="true"/> Rettifiche di magazzino</Link></footer></main></div>;
+import Link from "next/link";
+import { useRouter } from "next/navigation";
+import { useEffect, useRef, useState, useTransition, type FormEvent } from "react";
+import { ArrowLeft, ArrowRightLeft, RefreshCw, Store } from "lucide-react";
+import type { VerifiedMember } from "../lib/auth/model";
+import { runConsignmentCommand } from "../app/consignment/actions";
+import {
+  consignmentAmount,
+  consignmentMoney as money,
+  consignmentMargin,
+  consignmentPending,
+  consignmentPendingKey,
+  consignmentSplit,
+  formDate,
+  formQuantity,
+  parseConsignmentCommand,
+  quantityLabel,
+  type ConsignmentCommand,
+  type ConsignmentKind,
+  type ConsignmentSnapshot,
+} from "../lib/consignment/model";
+import stock from "./stock-workspace.module.css";
+import styles from "./consignment-workspace.module.css";
+const commandLabel: Record<ConsignmentKind, string> = {
+  transfer_consignment_stock: "Trasferimento di merce",
+  register_consignment_sale: "Vendita in negozio",
+  record_consignment_settlement: "Regolamento ricevuto",
+};
+const dateLabel = (value: string) =>
+  new Intl.DateTimeFormat("it-IT", {
+    timeZone: "Europe/Rome",
+    dateStyle: "short",
+    timeStyle: "short",
+  }).format(new Date(value));
+export function ConsignmentWorkspace({
+  snapshot,
+  member,
+}: {
+  snapshot: ConsignmentSnapshot;
+  member: VerifiedMember;
+}) {
+  const router = useRouter(),
+    key = consignmentPendingKey(member.userId),
+    sending = useRef(false);
+  const [mode, setMode] = useState<"transfer" | "sale" | "settlement">("transfer"),
+    [itemId, setItemId] = useState(""),
+    [fromId, setFromId] = useState(""),
+    [toId, setToId] = useState(""),
+    [shopId, setShopId] = useState(""),
+    [saleId, setSaleId] = useState(""),
+    [qty, setQty] = useState("");
+  const [command, setCommand] = useState<ConsignmentCommand | null>(null),
+    [loaded, setLoaded] = useState(false),
+    [blocked, setBlocked] = useState(false),
+    [notice, setNotice] = useState(""),
+    [success, setSuccess] = useState(false),
+    [epoch, setEpoch] = useState(0);
+  const [pending, startTransition] = useTransition(),
+    [refreshing, refreshTransition] = useTransition();
+  const locked = !loaded || blocked || pending || command !== null,
+    item = snapshot.items.find((r) => r.id === itemId),
+    shop = snapshot.locations.find((r) => r.id === shopId),
+    source = snapshot.availability.find((r) => r.itemId === itemId && r.locationId === fromId),
+    dest = snapshot.availability.find((r) => r.itemId === itemId && r.locationId === toId);
+  const sale = snapshot.sales.find((r) => r.id === saleId),
+    paid = sale
+      ? (snapshot.settlements ?? [])
+          .filter((r) => r.saleId === sale.id)
+          .reduce((s, r) => s + r.amountCents, 0)
+      : 0;
+  const split =
+    item?.catalog && formQuantity(qty)
+      ? consignmentSplit(item.catalog.priceCents, formQuantity(qty)!)
+      : null;
+  const saleCell = snapshot.availability.find(
+      (r) => r.itemId === itemId && r.locationId === shopId,
+    ),
+    shops = snapshot.locations.filter((r) => r.type === "Negozio Conto Vendita");
+  useEffect(() => {
+    try {
+      const saved = consignmentPending(sessionStorage, member.userId);
+      if (saved) {
+        setCommand(saved);
+        setNotice(
+          "C’è un’operazione senza esito confermato. Verifica lo stesso invio prima di registrarne un’altra.",
+        );
+      }
+    } catch {
+      setBlocked(true);
+      setNotice(
+        "Il tentativo conservato non è leggibile o l’archiviazione della sessione non è disponibile. Verifica con Tommi prima di continuare.",
+      );
+    }
+    setLoaded(true);
+  }, [member.userId]);
+  function send(next: ConsignmentCommand) {
+    if (sending.current) return;
+    sending.current = true;
+    try {
+      sessionStorage.setItem(key, JSON.stringify(next));
+    } catch {
+      sending.current = false;
+      setSuccess(false);
+      setNotice("Il tentativo non può essere conservato. Nessun nuovo invio eseguito.");
+      return;
+    }
+    setCommand(next);
+    setSuccess(false);
+    startTransition(async () => {
+      try {
+        const result = await runConsignmentCommand(next);
+        setNotice(result.message);
+        if (result.status === "success") {
+          setSuccess(true);
+          try {
+            sessionStorage.removeItem(key);
+            setCommand(null);
+            setEpoch((v) => v + 1);
+            setQty("");
+          } catch {
+            setNotice(
+              `${result.message} Il riferimento resta conservato: verifica di nuovo prima di procedere.`,
+            );
+          }
+          router.refresh();
+        } else if (result.status === "rejected" && result.code !== "idempotency_conflict") {
+          try {
+            sessionStorage.removeItem(key);
+            setCommand(null);
+          } catch {
+            /* Preserve frozen command. */
+          }
+        }
+      } catch {
+        setNotice(
+          "Connessione interrotta: l’operazione potrebbe essere già registrata. Verifica lo stesso invio senza crearne un altro.",
+        );
+      } finally {
+        sending.current = false;
+      }
+    });
+  }
+  function submit(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    if (sending.current || locked) return;
+    const f = new FormData(event.currentTarget);
+    let kind: ConsignmentKind, payload: Record<string, unknown>;
+    const occurred_at = formDate(f.get("occurredAt"));
+    if (mode === "transfer") {
+      if (!snapshot.stockEnabled) return;
+      kind = "transfer_consignment_stock";
+      payload = {
+        schema_version: 1,
+        stock_item_id: itemId,
+        from_location_id: fromId,
+        to_location_id: toId,
+        quantity: formQuantity(f.get("quantity")),
+        reason: f.get("reason"),
+        occurred_at,
+      };
+    } else if (mode === "sale") {
+      if (!snapshot.stockEnabled || !snapshot.salesEnabled || !item?.catalog) return;
+      kind = "register_consignment_sale";
+      payload = {
+        schema_version: 1,
+        stock_item_id: itemId,
+        location_id: shopId,
+        quantity: formQuantity(f.get("quantity")),
+        reason: f.get("reason"),
+        external_reference: f.get("reference"),
+        occurred_at,
+        shop_domain: item.catalog.shopDomain,
+        variant_gid: item.catalog.variantGid,
+        expected_web_price_cents: item.catalog.priceCents,
+        expected_catalog_observed_at: item.catalog.observedAt,
+      };
+    } else {
+      if (!snapshot.canSettle) return;
+      kind = "record_consignment_settlement";
+      payload = {
+        schema_version: 1,
+        sale_id: saleId,
+        amount_cents: consignmentAmount(f.get("amount")),
+        occurred_at,
+        method: f.get("method"),
+        reference: f.get("reference"),
+      };
+    }
+    const next = parseConsignmentCommand({ operationId: crypto.randomUUID(), kind, payload });
+    if (!next) {
+      setSuccess(false);
+      setNotice(
+        "Controlla tutti i campi: SKU, magazzini, quantità intera, data e riferimento. Gli importi ammettono al massimo due decimali.",
+      );
+      return;
+    }
+    send(next);
+  }
+  function choices() {
+    return <option value="">Scegli una T-shirt</option>;
+  }
+  const controlsDisabled =
+    locked ||
+    (mode === "settlement"
+      ? !snapshot.canSettle
+      : !snapshot.stockEnabled || (mode === "sale" && !snapshot.salesEnabled));
+  return (
+    <div className={stock.page}>
+      <a href="#consignment-main" className="skip-link">
+        Vai al conto vendita
+      </a>
+      <header className={stock.header}>
+        <Link href="/" className={stock.brand}>
+          LuckyLap
+        </Link>
+        <span className={stock.area}>
+          <Store size={15} aria-hidden="true" />
+          Conto vendita
+        </span>
+        <Link href="/auth/account" className={stock.account}>
+          {member.displayName}
+          <span>Account personale</span>
+        </Link>
+      </header>
+      <main id="consignment-main" className={stock.main} tabIndex={-1}>
+        <Link href="/" className={stock.back}>
+          <ArrowLeft size={13} aria-hidden="true" />
+          Torna al magazzino
+        </Link>
+        <div className={stock.heading}>
+          <div>
+            <h1>Le magliette in negozio</h1>
+            <p>Affidi, rientri, vendite dichiarate e credito LuckyLap, nello stesso registro.</p>
+          </div>
+          <button
+            type="button"
+            className="button button-secondary"
+            disabled={pending || refreshing}
+            onClick={() => refreshTransition(() => router.refresh())}
+          >
+            <RefreshCw size={14} aria-hidden="true" />
+            {refreshing ? "Rilettura…" : "Rileggi i dati"}
+          </button>
+        </div>
+        <p className={stock.explanation}>
+          Il prezzo in negozio è il prezzo del sito + 10 €. Il negozio non applica sconti: a
+          LuckyLap spetta il 60%, al negozio il 40%. Una vendita dichiarata crea un credito; il
+          pagamento ricevuto si registra separatamente in Finance.
+        </p>
+        {(!snapshot.stockEnabled || !snapshot.salesEnabled) && (
+          <div className={stock.disabledNotice}>
+            <strong>
+              {!snapshot.stockEnabled
+                ? "Le modifiche al magazzino sono disattivate."
+                : "Le nuove vendite sono ancora disattivate."}
+            </strong>
+            <p>
+              {snapshot.startedAt
+                ? `Vendite ammesse dal ${dateLabel(snapshot.startedAt)}.`
+                : "La data di avvio delle vendite non è stata ancora definita."}{" "}
+              Gli invii sospesi restano recuperabili con il loro riferimento.
+            </p>
+          </div>
+        )}
+        {command && (
+          <section className={styles.recovery} aria-label="Recupero operazione sospesa">
+            <h2>Invio da verificare · {commandLabel[command.kind]}</h2>
+            <p>
+              I dati sono congelati. Questo recupero resta disponibile anche dopo la vendita, il
+              trasferimento o il saldo del credito.
+            </p>
+            {command.kind !== "record_consignment_settlement" || snapshot.canSettle ? (
+              <details>
+                <summary>Dati dell’invio conservato</summary>
+                <dl>
+                  {Object.entries(command.payload)
+                    .filter(([k]) => k !== "schema_version")
+                    .map(([k, v]) => (
+                      <div key={k}>
+                        <dt>
+                          {(
+                            {
+                              stock_item_id: "Articolo",
+                              from_location_id: "Da magazzino",
+                              to_location_id: "A magazzino",
+                              location_id: "Negozio",
+                              quantity: "Quantità",
+                              reason: "Causale",
+                              external_reference: "Riferimento",
+                              occurred_at: "Data",
+                              shop_domain: "Sito del catalogo",
+                              variant_gid: "Variante verificata",
+                              expected_web_price_cents: "Prezzo sito (centesimi)",
+                              expected_catalog_observed_at: "Versione catalogo",
+                              sale_id: "Vendita",
+                              amount_cents: "Importo ricevuto (centesimi)",
+                              method: "Metodo",
+                              reference: "Riferimento",
+                            } as Record<string, string>
+                          )[k] ?? k}
+                        </dt>
+                        <dd>{String(v)}</dd>
+                      </div>
+                    ))}
+                </dl>
+              </details>
+            ) : (
+              <p>Apri Finance per verificare questo regolamento.</p>
+            )}
+            <button
+              type="button"
+              className="button button-primary"
+              disabled={pending || blocked}
+              onClick={() => send({ ...command, retry: true })}
+            >
+              {pending ? "Verifica in corso…" : "Verifica lo stesso invio"}
+            </button>
+            <small>Riferimento: {command.operationId}</small>
+          </section>
+        )}
+        {notice && (
+          <p
+            role={success ? "status" : "alert"}
+            className={success ? stock.success : stock.feedback}
+          >
+            {notice}
+          </p>
+        )}
+        <div className={styles.layout}>
+          <section className={stock.formSection} aria-labelledby="consignment-form-heading">
+            <div className={styles.tabs}>
+              <button
+                type="button"
+                aria-pressed={mode === "transfer"}
+                disabled={locked}
+                onClick={() => {
+                  setMode("transfer");
+                  setQty("");
+                }}
+              >
+                Affido o rientro
+              </button>
+              <button
+                type="button"
+                aria-pressed={mode === "sale"}
+                disabled={locked}
+                onClick={() => {
+                  setMode("sale");
+                  setQty("");
+                }}
+              >
+                Vendita
+              </button>
+              {snapshot.canSettle && (
+                <button
+                  type="button"
+                  aria-pressed={mode === "settlement"}
+                  disabled={locked}
+                  onClick={() => setMode("settlement")}
+                >
+                  Regolamento
+                </button>
+              )}
+            </div>
+            <h2 id="consignment-form-heading" className={styles.formHeading}>
+              {mode === "transfer"
+                ? "Sposta merce invenduta"
+                : mode === "sale"
+                  ? "Dichiara una vendita"
+                  : "Registra un pagamento ricevuto"}
+            </h2>
+            <form key={`${mode}-${epoch}`} className={stock.form} onSubmit={submit}>
+              <fieldset disabled={controlsDisabled}>
+                <legend className="sr-only">
+                  {mode === "transfer"
+                    ? "Dati del trasferimento"
+                    : mode === "sale"
+                      ? "Dati della vendita negozio"
+                      : "Dati del regolamento"}
+                </legend>
+                {mode !== "settlement" ? (
+                  <>
+                    <label htmlFor="consignment-item">
+                      T-shirt e SKU
+                      <select
+                        id="consignment-item"
+                        required
+                        value={itemId}
+                        onChange={(e) => setItemId(e.target.value)}
+                      >
+                        {choices()}
+                        {snapshot.items.map((r) => (
+                          <option key={r.id} value={r.id} disabled={!r.active}>
+                            {r.sku} · {r.name}
+                            {!r.active ? " · Non attiva" : ""}
+                          </option>
+                        ))}
+                      </select>
+                    </label>
+                    {mode === "transfer" ? (
+                      <>
+                        <label htmlFor="consignment-from">
+                          Da magazzino
+                          <select
+                            id="consignment-from"
+                            required
+                            value={fromId}
+                            onChange={(e) => setFromId(e.target.value)}
+                          >
+                            <option value="">Scegli la provenienza</option>
+                            {snapshot.locations.map((r) => (
+                              <option key={r.id} value={r.id} disabled={!r.active}>
+                                {r.name}
+                              </option>
+                            ))}
+                          </select>
+                        </label>
+                        <label htmlFor="consignment-to">
+                          A magazzino
+                          <select
+                            id="consignment-to"
+                            required
+                            value={toId}
+                            onChange={(e) => setToId(e.target.value)}
+                          >
+                            <option value="">Scegli la destinazione</option>
+                            {snapshot.locations.map((r) => (
+                              <option
+                                key={r.id}
+                                value={r.id}
+                                disabled={
+                                  !r.active ||
+                                  r.id === fromId ||
+                                  snapshot.locations.find((l) => l.id === fromId)?.type === r.type
+                                }
+                              >
+                                {r.name}
+                              </option>
+                            ))}
+                          </select>
+                        </label>
+                        {item && fromId && toId && (
+                          <p className={stock.help}>
+                            Disponibile all’origine:{" "}
+                            <strong>{quantityLabel(source?.available)}</strong> · Fisico a
+                            destinazione: <strong>{quantityLabel(dest?.onHand)}</strong>. Il
+                            trasferimento richiede entrambe le quantità già verificate.
+                          </p>
+                        )}
+                      </>
+                    ) : (
+                      <>
+                        <label htmlFor="consignment-shop">
+                          Negozio
+                          <select
+                            id="consignment-shop"
+                            required
+                            value={shopId}
+                            onChange={(e) => setShopId(e.target.value)}
+                          >
+                            <option value="">Scegli il negozio</option>
+                            {shops.map((r) => (
+                              <option key={r.id} value={r.id} disabled={!r.active}>
+                                {r.name}
+                              </option>
+                            ))}
+                          </select>
+                        </label>
+                        {item && (
+                          <div className={styles.price}>
+                            {item.catalog ? (
+                              <>
+                                <p>
+                                  Prezzo del sito <strong>{money(item.catalog.priceCents)}</strong>
+                                </p>
+                                <p>
+                                  Prezzo in negozio{" "}
+                                  <strong>{money(item.catalog.priceCents + 1000)}</strong>
+                                </p>
+                                <small>
+                                  Catalogo verificato il {dateLabel(item.catalog.observedAt)}.
+                                  Nessuno sconto disponibile.
+                                </small>
+                              </>
+                            ) : (
+                              <p>
+                                Manca un collegamento univoco al catalogo attivo. La vendita non può
+                                essere registrata.
+                              </p>
+                            )}
+                          </div>
+                        )}
+                        {shop && item && (
+                          <p className={stock.help}>
+                            Unità libere in negozio:{" "}
+                            <strong>{quantityLabel(saleCell?.available)}</strong>
+                          </p>
+                        )}
+                      </>
+                    )}
+                    <label htmlFor="consignment-quantity">
+                      Quantità
+                      <input
+                        id="consignment-quantity"
+                        name="quantity"
+                        type="text"
+                        inputMode="numeric"
+                        maxLength={6}
+                        required
+                        value={qty}
+                        onChange={(e) => setQty(e.target.value)}
+                        placeholder="Unità, da 1 a 100.000"
+                        autoComplete="off"
+                      />
+                    </label>
+                    {mode === "sale" && split && (
+                      <dl className={styles.split}>
+                        <div>
+                          <dt>Vendita al pubblico</dt>
+                          <dd>{money(split.grossCents)}</dd>
+                        </div>
+                        <div>
+                          <dt>Credito LuckyLap · 60%</dt>
+                          <dd>{money(split.brandClaimCents)}</dd>
+                        </div>
+                        <div>
+                          <dt>Quota negozio · 40%</dt>
+                          <dd>{money(split.shopShareCents)}</dd>
+                        </div>
+                      </dl>
+                    )}
+                    <label htmlFor="consignment-reason">
+                      Causale
+                      <textarea
+                        id="consignment-reason"
+                        name="reason"
+                        rows={3}
+                        required
+                        minLength={3}
+                        maxLength={500}
+                        placeholder={
+                          mode === "transfer"
+                            ? "Es. affido di merce al negozio"
+                            : "Es. vendita comunicata nel rendiconto del negozio"
+                        }
+                      />
+                    </label>
+                    {mode === "sale" && (
+                      <label htmlFor="consignment-sale-reference">
+                        Riferimento univoco della riga dichiarata
+                        <input
+                          id="consignment-sale-reference"
+                          name="reference"
+                          required
+                          maxLength={240}
+                          autoComplete="off"
+                          placeholder="Es. rendiconto-riga-01"
+                        />
+                      </label>
+                    )}
+                  </>
+                ) : (
+                  <>
+                    <label htmlFor="consignment-settlement-sale">
+                      Vendita da regolare
+                      <select
+                        id="consignment-settlement-sale"
+                        required
+                        value={saleId}
+                        onChange={(e) => setSaleId(e.target.value)}
+                      >
+                        <option value="">Scegli una vendita</option>
+                        {snapshot.sales.map((r) => {
+                          const paid = (snapshot.settlements ?? [])
+                            .filter((s) => s.saleId === r.id)
+                            .reduce((n, s) => n + s.amountCents, 0);
+                          return (
+                            <option key={r.id} value={r.id} disabled={paid >= r.brandClaimCents}>
+                              {r.reference} · {r.sku} · Residuo {money(r.brandClaimCents - paid)}
+                            </option>
+                          );
+                        })}
+                      </select>
+                    </label>
+                    {sale && (
+                      <p className={stock.help}>
+                        Credito LuckyLap {money(sale.brandClaimCents)} · Già ricevuto {money(paid)}{" "}
+                        · Residuo <strong>{money(sale.brandClaimCents - paid)}</strong>
+                      </p>
+                    )}
+                    <label htmlFor="consignment-settlement-amount">
+                      Importo ricevuto (€)
+                      <input
+                        id="consignment-settlement-amount"
+                        name="amount"
+                        type="text"
+                        inputMode="decimal"
+                        maxLength={17}
+                        required
+                        placeholder="Es. 30,00"
+                        autoComplete="off"
+                      />
+                    </label>
+                    <label htmlFor="consignment-settlement-method">
+                      Metodo
+                      <select
+                        id="consignment-settlement-method"
+                        name="method"
+                        defaultValue=""
+                        required
+                      >
+                        <option value="">Scegli il metodo</option>
+                        <option value="bank_transfer">Bonifico</option>
+                        <option value="cash">Contanti</option>
+                        <option value="other">Altro</option>
+                      </select>
+                    </label>
+                    <label htmlFor="consignment-settlement-reference">
+                      Riferimento del pagamento
+                      <input
+                        id="consignment-settlement-reference"
+                        name="reference"
+                        required
+                        maxLength={240}
+                        autoComplete="off"
+                      />
+                    </label>
+                  </>
+                )}
+                <label htmlFor="consignment-date">
+                  {mode === "settlement"
+                    ? "Data del pagamento ricevuto · Europe/Rome"
+                    : "Data dell’operazione · Europe/Rome"}
+                  <input id="consignment-date" name="occurredAt" type="datetime-local" required />
+                </label>
+                <p className={stock.help}>
+                  {mode === "transfer"
+                    ? "Solo merce invenduta: il saldo esce da un magazzino ed entra nell’altro nella stessa operazione, senza creare costi o vendite."
+                    : mode === "sale"
+                      ? "Il prezzo viene ricontrollato al salvataggio. La vendita riduce il fisico in negozio e registra il credito, senza dichiarare un incasso. Riparto commerciale sull’intera riga, senza assunzioni sul trattamento IVA."
+                      : "Registra soltanto somme effettivamente ricevute da LuckyLap. Il regolamento riduce il credito residuo senza creare una seconda vendita."}
+                </p>
+                <button
+                  type="submit"
+                  className="button button-primary"
+                  disabled={mode === "sale" && !item?.catalog}
+                >
+                  {pending
+                    ? "Registrazione in corso…"
+                    : mode === "transfer"
+                      ? "Conferma trasferimento"
+                      : mode === "sale"
+                        ? "Registra vendita negozio"
+                        : "Registra pagamento ricevuto"}
+                </button>
+              </fieldset>
+            </form>
+            {!snapshot.canSettle && (
+              <p className={styles.financeHelp}>
+                Per registrare i regolamenti, apri l’area Finance.{" "}
+                <Link href="/auth/area/finance">Sblocca Finance</Link>.
+              </p>
+            )}
+          </section>
+          <div className={styles.registers}>
+            <section className={stock.listSection} aria-labelledby="consignment-stock-heading">
+              <div className={stock.listHeading}>
+                <h2 id="consignment-stock-heading">Magliette affidate</h2>
+                <span>{snapshot.items.length} SKU · fisico del gestionale</span>
+              </div>
+              <label className={styles.filter} htmlFor="consignment-stock-shop">
+                Negozio da consultare
+                <select
+                  id="consignment-stock-shop"
+                  value={shopId}
+                  disabled={locked}
+                  onChange={(e) => setShopId(e.target.value)}
+                >
+                  <option value="">Scegli un negozio</option>
+                  {shops.map((r) => (
+                    <option key={r.id} value={r.id}>
+                      {r.name}
+                    </option>
+                  ))}
+                </select>
+              </label>
+              {!shopId ? (
+                <p className={stock.empty}>
+                  Scegli il negozio per leggere le quantità. La disponibilità commerciale su Shopify
+                  resta distinta dal fisico.
+                </p>
+              ) : (
+                <div className={stock.tableScroll}>
+                  <table className={stock.table}>
+                    <thead>
+                      <tr>
+                        <th scope="col">T-shirt</th>
+                        <th scope="col">Fisico</th>
+                        <th scope="col">Riservato</th>
+                        <th scope="col">Libero</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {snapshot.items.map((r) => {
+                        const q = snapshot.availability.find(
+                          (c) => c.itemId === r.id && c.locationId === shopId,
+                        );
+                        return (
+                          <tr key={r.id}>
+                            <th scope="row">
+                              <strong>{r.name}</strong>
+                              <span>{r.sku}</span>
+                            </th>
+                            <td>{quantityLabel(q?.onHand)}</td>
+                            <td>{quantityLabel(q?.reserved)}</td>
+                            <td>{quantityLabel(q?.available)}</td>
+                          </tr>
+                        );
+                      })}
+                    </tbody>
+                  </table>
+                </div>
+              )}
+            </section>
+            <section className={stock.listSection} aria-labelledby="consignment-sales-heading">
+              <div className={stock.listHeading}>
+                <h2 id="consignment-sales-heading">Vendite dichiarate</h2>
+                <span>{snapshot.sales.length} dichiarazioni</span>
+              </div>
+              {snapshot.sales.length ? (
+                <ul className={styles.records}>
+                  {snapshot.sales.map((r) => {
+                    const received = snapshot.settlements
+                      ?.filter((p) => p.saleId === r.id)
+                      .reduce((n, p) => n + p.amountCents, 0);
+                    return (
+                      <li key={r.id} id={`consignment-sale-${r.id}`}>
+                        <h3>
+                          {r.sku} · {r.quantity} {r.quantity === 1 ? "maglietta" : "magliette"}
+                        </h3>
+                        <p>
+                          {r.reference} ·{" "}
+                          {snapshot.locations.find((l) => l.id === r.locationId)?.name} ·{" "}
+                          {dateLabel(r.occurredAt)}
+                        </p>
+                        <dl className={styles.split}>
+                          <div>
+                            <dt>Vendita al pubblico</dt>
+                            <dd>{money(r.grossCents)}</dd>
+                          </div>
+                          <div>
+                            <dt>Credito LuckyLap</dt>
+                            <dd>{money(r.brandClaimCents)}</dd>
+                          </div>
+                          <div>
+                            <dt>Quota negozio</dt>
+                            <dd>{money(r.shopShareCents)}</dd>
+                          </div>
+                        </dl>
+                        <p>
+                          Costo unitario: {money(r.costCents)} · Prezzo negozio:{" "}
+                          {money(r.unitShopPriceCents)}
+                        </p>
+                        <p>
+                          Margine commerciale LuckyLap:{" "}
+                          {money(consignmentMargin(r.brandClaimCents, r.costCents, r.quantity))}.
+                          Esclude packaging, commissioni e trattamento IVA.
+                        </p>
+                        <p>{r.reason}</p>
+                        {received !== undefined ? (
+                          <p className={styles.settled}>
+                            Ricevuto: {money(received)} · Residuo:{" "}
+                            {money(r.brandClaimCents - received)}
+                          </p>
+                        ) : (
+                          <p>Regolamenti visibili nell’area Finance autorizzata.</p>
+                        )}
+                      </li>
+                    );
+                  })}
+                </ul>
+              ) : (
+                <div className={stock.empty}>
+                  <h3>Nessuna vendita dichiarata</h3>
+                  <p>
+                    Prima affida le magliette al negozio, poi registra le vendite effettivamente
+                    comunicate. Il trasferimento di merce non è una vendita.
+                  </p>
+                </div>
+              )}
+            </section>
+            <section className={stock.listSection} aria-labelledby="consignment-transfers-heading">
+              <div className={stock.listHeading}>
+                <h2 id="consignment-transfers-heading">Affidi e rientri</h2>
+                <span>{snapshot.transfers.length} movimenti</span>
+              </div>
+              {snapshot.transfers.length ? (
+                <ul className={styles.records}>
+                  {snapshot.transfers.map((r) => (
+                    <li key={r.id}>
+                      <h3>
+                        {snapshot.items.find((i) => i.id === r.itemId)?.sku} ·{" "}
+                        {quantityLabel(r.quantity)} unità
+                      </h3>
+                      <p>
+                        {snapshot.locations.find((l) => l.id === r.fromId)?.name} →{" "}
+                        {snapshot.locations.find((l) => l.id === r.toId)?.name} ·{" "}
+                        {dateLabel(r.occurredAt)}
+                      </p>
+                      <p>{r.reason}</p>
+                    </li>
+                  ))}
+                </ul>
+              ) : (
+                <p className={stock.empty}>
+                  Nessun affido o rientro registrato. I due movimenti di magazzino vengono
+                  confermati insieme.
+                </p>
+              )}
+            </section>
+          </div>
+        </div>
+        <footer className={stock.footer}>
+          <span>LuckyLap · conto vendita · solo T-shirt</span>
+          <Link href="/stock">
+            <ArrowRightLeft size={12} aria-hidden="true" /> Rettifiche di magazzino
+          </Link>
+        </footer>
+      </main>
+    </div>
+  );
 }
