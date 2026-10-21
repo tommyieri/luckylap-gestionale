@@ -3,7 +3,8 @@ import { redirect } from "next/navigation";
 import { AuthShell } from "@/components/auth-shell";
 import { FinanceImportsView } from "@/components/finance-imports-view";
 import styles from "@/components/finance.module.css";
-import { canReadSensitiveArea } from "@/lib/auth/model";
+import { isSensitiveAreaEligible } from "@/lib/auth/model";
+import { verifiedSensitiveAccess } from "@/lib/auth/sensitive-access";
 import { verifiedMember } from "@/lib/auth/server";
 import { loadFinanceImports } from "@/lib/finance/server";
 import { localReportDate } from "@/lib/finance/model";
@@ -24,11 +25,10 @@ export default async function FinancePage() {
   const access = await verifiedMember(supabase).catch(() => ({ status: "unavailable" as const }));
   if (access.status === "signed-out") redirect("/auth/login");
   if (access.status === "unavailable") return <AccessState title="Verifica temporaneamente non disponibile." description="Non è stato possibile verificare il tuo accesso a Finance. Riprova tra poco." />;
-  if (access.status !== "member" || !canReadSensitiveArea(access.member, "finance", "aal2")) return <AccessState title="Finance è riservata." description="Questa sezione è accessibile al founder e ai membri di Produzione e Finance abilitati. I permessi si gestiscono dal workspace condiviso." />;
-
-  const assurance = await supabase.auth.mfa.getAuthenticatorAssuranceLevel().catch(() => null);
-  if (!assurance || assurance.error) return <AccessState title="Verifica temporaneamente non disponibile." description="Non è stato possibile verificare la sessione. Riprova tra poco." account />;
-  if (!canReadSensitiveArea(access.member, "finance", assurance.data.currentLevel)) return <AccessState title="Serve la verifica in due passaggi." description="Per leggere Finance, verifica questa sessione con il codice dell’app di autenticazione dal tuo account." account />;
+  if (access.status !== "member" || !isSensitiveAreaEligible(access.member, "finance")) return <AccessState title="Finance è riservata." description="Questa sezione è accessibile al founder e ai membri di Produzione e Finance abilitati. I permessi si gestiscono dal workspace condiviso." />;
+  const unlocked = await verifiedSensitiveAccess(supabase, access.member, "finance").catch(() => null);
+  if (unlocked === null) return <AccessState title="Verifica temporaneamente non disponibile." description="Non è stato possibile verificare la sessione. Riprova tra poco." account />;
+  if (!unlocked) redirect("/auth/area/finance");
 
   // No preview/staging imports, service key, cached rows or client-side bypass.
   // Both reads use this user's session and the database Finance RLS policies.

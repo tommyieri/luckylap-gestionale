@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState, useTransition, type FormEvent } from "react";
+import { useEffect, useRef, useState, useTransition, type FormEvent } from "react";
 import { useRouter } from "next/navigation";
 import { adjustStock } from "@/app/stock/actions";
 import { parseStockAdjustment, stockFormDelta, stockQuantity, type StockAdjustment, type StockSnapshot } from "@/lib/stock/model";
@@ -15,6 +15,7 @@ export function StockAdjustmentForm({ snapshot, userId, itemId, locationId, setI
   const [command, setCommand] = useState<StockAdjustment | null>(null);
   const [notice, setNotice] = useState(""), [success, setSuccess] = useState(false), [loaded, setLoaded] = useState(false), [blocked, setBlocked] = useState(false), [epoch, setEpoch] = useState(0);
   const [pending, startTransition] = useTransition();
+  const sending = useRef(false);
   const item = snapshot.items.find(row => row.id === itemId), location = snapshot.locations.find(row => row.id === locationId);
   const quantities = snapshot.availability.find(row => row.itemId === itemId && row.locationId === locationId);
   const knownStock = quantities?.onHand !== null && quantities?.onHand !== undefined;
@@ -35,8 +36,10 @@ export function StockAdjustmentForm({ snapshot, userId, itemId, locationId, setI
   useEffect(() => { setLocked(formLocked); }, [formLocked, setLocked]);
 
   function send(next: StockAdjustment) {
+    if (sending.current) return;
+    sending.current = true;
     try { sessionStorage.setItem(storageKey, JSON.stringify(next)); }
-    catch { setNotice("Il tentativo non può essere conservato. Nessun nuovo invio eseguito."); return; }
+    catch { sending.current = false; setNotice("Il tentativo non può essere conservato. Nessun nuovo invio eseguito."); return; }
     setCommand(next); setSuccess(false);
     startTransition(async () => {
       try {
@@ -51,11 +54,12 @@ export function StockAdjustmentForm({ snapshot, userId, itemId, locationId, setI
           try { sessionStorage.removeItem(storageKey); setCommand(null); } catch { /* Preserve the command when storage cannot be changed. */ }
         }
       } catch { setNotice("La connessione si è interrotta: il movimento potrebbe essere già registrato. Verifica lo stesso tentativo, senza creare una seconda rettifica."); }
+      finally { sending.current = false; }
     });
   }
   function submit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
-    if (formLocked || !snapshot.enabled || !item?.active || !location?.active || !knownStock) return;
+    if (sending.current || formLocked || !snapshot.enabled || !item?.active || !location?.active || !knownStock) return;
     const fields = new FormData(event.currentTarget);
     const delta = stockFormDelta(fields.get("direction"), fields.get("quantity"));
     const next = parseStockAdjustment({ operationId: crypto.randomUUID(), itemId, locationId, delta, reason: fields.get("reason") });

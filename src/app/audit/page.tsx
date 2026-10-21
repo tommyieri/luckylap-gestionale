@@ -3,7 +3,8 @@ import { redirect } from "next/navigation";
 import { AuthShell } from "../../components/auth-shell";
 import { AuditView } from "../../components/audit-view";
 import styles from "../../components/team-workspace.module.css";
-import { canReadSensitiveArea } from "../../lib/auth/model";
+import { isSensitiveAreaEligible } from "../../lib/auth/model";
+import { verifiedSensitiveAccess } from "../../lib/auth/sensitive-access";
 import { verifiedMember } from "../../lib/auth/server";
 import { auditCursorFromSearch, type AuditSearch } from "../../lib/audit/model";
 import { loadAuditMetadata } from "../../lib/audit/server";
@@ -22,13 +23,13 @@ export default async function AuditPage({ searchParams }: { searchParams: Promis
   const access = await verifiedMember(supabase).catch(() => ({ status: "unavailable" as const }));
   if (access.status === "signed-out") redirect("/auth/login");
   if (access.status === "unavailable") return <AccessState title="Verifica dell’accesso non disponibile." description="Non è stato possibile verificare l’accesso al registro. Riprova tra poco." />;
-  if (access.status !== "member" || !canReadSensitiveArea(access.member, "audit", "aal2")) return <AccessState title="Controllo riservato al founder." description="Il registro delle modifiche è accessibile esclusivamente all’account founder abilitato." />;
-  const assurance = await supabase.auth.mfa.getAuthenticatorAssuranceLevel().catch(() => null);
-  if (!assurance || assurance.error) return <AccessState title="Verifica della sessione non disponibile." description="Riprova dal tuo account prima di aprire il registro." verify />;
-  if (!canReadSensitiveArea(access.member, "audit", assurance.data.currentLevel)) return <AccessState title="Serve la verifica in due passaggi." description="Verifica questa sessione con il codice dell’app di autenticazione per leggere il registro." verify />;
+  if (access.status !== "member" || !isSensitiveAreaEligible(access.member, "audit")) return <AccessState title="Controllo riservato al founder." description="Il registro delle modifiche è accessibile esclusivamente all’account founder abilitato." />;
+  const unlocked = await verifiedSensitiveAccess(supabase, access.member, "audit").catch(() => null);
+  if (unlocked === null) return <AccessState title="Verifica della sessione non disponibile." description="Riprova dal tuo account prima di aprire il registro." verify />;
+  if (!unlocked) redirect("/auth/area/audit");
   let cursor;
   try { cursor = auditCursorFromSearch(await searchParams); } catch { return <AccessState title="Il collegamento al registro non è valido." description="Apri la pagina delle modifiche più recenti per riprendere la lettura." restart />; }
-  const snapshot = await loadAuditMetadata(supabase, access.member, assurance.data.currentLevel, cursor).catch(() => null);
+  const snapshot = await loadAuditMetadata(supabase, access.member, unlocked, cursor).catch(() => null);
   if (!snapshot) return <AccessState title="Registro non disponibile." description="La lettura del registro non è riuscita. Riapri la pagina tra poco; nessun contenuto parziale viene mostrato." restart />;
   return <AuditView snapshot={snapshot} displayName={access.member.displayName} />;
 }

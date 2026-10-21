@@ -9,7 +9,7 @@ export const dynamic = "force-dynamic";
 export default async function FinanceDocumentsPage() {
   const access = await financeDocumentAccess().catch(() => null);
   if (access && !access.allowed && access.status === 401) redirect("/auth/login");
-  if (!access?.allowed) return <AuthShell title="Documenti Finance riservati." description="Servono un account abilitato a Finance e la verifica in due passaggi."><div className={styles.accessActions}><Link href="/auth/account" className="button button-primary">Verifica il tuo account</Link><Link href="/" className="button button-secondary">Workspace</Link></div></AuthShell>;
+  if (!access?.allowed) return <AuthShell title="Documenti Finance riservati." description="Servono un account abilitato a Finance e la password dell’area per questa sessione."><div className={styles.accessActions}><Link href="/auth/area/finance" className="button button-primary">Apri Finance</Link><Link href="/" className="button button-secondary">Workspace</Link></div></AuthShell>;
   const result = await access.supabase.from("finance_documents").select("id,source_kind,file_name,storage_path,sha256,byte_size,content_type,review_status", { count: "exact" }).order("source_kind").limit(100);
   const documents = result.data?.map(financeDocumentFromDatabase) ?? [];
   if (result.error || result.count !== documents.length || documents.some(row => !row)) return <AuthShell title="Documenti non disponibili." description="Non è stato possibile leggere l’archivio completo. Riprova tra poco." />;

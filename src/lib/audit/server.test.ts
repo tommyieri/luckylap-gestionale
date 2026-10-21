@@ -25,17 +25,17 @@ function client(...replies: Reply[]) {
 describe("founder audit read boundary", () => {
   it.each(["production", "finance", "logistics", "consultant"] as const)("does not query logs or actor profiles for role %s", async role => {
     const db = client();
-    await expect(loadAuditMetadata(db.supabase, { ...founder, role }, "aal2", null)).rejects.toThrow(/founder/);
+    await expect(loadAuditMetadata(db.supabase, { ...founder, role }, true, null)).rejects.toThrow(/founder/);
     expect(db.from).not.toHaveBeenCalled();
   });
-  it("does not query without a verified aal2 session", async () => {
+  it("does not query without a verified CEO area grant", async () => {
     const db = client();
-    await expect(loadAuditMetadata(db.supabase, founder, "aal1", null)).rejects.toThrow();
+    await expect(loadAuditMetadata(db.supabase, founder, false, null)).rejects.toThrow();
     expect(db.from).not.toHaveBeenCalled();
   });
   it("selects metadata only and labels null actors as system operations", async () => {
     const db = client({ data: [row(1)], error: null, count: 1 });
-    const result = await loadAuditMetadata(db.supabase, founder, "aal2", null);
+    const result = await loadAuditMetadata(db.supabase, founder, true, null);
     expect(db.calls[0].methods.find(method => method.name === "select")?.args).toEqual(["id,occurred_at,actor_id,table_name,operation,record_key", { count: "exact" }]);
     expect(JSON.stringify(db.calls)).not.toMatch(/old_data|new_data/);
     expect(result.entries[0].actorName).toBe("Operazione di sistema");
@@ -43,7 +43,7 @@ describe("founder audit read boundary", () => {
   });
   it("fetches only the names of operators visible on this page", async () => {
     const db = client({ data: [row(1, id(2))], error: null, count: 1 }, { data: [{ user_id: id(2), display_name: "Operatore sintetico" }], error: null, count: 1 });
-    const result = await loadAuditMetadata(db.supabase, founder, "aal2", null);
+    const result = await loadAuditMetadata(db.supabase, founder, true, null);
     expect(result.entries[0].actorName).toBe("Operatore sintetico");
     expect(db.calls[1].methods).toContainEqual({ name: "select", args: ["user_id,display_name", { count: "exact" }] });
     expect(db.calls[1].methods).toContainEqual({ name: "in", args: ["user_id", [id(2)]] });
@@ -52,7 +52,7 @@ describe("founder audit read boundary", () => {
     const rows = Array.from({ length: 51 }, (_, index) => row(100 - index));
     const db = client({ data: rows, error: null, count: 51 });
     const cursor = { occurredAt: stamp, id: id(101) };
-    const result = await loadAuditMetadata(db.supabase, founder, "aal2", cursor);
+    const result = await loadAuditMetadata(db.supabase, founder, true, cursor);
     expect(result.entries).toHaveLength(50);
     expect(result.nextCursor).toEqual({ occurredAt: stamp, id: id(51) });
     expect(db.calls[0].methods).toContainEqual({ name: "or", args: [`occurred_at.lt.${stamp},and(occurred_at.eq.${stamp},id.lt.${id(101)})`] });
@@ -61,7 +61,7 @@ describe("founder audit read boundary", () => {
   it("rejects a lowered API limit or private query errors without returning partial data", async () => {
     for (const reply of [{ data: [row(1)], error: null, count: 2 }, { data: null, error: { message: "Private database diagnostic" }, count: null }]) {
       const db = client(reply);
-      await expect(loadAuditMetadata(db.supabase, founder, "aal2", null)).rejects.toThrow(/Registro non disponibile/);
+      await expect(loadAuditMetadata(db.supabase, founder, true, null)).rejects.toThrow(/Registro non disponibile/);
     }
   });
 });

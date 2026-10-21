@@ -13,17 +13,17 @@ Il collegamento dell'app usa solo URL e chiave pubblicabile Supabase. RLS proteg
 
 ## Accessi e dati
 
-Cinque accessi personali predisposti per Tommi, Gabriele, Ettore, Gherardo e Luca. Finance è riservata a Tommi, Gabriele e Gherardo con MFA; controllo CEO al solo founder con MFA. Nessuna registrazione pubblica. Inviti ancora da distribuire: gli account iniziali non hanno password assegnate e non sono state inviate email.
+Cinque identità personali per Tommi, Gabriele, Ettore, Gherardo e Luca. La scelta del founder prevede una password operativa comune di almeno sei caratteri, una seconda password condivisa per Finance e una separata per il controllo CEO, senza autenticatore obbligatorio. Finance resta riservata a Tommi, Gabriele e Gherardo; CEO al founder. Le password attendono inserimento umano in una schermata locale privata. Nessuna registrazione pubblica o email inviata. Il founder ha completato il primo accesso.
 
 Inventario iniziale: 9 modelli, 51 SKU e 102 celle verificate contro l'Excel Drive autorizzato. 214 capi centrali, zero nel negozio censito. I valori salvati nel file non sono una nuova conta fisica certificata. Nessuna quantità Shopify sovrascrive questi dati. I movimenti operativi successivi passano dal registro del gestionale.
 
-Finance: 144 righe BudgetFlow importate, tutte da verificare. Il CSV, il COGS Tracker Excel e il recap PDF originali sono conservati nello Storage privato e scaricabili soltanto con i permessi Finance e MFA. Le fonti storiche non modificano scorte o costi attuali, e non diventano automaticamente vendite o scritture contabili approvate.
+Finance: 144 righe BudgetFlow importate, tutte da verificare. Il CSV, il COGS Tracker Excel e il recap PDF originali sono conservati nello Storage privato e scaricabili soltanto con i permessi Finance e lo sblocco dell’area. Le fonti storiche non modificano scorte o costi attuali, e non diventano automaticamente vendite o scritture contabili approvate.
 
 Il calendario interno, le attività e le note condivise sono in `/team`; l'anteprima locale mantiene i propri appunti sul browser, senza importarli automaticamente. Le scritture verificano sessione e membership corrente. La sezione Finance è in `/finance`, gli originali in `/finance/documents`.
 
-Il motore delle vendite collega ordine, incasso dichiarato, riserve, produzione e consegna in transazioni idempotenti. Rimane disabilitato fino alla verifica dell'interfaccia e alla definizione della data di avvio. Nessuno storico vendite è stato importato. Shopify richiede ancora un'applicazione permanente: il parser delle notifiche è predisposto, il collegamento live non è attivo.
+Il motore delle vendite collega ordine, incasso dichiarato, riserve, produzione e consegna in transazioni idempotenti. Il founder ha confermato nessun movimento successivo ai 214 capi di apertura. Vendite e rettifiche rimangono disabilitate fino alla pubblicazione verificata, che fisserà il timestamp di avvio. Nessuno storico vendite è stato importato. Shopify richiede ancora un'applicazione permanente: il ricevitore conserva notifiche idempotenti ma il worker è in implementazione; il collegamento live non è attivo.
 
-Packaging: scatole T-shirt e adesivi delle scatole sono materiali distinti dagli sticker Shopify; quantità e costi non sono stati inventati. Conto vendita: 60% LuckyLap / 40% negozio, listino sito +10 EUR; il riparto fiscale resta da definire prima di automatizzarlo. Il progetto Partner continua separatamente con Claude: https://github.com/tommyieri/luckylap-partner
+Packaging: scatole T-shirt e adesivi delle scatole sono materiali distinti dagli sticker Shopify; quantità e costi non sono stati inventati. Conto vendita: 60% LuckyLap / 40% negozio, listino sito +10 EUR; nessuno sconto in negozio, quote commerciali e incassi separati. Queste quote non sono una determinazione fiscale. I moduli sono in `/packaging` e `/consignment`; `/assets` contiene sei originali grafici privati, `/development` segue i nuovi prodotti e `/finance/work` distingue fatti delle vendite, incassi e registrazioni manuali. Il progetto Partner continua separatamente con Claude: https://github.com/tommyieri/luckylap-partner
 
 Nessun originale Drive, quantità Shopify o file del repository Partner è stato modificato.
 
@@ -46,11 +46,11 @@ npm run typecheck
 npm run build
 ```
 
-I test SQL embedded usano PGlite come dipendenza esterna, dati sintetici e Auth simulato. I report distinguono queste prove dai controlli reali Auth/JWT/MFA/REST e dalla concorrenza PostgreSQL su più connessioni, ancora da verificare prima delle vendite reali.
+I test SQL embedded usano PGlite come dipendenza esterna, dati sintetici e Auth simulato. Le prove reali Auth/REST/Storage e PostgreSQL su più connessioni sono documentate separatamente in [verifiche](docs/verification.md).
 
 ## Documentazione
 
-- [Accesso e MFA](docs/authentication.md), [inviti e password](docs/inviti-account.md)
+- [Accesso e password delle aree](docs/authentication.md), [inviti e password](docs/inviti-account.md)
 - [Verifica import cloud](docs/verifica-import-cloud.md), [verifica Auth cloud](docs/verifica-auth-cloud.md)
 - [Finance](docs/finance-import.md), [backend](docs/backend.md)
 - [Contratto ecosistema vendite](docs/ecosistema-vendite.md), [motore transazionale](docs/sales-ecosystem-backend.md)

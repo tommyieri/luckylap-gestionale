@@ -3,7 +3,7 @@ import type { SupabaseClient } from "@supabase/supabase-js";
 import { financeBatchFromDatabase, financeTransactionFromDatabase, type FinanceSnapshot } from "./model";
 import { readCompletePages } from "./read";
 
-/** Call only after getUser + current DB membership + aal2 checks. The supplied client remains caller-scoped under RLS. */
+/** Call only after getUser + current DB membership + fresh Finance area grant checks. The client remains caller-scoped under RLS. */
 export async function loadFinanceImports(supabase: SupabaseClient): Promise<FinanceSnapshot> {
   const [batchRows, transactionRows] = await Promise.all([
     readCompletePages((from, to) => supabase.from("finance_import_batches").select("id,source_system,source_file_name,extracted_at,reference_date,source_row_count,review_status,imported_at", { count: "exact" }).order("id").range(from, to)),

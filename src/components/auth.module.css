@@ -2,3 +2,5 @@
 @media(max-width:1250px){.accountBar{margin-left:210px;padding-left:27px;padding-right:27px}}
 @media(max-width:980px){.accountBar{margin-left:200px;padding-left:22px;padding-right:22px}}
 @media(max-width:760px){.accountBar{margin-left:0;padding:10px 15px;align-items:flex-start}.accountBar>div{gap:12px;flex-shrink:0}.accountBar small{max-width:34ch;line-height:1.5}}
+
+@media(max-width:640px){.form input,.form select{font-size:16px}}

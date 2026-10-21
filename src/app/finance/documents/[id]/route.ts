@@ -6,7 +6,7 @@ export const runtime = "nodejs";
 const headers = { "Cache-Control": "private, no-cache, no-store, must-revalidate, max-age=0", "X-Content-Type-Options": "nosniff", "Referrer-Policy": "no-referrer" };
 export async function GET(_request: Request, context: { params: Promise<{ id: string }> }) {
   const access = await financeDocumentAccess().catch(() => null);
-  if (!access?.allowed) return new Response("Accesso Finance e verifica in due passaggi richiesti.", { status: access?.status ?? 503, headers });
+  if (!access?.allowed) return new Response("Account abilitato e password Finance per questa sessione richiesti.", { status: access?.status ?? 503, headers });
   const { id } = await context.params;
   if (!/^[a-f0-9]{8}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{12}$/i.test(id)) return new Response("Documento non disponibile.", { status: 404, headers });
   const row = await access.supabase.from("finance_documents").select("id,source_kind,file_name,storage_path,sha256,byte_size,content_type,review_status").eq("id", id).maybeSingle();

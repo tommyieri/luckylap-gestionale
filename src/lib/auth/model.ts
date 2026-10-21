@@ -14,16 +14,28 @@ export function memberFromDatabase(userId: string, membershipValue: unknown, pro
   return { userId, displayName: profile.display_name.trim(), role: membership.role as MemberRole, financeAccess: membership.finance_access };
 }
 
-/** UI guidance only. PostgreSQL RLS is the authority for every sensitive query. */
-export function canReadSensitiveArea(member: VerifiedMember, area: "finance" | "audit", verifiedAal: string | null): boolean {
-  if (verifiedAal !== "aal2") return false;
+export type SensitiveArea = "finance" | "audit";
+export function sensitiveAreaFrom(value: unknown): SensitiveArea | null {
+  return value === "finance" || value === "audit" ? value : null;
+}
+/** Role eligibility is separate from a password grant for the current session. */
+export function isSensitiveAreaEligible(member: VerifiedMember, area: SensitiveArea): boolean {
   if (area === "audit") return member.role === "founder";
+  if (area !== "finance") return false;
   return member.role === "founder" || (member.financeAccess && (member.role === "production" || member.role === "finance"));
+}
+/** UI guidance only. PostgreSQL RLS remains the authority for sensitive queries. */
+export function canReadSensitiveArea(member: VerifiedMember, area: SensitiveArea, unlocked: boolean): boolean {
+  return unlocked === true && isSensitiveAreaEligible(member, area);
+}
+
+export function isValidWorkspacePassword(value: unknown): value is string {
+  return typeof value === "string" && Array.from(value).length >= 6 && new TextEncoder().encode(value).byteLength <= 72 && value.trim().length > 0;
 }
 
 export function parseCredentials(email: unknown, password: unknown): { email: string; password: string } | null {
-  if (typeof email !== "string" || typeof password !== "string") return null;
+  if (typeof email !== "string" || !isValidWorkspacePassword(password)) return null;
   const address = email.trim();
-  if (address.length > 254 || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(address) || password.length < 1 || password.length > 1024) return null;
+  if (address.length > 254 || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(address)) return null;
   return { email: address, password };
 }

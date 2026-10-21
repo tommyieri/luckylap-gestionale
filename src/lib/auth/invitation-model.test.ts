@@ -15,11 +15,11 @@ describe("invitation input boundary", () => {
 
 describe("new password validation", () => {
   it("keeps an exact passphrase including spaces and accepts the boundaries", () => {
-    for (const password of ["a".repeat(12), "a".repeat(128), "  A long passphrase  "]) {
+    for (const password of ["a".repeat(6), "a".repeat(72), "🙂".repeat(18), "  A long passphrase  "]) {
       expect(validateNewPassword(password, password)).toEqual({ ok: true, password });
     }
   });
-  it.each(["a".repeat(11), "a".repeat(129), " ".repeat(12), null, new Blob(["secret"])])("rejects invalid lengths or types", password => {
+  it.each(["a".repeat(5), "a".repeat(73), "🙂".repeat(19), "🙂".repeat(3), " ".repeat(6), null, new Blob(["secret"])])("rejects invalid lengths or types", password => {
     expect(validateNewPassword(password, password).ok).toBe(false);
   });
   it("requires an exact confirmation without returning the submitted values on errors", () => {

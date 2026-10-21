@@ -4,10 +4,10 @@ import { canReadSensitiveArea, type VerifiedMember } from "../auth/model";
 import { isTeamId } from "../team/model";
 import { auditEntryFromDatabase, isAuditTimestamp, type AuditCursor, type AuditPage } from "./model";
 
-/** A current verified membership and verified session assurance must be supplied by the page. RLS remains authoritative. */
-export async function loadAuditMetadata(supabase: SupabaseClient, member: VerifiedMember, verifiedAal: string | null, cursor: AuditCursor | null): Promise<AuditPage> {
-  // Defense in depth: no audit or actor lookup query for other roles or aal1.
-  if (!canReadSensitiveArea(member, "audit", verifiedAal)) throw new Error("Registro riservato al founder con verifica in due passaggi.");
+/** A current verified membership and fresh DB area status must be supplied by the page. RLS remains authoritative. */
+export async function loadAuditMetadata(supabase: SupabaseClient, member: VerifiedMember, unlocked: boolean, cursor: AuditCursor | null): Promise<AuditPage> {
+  // Defense in depth: no audit or actor lookup query for other roles or locked sessions.
+  if (!canReadSensitiveArea(member, "audit", unlocked)) throw new Error("Registro riservato al founder con password CEO per questa sessione.");
   if (cursor && (!isAuditTimestamp(cursor.occurredAt) || !isTeamId(cursor.id))) throw new Error("Pagina del registro non valida.");
   let query = supabase.from("audit_logs").select("id,occurred_at,actor_id,table_name,operation,record_key", { count: "exact" }).order("occurred_at", { ascending: false }).order("id", { ascending: false }).limit(51);
   if (cursor) query = query.or(`occurred_at.lt.${cursor.occurredAt},and(occurred_at.eq.${cursor.occurredAt},id.lt.${cursor.id})`);

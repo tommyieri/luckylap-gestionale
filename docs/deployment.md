@@ -1,32 +1,34 @@
 # Collegamento cloud LuckyLap — 21 ottobre 2026
 
-## Destinazione effettiva
+## Destinazione
 
 - GitHub privato: https://github.com/tommyieri/luckylap-gestionale, produzione da `main`.
-- Vercel autorizzato dal plugin: account `info@luckylap.com`, team **LuckyLap**, slug `luckylap`, ID `team_xyCg61r8Hj3dKO2xPn5I2otJ`.
-- Progetto Vercel **luckylap**, ID `prj_t61F8J9JGAGhOXXItWaAGvxzp8jE`. Dominio di progetto verificato `luckylap.vercel.app`; verificare il deploy corrente prima di comunicare l’attivazione di nuove funzionalità.
-- Supabase **luckylap-gestionale**, progetto `annvatqnllkbrtufmgnl`, organizzazione **LuckyLapCRM**, regione Irlanda. Piano **Free**. Vercel è sul piano **Hobby**; nessun trial o abbonamento attivato.
+- Vercel collegato al plugin: account `info@luckylap.com`, team **LuckyLap**, slug `luckylap`, ID `team_xyCg61r8Hj3dKO2xPn5I2otJ`.
+- Progetto **luckylap**, ID `prj_t61F8J9JGAGhOXXItWaAGvxzp8jE`, dominio https://luckylap.vercel.app.
+- Supabase **luckylap-gestionale**, ref `annvatqnllkbrtufmgnl`, organizzazione **LuckyLapCRM**, Irlanda, piano **Free**. Vercel **Hobby**. Nessun trial o abbonamento attivato.
 
-Vercel contiene il codice dell’app e due sole variabili di collegamento Supabase: URL e chiave pubblicabile. Il database, Auth, l’audit e lo Storage privato rimangono in Supabase. Nessuna chiave amministrativa nel codice, nel browser o nelle variabili di Vercel.
+Vercel contiene il codice e le due variabili pubbliche di collegamento Supabase. Database, Auth, audit e Storage privato sono in Supabase. Nessuna chiave amministrativa è nel repository, nel browser o nelle variabili Vercel. I futuri segreti del collegamento Shopify saranno esclusivamente server e richiederanno una configurazione separata; oggi il ricevitore risponde indisponibile senza tale configurazione.
 
-Il primo deploy di prova è stato creato dalla sessione personale del browser prima che fosse indicato l’account brand. La destinazione operativa è esclusivamente il progetto del team LuckyLap sopra identificato. Non usare il vecchio indirizzo `luckylap-gestionale.vercel.app` per inviti o istruzioni al team. Il vecchio progetto non è stato eliminato perché è una rimozione definitiva separata.
+Il primo progetto di prova personale `luckylap-gestionale.vercel.app` non è la destinazione operativa. Non usarlo per accessi o istruzioni al team. Non è stato eliminato.
 
-## Dati applicati
+## Import e accessi
 
-Le cinque migrazioni locali riportano le versioni effettivamente assegnate dal tool cloud, mantenendo identici i contenuti SQL revisionati. L’import iniziale ha 9 modelli, 51 SKU e 102 celle di scorta: 214 centrali e zero in negozio. Tutte le celle sono state confrontate esattamente con la fonte autorizzata.
+Dodici migrazioni applicate, con versioni locali identiche a quelle registrate dal cloud. Inventario: 9 prodotti, 51 SKU, 102 celle, 214 capi centrali e zero in negozio; confronto esatto con la fonte Drive autorizzata. Il founder conferma nessun movimento successivo. Catalogo commerciale Shopify: 60 varianti attive, 51 mappate per SKU e 9 sticker retail separati; nessuna quantità Shopify letta o importata.
 
-BudgetFlow: un batch, 144 righe immutabili, tutte `unreviewed`, con pending e date future conservati. Nessun ordine storico o movimento di scorte ricavato dai file Finance. I tre originali ricevuti sono nel bucket privato `finance-documents`; ogni download è stato confrontato byte per byte con il file locale e con il suo SHA-256. Catalogo documenti e download richiedono Finance + MFA e usano la sessione dell’utente.
+BudgetFlow: 144 righe immutabili non revisionate, un pending e due date future. Tre originali Finance e sei originali grafici sono in bucket privati, verificati per byte e SHA-256. Nessun ordine storico o movimento fisico generato dagli import.
 
-Cinque account personali predisposti senza password o email inviate. I ruoli sono nel database, non nei metadati modificabili dell’utente. Finance è concessa solo a founder, Gabriele e Gherardo; audit solo al founder; entrambe richiedono `aal2`. Registrazione pubblica disabilitata, verificata anche tramite `/auth/v1/settings`.
+Cinque identità personali con ruoli nel database. Il founder ha completato il primo accesso. La scelta più recente prevede password operativa comune di almeno sei caratteri, password condivisa Finance e password CEO separata, senza TOTP obbligatorio. La configurazione iniziale attende l’inserimento umano in una schermata locale privata. Finance resta limitata a founder, produzione e Finance; audit al founder. Ogni sblocco è legato alla sessione Auth corrente e scade dopo otto ore. Nessuna email inviata; registrazione pubblica disabilitata.
 
 ## Avvio operativo
 
-Il nucleo vendite è applicato, ma `manual_sales_enabled=false` e `sales_started_at=null`: nessuna vendita reale è stata registrata. La conferma della data di apertura e degli ordini eventualmente già inclusi nello stock è necessaria per evitare doppi scarichi. Shopify rimane da collegare tramite una credenziale applicativa permanente: il plugin dell’assistente non fornisce automaticamente tale credenziale al gestionale.
+Vendite manuali, sconti e rettifiche stock sono ancora disabilitati; `sales_started_at` è nullo. L’attivazione avverrà dopo il deploy verificato, fissando un timestamp esatto e mantenendo le 214 unità di apertura. La conferma del founder sull’assenza di nuovi movimenti è già acquisita.
 
-Gli inviti non sono stati inviati. Il server email standard Supabase ha limiti di destinatari e frequenza: configurare un mittente esistente o scegliere esplicitamente la distribuzione dei link personali prima di usare l’onboarding con l’intero team. Non attivare provider a pagamento. I token locali di preparazione non vanno pubblicati o inseriti in Git.
+Packaging, conto vendita, contenuti, sviluppo e lavoro Finance sono implementati e verificati; la pubblicazione del nuovo avanzamento deve essere controllata sul dominio del team LuckyLap. Il conto vendita usa prezzo sito +10 EUR, nessuno sconto, quote commerciali 60/40 e incasso distinto dalla vendita.
 
-## Verifiche e limiti
+Shopify: ricevitore idempotente applicato, coda durabile in `awaiting_app`; nessun ordine Shopify ancora applicato. Servono app interna installata, segreti server e worker completo prima di attivare sottoscrizioni. Il plugin dell’assistente non è una credenziale permanente dell’app. [Procedura ufficiale](shopify-app-setup.md).
 
-L’accesso anonimo REST a inventario e Finance restituisce `401 / 42501`; le pagine protette del primo deploy mostrano login e `private, no-store`. Il Security Advisor dopo le nuove migrazioni segnala solo l’assenza intenzionale di policy per due tabelle private senza grant client e la protezione password compromesse non attiva. RLS resta attiva: nessuna policy permissiva aggiunta per nascondere avvisi. Il controllo password compromesse va valutato entro le funzioni disponibili sul piano scelto, senza upgrade automatici.
+## Verifica della pubblicazione
 
-I test embedded usano dati sintetici e Auth simulato; da soli non provano la concorrenza fra connessioni PostgreSQL. Le prove reali Auth/JWT/MFA sono documentate separatamente quando completate. Per i file Finance e il confronto inventario: `verifica-import-cloud.md`.
+Controllare commit, stato READY e alias con il plugin Vercel. Verificare login anonimo, `private, no-store`, route QA assenti e assenza di dati riservati nell’HTML. Poi verificare il percorso con sessione reale senza inserire movimenti di prova nel magazzino.
+
+Le tabelle private di ricevute, outbox, code e credenziali hanno RLS senza policy client intenzionalmente. Nessun grant permissivo viene aggiunto per eliminare gli avvisi informativi. La protezione Supabase contro password compromesse richiede un piano superiore e non è stata attivata. [Evidenze e limiti](verification.md).

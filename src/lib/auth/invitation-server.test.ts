@@ -100,7 +100,7 @@ describe("server password setup", () => {
   });
   it("validates password and confirmation before contacting Auth", async () => {
     const f = fixture();
-    expect((await setMemberPassword(f.client, "too-short", "too-short")).status).toBe("error");
+    expect((await setMemberPassword(f.client, "short", "short")).status).toBe("error");
     expect(f.auth.getUser).not.toHaveBeenCalled();
     expect(f.auth.updateUser).not.toHaveBeenCalled();
   });
