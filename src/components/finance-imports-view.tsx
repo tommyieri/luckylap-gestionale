@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useEffect, useId, useMemo, useRef, useState } from "react";
+import { useEffect, useId, useMemo, useRef, useState, type ReactNode } from "react";
 import { ArrowUpRight, Check, FileSpreadsheet, Search, X } from "lucide-react";
 import {
   formatCalendarDate,
@@ -15,9 +15,11 @@ import {
   financeCategoryTotals,
   financeCentsLabel,
   type DashboardSettlement,
+  type DashboardShopPayment,
   type FinanceMovement,
 } from "@/lib/finance/dashboard";
 import { FINANCE_CATEGORY_GROUPS } from "@/lib/finance/categories";
+import { CONSIGNMENT_FINANCE_ANCHOR, shopPaymentAnchor } from "../lib/consignment/links";
 import type { FinanceWorkSnapshot } from "@/lib/finance-work/model";
 import { FinanceAccountChart, FINANCE_MONTHS, financeAccountColor } from "./finance-account-chart";
 import styles from "./finance.module.css";
@@ -29,7 +31,11 @@ const sourceLabels = {
   payment: "Incasso ordine",
   refund: "Rimborso Shopify",
   consignment: "Incasso conto vendita",
+  shop_payment: "Pagamento del negozio",
 };
+/** Ancora di un movimento: `movimento-shop_payment-<id>` per i pagamenti del negozio (decisione 13). */
+const movementAnchor = (row: FinanceMovement) =>
+  row.source === "shop_payment" ? shopPaymentAnchor(row.sourceId) : undefined;
 const emptyWork: FinanceWorkSnapshot = {
   entries: [],
   facts: [],
@@ -55,18 +61,24 @@ export function FinanceImportsView({
   snapshot,
   workSnapshot = emptyWork,
   settlements = [],
+  shopPayments = [],
+  consignment,
   reportDate,
 }: {
   snapshot: FinanceSnapshot;
   workSnapshot?: FinanceWorkSnapshot;
   settlements?: DashboardSettlement[];
+  /** Pagamenti dei resoconti mensili del conto vendita: entrano nei saldi una volta. */
+  shopPayments?: DashboardShopPayment[];
+  /** Pannello «Conto vendita · da incassare», reso dalla pagina sul server. */
+  consignment?: ReactNode;
   reportDate: string;
   /** Non più mostrato qui: il nome del membro sta nel menu del guscio. */
   displayName: string;
 }) {
   const dashboard = useMemo(
-    () => buildFinanceDashboard(snapshot, workSnapshot, reportDate, settlements),
-    [snapshot, workSnapshot, reportDate, settlements],
+    () => buildFinanceDashboard(snapshot, workSnapshot, reportDate, { settlements, shopPayments }),
+    [snapshot, workSnapshot, reportDate, settlements, shopPayments],
   );
   const [year, setYear] = useState(Number(reportDate.slice(0, 4))),
     [month, setMonth] = useState("");
@@ -175,6 +187,7 @@ export function FinanceImportsView({
           </Link>
         </div>
         <nav className={styles.financeNav} aria-label="Sezioni Finance">
+          {consignment && <a href={`#${CONSIGNMENT_FINANCE_ANCHOR}`}>Conto vendita</a>}
           <a href="#finance-transactions">Movimenti</a>
           <a href="#finance-imports">Fonti importate</a>
         </nav>
@@ -366,6 +379,7 @@ export function FinanceImportsView({
             )}
           </section>
         )}
+        {consignment}
         <section
           ref={transactionsRef}
           tabIndex={-1}
@@ -479,7 +493,7 @@ export function FinanceImportsView({
                 </thead>
                 <tbody>
                   {filtered.map((row) => (
-                    <tr key={row.id}>
+                    <tr key={row.id} id={movementAnchor(row)}>
                       <td>
                         <time dateTime={row.date}>{formatCalendarDate(row.date)}</time>
                       </td>
@@ -624,9 +638,18 @@ export function FinanceImportsView({
                 {selected.allocationNote && (
                   <p className={styles.detailNotice}>{selected.allocationNote}</p>
                 )}
-                <p className={styles.detailNotice}>
-                  <Link href="/finance/work">Apri il registro Finance e la fonte collegata</Link>
-                </p>
+                {selected.source === "shop_payment" && selected.href ? (
+                  <p className={styles.detailNotice}>
+                    Il pagamento si corregge nel resoconto del negozio, che ne conserva lo storico.{" "}
+                    <Link href={selected.href} prefetch={false}>
+                      Modifica nel resoconto
+                    </Link>
+                  </p>
+                ) : (
+                  <p className={styles.detailNotice}>
+                    <Link href="/finance/work">Apri il registro Finance e la fonte collegata</Link>
+                  </p>
+                )}
               </>
             )}
             <p className={styles.detailNotice}>

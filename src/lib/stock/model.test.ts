@@ -15,7 +15,15 @@ const command = {
 const rows = (): StockRows => ({
   settings: { stock_adjustments_enabled: false },
   items: [{ id, sku: "SYNTHETIC", name: "Synthetic only", kind: "product", active: true }],
-  locations: [{ id: location, code: "TEST", name: "Synthetic location", active: true }],
+  locations: [
+    {
+      id: location,
+      code: "TEST",
+      name: "Synthetic location",
+      active: true,
+      location_type: "Magazzino",
+    },
+  ],
   availability: [
     { stock_item_id: id, location_id: location, on_hand: 10, reserved: 2, available: 8 },
   ],
@@ -66,6 +74,30 @@ describe("stock adjustment boundary", () => {
   });
 });
 
+describe("rettifiche solo nei magazzini (06 R7)", () => {
+  const shop = "00000000-0000-4000-8000-000000000009";
+  it("le sedi del negozio non entrano tra le scelte, nemmeno i loro saldi", () => {
+    const source = rows();
+    source.locations.push({
+      id: shop,
+      code: "NEG01",
+      name: "Negozio sintetico",
+      active: true,
+      location_type: "Negozio Conto Vendita",
+    });
+    const snapshot = stockSnapshotFromRows(source);
+    expect(snapshot.locations.map((l) => l.code)).toEqual(["TEST"]);
+    source.availability.push({
+      stock_item_id: id,
+      location_id: shop,
+      on_hand: 3,
+      reserved: 0,
+      available: 3,
+    });
+    expect(() => stockSnapshotFromRows(source)).toThrow(/lettura/);
+  });
+});
+
 describe("complete stock projection", () => {
   it("uses server on_hand, reserved and available as separate quantities", () => {
     expect(stockSnapshotFromRows(rows()).availability[0]).toEqual({
@@ -110,6 +142,9 @@ describe("complete stock projection", () => {
     },
     (r: StockRows) => {
       (r.availability[0] as Record<string, unknown>).on_hand = "10";
+    },
+    (r: StockRows) => {
+      delete (r.locations[0] as Record<string, unknown>).location_type;
     },
   ])("refuses inconsistent, duplicated or incomplete joined data", (mutate) => {
     const source = rows();

@@ -51,7 +51,7 @@ Alcuni documenti scritti prima del modello attuale chiedono ancora una sessione 
 
 ## Conto vendita
 
-- [Conto vendita](consignment.md): modulo `/consignment` con affidi, rientri, vendite dichiarate dal negozio e incassi (60% LuckyLap, 40% negozio).
+- [Conto vendita](consignment.md): modulo `/consignment` con negozi, conta in negozio, resoconto mensile da fatturare (60% LuckyLap, 40% negozio), pagamenti in Finance e ordini del negozio.
 
 ## Partner
 

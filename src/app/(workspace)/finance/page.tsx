@@ -2,6 +2,10 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { redirect } from "next/navigation";
 import { FinanceImportsView } from "@/components/finance-imports-view";
+import {
+  ConsignmentMonthlyFinance,
+  FinancePreviewNotice,
+} from "@/components/consignment-monthly-finance";
 import { PanelActions, WorkspacePanel } from "@/components/workspace-panel";
 import { isSensitiveAreaEligible } from "@/lib/auth/model";
 import { verifiedSensitiveAccess } from "@/lib/auth/sensitive-access";
@@ -10,6 +14,13 @@ import { loadFinanceImports } from "@/lib/finance/server";
 import { readFinanceWork } from "@/lib/finance-work/server";
 import { readDashboardSettlements } from "@/lib/finance/dashboard-server";
 import { localReportDate } from "@/lib/finance/model";
+import {
+  dashboardShopPaymentsFromRows,
+  monthlyFinanceFromRows,
+  readConsignmentMonthlyFinance,
+} from "@/lib/consignment/shop-finance";
+import { shopFinanceRows } from "@/lib/consignment/shop-fixtures";
+import { isLocalPreviewEnabled } from "@/lib/runtime";
 import { getSupabasePublicConfig } from "@/lib/supabase/config";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 
@@ -38,7 +49,33 @@ function AccessState({
   );
 }
 
+/**
+ * Anteprima locale (00-sequenza §1.5): nessuna lettura, nessuna fonte importata,
+ * solo i resoconti e i pagamenti sintetici del conto vendita.
+ */
+function FinancePreview() {
+  const reportDate = localReportDate(new Date())!;
+  const { reports, payments, locations } = shopFinanceRows();
+  return (
+    <>
+      <FinancePreviewNotice />
+      <FinanceImportsView
+        snapshot={{ batches: [], transactions: [] }}
+        shopPayments={dashboardShopPaymentsFromRows(payments, reports, locations)}
+        consignment={
+          <ConsignmentMonthlyFinance
+            snapshot={monthlyFinanceFromRows(reports, payments, locations)}
+          />
+        }
+        reportDate={reportDate}
+        displayName="Anteprima locale"
+      />
+    </>
+  );
+}
+
 export default async function FinancePage() {
+  if (isLocalPreviewEnabled()) return <FinancePreview />;
   try {
     getSupabasePublicConfig();
   } catch {
@@ -81,13 +118,21 @@ export default async function FinancePage() {
 
   // No preview/staging imports, service key, cached rows or client-side bypass.
   // All reads use this user's session and the database Finance RLS policies.
-  const [snapshot, work, settlements] = await Promise.all([
+  // The consignment panel and the shop payments in the balances share one read.
+  const [snapshot, work, settlements, consignment] = await Promise.all([
     loadFinanceImports(supabase).catch(() => null),
     readFinanceWork(supabase).catch(() => null),
     readDashboardSettlements(supabase).catch(() => null),
+    readConsignmentMonthlyFinance(supabase, access.member).catch(() => null),
   ]);
   const reportDate = localReportDate(new Date());
-  if (!snapshot || !reportDate || work?.status !== "ready" || !settlements)
+  if (
+    !snapshot ||
+    !reportDate ||
+    work?.status !== "ready" ||
+    !settlements ||
+    consignment?.status !== "ready"
+  )
     return (
       <AccessState
         title="Importazioni non disponibili."
@@ -99,6 +144,8 @@ export default async function FinancePage() {
       snapshot={snapshot}
       workSnapshot={work.snapshot}
       settlements={settlements}
+      shopPayments={consignment.shopPayments}
+      consignment={<ConsignmentMonthlyFinance snapshot={consignment.snapshot} />}
       reportDate={reportDate}
       displayName={access.member.displayName}
     />

@@ -179,6 +179,12 @@ export function FinanceWorkForm({
         key={epoch}
         disabled={!loaded || pending || blocked || command !== null || disabled}
       >
+        {kind === "record_finance_entry" && (
+          <p className={styles.help}>
+            Gli incassi del conto vendita si registrano dal resoconto del negozio: non inserirli
+            anche qui.
+          </p>
+        )}
         {children}
         <button type="submit" className="button button-primary">
           {pending ? "Registrazione in corso…" : label}
