@@ -32,6 +32,7 @@ vi.mock("@/app/packaging/actions", () => ({ updatePackaging: mocks.update }));
 vi.mock("@/lib/stock/model", () => import("../lib/stock/model"));
 vi.mock("@/lib/packaging/simple", () => import("../lib/packaging/simple"));
 import { PackagingWorkspace } from "./packaging-workspace";
+import { PendingAttempt } from "./pending-attempt";
 const box = "00000000-0000-4000-8000-000000000001",
   sticker = "00000000-0000-4000-8000-000000000002",
   userId = "00000000-0000-4000-8000-000000000003",
@@ -143,15 +144,63 @@ describe("two material packaging workspace", () => {
     mocks.states[1] = frozen;
     mocks.update.mockResolvedValue({ status: "uncertain", message: "Synthetic" });
     const tree = PackagingWorkspace({ snapshot, member }),
-      button = descendants(tree).find(
-        (node) => node.type === "button" && text(node) === "Verifica lo stesso invio",
-      )!;
-    (button.props.onClick as () => void)();
-    (button.props.onClick as () => void)();
+      attempt = descendants(tree).find((node) => node.type === PendingAttempt)!;
+    expect(attempt.props).toMatchObject({
+      title: "Registrazione da verificare",
+      operationId,
+      blocked: false,
+      onDiscard: undefined,
+    });
+    (attempt.props.onRetry as () => void)();
+    (attempt.props.onRetry as () => void)();
     expect(mocks.update).toHaveBeenCalledOnce();
     expect(mocks.update).toHaveBeenCalledWith({ ...frozen, retry: true });
     expect(crypto.randomUUID).not.toHaveBeenCalled();
     await Promise.all(mocks.transitions);
+  });
+  it("riassume la quantità da verificare senza codici e scarta solo un tentativo in conflitto", () => {
+    const frozen = {
+      operationId,
+      kind: "adjust",
+      payload: {
+        schema_version: 1,
+        stock_item_id: box,
+        expected_quantity: 100,
+        quantity: 101,
+        reason: "Synthetic new delivery",
+      },
+    };
+    mocks.states[1] = frozen;
+    let attempt = descendants(PackagingWorkspace({ snapshot, member })).find(
+      (node) => node.type === PendingAttempt,
+    )!;
+    expect(attempt.props.lines).toEqual([
+      "Scatola T-shirt",
+      "Nuova quantità: 101",
+      "Causale: Synthetic new delivery",
+    ]);
+    expect(JSON.stringify(attempt.props.lines)).not.toContain(box);
+    expect(attempt.props.onDiscard).toBeUndefined();
+    mocks.stateIndex = 0;
+    mocks.states[7] = true;
+    attempt = descendants(PackagingWorkspace({ snapshot, member })).find(
+      (node) => node.type === PendingAttempt,
+    )!;
+    expect(attempt.props.blocked).toBe(true);
+    (attempt.props.onDiscard as () => void)();
+    expect(sessionStorage.removeItem).toHaveBeenCalledWith(
+      `luckylap.packaging.simple.pending:${userId}`,
+    );
+    expect(mocks.update).not.toHaveBeenCalled();
+  });
+  it("un invio illeggibile si può solo scartare", () => {
+    mocks.states[6] = true;
+    const attempts = descendants(PackagingWorkspace({ snapshot, member })).filter(
+      (node) => node.type === PendingAttempt,
+    );
+    expect(attempts).toHaveLength(1);
+    expect(attempts[0].props).toMatchObject({ blocked: true, operationId: "non leggibile" });
+    expect(typeof attempts[0].props.onDiscard).toBe("function");
   });
   it("makes a reservation shortage and consumption debt explicit", () => {
     const changed = {
