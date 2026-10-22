@@ -86,6 +86,27 @@ export function PartnerWorkspace(props: PartnerWorkspaceProps) {
   );
 }
 
+/**
+ * Il server ha risposto alla richiesta di questo contatto senza il suo dettaglio: il contatto non
+ * c'è più. Una risposta per un altro indirizzo (Indietro del browser, navigazione in corso) no.
+ */
+export function partnerDetailGone(state: {
+  navigating: boolean;
+  /** Contatto aperto nella pagina. */
+  viewCo: number | null;
+  /** Contatto chiesto dall'indirizzo a cui il server ha risposto. */
+  queryCo: number | null;
+  /** Contatto del dettaglio arrivato dal server. */
+  detailCo: number | null;
+}): boolean {
+  return (
+    !state.navigating &&
+    state.viewCo !== null &&
+    state.queryCo === state.viewCo &&
+    state.detailCo !== state.viewCo
+  );
+}
+
 const normalizedQuery = (text: string) =>
   [...text.replace(/\s+/g, " ").trim()].slice(0, PARTNER_QUERY_MAX).join("").trim();
 const urlOf = (view: PartnerView) => `${PARTNER_PATH}?${partnerViewQuery(view)}`;
@@ -124,6 +145,8 @@ function WorkspaceBody({
   const [missing, setMissing] = useState(false);
   const barRef = useRef<HTMLDivElement>(null);
   const scrolledTo = useRef<number | null>(null);
+  const queryCo = parsed.view.co;
+  const answeredCo = useRef(queryCo);
 
   const periods = useMemo(() => partnerPeriods(today), [today]);
   const counts = periodCounts(workspace.partners, view, context);
@@ -229,14 +252,35 @@ function WorkspaceBody({
     replaceUrl(next);
   }, [byCo, context, view]);
 
-  // Navigazione finita senza dettaglio: il contatto non c'è più.
+  // Indietro e Avanti del browser: il server risponde per un altro indirizzo e il contatto aperto
+  // segue quello che l'indirizzo chiede, senza avvisi. Lo stato della pagina invece resta.
   useEffect(() => {
-    if (navigating || view.co === null || openDetail) return;
-    if (!byCo.has(view.co) || detail?.partner.co !== view.co) {
+    if (answeredCo.current === queryCo) return;
+    answeredCo.current = queryCo;
+    const partner = queryCo === null ? undefined : byCo.get(queryCo);
+    setMissing(false);
+    setView((current) => {
+      if (current.co === (partner?.co ?? null)) return current;
+      return partner
+        ? viewShowing({ ...current, co: partner.co }, partner, context)
+        : { ...current, co: null };
+    });
+  }, [queryCo, byCo, context]);
+
+  // Il server ha risposto per questo contatto senza dettaglio: il contatto non c'è più.
+  useEffect(() => {
+    if (
+      partnerDetailGone({
+        navigating,
+        viewCo: view.co,
+        queryCo,
+        detailCo: detail?.partner.co ?? null,
+      })
+    ) {
       setMissing(true);
       setView((current) => ({ ...current, co: null }));
     }
-  }, [navigating, view.co, openDetail, byCo, detail]);
+  }, [navigating, view.co, queryCo, detail]);
 
   // Dettaglio arrivato: la riga si porta in vista sotto la barra dei periodi.
   useEffect(() => {

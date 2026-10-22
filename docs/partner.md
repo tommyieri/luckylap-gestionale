@@ -127,7 +127,7 @@ Ogni comando è `public.<nome>(p_operation_id uuid, p_payload jsonb)` e segue gl
 | `save_partner_message` | Nuova revisione `edit`, o variante nuova del team. Testi uguali all'originale: come il ripristino | `messaggio` o `ripristino` |
 | `restore_partner_message` | Torna all'originale della ricerca (revisione `restore`) | `ripristino` |
 | `save_partner_contact` | Recapito nuovo o modificato; senza un valore utilizzabile dal pulsante: `partner_contact_unusable` | `recapito` |
-| `remove_partner_contact` | Rimuove (recuperabile) o cancella il dato (definitivo, anche dalle differenze; l'import non lo ripristina più) | `recapito` |
+| `remove_partner_contact` | Rimuove (recuperabile) o cancella il dato (definitivo, anche dalle differenze e dai destinatari dei messaggi del contatto; l'import non lo ripristina più) | `recapito` |
 | `set_partner_do_not_contact` | Mette o toglie il blocco; con `include_domain` blocca anche il dominio del sito | `non_contattare` |
 | `resolve_partner_difference` | «Tieni il nostro» o «Usa il nuovo», con le validazioni del comando corrispondente | `differenza` |
 | `import_partner_device_file` | Import di un file «Esporta» (sotto) | una riga per contatto toccato |
@@ -138,7 +138,7 @@ Un contatto è bloccato se ha una riga attiva sua, oppure se il dominio del suo 
 
 `private.apply_partner_stage(p_partner_id, p_stage, p_actor, p_operation_id, p_log default true)` cambia lo stato, azzera `stage_from_file_at` e incrementa `version`. Con `p_log` scrive la riga `stato`; i comandi che scrivono una loro riga (`set_partner_state`, `record_partner_activity`, l'import dei file, `resolve_partner_difference`) passano `false` e registrano stato prima e dopo nella loro. Così ogni operazione dà una sola riga per contatto (decisione 11). P5 la chiama con quattro argomenti da `record_partner_outcome`.
 
-Codici d'errore (messaggio = codice): `42501 partner_access_required`; `22023 invalid_partner_payload`, `partner_not_found`, `partner_owner_inactive`, `partner_contact_unusable`, `partner_contact_erased`, `partner_message_no_original`, `partner_difference_closed`, `partner_domain_unavailable`, `partner_not_blocked`, `partner_co_exhausted`; `40001 partner_changed`; `23505 partner_idempotency_conflict`; `55000 partner_do_not_contact`. Import della ricerca: `22023 invalid_partner_research`, `partner_batch_conflict`, `partner_import_incomplete`.
+Codici d'errore (messaggio = codice): `42501 partner_access_required`; `22023 invalid_partner_payload`, `partner_not_found`, `partner_owner_inactive`, `partner_contact_unusable`, `partner_contact_erased`, `partner_message_no_original`, `partner_difference_closed`, `partner_domain_unavailable`, `partner_not_blocked`, `partner_co_exhausted`; `40001 partner_changed`; `23505 partner_idempotency_conflict`; `55000 partner_do_not_contact`. Import della ricerca: `22023 invalid_partner_research`, `partner_batch_altered`, `partner_batch_conflict`, `partner_import_incomplete`.
 
 ## Import della ricerca
 
@@ -157,7 +157,7 @@ node supabase/generate-partner-import.mjs --partner-repo "<checkout di luckylap-
 - Controlla che le varianti di `partners.json` e di `varianti.json` coincidano; se no, chiede di rilanciare `python3 tools/build_data.py`.
 - Normalizza e valida come spec 02 §3. Un contatto senza mese prende il mese dal periodo e dalla data `generated` (`subito` +1, `dicembre_gennaio` +2, `febbraio_marzo` +4, `aprile_giugno` +6, `secondo_semestre_2027` +9). Il campo `draft` non si importa; un `draft` senza varianti ferma il generatore.
 - Scrive, con data della ricerca e inizio di `normalized_sha256` nel nome:
-  - `…-01.sql`, `…-02.sql` …: `select private.stage_partner_research(…);`, ognuno al massimo di `--batch-bytes` byte;
+  - `…-01.sql`, `…-02.sql` …: `select private.stage_partner_research(…, '<sha del lotto>');`, ognuno al massimo di `--batch-bytes` byte;
   - `…-apply.sql`: `select private.apply_partner_research('<sha>', array[…]);` con lo SHA-256 di ogni lotto;
   - `….report.json`: conteggi per sezione, periodo, mese, canale, recapiti per tipo, varianti per approccio, codici dei recapiti senza valore pulito e dei contatti senza mese, SHA-256 dei lotti. Nessun recapito e nessun testo.
 - Cartella `0700`, file `0600` creati in modo esclusivo; rifiuta una cartella dentro un repository git se non è ignorata (`.private/` lo è). Su stdout e stderr solo conteggi e codici.
@@ -166,13 +166,13 @@ Per provarlo sui dati sintetici serve un repository git usa e getta: copiare `su
 
 ### Regole nel database
 
-`private.stage_partner_research(testo)` registra un lotto: verifica intestazione e contatti, restituisce lo SHA-256 del testo ricevuto. Lo stesso lotto ripetuto non ha effetto; lo stesso indice con un testo diverso dà errore.
+`private.stage_partner_research(testo, sha_atteso)` registra un lotto solo se lo SHA-256 del testo ricevuto è quello scritto dal generatore nel file: un testo alterato nel trasporto dà `partner_batch_altered` e non scrive niente. Poi verifica intestazione e contatti e restituisce lo SHA-256 del testo. Lo stesso lotto ripetuto non ha effetto; lo stesso indice con un testo diverso dà errore.
 
 `private.apply_partner_research(normalized_sha256, sha_dei_lotti[])` applica tutto in una transazione, sotto il lock `luckylap.partner.import`, solo se ci sono tutti i lotti con gli SHA-256 attesi. Lo stesso import già applicato restituisce il resoconto con `"replayed": true`.
 
 - **Scheda**, confronto a tre vie su `name`, `city`, `country`, `type_label`, `sections`, `priority`, `contact_month`, `event_starts_on`, `event_ends_on`, `preferred_channel` tra base (`research_base`), valore attuale e valore in arrivo: se il team non l'ha toccato prende il nuovo; se l'hanno cambiato entrambi allo stesso modo non succede niente; se l'hanno cambiato in modo diverso resta quello del team e nasce (o si aggiorna) una differenza. `research` si sostituisce sempre.
-- **Recapiti**, per tipo: nuovi inseriti; cancellati mai ripristinati (il resoconto li elenca: vanno tolti anche dal repository Partner); non toccati dal team aggiornati o disattivati se spariti; rimossi o modificati dal team con un valore nuovo diverso: differenza.
-- **Varianti**: nuove inserite; originali sempre aggiornati; se vale un testo del team resta quello, con `original_changed_at` e una differenza `message`; sparite dalla ricerca: `research_removed_at`.
+- **Recapiti**, per tipo: nuovi inseriti; cancellati mai ripristinati, nemmeno nei destinatari delle varianti (il resoconto li elenca: vanno tolti anche dal repository Partner); non toccati dal team aggiornati o disattivati se spariti; rimossi o modificati dal team con un valore nuovo diverso: differenza.
+- **Varianti**: nuove inserite; originali sempre aggiornati; se vale un testo del team resta quello, con `original_changed_at` e una differenza `message`; sparite dalla ricerca: `research_removed_at`. Dai destinatari («A», «Cc») in arrivo si tolgono le voci con un recapito cancellato che la ricerca riporta ancora.
 - **Contatti**: nuovi con CO successivo, nell'ordine dei lotti (periodo del sito, poi il suo CO), stato Da contattare; assenti dalla ricerca: `research_removed_at`, niente si cancella; tornati: azzerato.
 - Una riga in `partner_research_imports` con i contatori; i lotti in transito si cancellano.
 
@@ -184,12 +184,12 @@ Autorizzato da Tommi il 22 ottobre (00-sequenza §1.1). Lo fa Claude con il conn
 
 1. Repository Partner pulito (`git status --porcelain` vuoto); annotare il commit.
 2. Nel worktree di P2: `node supabase/generate-partner-import.mjs --partner-repo "<percorso luckylap-partner>" --output-dir .private/partner-import --batch-bytes 40000`.
-3. Per ogni `…-NN.sql`, in ordine: `execute_sql` con il testo esatto del file. Risposta attesa: `staged: true` e `payload_sha256` uguale allo SHA del lotto nel resoconto (`batches[].sha256`). Lo stesso lotto rimandato risponde `staged: false` senza effetti. Nessun altro SQL di scrittura.
-4. `…-apply.sql` con `execute_sql`. Conservare il resoconto restituito (contatori, `new_codes`, `blocked_codes`, `erased_skipped`).
+3. Per ogni `…-NN.sql`, in ordine: `execute_sql` con il testo esatto del file. Risposta attesa: `staged: true` e `payload_sha256` uguale allo SHA del lotto nel resoconto (`batches[].sha256`). Lo stesso lotto rimandato risponde `staged: false` senza effetti. Errore `partner_batch_altered`: il testo è arrivato alterato e non è stato registrato; rileggere il file e rimandarlo così com'è. Nessun altro SQL di scrittura.
+4. `…-apply.sql` con `execute_sql`. Conservare il resoconto restituito (contatori, `new_codes`, `blocked_codes`, `erased_skipped`: `{source_key, slot}` per i recapiti cancellati che la ricerca riporta, `{source_key, approach}` per le varianti a cui sono stati tolti dai destinatari).
 5. Verifiche in sola lettura (sotto).
 6. `rm` dei `.sql` generati: contengono tutti i recapiti. Resta solo il `.report.json` in `.private/`.
 
-Se `payload_sha256` è diverso, il testo è arrivato alterato ma valido: `apply` lo rifiuterà (`partner_import_incomplete`) e rimandare il file dà `partner_batch_conflict`. Serve cancellare quella riga di transito (`delete from private.partner_import_staging where normalized_sha256 = '<sha>' and batch_index = <N>;`) e rimandare il file: è una scrittura in più, da fare solo con l'OK di Tommi. Se il trasporto dei lotti non funziona: fermarsi e dirlo, senza aprire grant nuovi (00-sequenza §6, rischio 2).
+Un lotto alterato non entra mai nella tabella di transito: lo SHA-256 atteso viaggia nello stesso file, quindi rimandare il file basta e non serve nessun'altra scrittura. Se il trasporto dei lotti non funziona: fermarsi e dirlo, senza aprire grant nuovi (00-sequenza §6, rischio 2).
 
 ### Verifica dei conteggi
 
@@ -252,7 +252,7 @@ Quando: dopo il rilascio di P5, così gli invii importati creano i solleciti (de
 - Nessun recapito o testo in `audit_logs`, che è append-only (sopra). Il registro non copia recapiti; le ricevute conservano solo l'impronta del payload e il risultato (id, versioni, contatori).
 - I recapiti escono dal database solo verso i membri, sotto RLS. La lista di `/partner` legge dei recapiti solo valore pulito ed etichetta; il testo intero arriva solo nel dettaglio.
 - Il generatore non stampa recapiti né testi. I `.sql` generati contengono tutti i recapiti: restano in `.private/` (ignorata da git) solo il tempo dell'import, poi si cancellano.
-- «Cancella il dato» toglie valore, valore pulito ed etichetta del recapito, anche dalle differenze, e gli import successivi non lo ripristinano. Se lo stesso dato compare nei testi della ricerca (per esempio in «Come contattarli»), va tolto nel repository Partner: il prossimo import sostituisce `research`.
+- «Cancella il dato» toglie valore, valore pulito ed etichetta del recapito, anche dalle differenze e dai destinatari («A», «Cc») dei messaggi dello stesso contatto, e gli import successivi non lo ripristinano. Nei destinatari si toglie ogni voce (separate da virgola, punto e virgola o a capo) che contiene lo stesso indirizzo, anche scritto in altro modo: maiuscole, spazi nel numero, prefisso internazionale, `www.` o `/` finale. Se lo stesso dato compare nei testi della ricerca (per esempio in «Come contattarli») o nel corpo di un messaggio, va tolto nel repository Partner: il prossimo import sostituisce `research` e gli originali.
 - Fixture e test usano solo dati sintetici: domini `example.test`, numeri `+39 000 000 00xx`.
 - Luca, consulente esterno, vede tutti i contatti per decisione del founder.
 
@@ -264,11 +264,11 @@ Quando: solo dopo il rilascio di P5, l'import dei file di tutti i dispositivi e 
 
 ## Test
 
-- **Vitest** (`npm test`): 162 test in 14 file; la suite passa da 948 a 1110.
-  - `src/lib/partner/`: `periods` (11), `filters` (15), `model` (15), `contacts` (15), `device-file` (23), `lookbook` (7), `commands` (21), `pending` (6), `read` (8, anteprima compresa), `rules` (3), `server` (18).
+- **Vitest** (`npm test`): 168 test in 14 file; la suite passa da 948 a 1116.
+  - `src/lib/partner/`: `periods` (11), `filters` (15), `model` (15), `contacts` (16), `device-file` (23), `lookbook` (7), `commands` (21), `pending` (6), `read` (8, anteprima compresa), `rules` (3), `server` (18).
   - `src/app/(workspace)/partner/`: `actions.test.ts` (6), `lookbook/[code]/route.test.ts` (5).
-  - `src/components/partner/partner-workspace.test.tsx` (9).
-- **PGlite** `supabase/tests/partner.mjs`, registrato con la riga `// test-db: pglite minimo 336`: 336 controlli in cinque gruppi, ognuno su un database nuovo con i dati sintetici di `supabase/tests/fixtures/partner/` (repository Partner finto con sei contatti, più due file «Esporta»):
+  - `src/components/partner/partner-workspace.test.tsx` (14, con `/partner/dati`).
+- **PGlite** `supabase/tests/partner.mjs`, registrato con la riga `// test-db: pglite minimo 343`: 343 controlli in cinque gruppi, ognuno su un database nuovo con i dati sintetici di `supabase/tests/fixtures/partner/` (repository Partner finto con sei contatti, più due file «Esporta»):
   1. schema e sicurezza: RLS, grant, funzioni e `search_path`, tabelle append-only, esterni e inattivi senza accesso;
   2. import della ricerca: CO in ordine, ripetizione, lotti mancanti o diversi, confronto a tre vie, recapiti, varianti, contatti usciti e tornati, audit senza recapiti né testi;
   3. comandi del team: versioni, ricevute, conflitti, stati, registro con una sola riga per contatto e operazione;
@@ -286,8 +286,8 @@ Correzioni di 00-sequenza §5 e scelte di questa tappa:
 - Generatore con `--batch-bytes` al posto dei lotti da 20 contatti; `draft` non importato (02-9).
 - `normalized_sha256` è lo SHA-256 dei dati normalizzati (intestazione, `CONTESTO.md` e contatti), non della concatenazione degli SHA-256 dei lotti: ogni lotto contiene `normalized_sha256`, quindi quella definizione sarebbe circolare. L'integrità dei lotti resta garantita: `apply_partner_research` confronta lo SHA-256 di ogni lotto con l'elenco del file apply.
 - Una ricevuta riusata da un altro comando o da un altro utente dà `23505`, come un payload diverso.
-- Codici d'errore in più per casi che la spec non nomina (`partner_owner_inactive`, `partner_contact_erased`, `partner_message_no_original`, `partner_difference_closed`, `partner_domain_unavailable`, `partner_not_blocked`, `partner_co_exhausted`), tutti `22023` con un testo italiano.
-- Minimo dell'harness 336, il numero reale dei controlli (regola del runner), al posto di 155 (02-13); senza il gruppo Storage.
+- Codici d'errore in più per casi che la spec non nomina (`partner_owner_inactive`, `partner_contact_erased`, `partner_message_no_original`, `partner_difference_closed`, `partner_domain_unavailable`, `partner_not_blocked`, `partner_co_exhausted`, e per l'import `partner_batch_altered`), tutti `22023` con un testo italiano.
+- Minimo dell'harness 343, il numero reale dei controlli (regola del runner), al posto di 155 (02-13); senza il gruppo Storage.
 - Barra dei periodi con `--ws-sticky-top` (02-6); casella CO in `src/components/partner/` (02-7); titoli «Partner», «Dati Partner», «Regole per scrivere» (02-5); riga del piede letta dal database (02-12).
 
 ## Collegamenti con le altre tappe

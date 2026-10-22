@@ -628,6 +628,24 @@ describe("esiti dei comandi", () => {
       replayed: false,
     });
     expect(blocked).toMatchObject({ blocked: true, message: "Messo tra i non contattare." });
+    const erase = parsed("remove_partner_contact", {
+      ...VALID.remove_partner_contact,
+      erase: true,
+    });
+    const erased = (messagesCleaned: number) =>
+      partnerCommandOutcome(erase, {
+        id: partnerFixtureId(5),
+        partner_id: PARTNER,
+        version: 3,
+        erased: true,
+        messages_cleaned: messagesCleaned,
+        activity_id: partnerFixtureId(6),
+        replayed: false,
+      })?.message;
+    expect(erased(0)).toBe("Dato cancellato. Toglilo anche dalla ricerca.");
+    expect(erased(2)).toBe(
+      "Dato cancellato, anche dai destinatari dei messaggi. Toglilo anche dalla ricerca.",
+    );
   });
 
   it("risposte con forma sbagliata: esito da verificare", () => {

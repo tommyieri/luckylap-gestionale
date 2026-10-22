@@ -124,8 +124,11 @@
 .period:last-child {
   border-right: 1px solid var(--rule);
 }
-button.period:hover {
-  background: var(--tint);
+/* Solo con un puntatore vero e mai sulla cella scelta: sul telefono l'hover resta dopo il tocco. */
+@media (hover: hover) {
+  button.period:not([aria-pressed="true"]):hover {
+    background: var(--tint);
+  }
 }
 .period[aria-pressed="true"] {
   background: var(--ink);
@@ -198,6 +201,13 @@ button.period:hover {
   background: transparent;
   color: var(--ink);
   font-size: var(--text-md);
+}
+/* La × per svuotare il campo è «Togli la ricerca»: niente doppione del browser. */
+.search input::-webkit-search-cancel-button,
+.search input::-webkit-search-decoration {
+  display: none;
+  -webkit-appearance: none;
+  appearance: none;
 }
 .searchClear {
   display: inline-flex;
@@ -568,6 +578,17 @@ button.period:hover {
 }
 .actCopy {
   flex: none;
+}
+/* Email e «Copia»: vanno a capo come un pezzo solo, l'indirizzo si stringe prima del pulsante. */
+.actPair {
+  display: inline-flex;
+  align-items: stretch;
+  gap: 8px;
+  min-width: 0;
+  max-width: 100%;
+}
+.actPair > a {
+  flex: 0 1 auto;
 }
 
 /* Stato */
@@ -1261,6 +1282,28 @@ button.period:hover {
 .planList li {
   overflow-wrap: anywhere;
 }
+/* Storico di /partner/dati: un sottotitolo vero sopra l'elenco, testo corrente a 16 px. */
+.dataSubhead {
+  margin-top: 8px;
+  font-family: var(--f-cond);
+  font-size: var(--text-lg);
+  font-weight: 600;
+  line-height: 1.2;
+}
+.historyList {
+  display: grid;
+  gap: 0;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  border-top: 1px solid var(--rule);
+}
+.historyList li {
+  padding: 8px 0;
+  border-bottom: 1px solid var(--rule-soft);
+  color: var(--ink-2);
+  overflow-wrap: anywhere;
+}
 .lookbookList {
   display: grid;
   margin: 0;
@@ -1393,8 +1436,14 @@ button.period:hover {
   }
   .actPrimary,
   .actNow,
-  .actEmail {
+  .actPair {
     grid-column: 1 / -1;
+  }
+  .actPair {
+    display: flex;
+  }
+  .actPair > a {
+    flex: 1 1 auto;
   }
   .period {
     min-height: 56px;

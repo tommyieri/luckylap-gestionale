@@ -24,6 +24,8 @@ const LINK_LABELS: Record<PartnerContactKind, string> = {
   brand_page: "Apri la pagina",
   web: "Apri il sito",
 };
+/** Contatto nella lista «Non contattare»: resta solo il link al sito, niente per scrivere o chiamare. */
+const BLOCKED_LINKS = new Set<PartnerContactKind>(["web"]);
 const EXTERNAL = new Set<PartnerContactKind>([
   "whatsapp",
   "instagram",
@@ -139,7 +141,7 @@ function ContactForm({
         <button type="submit" className="button button-primary" disabled={preview || command.busy}>
           {command.pending ? "Salvo…" : existing ? "Salva il recapito" : "Aggiungi il recapito"}
         </button>
-        <button type="button" className="button button-secondary" onClick={onClose}>
+        <button type="button" className={styles.act} onClick={onClose}>
           Annulla
         </button>
       </div>
@@ -148,13 +150,24 @@ function ContactForm({
   );
 }
 
-function ContactItem({ detail, contact }: { detail: PartnerDetail; contact: PartnerContact }) {
+function ContactItem({
+  detail,
+  contact,
+  blocked,
+}: {
+  detail: PartnerDetail;
+  contact: PartnerContact;
+  blocked: boolean;
+}) {
   const { preview, today } = usePartnerContext();
   const remove = usePartnerCommand(`rimuovi-${contact.id}`);
   const revive = usePartnerCommand(`rimetti-${contact.id}`);
   const [editing, setEditing] = useState(false);
   const [removing, setRemoving] = useState<"choice" | "erase" | null>(null);
-  const href = contact.active ? contactHref(contact.kind, contact.linkValue) : null;
+  const href =
+    contact.active && (!blocked || BLOCKED_LINKS.has(contact.kind))
+      ? contactHref(contact.kind, contact.linkValue)
+      : null;
   const erasedDay = contact.erasedAt ? instantDay(contact.erasedAt) : null;
 
   function removeContact(erase: boolean) {
@@ -296,8 +309,8 @@ function ContactItem({ detail, contact }: { detail: PartnerDetail; contact: Part
             {removing === "erase" && (
               <div className={styles.confirm} role="group" aria-label="Cancella il dato">
                 <p>
-                  Il dato sparisce dal gestionale e non torna con i prossimi import. Toglilo anche
-                  dalla ricerca.
+                  Il dato sparisce dal gestionale, anche dai destinatari dei messaggi, e non torna
+                  con i prossimi import. Toglilo anche dalla ricerca.
                 </p>
                 <div className={styles.inlineActions}>
                   <button
@@ -330,18 +343,26 @@ function ContactItem({ detail, contact }: { detail: PartnerDetail; contact: Part
   );
 }
 
-/** «Tutti i contatti»: ogni recapito con il testo intero, pulsante, modifica e rimozione. */
-export function PartnerContacts({ detail }: { detail: PartnerDetail }) {
+/**
+ * «Tutti i contatti»: ogni recapito con il testo intero, pulsante, modifica e rimozione. Per un
+ * contatto nella lista «Non contattare» i recapiti restano da gestire, ma senza link per scrivere.
+ */
+export function PartnerContacts({ detail, blocked }: { detail: PartnerDetail; blocked: boolean }) {
   const [adding, setAdding] = useState(false);
   return (
     <section className={styles.detailBlock} aria-labelledby={`recapiti-${detail.partner.co}`}>
       <h4 id={`recapiti-${detail.partner.co}`}>Tutti i contatti</h4>
+      {blocked && detail.contacts.length > 0 && (
+        <p className={styles.hint}>
+          Contatto nella lista «Non contattare»: niente link per scrivere o chiamare.
+        </p>
+      )}
       {detail.contacts.length === 0 ? (
         <p className={styles.hint}>Nessun recapito. Aggiungine uno.</p>
       ) : (
         <ul className={styles.contacts}>
           {detail.contacts.map((contact) => (
-            <ContactItem key={contact.id} detail={detail} contact={contact} />
+            <ContactItem key={contact.id} detail={detail} contact={contact} blocked={blocked} />
           ))}
         </ul>
       )}
@@ -349,7 +370,7 @@ export function PartnerContacts({ detail }: { detail: PartnerDetail }) {
         <ContactForm detail={detail} existing={null} onClose={() => setAdding(false)} />
       ) : (
         <div className={styles.inlineActions}>
-          <button type="button" className="button button-secondary" onClick={() => setAdding(true)}>
+          <button type="button" className={styles.act} onClick={() => setAdding(true)}>
             Aggiungi un recapito
           </button>
         </div>

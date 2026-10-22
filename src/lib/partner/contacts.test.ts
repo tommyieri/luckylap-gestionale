@@ -5,6 +5,7 @@ import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import {
   MAILTO_BODY_LIMIT,
   contactHref,
+  formatPhoneLink,
   hostLabel,
   messageMailto,
   partnerActions,
@@ -217,14 +218,26 @@ describe("pulsanti della riga", () => {
     });
   });
 
-  it("telefono solo con canale preferito telefono, con il numero come etichetta", () => {
+  it("telefono solo con canale preferito telefono, con il numero leggibile come etichetta", () => {
     expect(actions("email").some((a) => a.kind === "phone")).toBe(false);
     expect(actions("phone")[0]).toMatchObject({
       kind: "phone",
       primary: true,
-      label: "+390000000001",
+      label: "+39 000 000 0001",
       href: "tel:+390000000001",
+      ariaLabel: "Chiama +39 000 000 0001",
     });
+  });
+
+  it("numero leggibile: prefisso internazionale a parte, gruppi di tre cifre", () => {
+    expect(formatPhoneLink("+390000000003")).toBe("+39 000 000 0003");
+    expect(formatPhoneLink("+39000000003")).toBe("+39 000 000 003");
+    expect(formatPhoneLink("+4900000000")).toBe("+49 000 000 00");
+    expect(formatPhoneLink("+35200000000")).toBe("+352 000 000 00");
+    expect(formatPhoneLink("+10000000000")).toBe("+1 000 000 0000");
+    expect(formatPhoneLink("0000000004")).toBe("000 000 0004");
+    expect(formatPhoneLink("00000")).toBe("000 00");
+    expect(formatPhoneLink("non è un numero")).toBe("non è un numero");
   });
 
   it("senza recapiti utili ripiega sul sito; senza sito nessun pulsante", () => {

@@ -860,7 +860,9 @@ function successMessage(command: PartnerCommand, data: Record<string, unknown>):
       return data.activity_id ? "Recapito salvato." : "Nessuna modifica da salvare.";
     case "remove_partner_contact":
       return data.erased === true
-        ? "Dato cancellato. Toglilo anche dalla ricerca."
+        ? typeof data.messages_cleaned === "number" && data.messages_cleaned > 0
+          ? "Dato cancellato, anche dai destinatari dei messaggi. Toglilo anche dalla ricerca."
+          : "Dato cancellato. Toglilo anche dalla ricerca."
         : data.activity_id
           ? "Recapito rimosso."
           : "Il recapito era già rimosso.";

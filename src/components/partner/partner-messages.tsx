@@ -98,6 +98,18 @@ function recipientLabel(channel: PartnerVariantChannel) {
         : "A";
 }
 
+/** Etichetta per i lettori di schermo di «Copia» accanto al destinatario. */
+function recipientCopyLabel(channel: PartnerVariantChannel, cc = false) {
+  if (cc) return "Copia gli indirizzi in copia";
+  return channel === "form"
+    ? "Copia l’indirizzo del modulo"
+    : channel === "dm"
+      ? "Copia il profilo"
+      : channel === "phone"
+        ? "Copia il numero"
+        : "Copia l’indirizzo del destinatario";
+}
+
 /** «Modificato da Ettore il 3 novembre.», «Testo dal file del telefono del 20 ottobre.» */
 function revisionLine(
   revision: PartnerRevision,
@@ -283,10 +295,7 @@ function VariantEditor({
               <dt>{recipientLabel(variant.channel)}</dt>
               <dd>
                 <span className={styles.recipient}>{variant.to}</span>
-                <CopyButton
-                  text={variant.to}
-                  ariaLabel={`Copia: ${recipientLabel(variant.channel)}`}
-                />
+                <CopyButton text={variant.to} ariaLabel={recipientCopyLabel(variant.channel)} />
               </dd>
             </>
           )}
@@ -295,7 +304,10 @@ function VariantEditor({
               <dt>Cc</dt>
               <dd>
                 <span className={styles.recipient}>{variant.cc}</span>
-                <CopyButton text={variant.cc} ariaLabel="Copia: Cc" />
+                <CopyButton
+                  text={variant.cc}
+                  ariaLabel={recipientCopyLabel(variant.channel, true)}
+                />
               </dd>
             </>
           )}
@@ -449,7 +461,7 @@ function VariantEditor({
         </button>
         <button
           type="button"
-          className="button button-secondary"
+          className={styles.act}
           disabled={!dirty || save.pending}
           onClick={() => {
             setErrors({});
@@ -459,7 +471,7 @@ function VariantEditor({
           Annulla le modifiche
         </button>
         {mailto && !blocked && (
-          <a href={mailto.href} className="button button-secondary">
+          <a href={mailto.href} className={styles.act}>
             <Mail size={16} strokeWidth={1.8} aria-hidden />
             Apri l’email con il testo
           </a>
@@ -654,7 +666,7 @@ function NewMessage({ detail, onCancel }: { detail: PartnerDetail; onCancel: () 
         >
           {command.pending ? "Salvo…" : "Salva il messaggio"}
         </button>
-        <button type="button" className="button button-secondary" onClick={onCancel}>
+        <button type="button" className={styles.act} onClick={onCancel}>
           Annulla
         </button>
       </div>
@@ -691,15 +703,15 @@ export function PartnerMessages({ detail, blocked }: { detail: PartnerDetail; bl
       <section className={styles.draft} aria-labelledby={`messaggi-${detail.partner.co}`}>
         <h4 id={`messaggi-${detail.partner.co}`}>Messaggi</h4>
         <p>Nessun messaggio pronto per questo contatto.</p>
-        {writing ? (
+        {blocked ? (
+          <p className={styles.hint}>
+            Contatto nella lista «Non contattare»: niente messaggi nuovi.
+          </p>
+        ) : writing ? (
           <NewMessage detail={detail} onCancel={() => setWriting(false)} />
         ) : (
           <div className={styles.inlineActions}>
-            <button
-              type="button"
-              className="button button-secondary"
-              onClick={() => setWriting(true)}
-            >
+            <button type="button" className={styles.act} onClick={() => setWriting(true)}>
               Scrivi un messaggio
             </button>
           </div>

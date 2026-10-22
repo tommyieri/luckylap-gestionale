@@ -72,11 +72,16 @@ export function PartnerDataView({
               <span className="num">{last.variantsTotal}</span> messaggi
             </p>
             {data.imports.length > 1 && (
-              <ul className={styles.planList}>
-                {data.imports.slice(1).map((item) => (
-                  <li key={item.id}>{researchImportLine(item, today)}</li>
-                ))}
-              </ul>
+              <>
+                <h3 className={styles.dataSubhead} id="dati-ricerca-prima">
+                  Import precedenti
+                </h3>
+                <ul className={styles.historyList} aria-labelledby="dati-ricerca-prima">
+                  {data.imports.slice(1).map((item) => (
+                    <li key={item.id}>{researchImportLine(item, today)}</li>
+                  ))}
+                </ul>
+              </>
             )}
           </>
         ) : (
@@ -109,10 +114,13 @@ export function PartnerDataView({
           gestionale resta.
         </p>
         <DeviceImport preview={preview} userId={userId} today={today} members={data.members} />
+        <h3 className={styles.dataSubhead} id="dati-file-importati">
+          File già importati
+        </h3>
         {data.deviceImports.length === 0 ? (
           <p className={styles.hint}>Nessun file importato finora.</p>
         ) : (
-          <ul className={styles.planList} aria-label="File già importati">
+          <ul className={styles.historyList} aria-labelledby="dati-file-importati">
             {data.deviceImports.map((item) => (
               <li key={item.id}>{deviceLine(item, data, today)}</li>
             ))}

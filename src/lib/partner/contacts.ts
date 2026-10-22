@@ -98,6 +98,33 @@ export function contactHref(kind: PartnerContactKind, linkValue: string | null):
   }
 }
 
+// Prefissi internazionali di tre cifre (ITU-T E.164); gli altri che iniziano con 1 o 7 ne hanno una,
+// il resto due.
+const COUNTRY_CODE_3 = /^(2[1-689]|3[578]|42|5[09]|6[7-9]|8[035789]|9[679])/;
+
+/**
+ * Numero pulito leggibile, per il pulsante della riga: «+390000000003» → «+39 000 000 0003».
+ * Prefisso internazionale a parte, poi gruppi di tre cifre; un'ultima cifra sola va col gruppo
+ * prima. L'href `tel:` resta quello compatto.
+ */
+export function formatPhoneLink(linkValue: string): string {
+  if (!PHONE_LINK.test(linkValue)) return linkValue;
+  const international = linkValue.startsWith("+");
+  const digits = linkValue.replace(/^\+/, "");
+  const ccLength = !international
+    ? 0
+    : /^[17]/.test(digits)
+      ? 1
+      : COUNTRY_CODE_3.test(digits)
+        ? 3
+        : 2;
+  const national = digits.slice(ccLength);
+  const groups = national.match(/\d{1,3}/g) ?? [];
+  if (groups.length > 1 && groups[groups.length - 1].length === 1)
+    groups.splice(-2, 2, groups[groups.length - 2] + groups[groups.length - 1]);
+  return [...(international ? [`+${digits.slice(0, ccLength)}`] : []), ...groups].join(" ");
+}
+
 /** «garage-uno.example.test/chi-siamo»: indirizzo leggibile, senza schema e senza «www.». */
 export const hostLabel = (url: string) =>
   url.replace(/^https?:\/\/(www\.)?/i, "").replace(/\/$/, "");
@@ -184,11 +211,11 @@ export function partnerActions(
   if (phone && partner.preferredChannel === "phone")
     actions.push({
       kind: "phone",
-      label: phone.linkValue!,
+      label: formatPhoneLink(phone.linkValue!),
       href: contactHref("phone", phone.linkValue),
       copyText: null,
       external: false,
-      ariaLabel: `Chiama ${phone.linkValue}`,
+      ariaLabel: `Chiama ${formatPhoneLink(phone.linkValue!)}`,
     });
   const web = first("web");
   if (actions.length === 0 && web)

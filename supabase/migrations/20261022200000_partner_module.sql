@@ -16,7 +16,7 @@
 -- partner_message_no_original, partner_difference_closed, partner_domain_unavailable,
 -- partner_not_blocked, partner_co_exhausted; 40001 partner_changed; 23505 partner_idempotency_conflict;
 -- 55000 partner_do_not_contact. Import della ricerca: 22023 invalid_partner_research,
--- partner_batch_conflict, partner_import_incomplete.
+-- partner_batch_altered, partner_batch_conflict, partner_import_incomplete.
 begin;
 
 -- ---------------------------------------------------------------------------
@@ -590,6 +590,68 @@ begin
   d := regexp_replace(rtrim(d, '.'), '^(www|shop|store)\.', '');
   if char_length(d) <= 253 and d ~ '^[a-z0-9-]+(\.[a-z0-9-]+)+$' then return d; end if;
   return null;
+end
+$$;
+
+-- Indirizzi riconoscibili in un testo, per togliere un dato cancellato dai destinatari dei
+-- messaggi: email e @profili in minuscolo, numeri come sole cifre (almeno 6), link senza schema,
+-- «www.» e «/» finale, più il testo intero. Con p_kind solo gli indirizzi di quel tipo di recapito.
+create function private.partner_recipient_items(p_text text, p_kind text) returns text[]
+language sql immutable set search_path = '' as $$
+  select coalesce(array_agg(distinct x.item), '{}') from (
+    select 't:' || lower(btrim(p_text)) item where btrim(coalesce(p_text, '')) <> ''
+    union all
+    select 'e:' || lower(m[1]) from regexp_matches(coalesce(p_text, ''),
+        '([A-Za-z0-9._%+''-]{1,64}@[A-Za-z0-9.-]{1,190}\.[A-Za-z]{2,24})', 'g') m
+      where p_kind is null or p_kind = 'email'
+    union all
+    select 'p:' || regexp_replace(m[1], '[^0-9]', '', 'g') from regexp_matches(coalesce(p_text, ''),
+        '(\+?[0-9][0-9 ()./-]{4,}[0-9])', 'g') m
+      where (p_kind is null or p_kind in ('phone', 'whatsapp'))
+        and char_length(regexp_replace(m[1], '[^0-9]', '', 'g')) >= 6
+    union all
+    select 'h:' || lower(rtrim(m[1], '.')) from regexp_matches(coalesce(p_text, ''),
+        '(?:^|[^A-Za-z0-9_.@/])(@[A-Za-z0-9_.]{1,30})', 'g') m
+      where p_kind is null or p_kind = 'instagram'
+    union all
+    select 'h:@' || lower(rtrim(m[1], '.')) from regexp_matches(coalesce(p_text, ''),
+        'instagram\.com/([A-Za-z0-9_.]{1,30})', 'gi') m
+      where (p_kind is null or p_kind = 'instagram')
+        and lower(m[1]) not in ('p', 'reel', 'reels', 'explore', 'stories', 'tv', 'accounts')
+    union all
+    select 'u:' || rtrim(regexp_replace(lower(m[1]), '^https?://(www\.)?', ''), '/') from regexp_matches(
+        coalesce(p_text, ''), '(https?://[^\s,;<>"]+)', 'gi') m
+      where p_kind is null or p_kind in ('instagram', 'form', 'brand_page', 'web')
+  ) x
+$$;
+
+-- Vero se i due elenchi hanno un indirizzo in comune. Due numeri coincidono anche quando uno
+-- finisce con l'altro (prefisso internazionale), se il più corto ha almeno 8 cifre.
+create function private.partner_items_overlap(a text[], b text[]) returns boolean
+language sql immutable set search_path = '' as $$
+  select exists (select 1 from unnest(a) x, unnest(b) y where x = y
+    or (left(x, 2) = 'p:' and left(y, 2) = 'p:' and least(char_length(x), char_length(y)) >= 10
+      and (right(x, char_length(y) - 2) = substr(y, 3) or right(y, char_length(x) - 2) = substr(x, 3))))
+$$;
+
+-- Toglie da un elenco di destinatari («a@x, b@y; c@z») le voci con uno degli indirizzi dati.
+-- Senza voci tolte il testo resta identico; altrimenti le voci rimaste si uniscono con «, ».
+create function private.partner_strip_recipients(p_text text, p_items text[]) returns text
+language plpgsql immutable set search_path = '' as $$
+declare v_part text; v_kept text[] := '{}'; v_dropped boolean := false;
+begin
+  if p_text is null or btrim(p_text) = '' or coalesce(cardinality(p_items), 0) = 0 then return p_text; end if;
+  foreach v_part in array regexp_split_to_array(p_text, '[,;\n\r]|\s+/\s+') loop
+    v_part := btrim(v_part);
+    if v_part = '' then continue; end if;
+    if private.partner_items_overlap(private.partner_recipient_items(v_part, null), p_items) then
+      v_dropped := true;
+    else
+      v_kept := v_kept || v_part;
+    end if;
+  end loop;
+  if not v_dropped then return p_text; end if;
+  return array_to_string(v_kept, ', ');
 end
 $$;
 
@@ -1177,13 +1239,14 @@ begin
 end
 $$;
 
--- Rimuove un recapito (recuperabile) o cancella il dato (definitivo: anche dalle differenze).
+-- Rimuove un recapito (recuperabile) o cancella il dato (definitivo: anche dalle differenze e dai
+-- destinatari dei messaggi dello stesso contatto).
 create function private.remove_partner_contact(p_operation_id uuid, p_payload jsonb) returns jsonb
 language plpgsql security definer set search_path = '' as $$
 declare
   v_actor uuid := private.partner_actor();
   v_contact uuid; v_expected bigint; v_erase boolean; c public.partner_contacts%rowtype; v_version bigint;
-  v_activity uuid; replay jsonb; result jsonb;
+  v_activity uuid; replay jsonb; result jsonb; v_items text[]; v_cleaned integer := 0;
 begin
   perform private.partner_payload(p_payload, array['schema_version', 'contact_id', 'expected_version', 'erase'],
     array['schema_version', 'contact_id', 'expected_version', 'erase']);
@@ -1201,6 +1264,7 @@ begin
   if c.erased_at is not null then raise exception 'partner_contact_erased' using errcode = '22023'; end if;
   v_version := c.version;
   if v_erase then
+    v_items := private.partner_recipient_items(c.value, c.kind) || private.partner_recipient_items(c.research_value, c.kind);
     update public.partner_contacts set value = null, link_value = null, label = '', research_value = null,
         active = false, erased_at = now(), erased_by = v_actor, version = version + 1, updated_by = v_actor, updated_at = now()
       where id = c.id returning version into v_version;
@@ -1210,6 +1274,17 @@ begin
         resolved_at = case when status = 'open' then now() else resolved_at end,
         status = case when status = 'open' then 'superseded' else status end
       where contact_id = c.id;
+    -- … e dai destinatari dei messaggi («A», «Cc»), che la ricerca copia dai recapiti.
+    with cleaned as (
+      update public.partner_message_variants
+          set to_text = private.partner_strip_recipients(to_text, v_items),
+            cc_text = private.partner_strip_recipients(cc_text, v_items),
+            version = version + 1, updated_by = v_actor, updated_at = now()
+        where partner_id = c.partner_id
+          and (to_text <> private.partner_strip_recipients(to_text, v_items)
+            or cc_text <> private.partner_strip_recipients(cc_text, v_items))
+        returning 1)
+    select count(*) into v_cleaned from cleaned;
   elsif c.active then
     update public.partner_contacts set active = false, version = version + 1, updated_by = v_actor, updated_at = now()
       where id = c.id returning version into v_version;
@@ -1218,7 +1293,7 @@ begin
     v_activity := private.partner_log(p_operation_id, c.partner_id, 'recapito', v_actor);
   end if;
   result := jsonb_build_object('id', c.id, 'partner_id', c.partner_id, 'version', v_version, 'erased', v_erase,
-    'activity_id', v_activity, 'replayed', false);
+    'messages_cleaned', v_cleaned, 'activity_id', v_activity, 'replayed', false);
   return private.partner_finish(p_operation_id, 'remove_partner_contact', p_payload, result);
 end
 $$;
@@ -1718,18 +1793,26 @@ begin
 end
 $$;
 
--- Registra un lotto in transito. Stesso lotto ripetuto: nessun effetto. Stesso indice con testo
--- diverso: errore. Restituisce lo SHA-256 del testo ricevuto, da confrontare con quello atteso.
-create function private.stage_partner_research(p_payload_text text) returns jsonb
+-- Registra un lotto in transito, solo se il testo ricevuto ha lo SHA-256 atteso (il generatore lo
+-- scrive nel file): un testo alterato nel trasporto non si registra, e il file si rimanda così
+-- com'è. Stesso lotto ripetuto: nessun effetto. Stesso indice con testo diverso: errore.
+create function private.stage_partner_research(p_payload_text text, p_expected_sha256 text) returns jsonb
 language plpgsql security invoker set search_path = '' as $$
 declare
   v_sha text; b jsonb; v_normalized text; v_index integer; v_count integer; e jsonb; n integer := 0;
   existing private.partner_import_staging%rowtype;
 begin
+  if p_expected_sha256 is null or p_expected_sha256 !~ '^[0-9a-f]{64}$' then
+    raise exception 'invalid_partner_research' using errcode = '22023', detail = 'SHA-256 atteso del lotto non valido.';
+  end if;
   if p_payload_text is null or octet_length(p_payload_text) > 1048576 then
     raise exception 'invalid_partner_research' using errcode = '22023', detail = 'Lotto vuoto o troppo grande.';
   end if;
   v_sha := encode(sha256(convert_to(p_payload_text, 'UTF8')), 'hex');
+  if v_sha <> p_expected_sha256 then
+    raise exception 'partner_batch_altered' using errcode = '22023',
+      detail = 'Testo del lotto diverso da quello del file: niente è stato registrato, rimandare il file.';
+  end if;
   begin
     b := p_payload_text::jsonb;
   exception when others then
@@ -1794,7 +1877,7 @@ declare
   v_inc jsonb; v_ours jsonb; v_base jsonb; v_merged jsonb; v_field text; v_b jsonb; v_o jsonb; v_n jsonb;
   v_taken text[]; v_diffs jsonb := '[]'::jsonb; d jsonb; v_touched boolean; v_row_changed boolean; v_co integer;
   v_slot text; v_contact jsonb; v_value text; v_variant jsonb; v_approaches text[]; v_orig_changed boolean;
-  v_other_changed boolean; v_import uuid; v_gone integer;
+  v_other_changed boolean; v_import uuid; v_gone integer; v_strip text[]; v_to text; v_cc text;
   n_total integer := 0; n_new integer := 0; n_updated integer := 0; n_removed integer := 0; n_variants integer := 0;
   n_variants_new integer := 0; n_variants_updated integer := 0; n_diffs integer := 0;
   v_new_codes jsonb := '[]'::jsonb; v_blocked jsonb := '[]'::jsonb; v_erased jsonb := '[]'::jsonb;
@@ -1905,7 +1988,9 @@ begin
         end if;
       end if;
 
-      -- Recapiti, per slot della ricerca.
+      -- Recapiti, per slot della ricerca. v_strip raccoglie gli indirizzi dei recapiti cancellati
+      -- che la ricerca riporta ancora: non tornano nemmeno nei destinatari dei messaggi.
+      v_strip := '{}';
       foreach v_slot in array v_slots loop
         select x into v_contact from jsonb_array_elements(e -> 'contacts') x where x ->> 'slot' = v_slot;
         v_value := v_contact ->> 'value';
@@ -1920,6 +2005,7 @@ begin
         elsif c.erased_at is not null then
           if v_value is not null then
             v_erased := v_erased || jsonb_build_object('source_key', k, 'slot', v_slot);
+            v_strip := v_strip || private.partner_recipient_items(v_value, v_slot);
           end if;
         elsif v_value is not distinct from c.research_value then
           if c.active and c.value = c.research_value and c.verified <> (v_contact ->> 'verified')::boolean then
@@ -1963,6 +2049,11 @@ begin
       v_approaches := '{}';
       for v_variant in select x from jsonb_array_elements(e -> 'variants') x loop
         v_approaches := v_approaches || (v_variant ->> 'approach');
+        v_to := private.partner_strip_recipients(v_variant ->> 'to', v_strip);
+        v_cc := private.partner_strip_recipients(v_variant ->> 'cc', v_strip);
+        if v_to <> v_variant ->> 'to' or v_cc <> v_variant ->> 'cc' then
+          v_erased := v_erased || jsonb_build_object('source_key', k, 'approach', v_variant ->> 'approach');
+        end if;
         select * into v from public.partner_message_variants where partner_id = p.id and approach = v_variant ->> 'approach'
           for update;
         if not found then
@@ -1970,7 +2061,7 @@ begin
               lookbook_code, original_subject, original_body, original_follow_up, original_confirm_email, gist_it, notes_it,
               form_fields_it)
             values (p.id, v_variant ->> 'approach', 'research', v_variant ->> 'channel', v_variant ->> 'language',
-              v_variant ->> 'to', v_variant ->> 'cc', v_variant ->> 'lookbook', v_variant ->> 'subject', v_variant ->> 'body',
+              v_to, v_cc, v_variant ->> 'lookbook', v_variant ->> 'subject', v_variant ->> 'body',
               v_variant ->> 'follow_up', v_variant ->> 'confirm_email', v_variant ->> 'gist_it', v_variant ->> 'notes_it',
               v_variant ->> 'form_fields_it');
           n_variants_new := n_variants_new + 1;
@@ -1980,12 +2071,12 @@ begin
         v_orig_changed := row(v.original_subject, v.original_body, v.original_follow_up, v.original_confirm_email)
           is distinct from row(v_variant ->> 'subject', v_variant ->> 'body', v_variant ->> 'follow_up', v_variant ->> 'confirm_email');
         v_other_changed := row(v.channel, v.language, v.to_text, v.cc_text, v.lookbook_code, v.gist_it, v.notes_it, v.form_fields_it)
-          is distinct from row(v_variant ->> 'channel', v_variant ->> 'language', v_variant ->> 'to', v_variant ->> 'cc',
+          is distinct from row(v_variant ->> 'channel', v_variant ->> 'language', v_to, v_cc,
             v_variant ->> 'lookbook', v_variant ->> 'gist_it', v_variant ->> 'notes_it', v_variant ->> 'form_fields_it')
           or v.research_removed_at is not null;
         if v_orig_changed or v_other_changed then
           update public.partner_message_variants set channel = v_variant ->> 'channel', language = v_variant ->> 'language',
-              to_text = v_variant ->> 'to', cc_text = v_variant ->> 'cc', lookbook_code = v_variant ->> 'lookbook',
+              to_text = v_to, cc_text = v_cc, lookbook_code = v_variant ->> 'lookbook',
               original_subject = v_variant ->> 'subject', original_body = v_variant ->> 'body',
               original_follow_up = v_variant ->> 'follow_up', original_confirm_email = v_variant ->> 'confirm_email',
               gist_it = v_variant ->> 'gist_it', notes_it = v_variant ->> 'notes_it', form_fields_it = v_variant ->> 'form_fields_it',

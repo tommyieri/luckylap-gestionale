@@ -7,7 +7,8 @@
 //
 // Legge un checkout pulito del repository Partner (site/data/partners.json,
 // research/bozze/varianti.json, CONTESTO.md) e scrive nella cartella di output:
-//   - <data>-<sha8>-NN.sql: un lotto per file, select private.stage_partner_research(…);
+//   - <data>-<sha8>-NN.sql: un lotto per file, select private.stage_partner_research(…, '<sha>'),
+//     con lo SHA-256 del lotto: il database non registra un testo arrivato alterato;
 //   - <data>-<sha8>-apply.sql: select private.apply_partner_research(…) con lo SHA-256 di ogni lotto;
 //   - <data>-<sha8>.report.json: conteggi e codici, nessun recapito e nessun testo.
 // <data> è la data della ricerca (campo generated), <sha8> l'inizio di normalized_sha256.
@@ -364,7 +365,7 @@ function stageSql(text, index, count, normalized, batchSha) {
   return (
     `-- Import Partner ${normalized.slice(0, 8)}, lotto ${index} di ${count}. Dati privati con i recapiti: ` +
     `non committare, cancellare dopo l'applicazione.\n` +
-    `select private.stage_partner_research($${tag}$${text}$${tag}$);\n`
+    `select private.stage_partner_research($${tag}$${text}$${tag}$, '${batchSha}');\n`
   );
 }
 

@@ -255,7 +255,7 @@ export function PartnerCardForm({
         {onCancel && (
           <button
             type="button"
-            className="button button-secondary"
+            className={styles.act}
             disabled={command.pending}
             onClick={onCancel}
           >

@@ -250,7 +250,7 @@ function DoNotContact({ detail, block }: { detail: PartnerDetail; block: Partner
         <div className={styles.inlineActions}>
           <button
             type="button"
-            className="button button-secondary"
+            className={styles.act}
             disabled={preview || command.busy}
             onClick={() => {
               const lift = partnerDoNotContactPayload({
@@ -319,11 +319,7 @@ function DoNotContact({ detail, block }: { detail: PartnerDetail; block: Partner
             </label>
           )}
           <div className={styles.inlineActions}>
-            <button
-              type="submit"
-              className="button button-secondary"
-              disabled={preview || command.busy}
-            >
+            <button type="submit" className={styles.act} disabled={preview || command.busy}>
               {command.pending ? "Salvo…" : "Metti tra i non contattare"}
             </button>
           </div>
@@ -447,7 +443,7 @@ export function PartnerDetails({
       <PartnerMessages detail={detail} blocked={blocked} />
       <PartnerActivityLog detail={detail} blocked={blocked} />
       <Research detail={detail} />
-      <PartnerContacts detail={detail} />
+      <PartnerContacts detail={detail} blocked={blocked} />
       {(research.flags || research.sources.length > 0) && (
         <div className={styles.researchGrid}>
           {research.flags && (

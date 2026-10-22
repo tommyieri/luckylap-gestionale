@@ -22,9 +22,11 @@ vi.mock("../../app/(workspace)/partner/dati/actions", () => ({
   previewPartnerDeviceFile: vi.fn(),
 }));
 
-import { PartnerWorkspace } from "./partner-workspace";
+import { PartnerDataView } from "./partner-data-view";
+import { PartnerWorkspace, partnerDetailGone } from "./partner-workspace";
 import {
   PARTNER_FIXTURE_MEMBER_ID,
+  partnerFixtureData,
   partnerFixtureDetail,
   partnerFixtureWorkspace,
 } from "../../lib/partner/fixtures";
@@ -116,6 +118,32 @@ describe("PartnerWorkspace", () => {
       "Non contattare: Ha chiesto di non ricevere proposte commerciali.",
     );
     expect(blocked).not.toMatch(/href="(mailto:|tel:|https:)/);
+    expect(text(blocked)).not.toContain("Come.");
+  });
+
+  it("contatto bloccato aperto: niente link per scrivere o chiamare, niente messaggi nuovi", () => {
+    const html = render({ periodo: "3", stato: "tutti", co: "4" });
+    const start = html.indexOf('id="dettagli-4"');
+    expect(start).toBeGreaterThan(0);
+    const details = html.slice(start);
+    expect(details).not.toMatch(/href="(mailto:|tel:|https:\/\/wa\.me)/);
+    expect(text(details)).not.toContain("Scrivi un messaggio");
+    expect(text(details)).toContain("niente messaggi nuovi");
+    expect(text(details)).toContain("niente link per scrivere o chiamare");
+  });
+
+  it("«Copia» sta accanto all'email che copia, anche quando il canale preferito è un altro", () => {
+    const second = row(render(), 2);
+    expect(second).toMatch(
+      /<span[^>]*><a href="mailto:info@raduno-due\.example\.test"[^>]*>.*?<\/a><button[^>]*aria-label="Copia l’indirizzo email"/,
+    );
+  });
+
+  it("telefono nella riga leggibile, link compatto", () => {
+    const third = row(render({ periodo: "2" }), 3);
+    expect(third).toContain('href="tel:+390000000003"');
+    expect(text(third)).toContain("+39 000 000 0003");
+    expect(text(third)).not.toContain("+390000000003");
   });
 
   it("filtro senza risultati: messaggio del sito e «Togli i filtri»", () => {
@@ -161,6 +189,36 @@ describe("PartnerWorkspace", () => {
       expect(t).toContain(part);
     // Lookbook allegato dalla route dei membri.
     expect(html).toContain('href="/partner/lookbook/negozi"');
+    // «Copia» del destinatario con un nome che si capisce anche senza vedere la riga.
+    expect(html).toContain('aria-label="Copia l’indirizzo del destinatario"');
+    expect(html).not.toContain('aria-label="Copia: A"');
+  });
+
+  it("Indietro dopo i dettagli: nessun avviso «Questo contatto non c'è più»", () => {
+    // Indietro: l'indirizzo non chiede più il contatto aperto, il server risponde senza dettaglio.
+    expect(partnerDetailGone({ navigating: false, viewCo: 1, queryCo: null, detailCo: null })).toBe(
+      false,
+    );
+    // Indietro verso un altro contatto: risposta per un altro indirizzo.
+    expect(partnerDetailGone({ navigating: false, viewCo: 1, queryCo: 2, detailCo: 2 })).toBe(
+      false,
+    );
+    // Dettagli chiesti e non ancora arrivati.
+    expect(partnerDetailGone({ navigating: true, viewCo: 3, queryCo: null, detailCo: null })).toBe(
+      false,
+    );
+    expect(partnerDetailGone({ navigating: false, viewCo: 3, queryCo: 3, detailCo: 3 })).toBe(
+      false,
+    );
+    // Il server ha risposto per quel contatto senza dettaglio: non c'è più.
+    expect(partnerDetailGone({ navigating: false, viewCo: 3, queryCo: 3, detailCo: null })).toBe(
+      true,
+    );
+    expect(
+      partnerDetailGone({ navigating: false, viewCo: null, queryCo: null, detailCo: null }),
+    ).toBe(false);
+    // Prima resa dopo Indietro: nessun avviso nella pagina.
+    expect(render({})).not.toContain("Questo contatto non c");
   });
 
   it("anteprima locale: avviso in alto e stato non modificabile", () => {
@@ -174,5 +232,18 @@ describe("PartnerWorkspace", () => {
     for (const code of ["negozi", "eventi", "collab", "porsche_club", "club"])
       expect(html).toContain(`href="/partner/lookbook/${code}"`);
     expect(text(html)).toContain("Ricerca del 20 ottobre 2026, importata il 21 ottobre");
+  });
+});
+
+describe("PartnerDataView", () => {
+  it("file del vecchio sito: campo con un'etichetta sua e storico con un titolo visibile", () => {
+    const html = renderToStaticMarkup(
+      <PartnerDataView data={partnerFixtureData(TODAY)} today={TODAY} preview userId={null} />,
+    );
+    const t = text(html);
+    expect(t).toContain("File del vecchio sito");
+    expect(t).toContain("File esportato (.json)");
+    expect(html).toMatch(/<h3[^>]*id="dati-file-importati"[^>]*>File già importati<\/h3>/);
+    expect(html).toContain('aria-labelledby="dati-file-importati"');
   });
 });

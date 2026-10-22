@@ -79,31 +79,40 @@ const ACTION_ICONS: Record<PartnerAction["kind"], ReactNode> = {
   web: <Globe size={16} strokeWidth={1.8} aria-hidden />,
 };
 
+function ActionLink({ action, now }: { action: PartnerAction; now: boolean }) {
+  return (
+    <a
+      href={action.href ?? undefined}
+      className={`${styles.act} ${action.primary ? (now ? styles.actNow : styles.actPrimary) : ""}`}
+      aria-label={action.ariaLabel ?? undefined}
+      {...(action.external ? { target: "_blank", rel: "noopener noreferrer" } : {})}
+    >
+      {ACTION_ICONS[action.kind]}
+      <span className={styles.actText}>{action.label}</span>
+      {action.external && <span className="sr-only">(si apre in una nuova scheda)</span>}
+    </a>
+  );
+}
+
+/** Pulsanti della riga. «Copia» resta attaccato all'email che copia, anche quando la riga va a capo. */
 function RowActions({ actions, now }: { actions: PartnerAction[]; now: boolean }) {
   return (
     <div className={styles.actions}>
-      {actions.map((action) =>
-        action.kind === "copy" ? (
-          <CopyButton
-            key="copy"
-            text={action.copyText ?? ""}
-            ariaLabel={action.ariaLabel ?? undefined}
-            className={styles.actCopy}
-          />
-        ) : (
-          <a
-            key={action.kind}
-            href={action.href ?? undefined}
-            className={`${styles.act} ${action.primary ? (now ? styles.actNow : styles.actPrimary) : ""} ${action.kind === "email" ? styles.actEmail : ""}`}
-            aria-label={action.ariaLabel ?? undefined}
-            {...(action.external ? { target: "_blank", rel: "noopener noreferrer" } : {})}
-          >
-            {ACTION_ICONS[action.kind]}
-            <span className={styles.actText}>{action.label}</span>
-            {action.external && <span className="sr-only">(si apre in una nuova scheda)</span>}
-          </a>
-        ),
-      )}
+      {actions.map((action, index) => {
+        if (action.kind === "copy") return null;
+        const copy = actions[index + 1]?.kind === "copy" ? actions[index + 1] : null;
+        if (!copy) return <ActionLink key={action.kind} action={action} now={now} />;
+        return (
+          <span key={action.kind} className={styles.actPair}>
+            <ActionLink action={action} now={now} />
+            <CopyButton
+              text={copy.copyText ?? ""}
+              ariaLabel={copy.ariaLabel ?? undefined}
+              className={styles.actCopy}
+            />
+          </span>
+        );
+      })}
     </div>
   );
 }
@@ -247,13 +256,15 @@ export function PartnerRow({
         </p>
       </div>
       <div className={styles.channel}>
-        <p className={styles.route}>
-          <b>Come.</b> {shortRoute(routeText(partner.route, contacts))}
-        </p>
         {blocked ? (
           <p className={styles.blockedNote}>Non contattare: {shortReason(block.reason)}</p>
         ) : (
-          <RowActions actions={partnerActions(partner, contacts, false)} now={now} />
+          <>
+            <p className={styles.route}>
+              <b>Come.</b> {shortRoute(routeText(partner.route, contacts))}
+            </p>
+            <RowActions actions={partnerActions(partner, contacts, false)} now={now} />
+          </>
         )}
       </div>
       <div className={styles.state}>

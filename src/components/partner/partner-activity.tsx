@@ -174,7 +174,7 @@ function ActivityForm({
         <button type="submit" className="button button-primary" disabled={preview || command.busy}>
           {command.pending ? "Salvo…" : "Registra"}
         </button>
-        <button type="button" className="button button-secondary" onClick={onClose}>
+        <button type="button" className={styles.act} onClick={onClose}>
           {done ? "Chiudi" : "Annulla"}
         </button>
       </div>

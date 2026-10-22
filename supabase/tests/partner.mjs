@@ -1,4 +1,4 @@
-// test-db: pglite minimo 336
+// test-db: pglite minimo 343
 // Partner (P2): migrazione partner_module su PGlite, con i soli dati sintetici del repository
 // Partner finto in fixtures/partner (domini example.test, numeri +39 000 000 00xx). Auth simulato,
 // nessun accesso cloud. Cinque gruppi, ognuno su un database nuovo: schema e sicurezza, import
@@ -249,8 +249,9 @@ const preview = async (db, role, payload) =>
       JSON.stringify(payload),
     ])
   )[0].r;
-const stage = async (db, text) =>
-  (await one(db, "select private.stage_partner_research($1) r", [text])).r;
+// Come il file .sql del generatore: il testo del lotto e il suo SHA-256.
+const stage = async (db, text, expected = sha(text)) =>
+  (await one(db, "select private.stage_partner_research($1, $2) r", [text, expected])).r;
 const apply = async (db, built, shas = built.batches.map((b) => b.sha)) =>
   (
     await one(db, "select private.apply_partner_research($1, $2::text[]) r", [
@@ -666,7 +667,31 @@ try {
       "Import senza contatti: rifiutato",
     );
     const otherCommit = buildResearchImport({ ...data, commit: "b2c3d4e", batchBytes: 6000 });
-    await stage(db, otherCommit.batches[0].text);
+    const [otherFirst] = otherCommit.batches;
+    await fails(
+      stage(db, otherFirst.text.replace("Garage Sintetico Uno", "Garage Alterato"), otherFirst.sha),
+      "22023",
+      "partner_batch_altered",
+      "Lotto arrivato alterato: rifiutato",
+    );
+    eq(
+      await count(db, "private.partner_import_staging", "normalized_sha256 = $1", [
+        otherCommit.normalized,
+      ]),
+      0,
+      "Lotto alterato: nessuna riga in transito",
+    );
+    eq(
+      (await stage(db, otherFirst.text, otherFirst.sha)).staged,
+      true,
+      "Lo stesso file rimandato: lotto registrato, senza altre scritture",
+    );
+    await fails(
+      stage(db, otherFirst.text, "abc"),
+      "22023",
+      "invalid_partner_research",
+      "SHA-256 atteso non valido",
+    );
     await fails(apply(db, otherCommit), "22023", "partner_import_incomplete", "Lotto mancante");
     await fails(
       apply(db, built, built.batches.map((b) => b.sha).reverse()),
@@ -904,6 +929,62 @@ try {
       expected_version: l001Phone.version,
       erase: true,
     });
+    const n003Phone = await contact("n003", "phone");
+    const n003Collab = async () =>
+      one(
+        db,
+        "select to_text, cc_text, version::int version from public.partner_message_variants where partner_id = $1 and approach = 'collab'",
+        [ids.n003],
+      );
+    const collabBefore = await n003Collab();
+    const erasedPhone = await cmd(db, "production", "remove_partner_contact", {
+      schema_version: 1,
+      contact_id: n003Phone.id,
+      expected_version: n003Phone.version,
+      erase: true,
+    });
+    eq(
+      [collabBefore.to_text, erasedPhone.messages_cleaned, await n003Collab()],
+      ["+39 000 000 0003", 1, { to_text: "", cc_text: "", version: collabBefore.version + 1 }],
+      "Cancella il dato: tolto anche dai destinatari dei messaggi",
+    );
+    const strip = async (to, erased, kind) =>
+      (
+        await one(
+          db,
+          "select private.partner_strip_recipients($1, private.partner_recipient_items($2, $3)) r",
+          [to, erased, kind],
+        )
+      ).r;
+    eq(
+      [
+        await strip(
+          "info@raduno-due.example.test, stampa@raduno-due.example.test; booking@raduno-due.example.test",
+          "Stampa@raduno-due.example.test",
+          "email",
+        ),
+        await strip(
+          "Sede +39 000 000 0001; Magazzino +39 000 000 0002",
+          "000 000 0002 (magazzino)",
+          "phone",
+        ),
+        await strip("info@garage_uno.example.test", "@garage_uno", "instagram"),
+        await strip(
+          "https://www.raduno-due.example.test/espositori/",
+          "https://raduno-due.example.test/espositori",
+          "form",
+        ),
+        await strip("segreteria@club-sei.example.test", "info@club-sei.example.test", "email"),
+      ],
+      [
+        "info@raduno-due.example.test, booking@raduno-due.example.test",
+        "Sede +39 000 000 0001",
+        "info@garage_uno.example.test",
+        "",
+        "segreteria@club-sei.example.test",
+      ],
+      "Destinatari: si toglie solo la voce del dato cancellato, anche scritta in altro modo",
+    );
     const l002Ig = await contact("L002", "instagram");
     await cmd(db, "production", "remove_partner_contact", {
       schema_version: 1,
@@ -1007,9 +1088,18 @@ try {
         variants_updated: 3,
         differences_new: 3,
         new_codes: [{ source_key: "n007", co: 7 }],
-        erased_skipped: [{ source_key: "L001", slot: "phone" }],
+        erased_skipped: [
+          { source_key: "L001", slot: "phone" },
+          { source_key: "n003", slot: "phone" },
+          { source_key: "n003", approach: "collab" },
+        ],
       },
       "Secondo import: resoconto",
+    );
+    eq(
+      await n003Collab(),
+      { to_text: "", cc_text: "", version: collabBefore.version + 1 },
+      "Dato cancellato: l'import non lo rimette nei destinatari",
     );
     eq(
       report2.blocked_codes.sort(),
@@ -2991,10 +3081,10 @@ try {
       tag &&
         first.sql.startsWith("-- Import Partner") &&
         first.sql.includes(
-          `select private.stage_partner_research($${tag}$${first.text}$${tag}$);`,
+          `select private.stage_partner_research($${tag}$${first.text}$${tag}$, '${first.sha}');`,
         ) &&
         !first.text.includes(`$${tag}$`),
-      "Generatore: il .sql contiene il lotto esatto tra quotature dollaro assenti dal testo",
+      "Generatore: il .sql contiene il lotto esatto e il suo SHA-256, tra quotature dollaro assenti dal testo",
     );
     eq(
       built.applySql.trim().split("\n").at(-1),

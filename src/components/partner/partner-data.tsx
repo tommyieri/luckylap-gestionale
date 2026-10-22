@@ -66,7 +66,7 @@ function DeviceFileImport() {
   return (
     <div className={styles.dataBlock}>
       <label className={styles.fileField} htmlFor={`${id}-file`}>
-        <span>File del vecchio sito</span>
+        <span>File esportato (.json)</span>
         <input
           id={`${id}-file`}
           type="file"
