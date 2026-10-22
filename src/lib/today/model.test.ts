@@ -245,3 +245,13 @@ describe("Tile", () => {
     expect(tiles.map((tile) => (tile.status === "ok" ? tile.data : null))).toEqual([3, null]);
   });
 });
+
+it("keeps date-only Partner events on all touching days without inventing a start clock", () => {
+  const allDay = {
+    ...event(99, "Evento Partner", "2026-10-21T22:00Z", "2026-10-23T22:00Z"),
+    details: { summary: "", participantIds: [], callUrl: null, allDay: true },
+  };
+  expect(agendaFor([allDay], [], me, now).events[0].time).toBeNull();
+  expect(agendaFor([allDay], [], me, new Date("2026-10-23T12:00Z")).events).toHaveLength(1);
+  expect(agendaFor([allDay], [], me, new Date("2026-10-24T12:00Z")).events).toHaveLength(0);
+});

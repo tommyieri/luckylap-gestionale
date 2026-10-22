@@ -83,3 +83,9 @@
     gap: 28px;
   }
 }
+
+.more {
+  padding: 12px 0;
+  color: var(--ink-2);
+  font-size: var(--text-sm);
+}

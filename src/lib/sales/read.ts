@@ -157,7 +157,7 @@ export function salesSnapshotFromRows(rows: SalesRows): SalesSnapshot {
         r.payment_state,
         source === "shopify_canonical"
           ? ["unpaid", "partially_paid", "paid", "partially_refunded", "refunded"]
-          : ["paid", "unpaid"],
+          : ["paid", "unpaid", "partially_paid", "partially_refunded", "refunded"],
       ),
       fulfillmentState: choice(r.fulfillment_state, [
         "unfulfilled",

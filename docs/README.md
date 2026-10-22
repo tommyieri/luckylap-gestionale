@@ -50,6 +50,7 @@ Alcuni documenti scritti prima del modello attuale chiedono ancora una sessione 
 - [Import Finance da BudgetFlow](finance-import.md): import riservato delle righe sorgente, tutte da revisionare, con il contratto di provenienza.
 - [Conti, andamento e categorie](finance-dashboard.md): panoramica `/finance` e regole del calcolo dei saldi.
 - [Fatti collegati e lavoro manuale](finance-work.md): pagina `/finance/work` con fatti delle vendite e registrazioni manuali.
+- [Nucleo delle revisioni Finance](finance-revisions.md): fonti immutabili, correzioni complete, residui condivisi con Vendite e vecchio conto vendita; integrazione P3 richiesta prima del rilascio.
 
 ## Conto vendita
 
@@ -76,3 +77,5 @@ Alcuni documenti scritti prima del modello attuale chiedono ancora una sessione 
 
 - [Backend Supabase](backend.md): schema iniziale, import dell'inventario e permessi di accesso ai dati.
 - [Collegamento cloud](deployment.md): GitHub, Vercel e Supabase, import, accessi e avvio operativo del 21 ottobre 2026.
+
+- [Stato e integrazioni residue P4–P6](p4-p6-stato.md): parti indipendenti Codex, dipendenze da P2/P3 e verifiche prima della consegna.

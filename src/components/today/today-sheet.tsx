@@ -3,6 +3,7 @@ import type { SupabaseClient } from "@supabase/supabase-js";
 import type { VerifiedMember } from "../../lib/auth/model";
 import { romeDayLabel } from "../../lib/today/model";
 import { AgendaTile, PreviewTile, StockTile, TileFallback } from "./today-tiles";
+import { PartnerWorkTile, PreparationTile } from "./work-tiles";
 import styles from "./today.module.css";
 
 export type TodayAccess =
@@ -33,11 +34,19 @@ export function TodaySheet({ access, now }: { access: TodayAccess; now: Date }) 
           <>
             <PreviewTile tile="agenda" />
             <PreviewTile tile="stock" />
+            <PreviewTile tile="partner" />
+            <PreviewTile tile="preparation" />
           </>
         ) : (
           <>
             <Suspense fallback={<TileFallback tile="agenda" />}>
               <AgendaTile supabase={access.supabase} member={access.member} now={now} />
+            </Suspense>
+            <Suspense fallback={<TileFallback tile="partner" />}>
+              <PartnerWorkTile supabase={access.supabase} now={now} />
+            </Suspense>
+            <Suspense fallback={<TileFallback tile="preparation" />}>
+              <PreparationTile supabase={access.supabase} />
             </Suspense>
             <Suspense fallback={<TileFallback tile="stock" />}>
               <StockTile supabase={access.supabase} />

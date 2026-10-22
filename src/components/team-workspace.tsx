@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { ExternalLink, RefreshCw } from "lucide-react";
@@ -7,6 +8,7 @@ import {
   eventTypeLabel,
   formatRomeDate,
   formatRomeDateTime,
+  inclusiveEventEnd,
   type TeamSnapshot,
 } from "../lib/team/model";
 import {
@@ -58,6 +60,9 @@ export function TeamWorkspace({
         <a href="#calendario">Calendario e call</a>
         <a href="#attivita">Attività</a>
         <a href="#note">Note e idee</a>
+        <Link href="/team/partner" prefetch={false}>
+          Partner nel Team
+        </Link>
       </nav>
       <p className={styles.sharedNotice}>
         Le modifiche sono salvate nel workspace condiviso. Per leggere le modifiche degli altri
@@ -94,13 +99,33 @@ export function TeamWorkspace({
                 {events.map((event) => (
                   <li key={event.id} id={`evento-${event.id}`} className={styles.event}>
                     <div className={styles.itemMeta}>
-                      <span>{eventTypeLabel(event)}</span>
-                      <time dateTime={event.startsAt}>{formatRomeDateTime(event.startsAt)}</time>
+                      <span>
+                        {eventTypeLabel(event)}
+                        {event.details.allDay && " · Giornata intera"}
+                      </span>
+                      <time dateTime={event.startsAt}>
+                        {event.details.allDay
+                          ? formatRomeDate(event.startsAt)
+                          : formatRomeDateTime(event.startsAt)}
+                      </time>
                     </div>
                     <h3>{event.title}</h3>
-                    <p className={styles.timeEnd}>
-                      Fine: <time dateTime={event.endsAt}>{formatRomeDateTime(event.endsAt)}</time>
-                    </p>
+                    {event.details.allDay ? (
+                      formatRomeDate(event.startsAt) !==
+                        formatRomeDate(inclusiveEventEnd(event)) && (
+                        <p className={styles.timeEnd}>
+                          Fino al{" "}
+                          <time dateTime={inclusiveEventEnd(event)}>
+                            {formatRomeDate(inclusiveEventEnd(event))}
+                          </time>
+                        </p>
+                      )
+                    ) : (
+                      <p className={styles.timeEnd}>
+                        Fine:{" "}
+                        <time dateTime={event.endsAt}>{formatRomeDateTime(event.endsAt)}</time>
+                      </p>
+                    )}
                     {event.details.participantIds.length > 0 && (
                       <p className={styles.participantNames}>
                         Con {event.details.participantIds.map(memberName).join(", ")}

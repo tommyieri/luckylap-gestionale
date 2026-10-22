@@ -15,6 +15,7 @@ export type EventDetails = {
   participantIds: string[];
   callUrl: string | null;
   typeLabel?: string;
+  allDay?: boolean;
 };
 export type TeamMember = { id: string; name: string; active: boolean };
 export type TeamEvent = {
@@ -200,6 +201,10 @@ export function eventTypeLabel(event: Pick<TeamEvent, "eventType" | "details">):
 
 export function encodeEventDetails(details: EventDetails): string {
   if (details.typeLabel !== undefined) validateEventTypeLabel(details.typeLabel);
+  ensure(
+    details.allDay === undefined || typeof details.allDay === "boolean",
+    "La durata di giornata intera non è valida.",
+  );
   const encoded = JSON.stringify({ format: "luckylap-team-event", version: 1, ...details });
   ensure(
     encoded.length <= 50000,
@@ -236,11 +241,13 @@ export function decodeEventDetails(description: string): EventDetails {
       "Dettagli non validi.",
     );
     if (data.typeLabel !== undefined) validateEventTypeLabel(data.typeLabel);
+    ensure(data.allDay === undefined || typeof data.allDay === "boolean", "Durata non valida.");
     return {
       summary: data.summary,
       participantIds: data.participantIds as string[],
       callUrl: validatedCallUrl((data.callUrl as string | null) ?? ""),
       ...(data.typeLabel !== undefined ? { typeLabel: data.typeLabel as string } : {}),
+      ...(data.allDay !== undefined ? { allDay: data.allDay as boolean } : {}),
     };
   } catch {
     return {
@@ -384,3 +391,7 @@ export const formatRomeDate = (value: string): string =>
   new Intl.DateTimeFormat("it-IT", { timeZone: TEAM_TIME_ZONE, dateStyle: "medium" }).format(
     new Date(value),
   );
+
+/** Linked all-day events use an exclusive next-midnight end, including DST changes. */
+export const inclusiveEventEnd = (event: Pick<TeamEvent, "startsAt" | "endsAt">): string =>
+  new Date(Math.max(Date.parse(event.startsAt), Date.parse(event.endsAt) - 1)).toISOString();

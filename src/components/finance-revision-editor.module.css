@@ -1,0 +1,122 @@
+.page {
+  max-width: 1080px;
+  min-width: 0;
+}
+.head {
+  margin-bottom: 24px;
+}
+.head h1 {
+  font-family: var(--f-cond);
+  font-size: var(--text-title);
+  line-height: 1.1;
+  margin: 12px 0 8px;
+}
+.section {
+  border-top: 2px solid var(--ink);
+  padding-top: 16px;
+  margin-top: 28px;
+}
+.section h2 {
+  font-family: var(--f-cond);
+  font-size: var(--text-xl);
+  margin-bottom: 12px;
+}
+.notice {
+  padding: 16px;
+  border: 1px solid var(--rule);
+  background: var(--tint);
+  margin: 16px 0;
+  overflow-wrap: anywhere;
+}
+.fields {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 16px;
+  border: 0;
+  padding: 0;
+  margin: 0;
+}
+.fields label,
+.reason {
+  display: grid;
+  gap: 8px;
+  font-size: var(--text-md);
+  font-weight: 600;
+  min-width: 0;
+}
+.fields input,
+.fields select,
+.fields textarea,
+.reason input {
+  width: 100%;
+  min-height: var(--tap);
+  font-family: inherit;
+  font-weight: inherit;
+  line-height: inherit;
+  font-size: 16px;
+  border: 1px solid var(--rule);
+  border-radius: 0;
+  background: var(--paper);
+  color: var(--ink);
+  padding: 10px;
+}
+.fields .wide {
+  grid-column: 1/-1;
+}
+.fields .check {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  min-height: var(--tap);
+}
+.check input {
+  width: 20px;
+  height: 20px;
+  min-height: 0;
+}
+.reason {
+  margin: 20px 0;
+}
+.actions {
+  display: flex;
+  gap: 12px;
+  flex-wrap: wrap;
+  margin-top: 12px;
+}
+.history {
+  padding: 0;
+  list-style: none;
+  margin: 20px 0;
+}
+.history li {
+  padding: 18px 0;
+  border-top: 1px solid var(--rule);
+  overflow-wrap: anywhere;
+}
+.history p {
+  margin: 8px 0;
+  color: var(--ink-2);
+}
+.versionHead {
+  display: flex;
+  justify-content: space-between;
+  gap: 16px;
+  align-items: center;
+  flex-wrap: wrap;
+}
+.versionHead h3 {
+  font-family: var(--f-cond);
+  font-size: var(--text-lg);
+}
+@media (max-width: 650px) {
+  .fields {
+    grid-template-columns: minmax(0, 1fr);
+  }
+  .actions > * {
+    width: 100%;
+  }
+  .versionHead {
+    align-items: stretch;
+    flex-direction: column;
+  }
+}

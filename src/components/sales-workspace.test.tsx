@@ -84,3 +84,33 @@ describe("Shopify order controls and visible provenance", () => {
     expect(money(-8999999999999999n)).toBe("-89.999.999.999.999,99\u00a0€");
   });
 });
+
+it("shows a corrected residual, permits the remaining manual collection, and preserves Shopify source status", () => {
+  const snapshot = salesSnapshotFromRows(syntheticRows());
+  snapshot.orders[0] = {
+    ...snapshot.orders[0],
+    paymentState: "partially_paid",
+    sourcePaymentState: "paid",
+    effectiveAmountDueCents: 2500,
+    paymentCorrected: true,
+  };
+  const html = renderToStaticMarkup(
+    <SalesWorkspace snapshot={snapshot} member={member} now="2026-10-22T12:00Z" />,
+  );
+  expect(html).toContain("Incassi rettificati in Finance");
+  expect(html).toContain('value="25,00"');
+  expect(html).toContain('data-command-kind="record_manual_payment"');
+  const external = salesSnapshotFromRows(externalSyntheticRows());
+  external.orders[0] = {
+    ...external.orders[0],
+    paymentState: "unpaid",
+    sourcePaymentState: "paid",
+    effectiveAmountDueCents: 1234,
+    paymentCorrected: true,
+  };
+  const shop = renderToStaticMarkup(
+    <SalesWorkspace snapshot={external} member={member} now="2026-10-22T12:00Z" />,
+  );
+  expect(shop).toContain("Stato osservato su Shopify: Incasso osservato su Shopify");
+  expect(shop).not.toContain('data-command-kind="record_manual_payment"');
+});
