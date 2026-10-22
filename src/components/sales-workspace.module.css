@@ -1,56 +1,5 @@
-.page {
-  min-height: 100dvh;
-  background: var(--tint);
-}
-.header {
-  display: flex;
-  align-items: center;
-  gap: 24px;
-  background: var(--green-dark);
-  color: var(--paper);
-  padding: 22px max(24px, calc((100vw - 1280px) / 2));
-  min-height: 84px;
-}
-.header :focus-visible {
-  outline-color: var(--on-green);
-}
-.brand {
-  font-family: var(--f-cond);
-  font-size: 34px;
-  font-weight: 700;
-  letter-spacing: 0.01em;
-  line-height: 1;
-  color: var(--paper);
-  text-decoration: none;
-}
-.area {
-  font-size: 12px;
-  border-left: 1px solid var(--muted);
-  padding-left: 24px;
-}
-.account {
-  margin-left: auto;
-  color: var(--paper);
-  font-size: 12px;
-  text-align: right;
-  max-width: 210px;
-  overflow-wrap: anywhere;
-}
-.account span {
-  display: block;
-  font-size: 10px;
-  opacity: 0.8;
-}
 .main {
-  max-width: 1328px;
-  padding: 26px 24px;
-  margin: auto;
   min-width: 0;
-}
-.back {
-  font-size: 12px;
-  display: inline-block;
-  margin-bottom: 26px;
 }
 .heading {
   display: flex;
@@ -68,12 +17,6 @@
   font-size: 13px;
   color: var(--muted);
   margin-top: 8px;
-}
-.eyebrow {
-  font-size: 10px;
-  color: var(--muted);
-  letter-spacing: 0.1em;
-  margin-bottom: 8px;
 }
 .notice,
 .info {
@@ -434,30 +377,6 @@ summary.sectionTitle {
   color: var(--muted);
 }
 @media (max-width: 760px) {
-  .header {
-    padding: 18px 15px;
-    gap: 13px;
-    min-height: 76px;
-  }
-  .brand {
-    font-size: 29px;
-  }
-  .area {
-    padding-left: 0;
-    border: 0;
-    font-size: 10px;
-    max-width: 80px;
-  }
-  .account {
-    font-size: 10px;
-    max-width: 100px;
-  }
-  .account span {
-    font-size: 9px;
-  }
-  .main {
-    padding: 22px 15px;
-  }
   .heading {
     align-items: flex-start;
     gap: 12px;

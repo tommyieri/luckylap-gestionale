@@ -1,58 +1,5 @@
-.page {
-  min-height: 100dvh;
-  background: var(--tint);
-}
-.header {
-  display: flex;
-  align-items: center;
-  gap: 24px;
-  min-height: 84px;
-  padding: 22px max(24px, calc((100vw - 1280px) / 2));
-  background: var(--green-dark);
-  color: var(--paper);
-}
-.header :focus-visible {
-  outline-color: var(--on-green);
-}
-.brand {
-  font-family: var(--f-cond);
-  font-size: 34px;
-  font-weight: 700;
-  letter-spacing: 0.01em;
-  line-height: 1;
-  text-decoration: none;
-  color: var(--paper);
-}
-.area {
-  border-left: 1px solid var(--muted);
-  padding-left: 24px;
-  font-size: 12px;
-}
-.account {
-  margin-left: auto;
-  font-size: 12px;
-  color: var(--paper);
-  text-align: right;
-  max-width: 220px;
-  overflow-wrap: anywhere;
-}
-.account span {
-  display: block;
-  font-size: 10px;
-  opacity: 0.8;
-}
 .main {
-  max-width: 1328px;
-  margin: auto;
-  padding: 25px 24px;
   min-width: 0;
-}
-.navigation {
-  display: flex;
-  gap: 20px;
-  flex-wrap: wrap;
-  font-size: 11px;
-  margin-bottom: 28px;
 }
 .heading {
   margin-bottom: 22px;
@@ -66,12 +13,6 @@
   font-size: 13px;
   color: var(--muted);
   margin-top: 8px;
-}
-.eyebrow {
-  font-size: 10px;
-  letter-spacing: 0.1em;
-  color: var(--muted);
-  margin-bottom: 8px;
 }
 .notice {
   padding: 16px 18px;
@@ -405,33 +346,6 @@
   font-size: 10px;
 }
 @media (max-width: 760px) {
-  .header {
-    padding: 18px 15px;
-    gap: 13px;
-    min-height: 76px;
-  }
-  .brand {
-    font-size: 29px;
-  }
-  .area {
-    font-size: 10px;
-    border: 0;
-    padding: 0;
-    max-width: 80px;
-  }
-  .account {
-    font-size: 10px;
-    max-width: 110px;
-  }
-  .account span {
-    font-size: 9px;
-  }
-  .main {
-    padding: 22px 15px;
-  }
-  .navigation {
-    gap: 10px 18px;
-  }
   .heading h1 {
     font-size: 26px;
   }

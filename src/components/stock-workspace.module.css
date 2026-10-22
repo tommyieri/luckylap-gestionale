@@ -1,75 +1,5 @@
-.page {
-  min-height: 100dvh;
-  background: var(--tint);
-}
-.header {
-  display: flex;
-  align-items: center;
-  gap: 25px;
-  background: var(--green-dark);
-  color: #ecf2e5;
-  padding: 22px max(24px, calc((100vw - 1280px) / 2));
-  min-height: 84px;
-}
-.header :focus-visible {
-  outline-color: var(--on-green);
-}
-.brand {
-  font-family: var(--f-cond);
-  font-size: 34px;
-  font-weight: 700;
-  letter-spacing: 0.01em;
-  line-height: 1;
-  text-decoration: none;
-  color: #fff;
-}
-.brand:hover {
-  color: #e4ecdb;
-}
-.area {
-  display: flex;
-  gap: 7px;
-  align-items: center;
-  border-left: 1px solid #ffffff3b;
-  padding-left: 25px;
-  font-size: 12px;
-}
-.account {
-  margin-left: auto;
-  color: #fff;
-  text-decoration: none;
-  font-size: 12px;
-  text-align: right;
-  max-width: 220px;
-  overflow-wrap: anywhere;
-}
-.account:hover {
-  text-decoration: underline;
-}
-.account span {
-  display: block;
-  color: #bed0ae;
-  font-size: 10px;
-}
 .main {
-  padding: 25px 24px 0;
-  max-width: 1328px;
-  margin: auto;
   min-width: 0;
-}
-.main:focus {
-  outline: none;
-}
-.back {
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
-  font-size: 11px;
-  text-decoration: none;
-  margin-bottom: 28px;
-}
-.back:hover {
-  text-decoration: underline;
 }
 .heading {
   display: flex;
@@ -470,33 +400,6 @@
   }
 }
 @media (max-width: 760px) {
-  .header {
-    gap: 14px;
-    padding: 19px 16px;
-    min-height: 77px;
-  }
-  .brand {
-    font-size: 29px;
-  }
-  .area {
-    border-left: 0;
-    padding-left: 0;
-    font-size: 10px;
-    gap: 5px;
-  }
-  .account {
-    font-size: 10px;
-    max-width: 100px;
-  }
-  .account span {
-    font-size: 9px;
-  }
-  .main {
-    padding: 22px 15px 0;
-  }
-  .back {
-    margin-bottom: 24px;
-  }
   .heading {
     align-items: flex-start;
     flex-wrap: wrap;

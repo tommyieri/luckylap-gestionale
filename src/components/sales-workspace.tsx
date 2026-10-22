@@ -1,6 +1,5 @@
 "use client";
 
-import Link from "next/link";
 import { useState, type ReactNode } from "react";
 import type { VerifiedMember } from "@/lib/auth/model";
 import {
@@ -96,293 +95,269 @@ export function SalesWorkspace({
       ]),
   ];
   return (
-    <div className={styles.page}>
-      <a className="skip-link" href="#sales-main">
-        Vai alle vendite
-      </a>
-      <header className={styles.header}>
-        <Link href="/" className={styles.brand}>
-          LuckyLap
-        </Link>
-        <span className={styles.area}>Vendite e produzione</span>
-        <Link href="/auth/account" className={styles.account}>
-          {member.displayName}
-          <span>Account del team</span>
-        </Link>
-      </header>
-      <main id="sales-main" className={styles.main}>
-        <Link href="/" className={styles.back}>
-          ← Torna al workspace
-        </Link>
-        <div className={styles.heading}>
-          <div>
-            <p className={styles.eyebrow}>OPERAZIONI CONDIVISE</p>
-            <h1>Dall’ordine alla consegna.</h1>
-            <p>Un solo ordine collega riserve, produzione, uscite fisiche e fatti Finance.</p>
-          </div>
-          <a href="#new-sale" className="button button-primary">
-            Nuova vendita
-          </a>
+    <div className={styles.main}>
+      <div className={styles.heading}>
+        <div>
+          <h1>Vendite</h1>
+          <p>Ogni vendita aggiorna magazzino, produzione e Finance.</p>
         </div>
-        {!snapshot.enabled ? (
-          <div className={styles.notice} role="status">
-            <strong>Nuove vendite manuali ancora disattivate</strong>
+        <a href="#new-sale" className="button button-primary">
+          Nuova vendita
+        </a>
+      </div>
+      {!snapshot.enabled ? (
+        <div className={styles.notice} role="status">
+          <strong>Nuove vendite manuali ancora disattivate</strong>
+          <p>
+            Le quantità iniziali provengono dal Drive. Prima dell’avvio Tommi deve confermare la
+            conta e quali ordini sono già compresi: per ora puoi leggere e compilare le vendite
+            manuali. La produzione degli ordini Shopify può proseguire per i ruoli abilitati. I
+            tentativi già sospesi possono essere verificati.
+          </p>
+        </div>
+      ) : (
+        <div className={styles.info}>
+          <strong>Registrazione condivisa attiva</strong>
+          <p>
+            Avvio: {snapshot.startedAt ? date(snapshot.startedAt) : "Da verificare"} · Europe/Rome.
+            Non reinserire vendite anteriori o già comprese nell’inventario iniziale.
+          </p>
+        </div>
+      )}
+      <SalesPendingRecovery userId={member.userId} activeScopes={activeScopes} />
+      <div className={styles.metrics}>
+        <div>
+          <span>Capi fisici pronti</span>
+          <strong>{quantityLabel(ready)}</strong>
+        </div>
+        <div>
+          <span>Capi già riservati</span>
+          <strong>{reserved}</strong>
+        </div>
+        <div>
+          <span>Disponibili fisicamente</span>
+          <strong>{quantityLabel(ready === null ? null : ready - reserved)}</strong>
+        </div>
+        <div>
+          <span>Capi da produrre</span>
+          <strong>{toProduce}</strong>
+        </div>
+      </div>
+      <p className={styles.help}>
+        Le quantità Shopify rappresentano il vendibile commerciale e restano distinte dal pronto
+        fisico. Shopify e Shopify POS non si registrano manualmente qui.
+      </p>
+      {health}
+      <section id="new-sale" className={styles.section}>
+        <div className={styles.sectionTitle}>
+          <h2>Nuova vendita</h2>
+          <span>Diretta · Etsy · Altri canali manuali</span>
+        </div>
+        <div className={styles.body}>
+          <SalesCommandForm
+            userId={member.userId}
+            scope="new-sale"
+            kind="register_manual_sale"
+            enabled={snapshot.enabled}
+            label="Registra vendita"
+            build={(form) => newSalePayload(form, snapshot)}
+          >
+            <NewSaleFields snapshot={snapshot} now={now} />
+          </SalesCommandForm>
+        </div>
+      </section>
+      <section className={styles.section} aria-labelledby="sales-orders">
+        <div className={styles.sectionTitle}>
+          <h2 id="sales-orders">Ordini</h2>
+          <span>{snapshot.orders.length} registrati nel gestionale</span>
+        </div>
+        <div className={styles.toolbar}>
+          <label>
+            Cerca ordine o SKU
+            <input
+              type="search"
+              value={search}
+              onChange={(event) => {
+                setSearch(event.target.value);
+                setPage(0);
+              }}
+              placeholder="Riferimento, SKU o codice ordine"
+            />
+          </label>
+          <label>
+            Visualizza
+            <select
+              value={filter}
+              onChange={(event) => {
+                setFilter(event.target.value);
+                setPage(0);
+              }}
+            >
+              <option value="all">Tutti gli ordini</option>
+              <option value="open">Da preparare o incassare</option>
+            </select>
+          </label>
+        </div>
+        {!filtered.length ? (
+          <div className={styles.empty}>
+            <h3>
+              {snapshot.orders.length
+                ? "Nessun ordine corrisponde alla ricerca."
+                : "Il registro è pronto per i primi ordini."}
+            </h3>
             <p>
-              Le quantità iniziali provengono dal Drive. Prima dell’avvio Tommi deve confermare la
-              conta e quali ordini sono già compresi: per ora puoi leggere e compilare le vendite
-              manuali. La produzione degli ordini Shopify può proseguire per i ruoli abilitati. I
-              tentativi già sospesi possono essere verificati.
+              Le vendite manuali e gli ordini Shopify ricevuti e verificati compariranno in questo
+              registro, ciascuno con la propria fonte.
             </p>
           </div>
         ) : (
-          <div className={styles.info}>
-            <strong>Registrazione condivisa attiva</strong>
-            <p>
-              Avvio: {snapshot.startedAt ? date(snapshot.startedAt) : "Da verificare"} ·
-              Europe/Rome. Non reinserire vendite anteriori o già comprese nell’inventario iniziale.
-            </p>
+          <div>
+            {filtered.slice(currentPage * 20, currentPage * 20 + 20).map((order) => (
+              <OrderCard
+                key={order.id}
+                order={order}
+                snapshot={snapshot}
+                member={member}
+                now={now}
+              />
+            ))}
           </div>
         )}
-        <SalesPendingRecovery userId={member.userId} activeScopes={activeScopes} />
-        <div className={styles.metrics}>
-          <div>
-            <span>Capi fisici pronti</span>
-            <strong>{quantityLabel(ready)}</strong>
-          </div>
-          <div>
-            <span>Capi già riservati</span>
-            <strong>{reserved}</strong>
-          </div>
-          <div>
-            <span>Disponibili fisicamente</span>
-            <strong>{quantityLabel(ready === null ? null : ready - reserved)}</strong>
-          </div>
-          <div>
-            <span>Capi da produrre</span>
-            <strong>{toProduce}</strong>
-          </div>
+        <div className={styles.pagination}>
+          <span>
+            {filtered.length} risultati · Pagina {currentPage + 1} di {pageCount}
+          </span>
+          <button
+            className="button button-secondary button-small"
+            disabled={currentPage === 0}
+            onClick={() => setPage(currentPage - 1)}
+          >
+            Precedente
+          </button>
+          <button
+            className="button button-secondary button-small"
+            disabled={currentPage + 1 >= pageCount}
+            onClick={() => setPage(currentPage + 1)}
+          >
+            Successiva
+          </button>
         </div>
-        <p className={styles.help}>
-          Le quantità Shopify rappresentano il vendibile commerciale e restano distinte dal pronto
-          fisico. Shopify e Shopify POS non si registrano manualmente qui.
-        </p>
-        {health}
-        <section id="new-sale" className={styles.section}>
-          <div className={styles.sectionTitle}>
-            <h2>Nuova vendita</h2>
-            <span>Diretta · Etsy · Altri canali manuali</span>
+      </section>
+      <section className={styles.section} aria-labelledby="sales-production">
+        <div className={styles.sectionTitle}>
+          <h2 id="sales-production">Produzione da completare</h2>
+          <span>
+            {toProduce} capi · {waiting.length} fabbisogni
+          </span>
+        </div>
+        {!waiting.length ? (
+          <div className={styles.empty}>
+            <h3>Nessun fabbisogno aperto.</h3>
+            <p>
+              Gli ordini da preparare aprono un fabbisogno soltanto per i capi che non sono già
+              pronti.
+            </p>
           </div>
-          <div className={styles.body}>
-            <SalesCommandForm
-              userId={member.userId}
-              scope="new-sale"
-              kind="register_manual_sale"
-              enabled={snapshot.enabled}
-              label="Registra vendita"
-              build={(form) => newSalePayload(form, snapshot)}
-            >
-              <NewSaleFields snapshot={snapshot} now={now} />
-            </SalesCommandForm>
-          </div>
-        </section>
-        <section className={styles.section} aria-labelledby="sales-orders">
-          <div className={styles.sectionTitle}>
-            <h2 id="sales-orders">Ordini</h2>
-            <span>{snapshot.orders.length} registrati nel gestionale</span>
-          </div>
-          <div className={styles.toolbar}>
-            <label>
-              Cerca ordine o SKU
-              <input
-                type="search"
-                value={search}
-                onChange={(event) => {
-                  setSearch(event.target.value);
-                  setPage(0);
-                }}
-                placeholder="Riferimento, SKU o codice ordine"
-              />
-            </label>
-            <label>
-              Visualizza
-              <select
-                value={filter}
-                onChange={(event) => {
-                  setFilter(event.target.value);
-                  setPage(0);
-                }}
-              >
-                <option value="all">Tutti gli ordini</option>
-                <option value="open">Da preparare o incassare</option>
-              </select>
-            </label>
-          </div>
-          {!filtered.length ? (
-            <div className={styles.empty}>
-              <h3>
-                {snapshot.orders.length
-                  ? "Nessun ordine corrisponde alla ricerca."
-                  : "Il registro è pronto per i primi ordini."}
-              </h3>
-              <p>
-                Le vendite manuali e gli ordini Shopify ricevuti e verificati compariranno in questo
-                registro, ciascuno con la propria fonte.
-              </p>
-            </div>
-          ) : (
-            <div>
-              {filtered.slice(currentPage * 20, currentPage * 20 + 20).map((order) => (
-                <OrderCard
-                  key={order.id}
-                  order={order}
-                  snapshot={snapshot}
-                  member={member}
-                  now={now}
-                />
-              ))}
-            </div>
-          )}
-          <div className={styles.pagination}>
-            <span>
-              {filtered.length} risultati · Pagina {currentPage + 1} di {pageCount}
-            </span>
-            <button
-              className="button button-secondary button-small"
-              disabled={currentPage === 0}
-              onClick={() => setPage(currentPage - 1)}
-            >
-              Precedente
-            </button>
-            <button
-              className="button button-secondary button-small"
-              disabled={currentPage + 1 >= pageCount}
-              onClick={() => setPage(currentPage + 1)}
-            >
-              Successiva
-            </button>
-          </div>
-        </section>
-        <section className={styles.section} aria-labelledby="sales-production">
-          <div className={styles.sectionTitle}>
-            <h2 id="sales-production">Produzione da completare</h2>
-            <span>
-              {toProduce} capi · {waiting.length} fabbisogni
-            </span>
-          </div>
-          {!waiting.length ? (
-            <div className={styles.empty}>
-              <h3>Nessun fabbisogno aperto.</h3>
-              <p>
-                Gli ordini da preparare aprono un fabbisogno soltanto per i capi che non sono già
-                pronti.
-              </p>
-            </div>
-          ) : (
-            waiting.map((requirement) => {
-              const order = snapshot.orders.find((order) =>
-                order.lines.some((line) => line.id === requirement.lineId),
-              )!;
-              const line = order.lines.find((line) => line.id === requirement.lineId)!;
-              const remaining =
-                requirement.required - requirement.completed - requirement.cancelled;
-              return (
-                <details key={requirement.id} className={styles.order}>
-                  <summary>
-                    <div>
-                      <strong>{line.sku}</strong>
-                      <span>
-                        {salesOrderLabel(order)} ·{" "}
-                        {
-                          snapshot.locations.find((location) => location.id === line.locationId)
-                            ?.name
-                        }
-                      </span>
-                    </div>
-                    <span className={styles.badge}>{remaining} da produrre</span>
-                  </summary>
-                  <div className={styles.orderBody}>
-                    <p className={styles.help}>
-                      Fabbisogno iniziale {requirement.required} · Completati{" "}
-                      {requirement.completed} · Annullati {requirement.cancelled}. Registrare
-                      soltanto capi prodotti e verificati: ricevimento e riserva sull’ordine
-                      avvengono insieme.
-                    </p>
-                    {canProduce ? (
-                      <SalesCommandForm
-                        userId={member.userId}
-                        scope={`production:${requirement.id}`}
-                        kind="complete_production"
-                        enabled={snapshot.enabled || isExternalSalesOrder(order)}
-                        label="Registra capi pronti"
-                        build={(form) => productionPayload(form, requirement.id)}
-                      >
-                        <div className={styles.grid}>
-                          <label>
-                            Capi completati
-                            <input
-                              name="quantity"
-                              type="number"
-                              min={1}
-                              max={remaining}
-                              defaultValue={remaining}
-                              required
-                            />
-                          </label>
-                          <SaleTimeField now={now} />
-                        </div>
-                        <label>
-                          Nota di ricevimento
-                          <textarea name="reason" required minLength={3} maxLength={500} rows={2} />
-                        </label>
-                      </SalesCommandForm>
-                    ) : (
-                      <p className={styles.info}>
-                        Tommi o Gabriele possono registrare i capi completati.
-                      </p>
-                    )}
+        ) : (
+          waiting.map((requirement) => {
+            const order = snapshot.orders.find((order) =>
+              order.lines.some((line) => line.id === requirement.lineId),
+            )!;
+            const line = order.lines.find((line) => line.id === requirement.lineId)!;
+            const remaining = requirement.required - requirement.completed - requirement.cancelled;
+            return (
+              <details key={requirement.id} className={styles.order}>
+                <summary>
+                  <div>
+                    <strong>{line.sku}</strong>
+                    <span>
+                      {salesOrderLabel(order)} ·{" "}
+                      {snapshot.locations.find((location) => location.id === line.locationId)?.name}
+                    </span>
                   </div>
-                </details>
-              );
-            })
-          )}
-        </section>
-        <details className={styles.section}>
-          <summary className={styles.sectionTitle}>
-            <h2>Disponibilità per SKU e magazzino</h2>
-            <span>Pronto fisico, riservato e disponibile</span>
-          </summary>
-          <div className={styles.tableScroll}>
-            <table className={styles.table}>
-              <thead>
-                <tr>
-                  <th>SKU</th>
-                  <th>Magazzino</th>
-                  <th>Pronto</th>
-                  <th>Riservato</th>
-                  <th>Disponibile</th>
+                  <span className={styles.badge}>{remaining} da produrre</span>
+                </summary>
+                <div className={styles.orderBody}>
+                  <p className={styles.help}>
+                    Fabbisogno iniziale {requirement.required} · Completati {requirement.completed}{" "}
+                    · Annullati {requirement.cancelled}. Registrare soltanto capi prodotti e
+                    verificati: ricevimento e riserva sull’ordine avvengono insieme.
+                  </p>
+                  {canProduce ? (
+                    <SalesCommandForm
+                      userId={member.userId}
+                      scope={`production:${requirement.id}`}
+                      kind="complete_production"
+                      enabled={snapshot.enabled || isExternalSalesOrder(order)}
+                      label="Registra capi pronti"
+                      build={(form) => productionPayload(form, requirement.id)}
+                    >
+                      <div className={styles.grid}>
+                        <label>
+                          Capi completati
+                          <input
+                            name="quantity"
+                            type="number"
+                            min={1}
+                            max={remaining}
+                            defaultValue={remaining}
+                            required
+                          />
+                        </label>
+                        <SaleTimeField now={now} />
+                      </div>
+                      <label>
+                        Nota di ricevimento
+                        <textarea name="reason" required minLength={3} maxLength={500} rows={2} />
+                      </label>
+                    </SalesCommandForm>
+                  ) : (
+                    <p className={styles.info}>
+                      Tommi o Gabriele possono registrare i capi completati.
+                    </p>
+                  )}
+                </div>
+              </details>
+            );
+          })
+        )}
+      </section>
+      <details className={styles.section}>
+        <summary className={styles.sectionTitle}>
+          <h2>Disponibilità per SKU e magazzino</h2>
+          <span>Pronto fisico, riservato e disponibile</span>
+        </summary>
+        <div className={styles.tableScroll}>
+          <table className={styles.table}>
+            <thead>
+              <tr>
+                <th>SKU</th>
+                <th>Magazzino</th>
+                <th>Pronto</th>
+                <th>Riservato</th>
+                <th>Disponibile</th>
+              </tr>
+            </thead>
+            <tbody>
+              {snapshot.availability.map((row) => (
+                <tr key={`${row.itemId}:${row.locationId}`}>
+                  <td>{snapshot.items.find((item) => item.id === row.itemId)?.sku}</td>
+                  <td>
+                    {snapshot.locations.find((location) => location.id === row.locationId)?.name}
+                  </td>
+                  <td>{quantityLabel(row.onHand)}</td>
+                  <td>{row.reserved}</td>
+                  <td>{quantityLabel(row.available)}</td>
                 </tr>
-              </thead>
-              <tbody>
-                {snapshot.availability.map((row) => (
-                  <tr key={`${row.itemId}:${row.locationId}`}>
-                    <td>{snapshot.items.find((item) => item.id === row.itemId)?.sku}</td>
-                    <td>
-                      {snapshot.locations.find((location) => location.id === row.locationId)?.name}
-                    </td>
-                    <td>{quantityLabel(row.onHand)}</td>
-                    <td>{row.reserved}</td>
-                    <td>{quantityLabel(row.available)}</td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        </details>
-        <footer className={styles.footer}>
-          <span>LuckyLap · Vendite in EUR · Orari Europe/Rome</span>
-          <span>I fatti osservati non equivalgono a contabilità approvata o saldo bancario.</span>
-        </footer>
-      </main>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      </details>
+      <footer className={styles.footer}>
+        <span>LuckyLap · Vendite in EUR · Orari Europe/Rome</span>
+        <span>I fatti osservati non equivalgono a contabilità approvata o saldo bancario.</span>
+      </footer>
     </div>
   );
 }

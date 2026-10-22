@@ -2,15 +2,7 @@
 
 import Link from "next/link";
 import { useEffect, useId, useMemo, useRef, useState } from "react";
-import {
-  ArrowLeft,
-  ArrowUpRight,
-  Check,
-  FileSpreadsheet,
-  LockKeyhole,
-  Search,
-  X,
-} from "lucide-react";
+import { ArrowUpRight, Check, FileSpreadsheet, Search, X } from "lucide-react";
 import {
   formatCalendarDate,
   formatLocalTimestamp,
@@ -64,12 +56,12 @@ export function FinanceImportsView({
   workSnapshot = emptyWork,
   settlements = [],
   reportDate,
-  displayName,
 }: {
   snapshot: FinanceSnapshot;
   workSnapshot?: FinanceWorkSnapshot;
   settlements?: DashboardSettlement[];
   reportDate: string;
+  /** Non più mostrato qui: il nome del membro sta nel menu del guscio. */
   displayName: string;
 }) {
   const dashboard = useMemo(
@@ -171,28 +163,8 @@ export function FinanceImportsView({
     selected?.source === "budgetflow" ? originalById.get(selected.sourceId) : undefined;
 
   return (
-    <div className={styles.page}>
-      <a className="skip-link" href="#finance-content">
-        Vai a Finance
-      </a>
-      <header className={styles.header}>
-        <Link href="/" className={styles.brand} aria-label="LuckyLap, torna al workspace">
-          LuckyLap
-        </Link>
-        <span className={styles.area}>
-          <LockKeyhole size={14} aria-hidden="true" />
-          Finance
-        </span>
-        <Link href="/auth/account" className={styles.account}>
-          {displayName}
-          <span>Il tuo account</span>
-        </Link>
-      </header>
-      <main className={styles.main} id="finance-content" tabIndex={-1}>
-        <Link href="/" className={styles.back}>
-          <ArrowLeft size={14} aria-hidden="true" />
-          Workspace
-        </Link>
+    <>
+      <div className={styles.main}>
         <div className={styles.heading}>
           <div>
             <h1>Finance</h1>
@@ -204,8 +176,6 @@ export function FinanceImportsView({
         </div>
         <nav className={styles.financeNav} aria-label="Sezioni Finance">
           <a href="#finance-transactions">Movimenti</a>
-          <Link href="/finance/work">Lavoro Finance</Link>
-          <Link href="/finance/documents">Documenti originali</Link>
           <a href="#finance-imports">Fonti importate</a>
         </nav>
         <section aria-label="Conti e saldo dai movimenti" className={styles.accountsSection}>
@@ -596,7 +566,7 @@ export function FinanceImportsView({
           <span>LuckyLap · Finance</span>
           <span>Fonti tracciabili, movimenti da verificare.</span>
         </footer>
-      </main>
+      </div>
       <dialog
         ref={dialogRef}
         className={styles.dialog}
@@ -666,7 +636,7 @@ export function FinanceImportsView({
           </div>
         )}
       </dialog>
-    </div>
+    </>
   );
 }
 function OriginalDetails({ row, sourceFile }: { row: FinanceTransaction; sourceFile?: string }) {
