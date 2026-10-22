@@ -1,15 +1,15 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { redirect } from "next/navigation";
-import { SensitiveAreaLockForm } from "@/components/auth-sensitive-area-form";
-import styles from "@/components/auth.module.css";
-import { PanelActions, WorkspacePanel } from "@/components/workspace-panel";
-import { signOut } from "@/app/auth/actions";
-import { getSupabasePublicConfig } from "@/lib/supabase/config";
-import { createSupabaseServerClient } from "@/lib/supabase/server";
-import { verifiedMember } from "@/lib/auth/server";
-import { isSensitiveAreaEligible, type SensitiveArea } from "@/lib/auth/model";
-import { verifiedSensitiveAccess } from "@/lib/auth/sensitive-access";
+import { SensitiveAreaLockForm } from "../../../../components/auth-sensitive-area-form";
+import styles from "../../../../components/auth.module.css";
+import { PanelActions, WorkspacePanel } from "../../../../components/workspace-panel";
+import { signOut } from "../../../auth/actions";
+import { getSupabasePublicConfig } from "../../../../lib/supabase/config";
+import { createSupabaseServerClient } from "../../../../lib/supabase/server";
+import { verifiedMember } from "../../../../lib/auth/server";
+import { isSensitiveAreaEligible, type SensitiveArea } from "../../../../lib/auth/model";
+import { verifiedSensitiveAccess } from "../../../../lib/auth/sensitive-access";
 
 export const dynamic = "force-dynamic";
 export const metadata: Metadata = { title: "Account e sicurezza" };
@@ -65,8 +65,8 @@ export default async function AccountPage() {
               : unlocked
                 ? "Aperta in questa sessione, fino a 8 ore. Puoi chiuderla prima di lasciare il dispositivo."
                 : area === "finance"
-                  ? "Area chiusa."
-                  : "Serve la password CEO scelta da Tommi."}
+                  ? "Chiusa. Serve la password Finance."
+                  : "Chiusa. Serve la password CEO scelta da Tommi."}
           </p>
           <div className={styles.actions}>
             <Link href={`/auth/area/${area}`} className="button button-secondary" prefetch={false}>
@@ -85,9 +85,19 @@ export default async function AccountPage() {
           {unlocked && <SensitiveAreaLockForm area={area} />}
         </section>
       ))}
+      <section className={styles.status} aria-labelledby="account-password">
+        <strong id="account-password">Password del tuo account</strong>
+        <Link href="/auth/password" className="text-button" prefetch={false}>
+          Cambia la tua password
+        </Link>
+        <p>
+          Di solito non serve: la password è la stessa per tutto il team. Se la cambi, vale solo per
+          te. Avvisa Tommi.
+        </p>
+      </section>
       <PanelActions>
-        <Link href="/auth/password" className="button button-secondary" prefetch={false}>
-          Imposta password del tuo account
+        <Link href="/guida" className="button button-secondary" prefetch={false}>
+          Come si usa
         </Link>
       </PanelActions>
     </WorkspacePanel>
