@@ -11,6 +11,7 @@ L’app mantiene due percorsi separati. `npm run dev` abilita l’anteprima loca
 - `/auth/area/finance` richiede la password aggiuntiva Finance, condivisa da Tommi, Gabriele e Gherardo; il ruolo DB deve comunque essere founder oppure production/finance con flag Finance attivo. `/auth/area/audit` richiede la password CEO scelta da Tommi e accetta soltanto il founder. Ogni area ha una password distinta da quella del workspace.
 - L’apertura è registrata nel database per utente, sessione Auth e area, fino a otto ore. `sensitive_area_status` controlla lo stato corrente; non vengono memorizzati flag di sblocco in cookie applicativi, localStorage, React context o metadata utente. AAL/MFA non apre queste aree e non sostituisce la loro password. `lock_sensitive_area` chiude soltanto l’area nella sessione corrente.
 - Il logout termina la sessione di questo browser (`scope: local`).
+- Chi apre una pagina del gruppo senza sessione arriva su `/auth/login`, ma non con un 307: per via di `loading.tsx` la risposta parte in streaming con stato 200 e il redirect arriva nel flusso (router del browser, oppure `<meta http-equiv="refresh">` senza JavaScript). Prima del redirect non parte nessun dato. Per verificarlo da fuori si cerca `NEXT_REDIRECT;replace;/auth/login` nella risposta o si segue la pagina in un browser (dettagli in [workspace-layout.md](workspace-layout.md), «Risposte HTTP»).
 
 ## Cookie, cache e richieste
 

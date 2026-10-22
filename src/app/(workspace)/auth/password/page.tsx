@@ -51,7 +51,7 @@ export default async function PasswordPage() {
     );
   return (
     <WorkspacePanel
-      title="Imposta la password del workspace."
+      title="Password"
       description={`Stai impostando la password dell’account di ${access.member.displayName}. Usa quella concordata con Tommi; dopo il salvataggio accederai di nuovo con la tua email.`}
     >
       <PasswordForm />

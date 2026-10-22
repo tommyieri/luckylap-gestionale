@@ -5,18 +5,19 @@ Tutte le pagine per i membri hanno lo stesso guscio: barra laterale verde sul de
 ## Gruppo di route
 
 - Le pagine per i membri stanno in `src/app/(workspace)/`. Le parentesi non entrano negli URL: `src/app/(workspace)/sales/page.tsx` risponde su `/sales`.
-- Il gruppo ha un solo layout, `src/app/(workspace)/layout.tsx`, che delega a `WorkspaceFrame` (`src/components/workspace-frame.tsx`). Il layout radice `src/app/layout.tsx` tiene `html`, `body`, il modello dei titoli («%s · LuckyLap») e il `viewport` con `viewportFit: "cover"`, che rende disponibili le `env(safe-area-inset-*)`.
+- Il gruppo ha un solo layout, `src/app/(workspace)/layout.tsx`, che delega a `WorkspaceFrame` (`src/components/workspace-frame.tsx`). Il layout radice `src/app/layout.tsx` tiene `html`, `body`, il modello dei titoli («%s · LuckyLap») e il `viewport` con `viewportFit: "cover"`, che rende disponibili le `env(safe-area-inset-*)`. `<html>` ha `data-scroll-behavior="smooth"`: Next 16 toglie lo scorrimento morbido di `globals.css` solo durante i cambi di pagina, così la pagina nuova parte subito dalla cima con la fascia verde in vista; le ancore nella stessa pagina restano morbide.
 - Restano **fuori** dal gruppo:
   - `/auth/login` e `/auth/confirm`, per chi non è ancora entrato, con `AuthShell`;
   - le route `/api/integrations/shopify/*` e i download `/assets/files/[id]` e `/finance/documents/[id]` (`route.ts` non usa layout);
   - tutte le `actions.ts`, che restano nei percorsi di prima (`src/app/sales/actions.ts`, `src/app/team/actions.ts`…): componenti e test le importano per percorso. Una cartella con solo `actions.ts` non è una route, quindi non c'è conflitto di URL.
-- `loading.tsx`, `error.tsx` e `not-found.tsx` del gruppo si vedono dentro il guscio: il menu resta. Le versioni radice (`src/app/loading.tsx`, `error.tsx`, `not-found.tsx`, `global-error.tsx`) coprono ciò che sta fuori dal gruppo. Tutte in italiano; le pagine di errore mostrano solo il `digest` («Codice per Tommi: …»), mai `error.message`. `error.tsx` riceve `retry` (Next 16.4), non `reset`.
+- `loading.tsx`, `error.tsx` e `not-found.tsx` del gruppo si vedono dentro il guscio: il menu resta. Le versioni radice (`src/app/loading.tsx`, `error.tsx`, `not-found.tsx`, `global-error.tsx`) coprono ciò che sta fuori dal gruppo. Tutte in italiano. Le pagine di errore hanno «Riprova» e «Vai a Oggi» (verso `/`) e mostrano solo il `digest` («Codice per Tommi: …»), mai `error.message`. `error.tsx` riceve `retry` (Next 16.4), non `reset`.
 
 ### Il guscio non è un cancello
 
-- `WorkspaceFrame` non fa `await` in cima: legge l'accesso per il menu dentro due `Suspense` (barra laterale e barra in basso), così il contenuto non aspetta il menu. Finché la lettura non arriva, il menu mostra le cinque sezioni aperte a tutti e nessun piede.
+- `WorkspaceFrame` non fa `await` in cima: legge l'accesso per il menu dentro tre `Suspense` (barra laterale, schede e barra in basso), così il contenuto non aspetta il menu. Finché la lettura non arriva, il menu mostra le cinque sezioni aperte a tutti e nessun piede, e le schede compaiono solo per quelle sezioni.
 - I layout non si ricaricano tra una pagina e l'altra e non fermano i segmenti figli. Per questo **ogni pagina verifica da sola** sessione, membership e password d'area. Il menu è solo una guida: l'autorità resta nelle pagine e nella RLS.
 - `src/lib/auth/current-member.ts`: `currentMember()` fa una sola verifica per richiesta (`cache` di React) e torna `preview`, `unconfigured`, `signed-out`, `denied`, `unavailable` oppure `member` con membro e client Supabase. `requireMember()` fa lo stesso e porta a `/auth/login` solo se manca la sessione. Li usano il menu (`readNavAccess` in `src/lib/navigation-server.ts`, che passa al client solo nome e permessi) e le pagine nuove: Oggi, `/stock`, `/partner`.
+- **Risposte HTTP.** Con `loading.tsx` (del gruppo e radice) la risposta parte subito in streaming e lo stato 200 è già inviato quando la pagina decide. Per questo il `redirect("/auth/login")` di una pagina senza sessione e `notFound()` (per esempio `/auth/area/xyz`) arrivano dentro il flusso, non come 307 o 404 (guida Next «loading», «Status codes»): il router del browser porta al login o mostra «Pagina non trovata.»; senza JavaScript un `<meta http-equiv="refresh">` porta a `/auth/login`. Prima del controllo arrivano solo il guscio vuoto e «Caricamento…», nessun dato; la pagina inesistente ha `noindex`. Per un controllo da fuori, per esempio dopo un deploy, non aspettarti un 307: la risposta di `/` senza cookie contiene `NEXT_REDIRECT;replace;/auth/login` e il meta refresh, oppure si apre l'indirizzo in un browser e si controlla che arrivi su `/auth/login`. Un 307 vero richiederebbe un redirect nel proxy, che questa tappa lascia alle pagine.
 - I link di menu e schede hanno `prefetch={false}`: ogni prefetch passerebbe dal proxy, che chiama Supabase Auth. `loading.tsx` dà comunque un riscontro immediato al tocco.
 
 ## Mappa delle sezioni
@@ -34,7 +35,7 @@ Una sola fonte: `src/lib/navigation.ts`, funzioni pure senza React né icone.
 | Controllo CEO | `/audit` | — | il founder | «Altro» |
 
 - Fuori dalle sezioni (`ACCOUNT_LINKS`): «Account e sicurezza» (`/auth/account`, accesa anche da `/auth/password` e `/auth/verify`) ed «Esci». Sul desktop stanno nel piede della barra laterale, sul telefono in «Altro».
-- Finance e Controllo CEO compaiono solo a chi può entrare, con la regola esistente `isSensitiveAreaEligible` (`src/lib/auth/model.ts`), senza copie. Voci per persona: Luca ed Ettore 5, Gabriele e Gherardo 6, Tommi 7. In anteprima locale 7; senza sessione o con account non abilitato nessuna; con verifica in corso o non riuscita le 5 aperte a tutti.
+- Finance e Controllo CEO compaiono solo a chi può entrare, con la regola esistente `isSensitiveAreaEligible` (`src/lib/auth/model.ts`), senza copie. Voci per persona: Luca ed Ettore 5, Gabriele e Gherardo 6, Tommi 7. In anteprima locale 7; senza sessione o con account non abilitato nessuna; con verifica in corso o non riuscita le 5 aperte a tutti. Le schede seguono la stessa regola: chi non vede Finance non ne vede nemmeno le schede, neanche su `/auth/area/finance` o su `/finance`.
 - **Prefisso più lungo.** Un `href` combacia se il percorso è uguale o continua con `/`; `/` combacia solo con `/`. Vince l'`href` più lungo tra schede, sezioni e `also`. Così `/stock/rettifiche` accende Rettifiche, `/consignment/NEG01/conta` accende Conto vendita e `/sales-old` non accende niente.
 - `also`: percorsi senza scheda che accendono la sezione. Finance ha `/auth/area/finance`, Controllo CEO `/auth/area/audit`.
 - Ogni `href` compare una volta sola. L'`href` di una sezione con schede è la sua prima scheda. Le schede compaiono solo con almeno due pagine.
@@ -43,7 +44,7 @@ Una sola fonte: `src/lib/navigation.ts`, funzioni pure senza React né icone.
 
 ## Struttura visiva
 
-- **Desktop (oltre 760 px).** Barra laterale verde, ferma, larga 232 px (210 sotto 1250, 200 sotto 1000). Marchio «LuckyLap» in Barlow Condensed 700 dritto, link a `/`. Voci in Condensed 600, alte 48 px; la voce attiva è in inversione d'inchiostro, carta sul verde. Finance e Controllo CEO hanno il lucchetto, con il testo nascosto «(con password)». Nel piede: nome, «Account e sicurezza», «Esci»; in anteprima «Anteprima locale · Dati solo su questo browser», senza «Esci».
+- **Desktop (oltre 760 px).** Barra laterale verde, ferma, larga 232 px (210 sotto 1250, 200 sotto 1000). Marchio «LuckyLap» in Barlow Condensed 700 dritto, link a `/`. Voci in Condensed 600, alte 48 px; la voce attiva è in inversione d'inchiostro, carta sul verde. Finance e Controllo CEO hanno il lucchetto, con il testo nascosto «(con password)». Nel piede: nome, «Account e sicurezza», «Esci»; in anteprima «Anteprima locale · Dati solo su questo browser» e «Account e sicurezza», senza «Esci».
 - **Schede.** Striscia ferma in alto, alta 48 px, fondo carta e filetto d'inchiostro sotto. La scheda attiva ha il filetto d'inchiostro da 3 px. Se non ci stanno scorrono in orizzontale, e quella attiva viene portata in vista.
 - **Contenuto.** `<main id="contenuto">`, largo al massimo 1280 px, margini 24 px (32 oltre 1250 px). Il collegamento «Vai al contenuto» è il primo elemento della pagina.
 - **Telefono (fino a 760 px).** La barra laterale diventa una fascia verde alta 52 px con marchio e sezione attiva: scorre via con la pagina. Restano ferme solo le schede. In basso una barra fissa di 60 px più la safe area: Oggi, Vendite, Magazzino, Partner, «Altro».
@@ -59,7 +60,8 @@ Una sola fonte: `src/lib/navigation.ts`, funzioni pure senza React né icone.
 - Se apre un nuovo primo segmento di URL, va nel `matcher` di `src/proxy.ts`.
 - Niente testata propria, niente link indietro («Torna al workspace»), niente collegamento di salto, niente `<main>`: li ha il guscio. Niente `AuthShell` dentro il gruppo.
 - Stati (configurazione mancante, accesso negato, area chiusa, errore) con `WorkspacePanel` (`src/components/workspace-panel.tsx`): titolo, testo, azioni in `PanelActions`, `tone="warning"` per gli avvisi. «Riprova» con `RefreshButton`. Le pagine che usano `requireMember()` hanno gli stati comuni in `AccessPanel`. Nei pannelli, «Esci» compare solo nello stato «Account non abilitato»: per tutto il resto è nel menu.
-- Titoli: `metadata.title` è solo il nome della voce («Partner»), il modello aggiunge « · LuckyLap». L'`h1` è il nome della sezione sulla sua prima pagina e il nome della scheda sulle altre. Niente sopratitoli in maiuscolo.
+- Titoli: `metadata.title` è solo il nome della voce («Partner»), il modello aggiunge « · LuckyLap». L'`h1` è il nome della sezione sulla sua prima pagina e il nome della scheda sulle altre; sulle pagine fuori dalle schede è uguale a `metadata.title` («Password», «Apri Finance»). Niente sopratitoli in maiuscolo.
+- Una pagina del gruppo che chiama `notFound()` restituisce `title: "Pagina non trovata"` da `generateMetadata` per quel caso, come `/auth/area/[area]`: il `not-found.tsx` del gruppo non può esportare metadati, e senza titolo il browser direbbe «LuckyLap · Gestionale».
 - Righe e liste con `src/components/roadbook.module.css`: colonna di controllo a sinistra (ora, giorno o numero in Condensed), casella verde piena solo per «adesso», ambra per il ritardo, verde chiaro per il fatto.
 - Invii dall'esito incerto con `src/components/pending-attempt.tsx`: data italiana all'ora di Roma, righe leggibili, codice tecnico solo in «Codice per l’assistenza», «Scarta» solo per i tentativi che non potranno riuscire.
 - Una cartella del gruppo può avere i suoi `loading.tsx`, `error.tsx` e `not-found.tsx`: si vedono dentro il guscio.
@@ -90,7 +92,7 @@ Con `npm run dev` l'anteprima locale (`isLocalPreviewEnabled()` in `src/lib/runt
 
 | Dove | Con anteprima locale |
 | --- | --- |
-| Menu | Tutte e 7 le sezioni, piede «Anteprima locale · Dati solo su questo browser», niente «Esci» e niente link all'account. |
+| Menu | Tutte e 7 le sezioni, piede «Anteprima locale · Dati solo su questo browser» con «Account e sicurezza», niente «Esci». |
 | `/` | Avviso «Anteprima locale: Oggi legge solo dal database.» e riquadri «Non disponibile nell’anteprima locale.». Nessuna lettura. |
 | `/stock` | Giacenze dallo snapshot `data/inventory-source.json`, con dettaglio prodotto ed export CSV. |
 | `/team` | `LocalPreviewWorkspace`: calendario, attività e note sul `localStorage` del browser. |

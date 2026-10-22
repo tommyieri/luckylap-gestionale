@@ -17,7 +17,8 @@ export async function generateMetadata({
 }): Promise<Metadata> {
   const area = sensitiveAreaFrom((await params).area);
   const robots = { index: false, follow: false };
-  if (!area) return { robots };
+  // La pagina chiama notFound(): il titolo del browser deve dirlo, come il 404 radice.
+  if (!area) return { title: "Pagina non trovata", robots };
   return { title: area === "finance" ? "Apri Finance" : "Apri Controllo CEO", robots };
 }
 
@@ -59,9 +60,10 @@ export default async function SensitiveAreaPage({ params }: { params: Promise<{ 
       </WorkspacePanel>
     );
   const label = area === "finance" ? "Finance" : "Controllo CEO";
+  // `h1` uguale al titolo del browser (01 §8.3); lo stato «aperta» lo dice il paragrafo.
   return (
     <WorkspacePanel
-      title={unlocked ? `${label} è aperta.` : `Apri ${label}.`}
+      title={`Apri ${label}`}
       description={
         unlocked
           ? "L’area è aperta per questa sessione. Puoi chiuderla prima di lasciare il dispositivo."

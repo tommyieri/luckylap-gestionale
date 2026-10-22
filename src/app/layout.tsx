@@ -10,9 +10,13 @@ export const metadata: Metadata = {
 /* `viewportFit: "cover"` rende disponibili env(safe-area-inset-*) per fascia e barra in basso. */
 export const viewport: Viewport = { themeColor: "#1d4b07", viewportFit: "cover" };
 
+/*
+ * `data-scroll-behavior="smooth"`: Next 16 toglie lo scorrimento morbido solo durante i cambi
+ * di pagina, così la nuova pagina parte subito dalla cima; le ancore nella stessa pagina restano morbide.
+ */
 export default function RootLayout({ children }: Readonly<{ children: React.ReactNode }>) {
   return (
-    <html lang="it">
+    <html lang="it" data-scroll-behavior="smooth">
       <body>{children}</body>
     </html>
   );

@@ -67,9 +67,13 @@ function currentLabel(location: NavLocation): string | null {
   return SECTIONS.find((section) => section.id === location.section)?.label ?? null;
 }
 
-/** Link dell'account per lo stato: nessuno prima della verifica, fuori o in anteprima. */
+/** Link dell'account per lo stato: nessuno prima della verifica o fuori dal team. */
 function accountLinksFor(access: NavAccess) {
-  return access.status === "member" || access.status === "unavailable" ? ACCOUNT_LINKS : [];
+  return access.status === "member" ||
+    access.status === "unavailable" ||
+    access.status === "preview"
+    ? ACCOUNT_LINKS
+    : [];
 }
 
 function SectionLabel({ section }: { section: NavSection }) {
@@ -128,15 +132,15 @@ export function WorkspaceSidebar({ access, signOut }: NavProps) {
           </ul>
         </nav>
       )}
-      {access.status === "preview" && (
-        <div className={styles.sideFoot}>
-          <p className={styles.footName}>Anteprima locale</p>
-          <p className={styles.footNote}>Dati solo su questo browser</p>
-        </div>
-      )}
-      {(access.status === "member" || access.status === "unavailable") && (
+      {accountLinks.length > 0 && (
         <div className={styles.sideFoot}>
           {access.status === "member" && <p className={styles.footName}>{access.displayName}</p>}
+          {access.status === "preview" && (
+            <>
+              <p className={styles.footName}>Anteprima locale</p>
+              <p className={styles.footNote}>Dati solo su questo browser</p>
+            </>
+          )}
           {accountLinks.map((link) => (
             <Link
               key={link.href}
@@ -307,8 +311,12 @@ export function WorkspaceBottomBar({ access, signOut }: NavProps) {
   );
 }
 
-/** Schede della sezione attiva, solo con almeno due pagine. Ferme in alto durante lo scorrimento. */
-export function WorkspaceTabs() {
+/**
+ * Schede della sezione attiva, solo con almeno due pagine. Ferme in alto durante lo scorrimento.
+ * Come il menu, seguono l'accesso: chi non vede Finance non ne vede nemmeno le schede, anche
+ * sulla pagina della password d'area; prima della verifica compaiono solo per le sezioni aperte a tutti.
+ */
+export function WorkspaceTabs({ access }: { access: NavAccess }) {
   const { pathname, location } = useLocation();
   const navRef = useRef<HTMLElement>(null);
   // La scheda attiva viene portata in vista se la striscia scorre in orizzontale.
@@ -321,7 +329,7 @@ export function WorkspaceTabs() {
     if (left < nav.scrollLeft || right > nav.scrollLeft + nav.clientWidth)
       nav.scrollLeft = Math.max(0, left - 16);
   }, [pathname]);
-  const section = SECTIONS.find((candidate) => candidate.id === location.section);
+  const section = visibleSections(access).find((candidate) => candidate.id === location.section);
   if (!section || section.tabs.length < 2) return null;
   return (
     <nav ref={navRef} aria-label={`Pagine di ${section.label}`} className={styles.tabs}>

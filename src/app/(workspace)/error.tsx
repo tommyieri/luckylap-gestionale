@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { PanelActions, WorkspacePanel } from "../../components/workspace-panel";
 import styles from "../../components/workspace-shell.module.css";
 import { errorDigest } from "../../lib/error-digest";
@@ -17,6 +18,9 @@ export default function WorkspaceError({ error, retry }: { error: unknown; retry
         <button type="button" className="button button-primary" onClick={() => retry()}>
           Riprova
         </button>
+        <Link href="/" prefetch={false} className="button button-secondary">
+          Vai a Oggi
+        </Link>
       </PanelActions>
       {digest && <p className={styles.panelCode}>Codice per Tommi: {digest}</p>}
     </WorkspacePanel>

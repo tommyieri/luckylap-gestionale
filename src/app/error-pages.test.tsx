@@ -59,6 +59,11 @@ describe("pagine di errore", () => {
     expect(retry).toHaveBeenCalledTimes(1);
   });
 
+  it.each(ERROR_PAGES)("%s: «Vai a Oggi» porta a /", (_, Page) => {
+    const html = renderToStaticMarkup(<Page error={withDigest("x")} retry={() => {}} />);
+    expect(html).toMatch(/<a[^>]*href="\/"[^>]*>Vai a Oggi<\/a>/);
+  });
+
   it.each(ERROR_PAGES)("%s: testo italiano, mai error.message", (_, Page) => {
     const error = withDigest("Dettaglio interno con password e query SQL", "4012345678");
     const html = renderToStaticMarkup(<Page error={error} retry={() => {}} />);

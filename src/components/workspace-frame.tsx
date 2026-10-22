@@ -7,7 +7,7 @@ import styles from "./workspace-shell.module.css";
 
 /**
  * Guscio condiviso delle pagine per i membri (docs: 01-layout §3.1).
- * Nessun `await` qui: l'accesso per il menu si legge dentro due `Suspense`,
+ * Nessun `await` qui: l'accesso per menu e schede si legge dentro i `Suspense`,
  * così il contenuto non aspetta il menu. Il guscio non è un cancello: ogni
  * pagina verifica sessione, membership e password d'area da sola.
  */
@@ -18,6 +18,9 @@ async function Sidebar() {
 }
 async function BottomBar() {
   return <WorkspaceBottomBar access={await readNavAccess()} signOut={signOut} />;
+}
+async function Tabs() {
+  return <WorkspaceTabs access={await readNavAccess()} />;
 }
 
 export function WorkspaceFrame({ children }: { children: ReactNode }) {
@@ -31,7 +34,9 @@ export function WorkspaceFrame({ children }: { children: ReactNode }) {
           <Sidebar />
         </Suspense>
         <div className={styles.column}>
-          <WorkspaceTabs />
+          <Suspense fallback={<WorkspaceTabs access={PENDING} />}>
+            <Tabs />
+          </Suspense>
           <main id="contenuto" tabIndex={-1} className={styles.main}>
             {children}
           </main>

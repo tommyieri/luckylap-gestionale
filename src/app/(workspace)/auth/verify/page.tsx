@@ -58,7 +58,7 @@ export default async function ExistingVerificationPage() {
     );
   return (
     <WorkspacePanel
-      title="Verifica questo account."
+      title="Verifica"
       description="Questo account aveva già una verifica aggiuntiva configurata. Serve per modificarne la password; le aree Finance e CEO usano le proprie password."
     >
       <ExistingTotpForm factors={configured} />

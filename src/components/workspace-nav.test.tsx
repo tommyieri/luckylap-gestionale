@@ -20,7 +20,8 @@ const sidebar = (access: NavAccess) =>
   renderToStaticMarkup(<WorkspaceSidebar access={access} signOut={signOut} />);
 const bottomBar = (access: NavAccess) =>
   renderToStaticMarkup(<WorkspaceBottomBar access={access} signOut={signOut} />);
-const tabs = () => renderToStaticMarkup(<WorkspaceTabs />);
+const tabs = (access: NavAccess = founder) =>
+  renderToStaticMarkup(<WorkspaceTabs access={access} />);
 const count = (html: string, pattern: RegExp) => html.match(pattern)?.length ?? 0;
 /** Link dentro la `nav` delle sezioni (non il marchio, non il piede, non il foglio «Altro»). */
 const navPart = (html: string) => html.slice(html.indexOf("<nav"), html.indexOf("</nav>"));
@@ -76,12 +77,15 @@ describe("barra laterale", () => {
     expect(bottomBar({ status: "outside" })).toBe("");
   });
 
-  it("anteprima locale: tutte le sezioni, «Anteprima locale» e niente «Esci»", () => {
+  it("anteprima locale: tutte le sezioni, «Anteprima locale», l'account e niente «Esci»", () => {
     const side = sidebar({ status: "preview" });
+    const sheet = bottomBar({ status: "preview" });
     expect(count(navPart(side), /<a /g)).toBe(7);
     expect(side).toContain("Anteprima locale");
     expect(side).toContain("Dati solo su questo browser");
-    expect(side + bottomBar({ status: "preview" })).not.toContain("Esci");
+    expect(side).toMatch(/<a[^>]*href="\/auth\/account"[^>]*>Account e sicurezza<\/a>/);
+    expect(hrefs(sheet.slice(sheet.indexOf("<dialog")))).toContain("/auth/account");
+    expect(side + sheet).not.toContain("Esci");
   });
 
   it("membro: nome, «Account e sicurezza» e il modulo «Esci»", () => {
@@ -142,6 +146,23 @@ describe("schede della sezione", () => {
     pathname = "/auth/area/finance";
     expect(tabs()).toContain('aria-label="Pagine di Finance"');
     expect(tabs()).not.toContain("aria-current");
+  });
+
+  it("seguono l'accesso: nessuna scheda di un'area chiusa", () => {
+    // Un consultant sulla password di Finance (link «Sblocca Finance») o su /finance stesso.
+    for (pathname of ["/auth/area/finance", "/finance", "/finance/work"]) {
+      expect(tabs(consultant)).toBe("");
+      expect(tabs(consultant)).not.toContain('href="/finance/work"');
+    }
+    // Prima della verifica: niente schede di Finance, sì quelle delle sezioni aperte a tutti.
+    pathname = "/finance/work";
+    expect(tabs({ status: "pending" })).toBe("");
+    expect(tabs({ status: "unavailable" })).toBe("");
+    expect(tabs({ status: "outside" })).toBe("");
+    pathname = "/stock/rettifiche";
+    expect(count(tabs({ status: "pending" }), /<a /g)).toBe(3);
+    expect(count(tabs(consultant), /<a /g)).toBe(3);
+    expect(tabs({ status: "outside" })).toBe("");
   });
 
   it("su /consignment/NEG01 accende Vendite e la scheda Conto vendita", () => {
