@@ -1,0 +1,23 @@
+{
+  "formato": "luckylap-partner-export",
+  "versione": 1,
+  "esportato": "2026-10-21T08:15:00.000Z",
+  "dispositivo": "computer",
+  "contatti": {
+    "L001": "Garage Sintetico Uno",
+    "L002": "Raduno Sintetico Due",
+    "L006": "Porsche Club Sintetico Sei"
+  },
+  "stato": {
+    "L001": "trattativa",
+    "L002": "trattativa",
+    "L006": "no"
+  },
+  "testi": {
+    "L001|vendita|body": "Hallo,\n\nTesto dal computer, più recente (sintetico).\n\nViele Grüße\nTommi"
+  },
+  "approccio": {
+    "L001": "collab"
+  },
+  "vista": { "section": "tutti", "sector": "subito" }
+}
