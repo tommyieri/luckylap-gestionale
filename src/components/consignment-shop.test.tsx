@@ -8,7 +8,12 @@ vi.mock("../app/consignment/actions", () => ({
 }));
 
 import { ConsignmentShop, monthAbbrev, ShopFrame } from "./consignment-shop";
-import { countEntries, countSummary, ConsignmentCountForm } from "./consignment-count-form";
+import {
+  countEntries,
+  countSummary,
+  ConsignmentCountForm,
+  revealConfirm,
+} from "./consignment-count-form";
 import { item, shopPageRows } from "../lib/consignment/shop-fixtures";
 import { countDraft, shopPageFromRows } from "../lib/consignment/shop-read";
 
@@ -97,6 +102,20 @@ describe("conta in negozio", () => {
     expect(countSummary(false, fix)).toBe(
       "Correggi 1 variante: in tutto 3 magliette nelle varianti corrette.",
     );
+  });
+
+  it("il riepilogo prende il focus e scorre in vista sopra la barra in basso", () => {
+    const calls: unknown[][] = [];
+    const element = {
+      focus: (...args: unknown[]) => calls.push(["focus", ...args]),
+      scrollIntoView: (...args: unknown[]) => calls.push(["scrollIntoView", ...args]),
+    } as unknown as HTMLElement;
+    revealConfirm(element);
+    revealConfirm(null);
+    expect(calls).toEqual([
+      ["focus", { preventScroll: true }],
+      ["scrollIntoView", { block: "nearest" }],
+    ]);
   });
 
   it("correzione: caselle già compilate con la giacenza", () => {

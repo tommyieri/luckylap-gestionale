@@ -488,6 +488,8 @@ details[open] > summary > .foldIcon {
   padding: 16px;
   border: 1px solid var(--ink);
   background: var(--paper);
+  /* Quando compare scorre in vista sopra la barra di navigazione del telefono. */
+  scroll-margin-bottom: calc(var(--ws-fixed-bottom) + 16px);
 }
 .confirmText {
   font-family: var(--f-cond);

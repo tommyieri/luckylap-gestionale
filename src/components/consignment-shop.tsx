@@ -366,11 +366,7 @@ export function ConsignmentShop({
         </div>
         {!counted && (
           <p className={styles.sectionNote}>
-            Il resoconto si registra dopo la prima conta: prima{" "}
-            <Link href={consignmentCountHref(shop.code)} prefetch={false}>
-              conta le magliette in negozio
-            </Link>
-            .
+            Il resoconto si registra dopo la prima conta in negozio.
           </p>
         )}
         {months.length ? (

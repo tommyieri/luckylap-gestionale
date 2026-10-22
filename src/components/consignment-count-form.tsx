@@ -29,8 +29,16 @@ import styles from "./consignment-shop.module.css";
  * letta, così il database rifiuta una conta superata da una consegna.
  */
 
-/** Riferimento stabile: il riepilogo prende il focus solo quando compare. */
-const focusOnMount = (element: HTMLElement | null) => element?.focus();
+/**
+ * Riferimento stabile: il riepilogo prende il focus solo quando compare. Lo
+ * scorrimento lo fa `scrollIntoView`, che rispetta `scroll-margin-bottom`: sul
+ * telefono il riepilogo resta sopra la barra di navigazione, non sotto.
+ */
+export const revealConfirm = (element: HTMLElement | null) => {
+  if (!element) return;
+  element.focus({ preventScroll: true });
+  element.scrollIntoView?.({ block: "nearest" });
+};
 
 export type CountEntries =
   { status: "ok"; entries: Record<string, number> } | { status: "invalid"; invalid: Set<string> };
@@ -214,7 +222,7 @@ export function ConsignmentCountForm({ page, now }: { page: ShopPage; now: strin
           role="group"
           aria-label="Conferma della conta"
           tabIndex={-1}
-          ref={focusOnMount}
+          ref={revealConfirm}
         >
           <p className={styles.confirmText}>{countSummary(first, draft)}</p>
           <div className={styles.actions}>
