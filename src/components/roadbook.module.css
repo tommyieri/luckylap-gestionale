@@ -1,0 +1,148 @@
+/*
+ * Righe roadbook riusabili (docs: 01-layout §7.5): la colonna di controllo di Partner
+ * a sinistra (ora, giorno o numero in Condensed), il contenuto, un lato per le azioni.
+ * Usate da Oggi; pronte per Conto vendita, feed CEO e Partner.
+ */
+.list {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  border-top: 1.5px solid var(--ink);
+}
+.row {
+  position: relative;
+  display: grid;
+  grid-template-areas: "spine body side";
+  grid-template-columns: 76px minmax(0, 1fr) auto;
+  min-height: 56px;
+  border-bottom: 1px solid var(--rule);
+  background: var(--paper);
+  transition: background-color 160ms var(--ease);
+}
+.row:has(.rowLink:hover) {
+  background: var(--tint);
+}
+.spine {
+  grid-area: spine;
+  display: grid;
+  align-content: center;
+  justify-items: center;
+  gap: 4px;
+  padding: 12px 4px;
+  border-right: 1px solid var(--ink);
+  text-align: center;
+}
+.spineValue {
+  font-family: var(--f-cond);
+  font-size: var(--text-xl);
+  font-weight: 700;
+  line-height: 1;
+  font-variant-numeric: tabular-nums;
+}
+.box {
+  padding: 1px 6px;
+  border: 1px solid var(--ink);
+  font-family: var(--f-cond);
+  font-size: 13px;
+  font-weight: 600;
+  line-height: 1.25;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  white-space: nowrap;
+}
+/* Verde pieno solo per ciò che è adesso; ambra per il tempo; verde chiaro per il fatto. */
+.isNow {
+  border-color: var(--green);
+  background: var(--green);
+  color: var(--on-green);
+}
+.isLate {
+  border-color: var(--amber);
+  background: var(--amber-wash);
+  color: var(--amber);
+}
+.isDone {
+  border-color: var(--green);
+  background: var(--green-wash);
+  color: var(--green);
+}
+.body {
+  grid-area: body;
+  display: grid;
+  align-content: center;
+  gap: 2px;
+  min-width: 0;
+  padding: 12px 16px;
+}
+.side {
+  grid-area: side;
+  position: relative;
+  z-index: 1;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 12px 16px 12px 0;
+}
+.title {
+  font-family: var(--f-cond);
+  font-size: 20px;
+  font-weight: 700;
+  line-height: 1.15;
+  overflow-wrap: anywhere;
+}
+.meta {
+  color: var(--ink-2);
+  font-size: var(--text-sm);
+  overflow-wrap: anywhere;
+}
+.late {
+  color: var(--amber);
+  font-weight: 600;
+}
+/* Il link del titolo copre tutta la riga: bersaglio alto almeno 56 px. */
+.rowLink {
+  color: var(--ink);
+  text-decoration: none;
+}
+.rowLink::after {
+  position: absolute;
+  inset: 0;
+  content: "";
+}
+.rowLink:hover .title {
+  text-decoration: underline;
+  text-decoration-thickness: 1px;
+  text-underline-offset: 3px;
+}
+.rowLink:focus-visible {
+  outline: none;
+}
+.rowLink:focus-visible::after {
+  outline: 2px solid var(--green);
+  outline-offset: -2px;
+}
+.sideLink {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  min-height: var(--tap);
+  font-size: var(--text-sm);
+  font-weight: 600;
+}
+@media (max-width: 760px) {
+  .row {
+    grid-template-areas:
+      "spine body"
+      "spine side";
+    grid-template-columns: 56px minmax(0, 1fr);
+  }
+  .body {
+    padding: 12px;
+  }
+  .side {
+    padding: 0 12px 8px;
+  }
+  .side:empty {
+    display: none;
+  }
+}

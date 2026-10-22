@@ -1,7 +1,7 @@
 import { createServerClient, type CookieOptions } from "@supabase/ssr";
 import { NextResponse, type NextRequest } from "next/server";
-import { getSupabasePublicConfig } from "@/lib/supabase/config";
-import { isLocalPreviewEnabled } from "@/lib/runtime";
+import { getSupabasePublicConfig } from "./lib/supabase/config";
+import { isLocalPreviewEnabled } from "./lib/runtime";
 
 export async function proxy(request: NextRequest) {
   let response = NextResponse.next({ request });
@@ -69,5 +69,6 @@ export const config = {
     "/development/:path*",
     "/packaging/:path*",
     "/consignment/:path*",
+    "/partner/:path*",
   ],
 };

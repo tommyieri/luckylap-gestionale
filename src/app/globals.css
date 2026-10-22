@@ -1474,8 +1474,8 @@ body:has(dialog[open]) {
 }
 .toast {
   position: fixed;
-  z-index: 100;
-  bottom: 27px;
+  z-index: 40;
+  bottom: calc(var(--ws-fixed-bottom) + 27px);
   left: calc(50% + var(--sidebar-width) / 2);
   transform: translateX(-50%);
   display: flex;
@@ -2277,7 +2277,7 @@ body:has(dialog[open]) {
   }
   .toast {
     left: 50%;
-    bottom: 20px;
+    bottom: calc(var(--ws-fixed-bottom) + 16px);
     width: max-content;
     font-size: 11px;
   }
