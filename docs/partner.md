@@ -8,7 +8,7 @@ Questo documento descrive la tappa P2 (branch `claude/tappa-4-partner`). Fonti: 
 
 ## In breve
 
-- Una migrazione additiva, `supabase/migrations/20261022200000_partner_module.sql`: 9 tabelle pubbliche, 2 private, audit senza recapiti né testi, 10 comandi del team, import della ricerca riservato al proprietario del database. Nessuna tabella, funzione o policy esistente cambia.
+- Una migrazione additiva, `supabase/migrations/20261022215908_partner_module.sql`: 9 tabelle pubbliche, 2 private, audit senza recapiti né testi, 10 comandi del team, import della ricerca riservato al proprietario del database. Nessuna tabella, funzione o policy esistente cambia.
 - Pagine dentro il guscio comune: `/partner`, `/partner/dati`, `/partner/regole` e la route `/partner/lookbook/[code]` per i cinque PDF.
 - Niente Storage: i lookbook stanno nel repository in `data/partner-lookbooks/` (decisione 20).
 - Periodi calcolati da oggi, all'ora di Roma. Il 22 ottobre 2026 riproducono i conteggi del sito: 49, 63, 40, 11, 44.
@@ -221,6 +221,8 @@ Queste letture sono state provate su PGlite con i sei contatti sintetici, applic
 
 ### Esiti in produzione
 
+Migrazione applicata il 22 ottobre 2026 con versione cloud `20261022215908`; il testo salvato coincide con il file (md5 `c4326206389828d3fbef17e2a2ebc70e`). Impronte di giacenze, movimenti e sedi identiche prima e dopo. Tabelle Partner create con RLS, vuote fino all'import.
+
 Da completare dopo l'import (P7): data, commit della ricerca, SHA-256 normalizzato, contatori del resoconto, esito delle verifiche.
 
 ## File del vecchio sito («Esporta»)
@@ -280,7 +282,7 @@ Quando: solo dopo il rilascio di P5, l'import dei file di tutti i dispositivi e 
 
 Correzioni di 00-sequenza §5 e scelte di questa tappa:
 
-- Migrazione `20261022200000_partner_module.sql` (02-1). Dopo l'applicazione in produzione prende la versione cloud (00-sequenza §1.3); l'harness la cerca per suffisso.
+- Migrazione `20261022215908_partner_module.sql` (02-1): il nome nasceva come `20261022200000` e ha preso la versione cloud dopo l'applicazione (00-sequenza §1.3); l'harness la cerca per suffisso.
 - Lookbook senza Storage (02-2): niente bucket, policy, tabella `partner_lookbooks`, `register_partner_lookbook`, caricamento in `/partner/dati` né attività `lookbook`. I PDF stanno nel repository; la route risponde 200 con il file invece di 303 verso un link firmato. Le tabelle pubbliche sono 9 e `partner_activities.partner_id` è `not null` (02-3).
 - `private.apply_partner_stage` con `p_operation_id` obbligatorio e `p_log` (02-4).
 - Generatore con `--batch-bytes` al posto dei lotti da 20 contatti; `draft` non importato (02-9).
