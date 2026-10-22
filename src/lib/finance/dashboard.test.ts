@@ -8,6 +8,7 @@ import {
   financeCentsLabel,
   financeMonthTotal,
   sourceAmountCents,
+  type DashboardShopPayment,
 } from "./dashboard";
 import { dashboardSettlementsFromRows } from "./settlements";
 
@@ -246,24 +247,26 @@ describe("Finance dashboard, exact movements rather than commercial totals", () 
     expect(dashboard.movements.filter((r) => !r.account).map((r) => r.cents)).toEqual([202n, -33n]);
   });
   it("uses actual settlements once, attributing only explicit cash to Cash", () => {
-    const dashboard = buildFinanceDashboard(imports(), work(), today, [
-      {
-        id: "cash",
-        saleId: "sale",
-        cents: 1001,
-        occurredAt: "2026-06-10T10:00:00Z",
-        method: "cash",
-        reference: "SYN",
-      },
-      {
-        id: "bank",
-        saleId: "sale",
-        cents: 901,
-        occurredAt: "2026-06-10T10:00:00Z",
-        method: "bank_transfer",
-        reference: "SYN-2",
-      },
-    ]);
+    const dashboard = buildFinanceDashboard(imports(), work(), today, {
+      settlements: [
+        {
+          id: "cash",
+          saleId: "sale",
+          cents: 1001,
+          occurredAt: "2026-06-10T10:00:00Z",
+          method: "cash",
+          reference: "SYN",
+        },
+        {
+          id: "bank",
+          saleId: "sale",
+          cents: 901,
+          occurredAt: "2026-06-10T10:00:00Z",
+          method: "bank_transfer",
+          reference: "SYN-2",
+        },
+      ],
+    });
     expect(dashboard.accounts[0].posted).toBe(1001n);
     expect(dashboard.movements.filter((r) => !r.account)).toHaveLength(1);
     expect(
@@ -311,6 +314,99 @@ describe("Finance dashboard, exact movements rather than commercial totals", () 
     expect(() =>
       buildFinanceDashboard(imports(row("same", "1"), row("same", "1")), work(), today),
     ).toThrow(/duplicati/);
+  });
+});
+
+describe("pagamenti del negozio (conto vendita mensile)", () => {
+  const payment = (overrides: Partial<DashboardShopPayment> = {}): DashboardShopPayment => ({
+    id: "94000000-0000-4000-8000-000000000400",
+    reportId: "94000000-0000-4000-8000-000000000300",
+    locationId: "94000000-0000-4000-8000-000000000011",
+    cents: 5000,
+    paidAt: "2026-06-10T08:00:00+00:00",
+    method: "bank_transfer",
+    account: "Revolut Business",
+    allocationNote: null,
+    reference: "Bonifico sintetico",
+    shopName: "Negozio sintetico",
+    month: "2026-05",
+    monthLabel: "maggio 2026",
+    href: "/consignment/NEG01/resoconto/2026-05",
+    ...overrides,
+  });
+  it("il pagamento entra in Vendite, sul suo conto, con sorgente e id propri", () => {
+    const dashboard = buildFinanceDashboard(imports(), work(), today, {
+      shopPayments: [payment()],
+    });
+    expect(dashboard.movements).toEqual([
+      {
+        id: "shop-payment:94000000-0000-4000-8000-000000000400",
+        source: "shop_payment",
+        sourceId: "94000000-0000-4000-8000-000000000400",
+        date: "2026-06-10",
+        cents: 5000n,
+        account: "Revolut Business",
+        targetAccount: null,
+        category: "Vendite",
+        description: "Resoconto di maggio 2026 · Negozio sintetico · Bonifico sintetico",
+        pending: false,
+        future: false,
+        transfer: false,
+        allocationNote: null,
+        href: "/consignment/NEG01/resoconto/2026-05",
+      },
+    ]);
+    expect(dashboard.accounts).toEqual([
+      { name: "Revolut Business", posted: 5000n, pending: 0n, future: 0n, count: 1 },
+    ]);
+    expect(
+      financeCategoryTotals(dashboard, 2026, ["Revolut Business"]).find(
+        (c) => c.category === "Vendite",
+      )?.cents,
+    ).toBe(5000n);
+  });
+  it("senza conto resta da attribuire, fuori dai saldi; data del giorno di Roma", () => {
+    const dashboard = buildFinanceDashboard(imports(), work(), "2026-10-25", {
+      shopPayments: [payment({ account: null, paidAt: "2026-10-25T23:30:00Z", reference: null })],
+    });
+    expect(dashboard.accounts).toEqual([]);
+    expect(dashboard.movements[0]).toMatchObject({
+      date: "2026-10-26",
+      future: true,
+      account: null,
+      description: "Resoconto di maggio 2026 · Negozio sintetico",
+      allocationNote: "Conto dell’incasso conto vendita non attribuito.",
+    });
+  });
+  it("nessun doppio conteggio con gli incassi vecchi: ogni fonte una volta, con id diversi", () => {
+    const dashboard = buildFinanceDashboard(imports(), work(), today, {
+      settlements: [
+        {
+          id: "94000000-0000-4000-8000-000000000400",
+          saleId: "sale",
+          cents: 1001,
+          occurredAt: "2026-06-10T10:00:00Z",
+          method: "cash",
+          reference: "SYN",
+        },
+      ],
+      shopPayments: [payment({ account: "Cash", method: "cash", reference: null })],
+    });
+    expect(dashboard.movements.map((r) => r.id).sort()).toEqual([
+      "consignment:94000000-0000-4000-8000-000000000400",
+      "shop-payment:94000000-0000-4000-8000-000000000400",
+    ]);
+    expect(dashboard.accounts).toEqual([
+      { name: "Cash", posted: 6001n, pending: 0n, future: 0n, count: 2 },
+    ]);
+    expect(() =>
+      buildFinanceDashboard(imports(), work(), today, { shopPayments: [payment(), payment()] }),
+    ).toThrow(/duplicati/);
+  });
+  it("le opzioni sono facoltative: senza, la dashboard resta quella di prima", () => {
+    expect(buildFinanceDashboard(imports(row("a", "1")), work(), today, {})).toEqual(
+      buildFinanceDashboard(imports(row("a", "1")), work(), today),
+    );
   });
 });
 

@@ -197,7 +197,7 @@ try {
   const migrations = new URL("../migrations/", import.meta.url);
   for (const name of readdirSync(migrations)
     .filter((name) =>
-      /_(initial_schema|sales_ecosystem|sales_lifecycle|packaging_materials|shopify_catalog|consignment_workflow|shopify_sales_core|packaging_automatic_consumption)\.sql$/.test(
+      /_(initial_schema|sales_ecosystem|sales_lifecycle|packaging_materials|shopify_catalog|consignment_workflow|shopify_sales_core|packaging_automatic_consumption|consignment_monthly)\.sql$/.test(
         name,
       ),
     )

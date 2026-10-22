@@ -1,6 +1,6 @@
 "use client";
 import Link from "next/link";
-import { useState } from "react";
+import { useState, type ReactNode } from "react";
 import { salesChannelLabel, salesOrderLabel } from "@/lib/sales/model";
 import {
   centsLabel,
@@ -15,8 +15,6 @@ import {
   FinanceAccountCategoryFields,
 } from "./finance-work-form";
 import styles from "./finance-work.module.css";
-import { ConsignmentFinanceView } from "./consignment-finance";
-import type { ConsignmentFinanceSnapshot } from "@/lib/consignment/finance";
 const short = (value: string) => value.slice(0, 8).toUpperCase();
 const timestamp = (value: string) =>
   new Intl.DateTimeFormat("it-IT", {
@@ -45,7 +43,8 @@ export function FinanceWorkView({
   displayName: string;
   today: string;
   readOnly?: boolean;
-  consignment?: ConsignmentFinanceSnapshot;
+  /** Pannello «Conto vendita · da incassare», reso dalla pagina sul server. */
+  consignment?: ReactNode;
 }) {
   const [query, setQuery] = useState(""),
     [filter, setFilter] = useState("all"),
@@ -159,7 +158,7 @@ export function FinanceWorkView({
         facts={cancellations}
         snapshot={snapshot}
       />
-      {consignment && <ConsignmentFinanceView snapshot={consignment} />}
+      {consignment}
       <section id="new-finance-entry" className={styles.section}>
         <div className={styles.sectionHeading}>
           <h2>Nuova voce manuale</h2>

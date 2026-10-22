@@ -38,12 +38,15 @@ export async function loadAuthenticatedInventory(supabase: SupabaseClient) {
       .select("stock_item_id,product_id,color,size,central_target_quantity")
       .limit(1000),
     supabase.from("stock_balances").select("stock_item_id,location_id,quantity").limit(1000),
-    supabase.from("stock_locations").select("id,code").limit(1000),
+    supabase.from("stock_locations").select("id,code,location_type,active").limit(1000),
+    supabase.from("consignment_shops").select("location_id,first_counted_at").limit(1000),
   ]);
   // A full page may be truncated by PostgREST. Refuse it instead of silently
   // dropping SKUs; add paginated reads before growing past this v1 bound.
   if (results.some((result) => result.error || !result.data || result.data.length >= 1000))
     throw new Error("Inventario non disponibile.");
-  const [products, items, variants, balances, locations] = results.map((result) => result.data!);
-  return inventoryFromDatabase({ products, items, variants, balances, locations });
+  const [products, items, variants, balances, locations, shops] = results.map(
+    (result) => result.data!,
+  );
+  return inventoryFromDatabase({ products, items, variants, balances, locations, shops });
 }

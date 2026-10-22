@@ -26,6 +26,7 @@ function db(
   replies: Reply[] = [
     { data: null, error: null },
     { data: { stock_adjustments_enabled: true }, error: null },
+    { data: { location_type: "Magazzino" }, error: null },
   ],
   rpcReply: Reply = { data: movementId, error: null },
 ) {
@@ -101,7 +102,11 @@ describe("stock action authentication, authorization and idempotence", () => {
         p_quantity_delta: -2,
         p_reason: command.reason,
       });
-      expect(calls.map((call) => call.table)).toEqual(["stock_movements", "app_settings"]);
+      expect(calls.map((call) => call.table)).toEqual([
+        "stock_movements",
+        "app_settings",
+        "stock_locations",
+      ]);
     },
   );
   it("rejects invalid fields without a database request after current membership verification", async () => {
@@ -173,6 +178,7 @@ describe("stock action authentication, authorization and idempotence", () => {
     ["22023", "Quantità sconosciuta: registrare prima una conta iniziale.", "unknown_stock"],
     ["22023", "Stock non inizializzato: serve una conta iniziale autorizzata.", "unknown_stock"],
     ["22023", "La rettifica produrrebbe una giacenza negativa.", "insufficient_stock"],
+    ["22023", "shop_location", "shop_location"],
   ])(
     "maps a definite database rejection without SQL diagnostics",
     async (code, message, expected) => {
@@ -185,6 +191,37 @@ describe("stock action authentication, authorization and idempotence", () => {
       expect(JSON.stringify(result)).not.toContain("Sensitive SQL");
     },
   );
+  it("rifiuta le sedi del negozio prima della RPC, anche nella verifica dello stesso invio", async () => {
+    for (const retry of [false, true]) {
+      const { client, calls } = db([
+        { data: null, error: null },
+        { data: { stock_adjustments_enabled: true }, error: null },
+        { data: { location_type: "Negozio Conto Vendita" }, error: null },
+      ]);
+      expect(await executeStockAdjustment(client as never, { ...command, retry })).toEqual({
+        status: "rejected",
+        code: "shop_location",
+        message: "Le quantità del negozio si cambiano da Conto vendita.",
+      });
+      expect(client.rpc).not.toHaveBeenCalled();
+      expect(calls[2].methods).toContainEqual({ name: "eq", args: ["id", locationId] });
+    }
+  });
+  it("una lettura della sede non riuscita non invia nulla e conserva il tentativo", async () => {
+    for (const retry of [false, true]) {
+      const { client } = db([
+        { data: null, error: null },
+        { data: { stock_adjustments_enabled: true }, error: null },
+        { data: null, error: { message: "Private SQL detail" } },
+      ]);
+      const result = await executeStockAdjustment(client as never, { ...command, retry });
+      expect(result).toMatchObject(
+        retry ? { status: "uncertain" } : { status: "rejected", code: "unavailable" },
+      );
+      expect(JSON.stringify(result)).not.toContain("Private");
+      expect(client.rpc).not.toHaveBeenCalled();
+    }
+  });
   it("treats an invalid response or unknown RPC error as uncertain", async () => {
     for (const reply of [
       { data: null, error: { code: "NETWORK", message: "Private diagnostics" } },
@@ -221,8 +258,23 @@ describe("stock keyset read boundary", () => {
         error: null,
       },
       {
-        data: [{ id: locationId, code: "TEST", name: "Synthetic location", active: true }],
-        count: 1,
+        data: [
+          {
+            id: locationId,
+            code: "TEST",
+            name: "Synthetic location",
+            active: true,
+            location_type: "Magazzino",
+          },
+          {
+            id: "00000000-0000-4000-8000-000000000009",
+            code: "NEG01",
+            name: "Synthetic shop",
+            active: true,
+            location_type: "Negozio Conto Vendita",
+          },
+        ],
+        count: 2,
         error: null,
       },
       {
@@ -235,6 +287,9 @@ describe("stock keyset read boundary", () => {
     ]);
     const result = await readStockWorkspace(client as never);
     expect(result.status).toBe("ready");
+    if (result.status === "ready")
+      expect(result.snapshot.locations.map((location) => location.code)).toEqual(["TEST"]);
+    // Una sola lettura delle disponibilità: quella del magazzino, non del negozio.
     expect(calls.map((call) => call.table)).toEqual([
       "app_settings",
       "stock_items",

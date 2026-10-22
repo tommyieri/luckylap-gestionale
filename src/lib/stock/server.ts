@@ -2,7 +2,13 @@ import "server-only";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { verifiedMember } from "../auth/server";
 import { readTeamPages } from "../team/read";
-import { parseStockAdjustment, stockRecord, stockUuid, type StockAdjustmentResult } from "./model";
+import {
+  ADJUSTABLE_LOCATION_TYPE,
+  parseStockAdjustment,
+  stockRecord,
+  stockUuid,
+  type StockAdjustmentResult,
+} from "./model";
 import { stockSnapshotFromRows } from "./read";
 
 export async function readStockWorkspace(supabase: SupabaseClient) {
@@ -18,27 +24,30 @@ export async function readStockWorkspace(supabase: SupabaseClient) {
   const [settings, items, locations] = await Promise.all([
     supabase.from("app_settings").select("stock_adjustments_enabled").eq("id", true).single(),
     read("stock_items", "id,sku,name,kind,active"),
-    read("stock_locations", "id,code,name,active"),
+    read("stock_locations", "id,code,name,active,location_type"),
   ]);
   if (settings.error || !settings.data) throw new Error("Stato rettifiche non disponibile.");
   // Each location has a unique item key, so pagination never splits a composite
   // item/location cursor or silently stops at PostgREST's default row ceiling.
+  // Disponibilità solo dei magazzini: le altre sedi non si rettificano da qui.
   const availability = (
     await Promise.all(
-      locations.map((raw) => {
-        const location = stockRecord(raw);
-        if (!stockUuid(location?.id)) throw new Error("Magazzino non disponibile.");
-        return readTeamPages((after, limit) => {
-          let query = supabase
-            .from("operational_stock_availability")
-            .select("stock_item_id,location_id,on_hand,reserved,available", { count: "exact" })
-            .eq("location_id", location.id)
-            .order("stock_item_id")
-            .limit(limit);
-          if (after !== null) query = query.gt("stock_item_id", after);
-          return query;
-        }, "stock_item_id");
-      }),
+      locations
+        .filter((raw) => stockRecord(raw)?.location_type === ADJUSTABLE_LOCATION_TYPE)
+        .map((raw) => {
+          const location = stockRecord(raw);
+          if (!stockUuid(location?.id)) throw new Error("Magazzino non disponibile.");
+          return readTeamPages((after, limit) => {
+            let query = supabase
+              .from("operational_stock_availability")
+              .select("stock_item_id,location_id,on_hand,reserved,available", { count: "exact" })
+              .eq("location_id", location.id)
+              .order("stock_item_id")
+              .limit(limit);
+            if (after !== null) query = query.gt("stock_item_id", after);
+            return query;
+          }, "stock_item_id");
+        }),
     )
   ).flat();
   return {
@@ -63,6 +72,7 @@ const messages: Record<string, string> = {
     "Questi capi sono già riservati. La rettifica non può ridurre il fisico sotto le riserve: rileggi i dati.",
   idempotency_conflict:
     "Il riferimento del tentativo è associato a dati diversi. Conserva il riferimento e verifica i movimenti con Tommi.",
+  shop_location: "Le quantità del negozio si cambiano da Conto vendita.",
 };
 const rejected = (code: string): StockAdjustmentResult => ({
   status: "rejected",
@@ -146,6 +156,23 @@ export async function executeStockAdjustment(
             "Le rettifiche sono ora disattivate e questo movimento non è leggibile. Conserva lo stesso tentativo e verifica con Tommi; non creare un nuovo riferimento.",
           )
         : rejected("disabled");
+    // Solo i magazzini (06 R7). Nessun movimento con questo riferimento esiste:
+    // un rifiuto qui è definitivo anche per un tentativo da verificare.
+    const location = await supabase
+      .from("stock_locations")
+      .select("location_type")
+      .eq("id", command.locationId)
+      .maybeSingle();
+    if (location.error)
+      return command.retry
+        ? uncertain()
+        : {
+            status: "rejected",
+            code: "unavailable",
+            message: "Verifica del magazzino non disponibile. Nessun nuovo invio eseguito.",
+          };
+    if (location.data && location.data.location_type !== ADJUSTABLE_LOCATION_TYPE)
+      return rejected("shop_location");
     submitted = true;
     const { data, error } = await supabase.rpc("adjust_stock", {
       p_operation_id: command.operationId,
@@ -158,26 +185,29 @@ export async function executeStockAdjustment(
       const code =
         error.code === "22023" && error.message === "reserved_stock_conflict"
           ? "reserved_stock_conflict"
-          : error.code === "22023" &&
-              error.message === "operation_id già utilizzato per una richiesta diversa."
-            ? "idempotency_conflict"
-            : error.code === "22023" && error.message === "Articolo o location non disponibile."
-              ? "inactive_item"
-              : error.code === "22023" &&
-                  [
-                    "Stock non inizializzato: serve una conta iniziale autorizzata.",
-                    "Quantità sconosciuta: registrare prima una conta iniziale.",
-                  ].includes(error.message)
-                ? "unknown_stock"
+          : error.code === "22023" && error.message === "shop_location"
+            ? "shop_location"
+            : error.code === "22023" &&
+                error.message === "operation_id già utilizzato per una richiesta diversa."
+              ? "idempotency_conflict"
+              : error.code === "22023" && error.message === "Articolo o location non disponibile."
+                ? "inactive_item"
                 : error.code === "22023" &&
-                    error.message === "La rettifica produrrebbe una giacenza negativa."
-                  ? "insufficient_stock"
-                  : error.code === "42501" &&
-                      error.message === "Rettifiche di magazzino non abilitate."
-                    ? "disabled"
-                    : error.code === "42501" && error.message === "Appartenenza LuckyLap richiesta."
-                      ? "membership_required"
-                      : null;
+                    [
+                      "Stock non inizializzato: serve una conta iniziale autorizzata.",
+                      "Quantità sconosciuta: registrare prima una conta iniziale.",
+                    ].includes(error.message)
+                  ? "unknown_stock"
+                  : error.code === "22023" &&
+                      error.message === "La rettifica produrrebbe una giacenza negativa."
+                    ? "insufficient_stock"
+                    : error.code === "42501" &&
+                        error.message === "Rettifiche di magazzino non abilitate."
+                      ? "disabled"
+                      : error.code === "42501" &&
+                          error.message === "Appartenenza LuckyLap richiesta."
+                        ? "membership_required"
+                        : null;
       // A retry disabled by the core RPC cannot prove the original outcome.
       if (code === "disabled" && command.retry)
         return uncertain(
