@@ -60,6 +60,8 @@ In anteprima locale (`npm run dev`) la pagina mostra cinque contenuti sintetici,
 
 Per tornare indietro su un contenuto basta «Ripristina». Un ripristino in blocco, dal proprietario del database: `update public.assets set archived_at = null, archived_by = null where archived_at is not null;` (resta nell’audit).
 
+Produzione: al 23 ottobre 2026 la migrazione non è ancora applicata. Si applica prima del merge, come le altre (piano di lavoro, §1.3): impronta di `assets` prima e dopo, `archived_at` e `archived_by` nulli su tutte le righe, impronta delle altre colonne identica; poi il file prende il nome della versione cloud. L’harness la cerca per suffisso.
+
 ## Sviluppo prodotti
 
 `product_development_projects` contiene nome, brief, fase, data obiettivo, referente attivo, autore e versione. Fasi: idea, design, campionatura, produzione, pronto e archiviato. Tutti i membri attivi possono creare, leggere, aggiornare e archiviare. Non è esposta eliminazione permanente.
@@ -72,6 +74,6 @@ La suite `supabase/tests/review-handoff.mjs` (PGlite, minimo 51 controlli) prova
 
 La suite `supabase/tests/assets-development.mjs` esegue PostgreSQL locale con Auth e metadata Storage simulati: ruoli, RLS, percorsi, no-upsert/no-delete, replay, autore, referente attivo, aggiornamenti concorrenti e audit. I test Vitest coprono estensioni/MIME/firme, hash/dimensioni, azioni e download privati. Il test di download sopra 4,5 MB conferma una risposta di redirect senza corpo binario.
 
-I test locali non sostituiscono una prova reale delle signed-upload capability e delle policy Storage dopo creazione del bucket. Il coordinatore applica la migrazione, crea il bucket e importa i soli asset autorizzati. Le route devono entrare nel matcher del Proxy per cookie aggiornati e intestazioni `no-store`. I metadati usano paginazione a cursore e rifiutano letture troncate; il limite attuale è 10.000 elementi per tabella.
+I test locali non sostituiscono una prova reale delle signed-upload capability e delle policy Storage dopo creazione del bucket. Il coordinatore applica la migrazione, crea il bucket e importa i soli asset autorizzati. `/assets` e `/development` sono nel matcher del Proxy, per cookie aggiornati e intestazioni `no-store`: lo controlla `src/proxy.test.ts`. I metadati usano paginazione a cursore e rifiutano letture troncate; il limite attuale è 10.000 elementi per tabella.
 
 QA visiva completata dal coordinatore su desktop 1280 px e mobile 390 px: libreria vuota e schede/modifica sviluppo leggibili, nessun overflow orizzontale, scala 1 e console senza errori. Le fixture temporanee `/qa-assets` e `/qa-development` sono state eliminate e rispondono 404; server QA chiuso.

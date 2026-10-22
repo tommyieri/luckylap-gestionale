@@ -1,8 +1,71 @@
 # Verifiche LuckyLap
 
-Stato del 21 ottobre 2026. Prove applicative, SQL sintetico, PostgreSQL concorrente e Auth cloud sono conteggiati separatamente.
+Stato del 23 ottobre 2026, dal branch `claude/revisione-pre-invio` (P7, revisione prima dell'invio). Prove applicative, SQL sintetico, PostgreSQL concorrente e Auth cloud sono conteggiati separatamente. Le sezioni «Avvio del 21 ottobre 2026» restano come verbale dell'avvio: i numeri di allora non sono quelli di oggi.
 
-## Dati reali
+## Test di oggi
+
+Eseguiti il 23 ottobre 2026 nel worktree di P7, con dati sintetici e senza accessi al cloud.
+
+| Comando | Esito |
+| --- | --- |
+| `npm test` | 1.434 test in 119 file, tutti superati |
+| `npm run test:db` senza `LUCKYLAP_PG_BIN` | 15 harness PGlite superati, 2.904 controlli; i 6 harness su PostgreSQL 17 risultano saltati |
+| `npm run test:db` con `LUCKYLAP_PG_BIN` (PostgreSQL 17.11 locale) | in più 6 harness PostgreSQL 17 superati, 939 controlli: 21 harness, 3.843 controlli in tutto |
+
+`npm run typecheck`, `npm run build` e `npm run format:check` passano prima di ogni commit (regole in `AGENTS.md`). I cluster PostgreSQL usa e getta del runner si fermano e si cancellano alla fine; nessun servizio resta attivo.
+
+Controlli per harness:
+
+| Harness | Modalità | Controlli | Cosa prova |
+| --- | --- | --- | --- |
+| `validate-local.mjs` | PGlite | 207 | schema iniziale e inventario |
+| `finance-imports.mjs` | PGlite | 152 | import Finance da BudgetFlow |
+| `sales-ecosystem.mjs` | PGlite | 445 | vendite, riserve, produzione, consegna |
+| `finance-documents.mjs` | PGlite | 25 | documenti Finance privati |
+| `packaging-materials.mjs` | PGlite | 125 | scatole e adesivi |
+| `packaging-automation.mjs` | PGlite | 73 | consumo automatico del packaging |
+| `assets-development.mjs` | PGlite | 109 | contenuti del brand e sviluppo prodotti |
+| `finance-work.mjs` | PGlite | 177 | registrazioni Finance manuali |
+| `shopify-catalog.mjs` | PGlite | 103 | catalogo commerciale Shopify |
+| `shopify-receiver.mjs` | PGlite | 163 | ricevitore delle notifiche Shopify |
+| `shopify-scheduler.mjs` | PGlite | 173 | recupero ogni minuto (Cron, Vault e pg_net simulati) |
+| `consignment.mjs` | PGlite | 145 | conto vendita precedente |
+| `consignment-monthly.mjs` | PGlite | 613 | conto vendita semplice: negozi, conta, resoconto mensile, pagamenti, ordini |
+| `partner.mjs` | PGlite | 343 | Partner: sicurezza, import della ricerca, comandi, file dei dispositivi, generatore |
+| `review-handoff.mjs` | PGlite | 51 | archivio dei contenuti in «Grafica e foto» |
+| `sales-concurrency.mjs` | PostgreSQL 17 | 39 | vendite concorrenti ([evidenze](verifica-concorrenza.md)) |
+| `packaging-concurrency.mjs` | PostgreSQL 17 | 6 | packaging con worker sovrapposti |
+| `area-passwords.mjs` | PostgreSQL 17 | 161 | password di Finance e Controllo CEO ([contratto](area-passwords-backend.md)) |
+| `shopify-scheduler-concurrency.mjs` | PostgreSQL 17 | 15 | recupero Shopify con connessioni sovrapposte |
+| `shopify-ecosystem.mjs` | PostgreSQL 17 | 702 | ordini Shopify, worker e coda |
+| `consignment-concurrency.mjs` | PostgreSQL 17 | 16 | conto vendita con comandi concorrenti |
+
+Auth è simulato in tutti gli harness: questi controlli non sostituiscono le prove su Auth cloud. In CI il job «Concorrenza (PostgreSQL 17)» esegue anche i sei harness su PostgreSQL reale.
+
+## Produzione, 22 ottobre 2026
+
+Procedura per ogni migrazione (piano di lavoro, §1.3): impronte in sola lettura prima, applicazione con il testo esatto del file, rinomina del file alla versione assegnata dal cloud, impronte di nuovo.
+
+| Migrazione | Versione cloud | Testo salvato |
+| --- | --- | --- |
+| `consignment_monthly` (Conto vendita) | `20261022215046` | uguale al file, md5 `e8034a44547da0dffd076cb383e05fa6` |
+| `partner_module` (Partner) | `20261022215908` | uguale al file, md5 `c4326206389828d3fbef17e2a2ebc70e` |
+
+- Impronte delle tabelle di magazzino (giacenze, movimenti, sedi) identiche prima e dopo entrambe le migrazioni. Per il conto vendita anche `packaging_consumptions` e le tabelle del conto vendita precedente; `consignment_shops` ha la riga di NEG01, non ancora contato ([dettagli](consignment.md), «Produzione»).
+- Import della ricerca Partner il 22 ottobre 2026, dal commit `f6ad90c`: 207 contatti; 119 Vendita, 80 Eventi, 73 Collab; 218 varianti; recapiti attivi 165 email, 148 telefoni, 170 Instagram, 143 moduli, 19 pagine brand, 205 siti; 49 contatti nel periodo 1; zero differenze aperte; zero righe di audit con email o recapiti. Import `e471ff5e-d63e-4a58-8793-2bfa0991aee2`, SHA-256 normalizzato `49bc4bc3f870012a1e4dde3c9c25260354eaecd73b92469429211ea89055d68d` ([dettagli](partner.md), «Esiti in produzione»).
+- La sede centrale `MAG01` resta «Magadzino»: è il nome voluto dal founder e nessuna migrazione lo cambia.
+
+Ancora da fare per P7, prima del merge:
+
+- applicare in produzione `archivio_contenuti` (oggi `20261022220100_archivio_contenuti.sql`), con impronta di `assets` prima e dopo; poi il file prende la versione cloud ([archivio](assets-development.md), «Archivio dei contenuti»);
+- prove visive a 1280 e 390 px delle pagine toccate da P7 (piano di lavoro, §1.4), con l'esito scritto qui;
+- CI verde, compreso il job «Concorrenza (PostgreSQL 17)».
+
+Finance modificabile, collegamenti Partner e Oggi completo, Controllo CEO come feed (P4–P6) sono in un branch di Codex non ancora unito (pull request #3): le loro migrazioni e i loro test non fanno parte di questi numeri.
+
+## Avvio del 21 ottobre 2026
+
+### Dati reali
 
 Supabase Free `annvatqnllkbrtufmgnl`: dodici migrazioni applicate. Inventario confrontato su tutte le 102 celle: 9 prodotti, 51 SKU, 214 capi centrali e zero nel negozio. Il founder conferma nessun nuovo movimento dall’avvio. Catalogo Shopify completo: 60 varianti attive, 51 SKU fisici mappati e 9 sticker retail separati, prezzi coerenti; nessuna quantità commerciale utilizzata come stock fisico.
 
@@ -10,7 +73,7 @@ BudgetFlow: 144 righe non revisionate, un pending e due date future. Tre documen
 
 Ultima verifica cloud dopo la pulizia dei test: cinque membership reali, 214 capi, zero ordini, zero movimenti successivi all’apertura, zero registrazioni Finance manuali e zero operazioni conto vendita. Le credenziali sintetiche delle aree e tutti gli account QA sono stati eliminati.
 
-## Applicazione e SQL
+### Applicazione e SQL
 
 **724 test applicativi su 60 file, TypeScript e build Next.js completati**, inclusa compilazione TypeScript. Coprono inventario, Auth, team, audit, vendite, packaging, documenti, lavoro Finance, contenuti, sviluppo, ricevitore Shopify e conto vendita. Le pagine riservate sono dinamiche.
 
@@ -21,7 +84,7 @@ Su **PostgreSQL 17.11 reale**, processi e connessioni distinte:
 - **39 controlli, sette casi concorrenti**: ultimo capo venduto una volta, UUID ripetuto senza duplicati, riserve e deficit coerenti, rettifica contro riserva, rollback e rilascio dei lock. [Evidenze](verifica-concorrenza.md).
 - **161 controlli delle password di area**: sessioni reali/assenti/scadute, ruoli, nessun bypass AAL2, blocco dei tentativi concorrenti e invalidazione dei grant dopo rotazione. Cluster temporanei fermati e rimossi, nessun servizio persistente. [Contratto e prove](area-passwords-backend.md).
 
-## Auth e isolamento cloud
+### Auth e isolamento cloud
 
 **248 controlli reali Auth/REST/Storage** sul nuovo modello con password di area: sette ruoli/scenari, Finance solo per i tre ruoli autorizzati, CEO solo founder, configurazione negata ai client, documenti privati, seconda sessione dello stesso utente ancora bloccata, revoca membership immediata e grant inutilizzabile dopo logout anche con il vecchio JWT. Nessuna scrittura operativa di prova. I sette account QA sono stati cancellati e l’assenza verificata.
 
@@ -29,7 +92,7 @@ I precedenti 52 controlli TOTP in `verifica-auth-cloud.md` documentano il modell
 
 Registrazione pubblica disabilitata, redirect Auth limitati al dominio LuckyLap. Nessuna chiave privata nel repository o frontend. Le credenziali tecniche del worker sono riservate al server Vercel di produzione; gli accessi del team usano sessione e RLS. RLS, ruolo e membership correnti restano obbligatori anche conoscendo la password di un’area. Le tabelle private senza policy client sono intenzionalmente non accessibili. Il controllo password compromesse non è stato attivato con un upgrade.
 
-## Interfaccia e pubblicazione
+### Interfaccia e pubblicazione
 
 QA con fixture sintetiche a 1280 e 390 px: inventario, Finance import, team/calendario, audit, vendite, rettifiche stock, packaging, contenuti, sviluppo e lavoro Finance. Round aggiuntivo: conto vendita desktop/mobile, proiezione Finance, password Finance mobile e account desktop. Nessun overflow orizzontale mobile, scala 1. Una vecchia cache dev rendeva il server Finance precedente al client: riavvio del solo dev server e verifica SSR/client hanno risolto, senza cambi ai sorgenti. Nessun nuovo errore console dopo il riavvio. Route QA rimosse con verifica 404.
 

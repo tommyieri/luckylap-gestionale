@@ -13,7 +13,7 @@ Questo documento descrive la tappa P2 (branch `claude/tappa-4-partner`). Fonti: 
 - Niente Storage: i lookbook stanno nel repository in `data/partner-lookbooks/` (decisione 20).
 - Periodi calcolati da oggi, all'ora di Roma. Il 22 ottobre 2026 riproducono i conteggi del sito: 49, 63, 40, 11, 44.
 - Le modifiche del team non si perdono: storico dei testi, import che aggiorna solo ciò che il team non ha toccato, «differenze da controllare» per il resto.
-- Fuori da P2: solleciti automatici, date Partner nel calendario e Oggi (P5); frasi del Controllo CEO (P6); import in produzione ed esiti scritti qui (dopo il merge, completati in P7); spegnimento di GitHub Pages (dopo P5 e la frase di Tommi).
+- Fuori da P2: solleciti automatici, date Partner nel calendario e Oggi (P5); frasi del Controllo CEO (P6); import in produzione (fatto il 22 ottobre, esiti in «Esiti in produzione»); spegnimento di GitHub Pages (dopo P5 e la frase di Tommi).
 
 ## Pagine
 
@@ -223,7 +223,21 @@ Queste letture sono state provate su PGlite con i sei contatti sintetici, applic
 
 Migrazione applicata il 22 ottobre 2026 con versione cloud `20261022215908`; il testo salvato coincide con il file (md5 `c4326206389828d3fbef17e2a2ebc70e`). Impronte di giacenze, movimenti e sedi identiche prima e dopo. Tabelle Partner create con RLS, vuote fino all'import.
 
-Da completare dopo l'import (P7): data, commit della ricerca, SHA-256 normalizzato, contatori del resoconto, esito delle verifiche.
+Import della ricerca applicato il 22 ottobre 2026, dalla ricerca del commit `f6ad90c` del repository Partner:
+
+| Voce | Valore |
+| --- | --- |
+| Import (`partner_research_imports.id`) | `e471ff5e-d63e-4a58-8793-2bfa0991aee2` |
+| SHA-256 normalizzato | `49bc4bc3f870012a1e4dde3c9c25260354eaecd73b92469429211ea89055d68d` |
+| Contatti | 207 |
+| Per sezione | 119 Vendita, 80 Eventi, 73 Collab |
+| Varianti dei messaggi | 218 |
+| Recapiti attivi per tipo | 165 email, 148 telefoni, 170 Instagram, 143 moduli, 19 pagine brand, 205 siti |
+| Periodo 1 (verifica di ottobre 2026) | 49 contatti |
+| Differenze aperte | 0 |
+| Righe di audit Partner con una chiocciola o con un recapito | 0 e 0 |
+
+Tutti i valori coincidono con quelli attesi in «Verifica dei conteggi».
 
 ## File del vecchio sito («Esporta»)
 
@@ -296,4 +310,4 @@ Correzioni di 00-sequenza §5 e scelte di questa tappa:
 
 - **P5, Collegamenti e Oggi.** Usa `partners`, `partner_activities` (anche le righe `origin = 'file'`), `private.partner_blocked`, `private.apply_partner_stage` con quattro argomenti, `partnerHref({ co })` e la Server Action `recordPartnerActivity`, a cui aggiunge la data del sollecito. Il trigger dei solleciti e il riquadro di Oggi sono suoi.
 - **P6, Controllo CEO.** Le tabelle Partner scrivono l'audit con `private.audit_change_keys`, non con `private.audit_change`: il controllo di copertura deve riconoscere entrambi. `record_key` porta `partner_id` e `variant_id`. Frasi da spec 02 §10, link con `partnerHref({ co })`.
-- **P7.** Scrive qui gli esiti dell'import in produzione.
+- **P7.** Ha scritto qui gli esiti dell'import in produzione («Esiti in produzione»).

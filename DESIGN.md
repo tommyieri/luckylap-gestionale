@@ -286,7 +286,7 @@ I filetti sono da 1 px; 1,5 px d'inchiostro aprono le liste roadbook e la testat
 
 ### Navigation (barra laterale)
 
-`<nav aria-label="Sezioni del gestionale">` su fondo verde. Marchio «LuckyLap» e «Gestionale» in Condensed, link a `/`. Al massimo sette voci (icona Lucide 20 px e testo Condensed 600 18 px), alte 48 px, quadrate, filtrate per permesso. Inattive in `on-green-2`; al passaggio del mouse fondo bianco all'8%. La voce attiva è in inversione: carta e inchiostro. Finance e Controllo CEO hanno il lucchetto da 14 px. Nel piede: nome del membro, «Account e sicurezza», «Esci» (pulsante da 44 px con bordo `on-green-2`). Sul telefono la barra diventa la fascia verde con marchio e sezione attiva.
+`<nav aria-label="Sezioni del gestionale">` su fondo verde. Marchio «LuckyLap» e «Gestionale» in Condensed, link a `/`. Al massimo sette voci (icona Lucide 20 px e testo Condensed 600 18 px), alte 48 px, quadrate, filtrate per permesso. Inattive in `on-green-2`; al passaggio del mouse fondo bianco all'8%. La voce attiva è in inversione: carta e inchiostro. Finance e Controllo CEO hanno il lucchetto da 14 px. Nel piede: nome del membro, «Come si usa», «Account e sicurezza», «Esci» (pulsante da 44 px con bordo `on-green-2`). Sul telefono la barra diventa la fascia verde con marchio e sezione attiva.
 
 ### Tabs
 
@@ -298,7 +298,7 @@ Solo sul telefono, dopo `main` nel DOM. Fondo carta, filetto d'inchiostro sopra,
 
 ### Sheet («Altro»)
 
-`dialog` nativo aperto con `showModal()`, ancorato in basso, largo quanto lo schermo, alto al massimo 80dvh, quadrato. Titolo «Altro» e «Chiudi»; righe da 52 px per Team, Finance e Controllo CEO se visibili, poi «Account e sicurezza» ed «Esci». La riga attiva è in inversione d'inchiostro. Si chiude con Esc, tocco sullo sfondo, «Chiudi» e a ogni cambio di pagina; il focus torna su «Altro».
+`dialog` nativo aperto con `showModal()`, ancorato in basso, largo quanto lo schermo, alto al massimo 80dvh, quadrato. Titolo «Altro» e «Chiudi»; righe da 52 px per Team, Finance e Controllo CEO se visibili, poi «Come si usa», «Account e sicurezza» ed «Esci». La riga attiva è in inversione d'inchiostro. Si chiude con Esc, tocco sullo sfondo, «Chiudi» e a ogni cambio di pagina; il focus torna su «Altro».
 
 ### Panel (`WorkspacePanel`)
 
@@ -307,6 +307,14 @@ Stato di una pagina dentro il guscio: configurazione mancante, accesso negato, a
 ### Roadbook rows
 
 `src/components/roadbook.module.css`: lista aperta da un filetto d'inchiostro da 1,5 px; ogni riga è una griglia «colonna di controllo | contenuto | lato», alta almeno 56 px, con filetto `rule` sotto. La colonna di controllo (76 px, 56 sul telefono, filetto d'inchiostro a destra) porta l'ora o il giorno in Condensed 700 24 px, oppure una casella Condensed 600 13 px in maiuscolo: verde pieno se è adesso, ambra se è in ritardo, verde chiaro se è fatto. Titolo Condensed 700 20 px, meta 14 px. Il link del titolo copre tutta la riga.
+
+### Pending attempt («Invio da verificare»)
+
+`src/components/pending-attempt.tsx`: riquadro ambra (`amber-wash`, bordo `amber`) in cima al modulo quando un salvataggio non ha avuto una risposta certa. Titolo in Condensed 700 18 px ambra, una frase, righe leggibili (data italiana all'ora di Roma, nomi al posto dei codici). «Verifica lo stesso invio» è l'azione principale; «Scarta questo tentativo» compare solo per i tentativi che non potranno riuscire e chiede conferma in linea. Il codice tecnico resta chiuso in `<details>` «Codice per l’assistenza». Lo usano Vendite, Rettifiche, Packaging, Finance, Conto vendita e Partner.
+
+### Guide («Come si usa»)
+
+`/guida` è una pagina da leggere, non un modulo: testo a 16 px in righe di al massimo 72 caratteri, sette parti con titolo in Condensed 700 24 px. Sul computer l'indice sta fermo a destra (`top: var(--ws-sticky-top)` più 24 px); sotto 1100 px va in cima, su due colonne, e le parti scorrono una sotto l'altra. Le sezioni del menu e i cinque passi del conto vendita sono righe in stile roadbook, con la colonna di controllo a sinistra (i passi usano `roadbook.module.css`). Il riquadro per aprire e chiudere Finance si vede solo a chi può entrare.
 
 ### Buttons
 

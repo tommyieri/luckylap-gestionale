@@ -35,7 +35,7 @@ Devono passare questi comandi, con le eccezioni scritte sotto. Riporta l'esito n
 
 Se la build modifica `next-env.d.ts`, ripristinalo con `git checkout -- next-env.d.ts`.
 
-In locale `npm run test:db` salta i cinque harness su PostgreSQL 17 reale (password delle aree, concorrenza, Shopify) se manca `LUCKYLAP_PG_BIN`. In CI li esegue il job «Concorrenza (PostgreSQL 17)». Se tocchi queste parti, imposta `LUCKYLAP_PG_BIN` verso la cartella `bin` di un PostgreSQL 17 già presente. Se non c'è, non installarlo: scrivi nella pull request quali harness sono stati saltati e controlla l'esito del job in CI.
+In locale `npm run test:db` salta gli harness su PostgreSQL 17 reale (password delle aree, concorrenza di vendite, packaging e conto vendita, Shopify) se manca `LUCKYLAP_PG_BIN`; il riepilogo li elenca come saltati. In CI li esegue il job «Concorrenza (PostgreSQL 17)». Se tocchi queste parti, imposta `LUCKYLAP_PG_BIN` verso la cartella `bin` di un PostgreSQL 17 già presente. Se non c'è, non installarlo: scrivi nella pull request quali harness sono stati saltati e controlla l'esito del job in CI.
 
 Il merge resta comunque di Tommi.
 
@@ -82,7 +82,7 @@ Valgono già:
 
 - La password condivisa dai cinque account è voluta: non è un difetto da correggere.
 - Hosting e backup restano come sono finché Tommi non decide.
-- Nel prossimo modulo Partner tutti vedranno e faranno tutto.
+- Nel modulo Partner (`/partner`) tutti vedono e fanno tutto, Luca compreso.
 - Il magazzino centrale (`MAG01`) si chiama «Magadzino»: è il nome voluto, non un refuso, e non si rinomina. «Magazzino» resta la parola generica: sezione del menu, tipo di sede, «il nostro magazzino».
 
 Da fare, ognuna in un lavoro dedicato e solo con l'OK di Tommi. Oggi il codice fa ancora diversamente: non correggerlo di passaggio in altri lavori.

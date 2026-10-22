@@ -15,14 +15,22 @@ Il progetto GitHub `tommyieri/luckylap-partner` è la fonte per identità e sist
 - Costi/margini e operazioni di sconto/rettifica accessibili a tutti i membri.
 - Finance soltanto founder, Gabriele, Gherardo; Controllo soltanto founder.
 - Packaging separato: scatole per T-shirt e adesivi per scatole, diversi dagli sticker Shopify.
-- Conto vendita 60/40 a favore LuckyLap, prezzo in negozio +10 EUR sul web.
+- Conto vendita 60/40 a favore LuckyLap, prezzo in negozio +10 EUR sul web. La merce del negozio si conta e si cambia solo da Conto vendita; il resoconto del mese dice quanto fatturare, e in Finance entra solo il pagamento del negozio. Nuovo negozio, fattura e pagamenti solo con Finance aperta; il resto per tutti.
+- Partner: tutti e cinque vedono e fanno tutto, Luca compreso.
+- Il magazzino centrale si chiama «Magadzino»; «Magazzino» è la sezione del menu.
 - Calendario interno, senza sincronizzazione Google Calendar o inviti esterni automatici.
 - Drive sola lettura: inventario, grafiche, alcune foto ed eventuali informazioni professionali su Luca; nessun altro documento importato.
 - Nessun abbonamento. L'app è oggi su Vercel Hobby, piano che Vercel riserva all'uso non commerciale: l'hosting resta così finché Tommi non decide (vedi `AGENTS.md`).
 
 ## Stato della consegna
 
-App pubblicata su Vercel con dati in Supabase: cinque account personali, permessi nel database (RLS), password separate per Finance e Controllo CEO. Moduli collegati: Oggi (`/`), magazzino (`/stock`), rettifiche (`/stock/rettifiche`), vendite e ordini Shopify (`/sales`), conto vendita (`/consignment`), packaging (`/packaging`), Partner (`/partner`), calendario, attività e note (`/team`), Finance (`/finance`), grafiche (`/assets`), nuovi prodotti (`/development`), Controllo CEO (`/audit`). Ogni pagina ha lo stesso menu: al massimo sette sezioni, senza le aree in cui la persona non può entrare. Partner dentro il gestionale: ha già la sua sezione, e fino alla tappa Partner la pagina rimanda al roadbook online. L'anteprima locale, con snapshot inventario e note sul browser, resta solo per lo sviluppo.
+App pubblicata su Vercel con dati in Supabase: cinque account personali, permessi nel database (RLS), password separate per Finance e Controllo CEO. Moduli collegati: Oggi (`/`), magazzino (`/stock`), rettifiche (`/stock/rettifiche`), vendite e ordini Shopify (`/sales`), conto vendita (`/consignment`), packaging (`/packaging`), Partner (`/partner`), calendario, attività e note (`/team`), Finance (`/finance`), grafiche (`/assets`), nuovi prodotti (`/development`), Controllo CEO (`/audit`). Ogni pagina ha lo stesso menu: al massimo sette sezioni, senza le aree in cui la persona non può entrare. La guida «Come si usa» (`/guida`) spiega l'app in sette parti brevi, con i nomi veri di sezioni e pulsanti; sta nel piede del menu e in «Altro».
+
+- **Partner** è dentro il gestionale: i 207 contatti della ricerca, importati il 22 ottobre 2026, con periodi, sezioni, messaggi modificabili con storico, stati, registro e lookbook.
+- **Conto vendita** è semplice: negozi, conta in negozio, resoconto del mese da fatturare, pagamenti in Finance, ordini del negozio.
+- **In lavorazione** (branch di Codex, non ancora unito): movimenti Finance modificabili con storico, collegamenti tra Partner, Team e Oggi, Controllo CEO come feed leggibile di cosa fa il team. Oggi il registro Finance si corregge annullando la voce e `/audit` mostra il registro tecnico.
+
+L'anteprima locale, con lo snapshot dell'inventario, le note sul browser e dati sintetici per le altre pagine, resta solo per lo sviluppo.
 
 ## Esiti attesi
 

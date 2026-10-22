@@ -23,7 +23,15 @@ Ogni pagina per i membri ha lo stesso menu, filtrato per permesso: barra lateral
 
 Il motore delle vendite collega ordine, incasso dichiarato, riserve, produzione e consegna in transazioni idempotenti. Il founder ha confermato nessun movimento successivo ai 214 capi di apertura. Vendite, sconti e rettifiche sono attivi dal 21 ottobre 2026 alle 16:06:47 Europe/Rome, dopo pubblicazione e verifica. Nessuno storico vendite è stato importato. L’app interna LuckyLap Gestionale è stata creata e installata sul negozio con i soli permessi `read_products` e `read_orders`. Il motore Shopify comprende lettura canonica, token a scadenza, coda, retry, riserve, produzione, incassi e rimborsi. Il collegamento live e il recupero automatico ogni minuto sono attivi; prove cloud registrate nel [deployment](docs/deployment.md).
 
-Packaging: scatole T-shirt e adesivi delle scatole sono materiali distinti dagli sticker Shopify; quantità e costi non sono stati inventati. Conto vendita: 60% LuckyLap / 40% negozio, listino sito +10 EUR; nessuno sconto in negozio, quote commerciali e incassi separati. Queste quote non sono una determinazione fiscale. I moduli sono in `/packaging` e `/consignment`; `/assets` contiene sei originali grafici privati, `/development` segue i nuovi prodotti e `/finance/work` distingue fatti delle vendite, incassi e registrazioni manuali. Partner è una sezione del gestionale, `/partner`: per ora la pagina rimanda al roadbook online, finché il modulo non entra nel gestionale con la sua tappa.
+Packaging: scatole T-shirt e adesivi delle scatole sono materiali distinti dagli sticker Shopify; quantità e costi non sono stati inventati. Il modulo è in `/packaging`.
+
+Conto vendita (`/consignment`, scheda di Vendite): elenco dei negozi, conta della merce in negozio, resoconto del mese da fatturare, pagamenti e ordini del negozio. Quota 60% LuckyLap / 40% negozio, prezzo del sito +10 EUR; nessuno sconto in negozio. Il resoconto non è denaro: Finance lo mostra nel pannello «Conto vendita · da incassare» e nei saldi entra solo il pagamento del negozio. La merce del negozio si conta e si cambia solo da Conto vendita: le rettifiche da `/stock` sul negozio vengono rifiutate, anche dal database. Queste quote non sono una determinazione fiscale. [Conto vendita](docs/consignment.md).
+
+Partner (`/partner`) è dentro il gestionale: 207 contatti della ricerca importati il 22 ottobre 2026, divisi per periodo e sezione, con messaggi modificabili e storico, stati, registro e lookbook. Tutti e cinque vedono e fanno tutto. [Partner](docs/partner.md).
+
+`/assets` («Grafica e foto») contiene sei originali grafici privati; un contenuto caricato per sbaglio si archivia e si ripristina, senza cancellare il file. `/development` segue i nuovi prodotti e `/finance/work` distingue fatti delle vendite, incassi e registrazioni manuali.
+
+In lavorazione, in un branch di Codex non ancora unito (pull request #3): movimenti Finance modificabili con storico, collegamenti tra Partner, Team e Oggi, Controllo CEO come feed leggibile. Fino ad allora il registro Finance si corregge annullando la voce e `/audit` mostra il registro tecnico delle modifiche.
 
 Nessun originale Drive, quantità Shopify o file del repository Partner è stato modificato.
 
@@ -55,6 +63,9 @@ I test SQL embedded usano PGlite come dipendenza esterna, dati sintetici e Auth 
 - [Finance](docs/finance-import.md), [backend](docs/backend.md)
 - [Contratto ecosistema vendite](docs/ecosistema-vendite.md), [motore transazionale](docs/sales-ecosystem-backend.md)
 - [Team condiviso](docs/team-workspace.md), [Shopify](docs/shopify-bridge.md)
+- [Partner](docs/partner.md), [conto vendita](docs/consignment.md), [contenuti e sviluppo](docs/assets-development.md)
+- [Layout condiviso e guida «Come si usa»](docs/workspace-layout.md), [verifiche](docs/verification.md)
 - [Design](DESIGN.md), [ricerca UI UX Pro Max](docs/ui-ux-pro-max-research.md)
+- [Indice di tutti i documenti](docs/README.md)
 
 Font Barlow di Jeremy Tribby, SIL Open Font License in `public/fonts/`. Icone Lucide, ISC.
