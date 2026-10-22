@@ -32,7 +32,7 @@ Il modulo mantiene conto e categoria facoltativi e permette una categoria person
 
 ## Verifica
 
-`buildFinanceDashboard(imports, work, reportDate, options = {})` riceve le fonti in più nell'oggetto `options`: `settlements` (incassi vecchi) e `shopPayments` (pagamenti dei resoconti).
+`buildFinanceDashboard(imports, work, reportDate, options = {})` riceve le fonti in più nell'oggetto `options`: `settlements` (incassi vecchi) e `shopPayments` (pagamenti dei resoconti). Resoconti e pagamenti arrivano da una sola lettura, `readConsignmentMonthlyFinance` in `src/lib/consignment/shop-finance.ts`: riverifica membership, identità e password Finance prima di ogni query, legge tutte le pagine con conteggio esatto e rifiuta righe orfane o uno stato del pagamento che non coincide con i pagamenti letti. Lo stesso controllo vale per `loadConsignmentToSettle`, che servirà al riquadro di Oggi.
 
 Test sintetici coprono centesimi oltre la precisione aggregata di `Number`, pending/futuri, riporto annuale, trasferimenti, voci annullate, conto sconosciuto, incassi cash, Shopify senza conto, assenza di doppio conteggio dei fatti, incassi conto vendita, pagamenti del negozio (conto, Cash, da attribuire, nessun doppio conteggio con gli incassi vecchi), resoconti mai nei saldi, giorno Europe/Rome e categorie. Il nuovo loader è testato per negazione prima della query e letture incomplete. Non sono salvati dati finanziari reali nelle fixture Git.
 
