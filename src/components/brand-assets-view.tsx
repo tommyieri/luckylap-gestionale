@@ -2,8 +2,16 @@
 
 import { useState } from "react";
 import { Download, ExternalLink, FileImage } from "lucide-react";
-import { ASSET_TYPES, assetTypeLabels, parseBrandLink, type BrandAsset } from "../lib/assets/model";
+import {
+  ASSET_TYPES,
+  assetTypeLabels,
+  parseBrandLink,
+  visibleBrandAssets,
+  type BrandAsset,
+} from "../lib/assets/model";
+import { PREVIEW_ASSETS_NOTICE } from "../lib/assets/fixtures";
 import type { SupabasePublicConfig } from "../lib/supabase/config";
+import { BrandAssetArchive } from "./brand-asset-archive";
 import { BrandAssetUpload } from "./brand-assets-upload";
 import shared from "./team-workspace.module.css";
 import styles from "./brand-assets.module.css";
@@ -13,6 +21,7 @@ export function BrandAssetsView({
   userId,
   config,
   operationId,
+  preview: localPreview = false,
 }: {
   assets: BrandAsset[];
   /** Non più mostrato qui: il nome del membro sta nel menu del guscio. */
@@ -20,16 +29,16 @@ export function BrandAssetsView({
   userId: string;
   config: SupabasePublicConfig;
   operationId: string;
+  /** Anteprima locale: dati sintetici, ogni scrittura spenta. */
+  preview?: boolean;
 }) {
   const [filter, setFilter] = useState("");
   const [query, setQuery] = useState("");
-  const visible = assets.filter(
-    (asset) =>
-      (!filter || asset.assetType === filter) &&
-      `${asset.name} ${asset.description}`
-        .toLocaleLowerCase("it")
-        .includes(query.trim().toLocaleLowerCase("it")),
-  );
+  const [showArchived, setShowArchived] = useState(false);
+  const [notice, setNotice] = useState("");
+  const archivedCount = assets.filter((asset) => asset.archivedAt !== null).length;
+  const listed = showArchived ? archivedCount : assets.length - archivedCount;
+  const visible = visibleBrandAssets(assets, { type: filter, query, archived: showArchived });
   return (
     <div className={shared.main}>
       <div className={shared.heading}>
@@ -38,6 +47,11 @@ export function BrandAssetsView({
           <p>Loghi, grafiche, foto e video condivisi con il team.</p>
         </div>
       </div>
+      {localPreview && (
+        <p className={styles.previewNotice} role="status">
+          {PREVIEW_ASSETS_NOTICE}
+        </p>
+      )}
       <p className={styles.notice}>
         Gli originali sono conservati nel contenitore privato del brand. I collegamenti esterni si
         aprono nel servizio di origine.
@@ -46,7 +60,7 @@ export function BrandAssetsView({
         <section aria-labelledby="library-title" className={styles.library}>
           <div className={styles.libraryHeading}>
             <h2 id="library-title">
-              Contenuti <span>{assets.length}</span>
+              {showArchived ? "Archiviati" : "Contenuti"} <span>{listed}</span>
             </h2>
             <div className={styles.filters}>
               <label>
@@ -70,17 +84,38 @@ export function BrandAssetsView({
                 </select>
               </label>
             </div>
+            <label className={styles.archiveToggle}>
+              <input
+                type="checkbox"
+                checked={showArchived}
+                onChange={(event) => {
+                  setShowArchived(event.target.checked);
+                  setNotice("");
+                }}
+              />
+              Mostra archiviati <span>{archivedCount}</span>
+            </label>
           </div>
+          {notice && (
+            <p role="status" className={styles.success}>
+              {notice}
+            </p>
+          )}
           {visible.length === 0 ? (
             <div className={styles.empty}>
               <h3>
-                {assets.length
-                  ? "Nessun contenuto corrisponde ai filtri."
-                  : "Uno spazio per il brand."}
+                {showArchived
+                  ? archivedCount
+                    ? "Nessun contenuto archiviato corrisponde ai filtri."
+                    : "Nessun contenuto archiviato."
+                  : listed
+                    ? "Nessun contenuto corrisponde ai filtri."
+                    : "Uno spazio per il brand."}
               </h3>
               <p>
-                Carica un originale o aggiungi un collegamento a una grafica, un logo, una foto o un
-                video.
+                {showArchived
+                  ? "Qui compaiono i contenuti tolti dalla libreria. «Ripristina» li riporta per tutti."
+                  : "Carica un originale o aggiungi un collegamento a una grafica, un logo, una foto o un video."}
               </p>
             </div>
           ) : (
@@ -158,6 +193,14 @@ export function BrandAssetsView({
                           <ExternalLink size={13} aria-hidden="true" />
                         </a>
                       )}
+                      <BrandAssetArchive
+                        key={asset.archivedAt ?? "attivo"}
+                        assetId={asset.id}
+                        assetName={asset.name}
+                        archivedAt={asset.archivedAt}
+                        disabled={localPreview}
+                        onDone={setNotice}
+                      />
                     </div>
                   </li>
                 );
@@ -165,7 +208,12 @@ export function BrandAssetsView({
             </ul>
           )}
         </section>
-        <BrandAssetUpload config={config} userId={userId} initialOperationId={operationId} />
+        <BrandAssetUpload
+          config={config}
+          userId={userId}
+          initialOperationId={operationId}
+          disabled={localPreview}
+        />
       </div>
       <footer className={shared.footer}>
         <span>LuckyLap · Grafica e foto</span>

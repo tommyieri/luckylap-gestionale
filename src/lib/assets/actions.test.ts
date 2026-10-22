@@ -9,6 +9,7 @@ import {
   finalizeBrandUpload,
   prepareBrandUpload,
   registerBrandLink,
+  setBrandAssetArchived,
 } from "../../app/assets/actions";
 import { assetStoragePath, type UploadDescriptor } from "./model";
 const uid = "00000000-0000-4000-8000-000000000001",
@@ -119,5 +120,70 @@ describe("private brand asset Server Actions", () => {
         })
       ).id,
     ).toBe(op);
+  });
+});
+
+describe("archivio dei contenuti", () => {
+  const asset = "00000000-0000-4000-8000-000000000101";
+  const at = "2026-10-22T09:30:00.123456+00:00";
+  const input = { operationId: op, assetId: asset, archived: true };
+  it("non archivia per chi non è nel team", async () => {
+    const { db } = client();
+    mocks.verify.mockResolvedValue({ status: "denied" });
+    expect((await setBrandAssetArchived(input)).error).toMatch(/account abilitato/);
+    expect(db.rpc).not.toHaveBeenCalled();
+  });
+  it("invia operation_id e payload del comando, poi rilegge la libreria", async () => {
+    const { db } = client();
+    db.rpc.mockResolvedValue({
+      data: { asset_id: asset, archived: true, archived_at: at, changed: true, replayed: false },
+      error: null,
+    });
+    const result = await setBrandAssetArchived(input);
+    expect(db.rpc).toHaveBeenCalledWith("set_brand_asset_archived", {
+      p_operation_id: op,
+      p_payload: { schema_version: 1, asset_id: asset, archived: true },
+    });
+    expect(result).toEqual({
+      archivedAt: at,
+      success: "Contenuto archiviato. Lo ritrovi in «Mostra archiviati».",
+    });
+    expect(mocks.revalidate).toHaveBeenCalledWith("/assets");
+  });
+  it("ripristina con lo stesso comando", async () => {
+    const { db } = client();
+    db.rpc.mockResolvedValue({
+      data: { asset_id: asset, archived: false, archived_at: null, changed: true, replayed: true },
+      error: null,
+    });
+    const result = await setBrandAssetArchived({ ...input, archived: false });
+    expect(result).toEqual({ archivedAt: null, success: "Contenuto ripristinato nella libreria." });
+  });
+  it.each([
+    ["42501", /permessi del tuo account/],
+    ["22023", /non è più nella libreria/],
+    ["23505", /già stato usato/],
+    ["NETWORK", /^Archiviazione non riuscita\. Ricarica e riprova\.$/],
+  ])("traduce l'errore %s senza dettagli tecnici", async (code, message) => {
+    const { db } = client();
+    db.rpc.mockResolvedValue({ data: null, error: { code, message: "Private diagnostic" } });
+    const result = await setBrandAssetArchived(input);
+    expect(result.error).toMatch(message);
+    expect(JSON.stringify(result)).not.toContain("Private diagnostic");
+    expect(mocks.revalidate).not.toHaveBeenCalled();
+  });
+  it("non conferma un esito che non corrisponde alla richiesta", async () => {
+    const { db } = client();
+    db.rpc.mockResolvedValue({
+      data: { asset_id: asset, archived: false, archived_at: null },
+      error: null,
+    });
+    expect((await setBrandAssetArchived(input)).error).toBe(
+      "Archiviazione non riuscita. Ricarica e riprova.",
+    );
+    expect(
+      (await setBrandAssetArchived({ ...input, archived: false, assetId: "x" })).error,
+    ).toMatch(/Ricarica la pagina/);
+    expect(mocks.revalidate).not.toHaveBeenCalled();
   });
 });

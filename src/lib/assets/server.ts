@@ -5,7 +5,7 @@ import { readTeamPages } from "../team/read";
 import { ASSET_TYPES, type BrandAsset } from "./model";
 
 export const ASSET_COLUMNS =
-  "id,name,asset_type,description,external_url,storage_path,original_file_name,content_type,file_size_bytes,sha256,created_at";
+  "id,name,asset_type,description,external_url,storage_path,original_file_name,content_type,file_size_bytes,sha256,created_at,archived_at";
 export function brandAssetFromDatabase(value: unknown): BrandAsset {
   const row = value as Record<string, unknown> | null;
   if (
@@ -18,7 +18,9 @@ export function brandAssetFromDatabase(value: unknown): BrandAsset {
     typeof row.description !== "string" ||
     row.description.length > 50000 ||
     typeof row.created_at !== "string" ||
-    !Number.isFinite(Date.parse(row.created_at))
+    !Number.isFinite(Date.parse(row.created_at)) ||
+    (row.archived_at !== null &&
+      (typeof row.archived_at !== "string" || !Number.isFinite(Date.parse(row.archived_at))))
   )
     throw new Error("Libreria non disponibile.");
   for (const name of ["external_url", "storage_path", "original_file_name", "content_type"])
@@ -40,6 +42,7 @@ export function brandAssetFromDatabase(value: unknown): BrandAsset {
     contentType: row.content_type as string | null,
     size: row.file_size_bytes === null ? null : Number(row.file_size_bytes),
     createdAt: row.created_at,
+    archivedAt: row.archived_at as string | null,
   };
 }
 export async function loadBrandAssets(supabase: SupabaseClient): Promise<BrandAsset[]> {

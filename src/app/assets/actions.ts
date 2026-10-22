@@ -8,10 +8,13 @@ import {
   ASSET_BUCKET,
   AssetInputError,
   assetStoragePath,
+  parseAssetArchiveInput,
   parseAssetFields,
   parseBrandLink,
   parseUploadDescriptor,
   uploadContentType,
+  type AssetArchiveInput,
+  type AssetArchiveResult,
   type AssetFields,
   type AssetResult,
   type UploadDescriptor,
@@ -135,5 +138,55 @@ export async function registerBrandLink(input: {
     return { id: registered.data, success: "Collegamento aggiunto alla libreria del team." };
   } catch (error) {
     return failure(error);
+  }
+}
+
+const ARCHIVE_FAILED = "Archiviazione non riuscita. Ricarica e riprova.";
+const RESTORE_FAILED = "Ripristino non riuscito. Ricarica e riprova.";
+
+/**
+ * Archivia o ripristina un contenuto (docs/assets-development.md, «Archivio dei contenuti»).
+ * Il database ricontrolla membership e contenuto; lo stesso invio ripetuto non cambia niente.
+ * Il file resta nell'archivio privato del team in ogni caso.
+ */
+export async function setBrandAssetArchived(input: AssetArchiveInput): Promise<AssetArchiveResult> {
+  const failed = input?.archived === false ? RESTORE_FAILED : ARCHIVE_FAILED;
+  try {
+    const command = parseAssetArchiveInput(input);
+    const { supabase } = await access();
+    const { data, error } = await supabase.rpc("set_brand_asset_archived", {
+      p_operation_id: command.operationId,
+      p_payload: { schema_version: 1, asset_id: command.assetId, archived: command.archived },
+    });
+    if (error) {
+      if (error.code === "42501")
+        throw new AssetInputError("I permessi del tuo account sono cambiati. Accedi di nuovo.");
+      if (error.code === "22023")
+        throw new AssetInputError(
+          "Il contenuto non è più nella libreria. Ricarica la pagina per vedere l’elenco aggiornato.",
+        );
+      if (error.code === "23505")
+        throw new AssetInputError("Questo invio è già stato usato. Ricarica la pagina e riprova.");
+      throw new Error("Archivio non confermato.");
+    }
+    const result = data as Record<string, unknown> | null;
+    if (
+      !result ||
+      result.asset_id !== command.assetId ||
+      result.archived !== command.archived ||
+      (result.archived_at !== null &&
+        (typeof result.archived_at !== "string" ||
+          !Number.isFinite(Date.parse(result.archived_at))))
+    )
+      throw new Error("Archivio non confermato.");
+    revalidatePath("/assets");
+    return {
+      archivedAt: result.archived_at as string | null,
+      success: command.archived
+        ? "Contenuto archiviato. Lo ritrovi in «Mostra archiviati»."
+        : "Contenuto ripristinato nella libreria.",
+    };
+  } catch (error) {
+    return { error: error instanceof AssetInputError ? error.message : failed };
   }
 }

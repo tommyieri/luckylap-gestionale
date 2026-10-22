@@ -23,8 +23,13 @@ export type BrandAsset = {
   contentType: string | null;
   size: number | null;
   createdAt: string;
+  /** Archiviato: fuori dalla libreria per tutti, ripristinabile. Il file resta dov'è. */
+  archivedAt: string | null;
 };
 export type AssetResult = { error?: string; success?: string; id?: string };
+/** Archivia (`archived: true`) o ripristina un contenuto: un invio, un operation_id. */
+export type AssetArchiveInput = { operationId: string; assetId: string; archived: boolean };
+export type AssetArchiveResult = { error?: string; success?: string; archivedAt?: string | null };
 export class AssetInputError extends Error {}
 
 const MIME: Record<string, string> = {
@@ -147,4 +152,30 @@ export function parseBrandLink(value: unknown): string {
       "Il collegamento deve usare HTTPS, senza credenziali nell’indirizzo.",
     );
   return url.href;
+}
+
+export function parseAssetArchiveInput(value: unknown): AssetArchiveInput {
+  const row = value as Partial<AssetArchiveInput> | null;
+  if (
+    !row ||
+    typeof row !== "object" ||
+    !isTeamId(row.operationId) ||
+    !isTeamId(row.assetId) ||
+    typeof row.archived !== "boolean"
+  )
+    throw new AssetInputError("Ricarica la pagina e riprova.");
+  return { operationId: row.operationId, assetId: row.assetId, archived: row.archived };
+}
+/** Libreria visibile: i contenuti attivi, oppure solo gli archiviati con «Mostra archiviati». */
+export function visibleBrandAssets(
+  assets: BrandAsset[],
+  { type, query, archived }: { type: string; query: string; archived: boolean },
+): BrandAsset[] {
+  const needle = query.trim().toLocaleLowerCase("it");
+  return assets.filter(
+    (asset) =>
+      (asset.archivedAt !== null) === archived &&
+      (!type || asset.assetType === type) &&
+      `${asset.name} ${asset.description}`.toLocaleLowerCase("it").includes(needle),
+  );
 }

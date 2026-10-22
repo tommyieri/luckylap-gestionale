@@ -42,6 +42,24 @@ I file importati dal coordinatore possono usare un percorso amministrativo come 
 
 Le anteprime di PNG/JPEG/WebP usano la route privata, su fondo bianco; i loghi trasparenti rimangono leggibili. I video hanno controlli nativi e non vengono riprodotti automaticamente. I collegamenti esterni HTTPS si aprono nel servizio originale e non sono recuperati dal server.
 
+## Archivio dei contenuti
+
+Un contenuto caricato per sbaglio si toglie dalla libreria con «Archivia», in fondo alla scheda. Il riquadro spiega: «Il contenuto sparisce dalla libreria per tutti. Puoi ripristinarlo da “Mostra archiviati”.» L’interruttore «Mostra archiviati» elenca solo i contenuti archiviati, con la data e il pulsante «Ripristina». Non si cancella niente: nome, descrizione, percorso, file nel bucket e metadati restano come sono, e il file resta scaricabile dai membri.
+
+Migrazione `20261022220100_archivio_contenuti.sql`, solo aggiunte:
+
+- `public.assets` ha due colonne nuove, `archived_at` e `archived_by`, nulle per tutte le righe esistenti. Il vincolo `assets_archive_pair` le vuole sempre insieme.
+- I client non hanno permessi di scrittura su `assets`: le due colonne cambiano solo con `public.set_brand_asset_archived(operation_id, payload)`, wrapper `security invoker` di una funzione privata `security definer`. Payload: `{"schema_version": 1, "asset_id": "<uuid>", "archived": true | false}`.
+- La funzione ricontrolla la membership attiva (`42501 asset_access_required`), il payload e il contenuto (`22023 invalid_asset_payload`, `asset_not_found`). Archiviare un contenuto già archiviato, o ripristinarne uno attivo, non cambia niente e restituisce lo stato attuale.
+- Ricevuta per operation ID in `private.asset_command_receipts` (append-only): lo stesso invio ripetuto restituisce l’esito di allora con `replayed: true`; lo stesso ID con un altro payload o da un altro membro dà `23505 asset_idempotency_conflict`. Dopo un esito incerto, «Riprova» ripete lo stesso ID.
+- Il trigger `audit_change` già presente su `assets` registra autore, prima e dopo di ogni cambio. Un comando senza effetto non scrive audit. La frase del feed di Controllo CEO («Ettore ha archiviato una foto») appartiene al catalogo del feed.
+
+La Server Action `setBrandAssetArchived` ricontrolla il membro, invia il comando e traduce gli errori in italiano, senza dettagli tecnici. Un esito che non corrisponde alla richiesta non viene confermato.
+
+In anteprima locale (`npm run dev`) la pagina mostra cinque contenuti sintetici, uno archiviato, con le scritture spente. Il ramo non si attiva su Vercel né con `NODE_ENV=production`.
+
+Per tornare indietro su un contenuto basta «Ripristina». Un ripristino in blocco, dal proprietario del database: `update public.assets set archived_at = null, archived_by = null where archived_at is not null;` (resta nell’audit).
+
 ## Sviluppo prodotti
 
 `product_development_projects` contiene nome, brief, fase, data obiettivo, referente attivo, autore e versione. Fasi: idea, design, campionatura, produzione, pronto e archiviato. Tutti i membri attivi possono creare, leggere, aggiornare e archiviare. Non è esposta eliminazione permanente.
@@ -49,6 +67,8 @@ Le anteprime di PNG/JPEG/WebP usano la route privata, su fondo bianco; i loghi t
 `public.save_development_project` ricontrolla membership e referente. Creare con UUID e `expected_version = NULL` è idempotente per autore e stesso payload iniziale. Ogni aggiornamento richiede la versione letta; se un altro membro ha modificato la scheda, il database rifiuta la sovrascrittura con `40001`. Il modulo conserva il testo e richiede di aggiornare/controllare i dati correnti. L’archiviazione è un aggiornamento versionato, registrato nell’audit. La fase “Pronto” non crea SKU, movimenti o scorte.
 
 ## Verifica e limiti
+
+La suite `supabase/tests/review-handoff.mjs` (PGlite, minimo 51 controlli) prova l’archivio: migrazione sopra contenuti esistenti senza toccarli, archivio e ripristino per ogni ruolo attivo, rifiuto di esterni, account non attivi e anonimi, payload non validi, ricevute e replay, scritture dirette rifiutate, audit con autore.
 
 La suite `supabase/tests/assets-development.mjs` esegue PostgreSQL locale con Auth e metadata Storage simulati: ruoli, RLS, percorsi, no-upsert/no-delete, replay, autore, referente attivo, aggiornamenti concorrenti e audit. I test Vitest coprono estensioni/MIME/firme, hash/dimensioni, azioni e download privati. Il test di download sopra 4,5 MB conferma una risposta di redirect senza corpo binario.
 

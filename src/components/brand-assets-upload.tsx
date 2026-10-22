@@ -29,10 +29,13 @@ export function BrandAssetUpload({
   config,
   userId,
   initialOperationId,
+  disabled = false,
 }: {
   config: SupabasePublicConfig;
   userId: string;
   initialOperationId: string;
+  /** Anteprima locale: il modulo si vede, ma non invia niente. */
+  disabled?: boolean;
 }) {
   const router = useRouter();
   const [mode, setMode] = useState<"file" | "link">("file");
@@ -98,7 +101,7 @@ export function BrandAssetUpload({
   }
   async function submit(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
-    if (busyRef.current) return;
+    if (busyRef.current || disabled) return;
     busyRef.current = true;
     const form = event.currentTarget;
     setBusy(true);
@@ -225,7 +228,7 @@ export function BrandAssetUpload({
         </div>
       ) : (
         <form key={operationId} onSubmit={submit} className={styles.form}>
-          <fieldset disabled={busy}>
+          <fieldset disabled={busy || disabled}>
             <legend className="sr-only">Nuovo contenuto</legend>
             <div className={styles.fieldPair}>
               <label>

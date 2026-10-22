@@ -1,18 +1,32 @@
 import { randomUUID } from "node:crypto";
 import type { Metadata } from "next";
 import { redirect } from "next/navigation";
-import { BrandAssetsView } from "@/components/brand-assets-view";
-import { WorkspacePanel } from "@/components/workspace-panel";
-import { verifiedMember } from "@/lib/auth/server";
-import { createSupabaseServerClient } from "@/lib/supabase/server";
-import { getSupabasePublicConfig } from "@/lib/supabase/config";
-import { loadBrandAssets } from "@/lib/assets/server";
+import { BrandAssetsView } from "../../../components/brand-assets-view";
+import { WorkspacePanel } from "../../../components/workspace-panel";
+import { verifiedMember } from "../../../lib/auth/server";
+import { createSupabaseServerClient } from "../../../lib/supabase/server";
+import { getSupabasePublicConfig } from "../../../lib/supabase/config";
+import { loadBrandAssets } from "../../../lib/assets/server";
+import { PREVIEW_ASSETS_USER, previewBrandAssets } from "../../../lib/assets/fixtures";
+import { isLocalPreviewEnabled } from "../../../lib/runtime";
 export const dynamic = "force-dynamic";
 export const metadata: Metadata = { title: "Grafica e foto" };
 function State({ title, description }: { title: string; description: string }) {
   return <WorkspacePanel title={title} description={description} />;
 }
 export default async function AssetsPage() {
+  // Anteprima locale (00-sequenza §1.5): dati sintetici, nessuna chiamata a Supabase.
+  if (isLocalPreviewEnabled())
+    return (
+      <BrandAssetsView
+        assets={previewBrandAssets()}
+        displayName="Anteprima"
+        userId={PREVIEW_ASSETS_USER}
+        config={{ url: "http://127.0.0.1:54321", publishableKey: "anteprima-locale" }}
+        operationId={randomUUID()}
+        preview
+      />
+    );
   let config;
   try {
     config = getSupabasePublicConfig();
