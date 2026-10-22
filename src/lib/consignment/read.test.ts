@@ -1,10 +1,81 @@
-import{describe,expect,it}from"vitest";import{consignmentFromRows,consignmentPages}from"./read";import{cid,consignmentRows,consignmentSaleRow,cs}from"./fixtures";
-describe("complete typed consignment reads",()=>{
- it("preserves counted zero, unknown absent balance and unknown cost",()=>{const rows=consignmentRows(),snapshot=consignmentFromRows(rows);expect(snapshot.items[0].costCents).toBeNull();expect(snapshot.availability.find(r=>r.locationId===cs.shop)?.onHand).toBe(0);rows.availability=[];expect(consignmentFromRows(rows).availability.every(r=>r.onHand===null)).toBe(true);});
- it("filters non-shirts and external locations without synthesizing any shirt SKU",()=>{const rows=consignmentRows();rows.products=[{id:cs.product,category:"Adesivo"}];expect(consignmentFromRows(rows).items).toEqual([]);rows.products=[{id:cs.product,category:"T-shirt"}];rows.locations.push({id:cid(99),code:"EXT",name:"External",active:true,location_type:"Esterno"});expect(consignmentFromRows(rows).locations).toHaveLength(2);});
- it("requires exact active mapping and refuses to guess among shops",()=>{const rows=consignmentRows();rows.catalog=[{...(rows.catalog[0]as object),stock_item_id:null}];expect(consignmentFromRows(rows).items[0].catalog).toBeNull();rows.catalog=consignmentRows().catalog;rows.catalog.push({...(rows.catalog[0]as object),shop_domain:"another.myshopify.com"});expect(consignmentFromRows(rows).items[0].catalog).toBeNull();});
- it("validates the commercial allocation and keeps settlement amounts unavailable to ordinary members",()=>{const rows=consignmentRows();rows.sales=[consignmentSaleRow()];const snapshot=consignmentFromRows(rows);expect(snapshot.canSettle).toBe(false);expect(snapshot.settlements).toBeNull();rows.sales=[{...consignmentSaleRow(),brand_claim_cents:3000,shop_share_cents:2001}];expect(()=>consignmentFromRows(rows)).toThrow(/completa/);});
- it("refuses orphan/overpaid settlements and missing variants",()=>{const rows=consignmentRows();rows.sales=[consignmentSaleRow()];rows.settlements=[{id:cs.settlement,sale_id:cs.sale,amount_cents:3002,occurred_at:cs.at,method:"bank_transfer",reference:"SYN"}];expect(()=>consignmentFromRows(rows)).toThrow(/completa/);rows.settlements=[];expect(consignmentFromRows(rows).canSettle).toBe(true);rows.variants=[];expect(()=>consignmentFromRows(rows)).toThrow(/completa/);});
- it("reads a complete keyset with counts shrinking after cursor",async()=>{const source=Array.from({length:201},(_,n)=>({id:cid(n+1)}));const calls:(string|null)[]=[];const result=await consignmentPages(async after=>{calls.push(after);const rest=source.filter(r=>after===null||r.id>after);return{data:rest.slice(0,200),count:rest.length,error:null};});expect(result).toHaveLength(201);expect(calls).toEqual([null,cid(200)]);});
- it.each([{data:[],count:1,error:null},{data:[],count:null,error:null},{data:[{id:cs.item},{id:cs.item}],count:2,error:null}])("fails closed on truncation or duplicate cursor",reply=>expect(consignmentPages(async()=>reply)).rejects.toThrow(/completa/));
+import { describe, expect, it } from "vitest";
+import { consignmentFromRows, consignmentPages } from "./read";
+import { cid, consignmentRows, consignmentSaleRow, cs } from "./fixtures";
+describe("complete typed consignment reads", () => {
+  it("preserves counted zero, unknown absent balance and unknown cost", () => {
+    const rows = consignmentRows(),
+      snapshot = consignmentFromRows(rows);
+    expect(snapshot.items[0].costCents).toBeNull();
+    expect(snapshot.availability.find((r) => r.locationId === cs.shop)?.onHand).toBe(0);
+    rows.availability = [];
+    expect(consignmentFromRows(rows).availability.every((r) => r.onHand === null)).toBe(true);
+  });
+  it("filters non-shirts and external locations without synthesizing any shirt SKU", () => {
+    const rows = consignmentRows();
+    rows.products = [{ id: cs.product, category: "Adesivo" }];
+    expect(consignmentFromRows(rows).items).toEqual([]);
+    rows.products = [{ id: cs.product, category: "T-shirt" }];
+    rows.locations.push({
+      id: cid(99),
+      code: "EXT",
+      name: "External",
+      active: true,
+      location_type: "Esterno",
+    });
+    expect(consignmentFromRows(rows).locations).toHaveLength(2);
+  });
+  it("requires exact active mapping and refuses to guess among shops", () => {
+    const rows = consignmentRows();
+    rows.catalog = [{ ...(rows.catalog[0] as object), stock_item_id: null }];
+    expect(consignmentFromRows(rows).items[0].catalog).toBeNull();
+    rows.catalog = consignmentRows().catalog;
+    rows.catalog.push({ ...(rows.catalog[0] as object), shop_domain: "another.myshopify.com" });
+    expect(consignmentFromRows(rows).items[0].catalog).toBeNull();
+  });
+  it("validates the commercial allocation and keeps settlement amounts unavailable to ordinary members", () => {
+    const rows = consignmentRows();
+    rows.sales = [consignmentSaleRow()];
+    const snapshot = consignmentFromRows(rows);
+    expect(snapshot.canSettle).toBe(false);
+    expect(snapshot.settlements).toBeNull();
+    rows.sales = [{ ...consignmentSaleRow(), brand_claim_cents: 3000, shop_share_cents: 2001 }];
+    expect(() => consignmentFromRows(rows)).toThrow(/completa/);
+  });
+  it("refuses orphan/overpaid settlements and missing variants", () => {
+    const rows = consignmentRows();
+    rows.sales = [consignmentSaleRow()];
+    rows.settlements = [
+      {
+        id: cs.settlement,
+        sale_id: cs.sale,
+        amount_cents: 3002,
+        occurred_at: cs.at,
+        method: "bank_transfer",
+        reference: "SYN",
+      },
+    ];
+    expect(() => consignmentFromRows(rows)).toThrow(/completa/);
+    rows.settlements = [];
+    expect(consignmentFromRows(rows).canSettle).toBe(true);
+    rows.variants = [];
+    expect(() => consignmentFromRows(rows)).toThrow(/completa/);
+  });
+  it("reads a complete keyset with counts shrinking after cursor", async () => {
+    const source = Array.from({ length: 201 }, (_, n) => ({ id: cid(n + 1) }));
+    const calls: (string | null)[] = [];
+    const result = await consignmentPages(async (after) => {
+      calls.push(after);
+      const rest = source.filter((r) => after === null || r.id > after);
+      return { data: rest.slice(0, 200), count: rest.length, error: null };
+    });
+    expect(result).toHaveLength(201);
+    expect(calls).toEqual([null, cid(200)]);
+  });
+  it.each([
+    { data: [], count: 1, error: null },
+    { data: [], count: null, error: null },
+    { data: [{ id: cs.item }, { id: cs.item }], count: 2, error: null },
+  ])("fails closed on truncation or duplicate cursor", (reply) =>
+    expect(consignmentPages(async () => reply)).rejects.toThrow(/completa/),
+  );
 });

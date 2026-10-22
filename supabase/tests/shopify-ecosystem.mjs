@@ -1,172 +1,1739 @@
 // Synthetic-only integration checks on an isolated real PostgreSQL 17 cluster.
 // Usage: node shopify-ecosystem.mjs /absolute/postgresql17/bin /absolute/pg/lib/index.js
-import assert from 'node:assert/strict';
-import { randomUUID, createHash } from 'node:crypto';
-import { existsSync, mkdirSync, mkdtempSync, readFileSync, readdirSync, rmSync, writeFileSync } from 'node:fs';
-import { createServer } from 'node:net';
-import { resolve, join } from 'node:path';
-import { spawnSync } from 'node:child_process';
-import { fileURLToPath, pathToFileURL } from 'node:url';
+import assert from "node:assert/strict";
+import { randomUUID, createHash } from "node:crypto";
+import {
+  existsSync,
+  mkdirSync,
+  mkdtempSync,
+  readFileSync,
+  readdirSync,
+  rmSync,
+  writeFileSync,
+} from "node:fs";
+import { createServer } from "node:net";
+import { resolve, join } from "node:path";
+import { spawnSync } from "node:child_process";
+import { fileURLToPath, pathToFileURL } from "node:url";
 const [binaryDirectory, pgModule] = process.argv.slice(2);
-if (!binaryDirectory?.startsWith('/') || !pgModule?.startsWith('/')) throw new Error('Passare PostgreSQL 17 bin e pg/lib/index.js come percorsi assoluti; nessun DSN.');
-const pg = await import(pathToFileURL(pgModule).href);const Client = pg.Client ?? pg.default.Client;
-const run = (name,args) => {const r=spawnSync(join(binaryDirectory,name),args,{encoding:'utf8',timeout:30000});if(r.status!==0)throw new Error(`${name}: ${r.error?.message??r.stderr}`);return r.stdout.trim();};
-const version=run('postgres',['--version']);assert.match(version,/PostgreSQL\) 17\./);
-const temporary=mkdtempSync('/private/tmp/luckylap-shopify-'),dataDirectory=join(temporary,'data'),socketDirectory=join(temporary,'socket');mkdirSync(socketDirectory,{mode:0o700});
-const port=await new Promise((done,fail)=>{const s=createServer();s.once('error',fail);s.listen(0,'127.0.0.1',()=>{const p=s.address().port;s.close(()=>done(p));});});
-const evidence={version,startedAt:new Date().toISOString(),checks:0,migrations:[],concurrency:[],passed:false};const clients=[];let started=false;let owner;let a;let b;let pids;
-const id=n=>`80000000-0000-4000-8000-${String(n).padStart(12,'0')}`;
-const gid=(resource,n)=>`gid://shopify/${resource}/${n}`;
-const shop='synthetic-luckylap.myshopify.com';const location=id(200),external=id(201),secondLocation=id(202);const items=[id(101),id(102),id(103)];
-const roles=['founder','production','finance','logistics','consultant','outsider','inactive'];const users=Object.fromEntries(roles.map((r,i)=>[r,id(i+1)]));const session=r=>id(1000+roles.indexOf(r));
-const time='2026-10-21T14:10:00.000000001Z';const later=n=>`2026-10-21T14:${String(10+n).padStart(2,'0')}:00.000000001Z`;
-const clone=x=>structuredClone(x);
-const equal=(a,b,label)=>{assert.deepEqual(a,b,label);evidence.checks+=1;};const truth=(v,label)=>{assert.ok(v,label);evidence.checks+=1;};
-const rejected=async(promise,code,message)=>{await assert.rejects(promise,e=>e.code===code&&(!message||e.message===message));evidence.checks+=1;};
-async function connect(name){const c=new Client({host:socketDirectory,port,user:'luckylap_qa_owner',password:'',database:'postgres',ssl:false,application_name:`luckylap-shopify-${name}`,statement_timeout:15000,query_timeout:18000});c.on('error',()=>{});await c.connect();clients.push(c);return c;}
-async function begin(c,role='service_role',member='founder'){await c.query('begin');await c.query("select set_config('request.jwt.claims',$1,true)",[JSON.stringify(role==='service_role'?{role}:{role,sub:users[member],session_id:session(member),aal:'aal2',user_metadata:{role:'founder'}})]);await c.query(`set local role ${role}`);}
-async function as(sql,args=[],role='service_role',member='founder',c=a){await begin(c,role,member);try{const r=await c.query(sql,args);await c.query('commit');return r;}catch(e){await c.query('rollback');throw e;}}
-const value=async(...args)=>(await as(...args)).rows[0].value;
-const count=async(table)=>(await owner.query(`select count(*)::int n from ${table.includes('.')?table:`public.${table}`}`)).rows[0].n;
-const balance=async(item=items[0])=>Number((await owner.query('select quantity from public.stock_balances where stock_item_id=$1 and location_id=$2',[item,location])).rows[0].quantity);
-function order(n=1,quantity=1){return{schemaVersion:1,apiVersion:'2026-10',shopDomain:shop,orderId:gid('Order',n),sourceName:'web',retailLocationId:null,createdAt:time,updatedAt:time,cancelledAt:null,test:false,edited:false,hasDiscountCodes:false,shopCurrency:'EUR',presentmentCurrency:'EUR',taxesIncluded:true,totals:{originalTotalCents:4001*quantity,currentTotalCents:4001*quantity,originalSubtotalCents:4001*quantity,currentSubtotalCents:4001*quantity,totalShippingPriceCents:0,currentShippingPriceCents:0,originalTaxCents:0,currentTaxCents:0,totalRefundedCents:0,totalReceivedCents:0,orderDiscountCents:0,totalDiscountCents:0},lines:[{id:gid('LineItem',n*100+1),variantId:gid('ProductVariant',1),sku:'TEST-1',quantity,currentQuantity:quantity,isGiftCard:false,requiresShipping:true,originalUnitPriceCents:4001,discountedTotalCents:4001*quantity,lineDiscountCents:0,discountAllocationsCents:[]}],fulfillments:[],transactions:[],refunds:[]};}
-function transaction(n,amount,kind='SALE',parentId=null){return{id:gid('OrderTransaction',n),kind,status:'SUCCESS',amountCents:amount,currency:'EUR',processedAt:time,parentId,test:false,gateway:'bogus_synthetic_gateway'};}
-function fulfillment(n,line,quantity=1){return{id:gid('Fulfillment',n),status:'SUCCESS',locationId:gid('Location',1),updatedAt:time,totalQuantity:quantity,lines:[{id:gid('FulfillmentLineItem',n),lineItemId:line,quantity}]};}
-async function receive(o,webhook=randomUUID(),event=randomUUID(),topic='orders/updated'){const cue={shopDomain:o.shopDomain,webhookId:webhook,eventId:event,deliveryKey:`${o.shopDomain}:${webhook}`,apiVersion:'2026-10',topic,orderGid:o.orderId,sourceName:o.sourceName,channel:o.sourceName==='pos'?'shopify_pos':o.sourceName==='web'?'shopify_web':'shopify_other',currency:o.shopCurrency,sourceCreatedAt:o.createdAt,sourceUpdatedAt:o.updatedAt,bodySha256:createHash('sha256').update(JSON.stringify(o)).digest('hex'),requiresCanonicalRead:true};return value('select public.receive_shopify_order_notification($1) value',[cue]);}
-async function claim(c=a){return value('select public.claim_shopify_order_jobs($1,20,120) value',[randomUUID()],'service_role','founder',c);}
-async function apply(o,lease){return value('select public.apply_shopify_order($1,$2,$3) value',[lease.job_id,lease.lease_token,o]);}
-async function processOrder(o){const received=await receive(o);const leases=await claim();const lease=leases.find(l=>l.job_id===received.job_id);assert.ok(lease,'New job must be claimable');return{result:await apply(o,lease),lease};}
-async function snapshot(){const result={};for(const table of['sales_orders','sales_order_lines','order_payments','commercial_facts','stock_reservation_events','production_requirements','fulfillment_lines','stock_movements','shopify_refund_observations','shopify_transaction_observations','shopify_order_financials','private.shopify_order_identities','private.shopify_effect_receipts','audit_logs'])result[table]=await count(table);return result;}
-async function expectReview(o,reason){const before=await snapshot();const r=(await processOrder(o)).result;equal(r.status,'review',`Review ${reason}`);equal(r.reason,reason,`Explicit review reason ${reason}`);equal(await snapshot(),before,'Review rolls back every business effect and audit');return r;}
-async function waitBlocked(){const end=Date.now()+5000;while(Date.now()<end){const r=(await owner.query('select pid,state,wait_event_type,pg_blocking_pids(pid) blockers from pg_stat_activity where pid=$1',[pids.b])).rows[0];if(r?.wait_event_type==='Lock'&&r.blockers.includes(pids.a)){truth(r.state==='active','Concurrent worker is active and waits for another backend');return r;}await new Promise(done=>setTimeout(done,20));}throw new Error('Expected real PostgreSQL contention was not observed');}
-async function manualRegression(){
+if (!binaryDirectory?.startsWith("/") || !pgModule?.startsWith("/"))
+  throw new Error(
+    "Passare PostgreSQL 17 bin e pg/lib/index.js come percorsi assoluti; nessun DSN.",
+  );
+const pg = await import(pathToFileURL(pgModule).href);
+const Client = pg.Client ?? pg.default.Client;
+const run = (name, args) => {
+  const r = spawnSync(join(binaryDirectory, name), args, { encoding: "utf8", timeout: 30000 });
+  if (r.status !== 0) throw new Error(`${name}: ${r.error?.message ?? r.stderr}`);
+  return r.stdout.trim();
+};
+const version = run("postgres", ["--version"]);
+assert.match(version, /PostgreSQL\) 17\./);
+const temporary = mkdtempSync("/private/tmp/luckylap-shopify-"),
+  dataDirectory = join(temporary, "data"),
+  socketDirectory = join(temporary, "socket");
+mkdirSync(socketDirectory, { mode: 0o700 });
+const port = await new Promise((done, fail) => {
+  const s = createServer();
+  s.once("error", fail);
+  s.listen(0, "127.0.0.1", () => {
+    const p = s.address().port;
+    s.close(() => done(p));
+  });
+});
+const evidence = {
+  version,
+  startedAt: new Date().toISOString(),
+  checks: 0,
+  migrations: [],
+  concurrency: [],
+  passed: false,
+};
+const clients = [];
+let started = false;
+let owner;
+let a;
+let b;
+let pids;
+const id = (n) => `80000000-0000-4000-8000-${String(n).padStart(12, "0")}`;
+const gid = (resource, n) => `gid://shopify/${resource}/${n}`;
+const shop = "synthetic-luckylap.myshopify.com";
+const location = id(200),
+  external = id(201),
+  secondLocation = id(202);
+const items = [id(101), id(102), id(103)];
+const roles = [
+  "founder",
+  "production",
+  "finance",
+  "logistics",
+  "consultant",
+  "outsider",
+  "inactive",
+];
+const users = Object.fromEntries(roles.map((r, i) => [r, id(i + 1)]));
+const session = (r) => id(1000 + roles.indexOf(r));
+const time = "2026-10-21T14:10:00.000000001Z";
+const later = (n) => `2026-10-21T14:${String(10 + n).padStart(2, "0")}:00.000000001Z`;
+const clone = (x) => structuredClone(x);
+const equal = (a, b, label) => {
+  assert.deepEqual(a, b, label);
+  evidence.checks += 1;
+};
+const truth = (v, label) => {
+  assert.ok(v, label);
+  evidence.checks += 1;
+};
+const rejected = async (promise, code, message) => {
+  await assert.rejects(promise, (e) => e.code === code && (!message || e.message === message));
+  evidence.checks += 1;
+};
+async function connect(name) {
+  const c = new Client({
+    host: socketDirectory,
+    port,
+    user: "luckylap_qa_owner",
+    password: "",
+    database: "postgres",
+    ssl: false,
+    application_name: `luckylap-shopify-${name}`,
+    statement_timeout: 15000,
+    query_timeout: 18000,
+  });
+  c.on("error", () => {});
+  await c.connect();
+  clients.push(c);
+  return c;
+}
+async function begin(c, role = "service_role", member = "founder") {
+  await c.query("begin");
+  await c.query("select set_config('request.jwt.claims',$1,true)", [
+    JSON.stringify(
+      role === "service_role"
+        ? { role }
+        : {
+            role,
+            sub: users[member],
+            session_id: session(member),
+            aal: "aal2",
+            user_metadata: { role: "founder" },
+          },
+    ),
+  ]);
+  await c.query(`set local role ${role}`);
+}
+async function as(sql, args = [], role = "service_role", member = "founder", c = a) {
+  await begin(c, role, member);
+  try {
+    const r = await c.query(sql, args);
+    await c.query("commit");
+    return r;
+  } catch (e) {
+    await c.query("rollback");
+    throw e;
+  }
+}
+const value = async (...args) => (await as(...args)).rows[0].value;
+const count = async (table) =>
+  (
+    await owner.query(
+      `select count(*)::int n from ${table.includes(".") ? table : `public.${table}`}`,
+    )
+  ).rows[0].n;
+const balance = async (item = items[0]) =>
+  Number(
+    (
+      await owner.query(
+        "select quantity from public.stock_balances where stock_item_id=$1 and location_id=$2",
+        [item, location],
+      )
+    ).rows[0].quantity,
+  );
+function order(n = 1, quantity = 1) {
+  return {
+    schemaVersion: 1,
+    apiVersion: "2026-10",
+    shopDomain: shop,
+    orderId: gid("Order", n),
+    sourceName: "web",
+    retailLocationId: null,
+    createdAt: time,
+    updatedAt: time,
+    cancelledAt: null,
+    test: false,
+    edited: false,
+    hasDiscountCodes: false,
+    shopCurrency: "EUR",
+    presentmentCurrency: "EUR",
+    taxesIncluded: true,
+    totals: {
+      originalTotalCents: 4001 * quantity,
+      currentTotalCents: 4001 * quantity,
+      originalSubtotalCents: 4001 * quantity,
+      currentSubtotalCents: 4001 * quantity,
+      totalShippingPriceCents: 0,
+      currentShippingPriceCents: 0,
+      originalTaxCents: 0,
+      currentTaxCents: 0,
+      totalRefundedCents: 0,
+      totalReceivedCents: 0,
+      orderDiscountCents: 0,
+      totalDiscountCents: 0,
+    },
+    lines: [
+      {
+        id: gid("LineItem", n * 100 + 1),
+        variantId: gid("ProductVariant", 1),
+        sku: "TEST-1",
+        quantity,
+        currentQuantity: quantity,
+        isGiftCard: false,
+        requiresShipping: true,
+        originalUnitPriceCents: 4001,
+        discountedTotalCents: 4001 * quantity,
+        lineDiscountCents: 0,
+        discountAllocationsCents: [],
+      },
+    ],
+    fulfillments: [],
+    transactions: [],
+    refunds: [],
+  };
+}
+function transaction(n, amount, kind = "SALE", parentId = null) {
+  return {
+    id: gid("OrderTransaction", n),
+    kind,
+    status: "SUCCESS",
+    amountCents: amount,
+    currency: "EUR",
+    processedAt: time,
+    parentId,
+    test: false,
+    gateway: "bogus_synthetic_gateway",
+  };
+}
+function fulfillment(n, line, quantity = 1) {
+  return {
+    id: gid("Fulfillment", n),
+    status: "SUCCESS",
+    locationId: gid("Location", 1),
+    updatedAt: time,
+    totalQuantity: quantity,
+    lines: [{ id: gid("FulfillmentLineItem", n), lineItemId: line, quantity }],
+  };
+}
+async function receive(o, webhook = randomUUID(), event = randomUUID(), topic = "orders/updated") {
+  const cue = {
+    shopDomain: o.shopDomain,
+    webhookId: webhook,
+    eventId: event,
+    deliveryKey: `${o.shopDomain}:${webhook}`,
+    apiVersion: "2026-10",
+    topic,
+    orderGid: o.orderId,
+    sourceName: o.sourceName,
+    channel:
+      o.sourceName === "pos"
+        ? "shopify_pos"
+        : o.sourceName === "web"
+          ? "shopify_web"
+          : "shopify_other",
+    currency: o.shopCurrency,
+    sourceCreatedAt: o.createdAt,
+    sourceUpdatedAt: o.updatedAt,
+    bodySha256: createHash("sha256").update(JSON.stringify(o)).digest("hex"),
+    requiresCanonicalRead: true,
+  };
+  return value("select public.receive_shopify_order_notification($1) value", [cue]);
+}
+async function claim(c = a) {
+  return value(
+    "select public.claim_shopify_order_jobs($1,20,120) value",
+    [randomUUID()],
+    "service_role",
+    "founder",
+    c,
+  );
+}
+async function apply(o, lease) {
+  return value("select public.apply_shopify_order($1,$2,$3) value", [
+    lease.job_id,
+    lease.lease_token,
+    o,
+  ]);
+}
+async function processOrder(o) {
+  const received = await receive(o);
+  const leases = await claim();
+  const lease = leases.find((l) => l.job_id === received.job_id);
+  assert.ok(lease, "New job must be claimable");
+  return { result: await apply(o, lease), lease };
+}
+async function snapshot() {
+  const result = {};
+  for (const table of [
+    "sales_orders",
+    "sales_order_lines",
+    "order_payments",
+    "commercial_facts",
+    "stock_reservation_events",
+    "production_requirements",
+    "fulfillment_lines",
+    "stock_movements",
+    "shopify_refund_observations",
+    "shopify_transaction_observations",
+    "shopify_order_financials",
+    "private.shopify_order_identities",
+    "private.shopify_effect_receipts",
+    "audit_logs",
+  ])
+    result[table] = await count(table);
+  return result;
+}
+async function expectReview(o, reason) {
+  const before = await snapshot();
+  const r = (await processOrder(o)).result;
+  equal(r.status, "review", `Review ${reason}`);
+  equal(r.reason, reason, `Explicit review reason ${reason}`);
+  equal(await snapshot(), before, "Review rolls back every business effect and audit");
+  return r;
+}
+async function waitBlocked() {
+  const end = Date.now() + 5000;
+  while (Date.now() < end) {
+    const r = (
+      await owner.query(
+        "select pid,state,wait_event_type,pg_blocking_pids(pid) blockers from pg_stat_activity where pid=$1",
+        [pids.b],
+      )
+    ).rows[0];
+    if (r?.wait_event_type === "Lock" && r.blockers.includes(pids.a)) {
+      truth(r.state === "active", "Concurrent worker is active and waits for another backend");
+      return r;
+    }
+    await new Promise((done) => setTimeout(done, 20));
+  }
+  throw new Error("Expected real PostgreSQL contention was not observed");
+}
+async function manualRegression() {
   // Re-run the existing manual domain suite, unchanged in assertions/business
   // inputs, against this forward core and a separate real PostgreSQL database.
   // Only its embedded-db transport and obsolete synthetic location label change.
-  const baselineRoot=process.env.LUCKYLAP_BASELINE_MIGRATIONS?resolve(process.env.LUCKYLAP_BASELINE_MIGRATIONS,'..','..'):fileURLToPath(new URL('../../',import.meta.url));
-  let source=readFileSync(join(baselineRoot,'supabase','tests','sales-ecosystem.mjs'),'utf8');
-  evidence.manualRegressionSourceSha256=createHash('sha256').update(source).digest('hex');
-  const migrations=join(temporary,'manual-migrations');mkdirSync(migrations);
-  const originalDirectory=process.env.LUCKYLAP_BASELINE_MIGRATIONS??fileURLToPath(new URL('../migrations/',import.meta.url));
-  for(const suffix of['initial_schema','finance_imports','sales_ecosystem','sales_lifecycle','shopify_sales_core']){const selected=suffix==='shopify_sales_core'?fileURLToPath(new URL('../migrations/',import.meta.url)):originalDirectory;const name=readdirSync(selected).find(n=>n.endsWith(`_${suffix}.sql`));assert.ok(name);writeFileSync(join(migrations,name),readFileSync(join(selected,name),'utf8'));}
-  await owner.query('create database luckylap_manual_regression');
-  const start=source.indexOf('if (!process.argv[2])');const end=source.indexOf('let checks = 0;');assert.ok(start>=0&&end>start);
-  const config={host:socketDirectory,port,user:'luckylap_qa_owner',password:'',database:'luckylap_manual_regression',ssl:false,statement_timeout:15000};
-  source=source.slice(0,start)+`const module=await import(${JSON.stringify(pathToFileURL(pgModule).href)});const Client=module.Client??module.default.Client;const client=new Client(${JSON.stringify(config)});await client.connect();const backendPid=(await client.query('select pg_backend_pid() pid')).rows[0].pid;let queue=Promise.resolve();const query=(s,a)=>{const task=queue.then(()=>client.query(s,a));queue=task.catch(()=>{});return task;};const db={exec:query,query,close:()=>client.end()};\n`+source.slice(end);
-  source=source.replace('create role anon nologin; create role authenticated nologin;','').replace("const directory = new URL('../migrations/', import.meta.url);",`const directory=new URL(${JSON.stringify(pathToFileURL(migrations+'/').href)});`).replace('sales_ecosystem|sales_lifecycle)','sales_ecosystem|sales_lifecycle|shopify_sales_core)').replace("'Synthetic only','central'","'Synthetic only','Magazzino'").replace(/^  console\.log\(`PASS \$\{checks\} sales ecosystem checks.*$/m,'');
-  let result;try{result=await import(`data:text/javascript;base64,${Buffer.from(source+'\nexport {checks,backendPid};\n').toString('base64')}`);}catch(error){throw new Error(`Manual regression failed: ${error.message}`);}
-  evidence.manualRegressionChecks=result.checks;evidence.manualRegressionBackendPid=result.backendPid;evidence.checks+=result.checks;truth(result.checks>200,'Full existing manual lifecycle regression runs on the forward core and real PostgreSQL');
+  const baselineRoot = process.env.LUCKYLAP_BASELINE_MIGRATIONS
+    ? resolve(process.env.LUCKYLAP_BASELINE_MIGRATIONS, "..", "..")
+    : fileURLToPath(new URL("../../", import.meta.url));
+  let source = readFileSync(join(baselineRoot, "supabase", "tests", "sales-ecosystem.mjs"), "utf8");
+  evidence.manualRegressionSourceSha256 = createHash("sha256").update(source).digest("hex");
+  const migrations = join(temporary, "manual-migrations");
+  mkdirSync(migrations);
+  const originalDirectory =
+    process.env.LUCKYLAP_BASELINE_MIGRATIONS ??
+    fileURLToPath(new URL("../migrations/", import.meta.url));
+  for (const suffix of [
+    "initial_schema",
+    "finance_imports",
+    "sales_ecosystem",
+    "sales_lifecycle",
+    "shopify_sales_core",
+  ]) {
+    const selected =
+      suffix === "shopify_sales_core"
+        ? fileURLToPath(new URL("../migrations/", import.meta.url))
+        : originalDirectory;
+    const name = readdirSync(selected).find((n) => n.endsWith(`_${suffix}.sql`));
+    assert.ok(name);
+    writeFileSync(join(migrations, name), readFileSync(join(selected, name), "utf8"));
+  }
+  await owner.query("create database luckylap_manual_regression");
+  const start = source.indexOf("if (!process.argv[2])");
+  const end = source.indexOf("let checks = 0;");
+  assert.ok(start >= 0 && end > start);
+  const config = {
+    host: socketDirectory,
+    port,
+    user: "luckylap_qa_owner",
+    password: "",
+    database: "luckylap_manual_regression",
+    ssl: false,
+    statement_timeout: 15000,
+  };
+  source =
+    source.slice(0, start) +
+    `const module=await import(${JSON.stringify(pathToFileURL(pgModule).href)});const Client=module.Client??module.default.Client;const client=new Client(${JSON.stringify(config)});await client.connect();const backendPid=(await client.query('select pg_backend_pid() pid')).rows[0].pid;let queue=Promise.resolve();const query=(s,a)=>{const task=queue.then(()=>client.query(s,a));queue=task.catch(()=>{});return task;};const db={exec:query,query,close:()=>client.end()};\n` +
+    source.slice(end);
+  source = source
+    .replace("create role anon nologin; create role authenticated nologin;", "")
+    .replace(
+      "const directory = new URL('../migrations/', import.meta.url);",
+      `const directory=new URL(${JSON.stringify(pathToFileURL(migrations + "/").href)});`,
+    )
+    .replace(
+      "sales_ecosystem|sales_lifecycle)",
+      "sales_ecosystem|sales_lifecycle|shopify_sales_core)",
+    )
+    .replace("'Synthetic only','central'", "'Synthetic only','Magazzino'")
+    .replace(/^  console\.log\(`PASS \$\{checks\} sales ecosystem checks.*$/m, "");
+  let result;
+  try {
+    result = await import(
+      `data:text/javascript;base64,${Buffer.from(source + "\nexport {checks,backendPid};\n").toString("base64")}`
+    );
+  } catch (error) {
+    throw new Error(`Manual regression failed: ${error.message}`);
+  }
+  evidence.manualRegressionChecks = result.checks;
+  evidence.manualRegressionBackendPid = result.backendPid;
+  evidence.checks += result.checks;
+  truth(
+    result.checks > 200,
+    "Full existing manual lifecycle regression runs on the forward core and real PostgreSQL",
+  );
 }
-try{
-  run('initdb',['-D',dataDirectory,'-L',resolve(binaryDirectory,'../share/postgresql'),'--username=luckylap_qa_owner','--no-locale','--encoding=UTF8','--auth-local=trust','--auth-host=reject']);
-  run('pg_ctl',['-D',dataDirectory,'-l',join(temporary,'postgres.log'),'-o',`-p ${port} -k ${socketDirectory} -c listen_addresses='' -c unix_socket_permissions=0700 -c max_connections=12`,'-w','start']);started=true;
-  owner=await connect('observer');a=await connect('a');b=await connect('b');pids=Object.fromEntries(await Promise.all([['owner',owner],['a',a],['b',b]].map(async([name,c])=>[name,(await c.query('select pg_backend_pid() pid')).rows[0].pid])));evidence.backendPids=pids;equal(new Set(Object.values(pids)).size,3,'Three real independent PostgreSQL connections');
-  await owner.query(`create role anon nologin;create role authenticated nologin;create role service_role nologin bypassrls;create schema auth;create table auth.users(id uuid primary key);create table auth.sessions(id uuid primary key,user_id uuid not null references auth.users(id),not_after timestamptz);create function auth.jwt() returns jsonb language sql stable as $$select coalesce(nullif(current_setting('request.jwt.claims',true),''),'{}')::jsonb$$;create function auth.uid() returns uuid language sql stable as $$select(auth.jwt()->>'sub')::uuid$$;grant usage on schema auth to anon,authenticated,service_role;create schema extensions;create extension pgcrypto schema extensions;alter default privileges in schema public grant all on tables to anon,authenticated,service_role;alter default privileges in schema public grant execute on functions to anon,authenticated,service_role;`);
-  const directory=new URL('../migrations/',import.meta.url);const baselineDirectory=process.env.LUCKYLAP_BASELINE_MIGRATIONS;
-  if(baselineDirectory&&!baselineDirectory.startsWith('/'))throw new Error('Baseline migrations directory must be absolute.');
-  for(const suffix of['initial_schema','finance_imports','sales_ecosystem','sales_lifecycle','shopify_catalog','shopify_receiver','area_passwords','shopify_sales_core','shopify_canonical_worker']){const selected=baselineDirectory&&!['shopify_sales_core','shopify_canonical_worker'].includes(suffix)?baselineDirectory:directory;const names=readdirSync(selected).filter(n=>n.endsWith(`_${suffix}.sql`));assert.equal(names.length,1);try{const sql=readFileSync(selected instanceof URL?new URL(names[0],selected):join(selected,names[0]),'utf8');evidence.migrations.push({name:names[0],sha256:createHash('sha256').update(sql).digest('hex')});await owner.query(sql);}catch(e){throw new Error(`${names[0]}: ${e.message}`,{cause:e});}}
-  for(const role of roles){await owner.query('insert into auth.users values($1)',[users[role]]);await owner.query('insert into auth.sessions(id,user_id) values($1,$2)',[session(role),users[role]]);if(role==='outsider')continue;await owner.query('insert into public.profiles(user_id,display_name) values($1,$2)',[users[role],role]);await owner.query('insert into public.memberships(user_id,role,active,finance_access) values($1,$2,$3,$4)',[users[role],role==='inactive'?'finance':role,role!=='inactive',['production','finance'].includes(role)]);}
-  await owner.query("update public.app_settings set manual_sales_enabled=true,sales_started_at='2026-10-21T14:06:47.976341Z'");
-  for(const [loc,code,type]of[[location,'TEST','Magazzino'],[external,'OUT','Esterno'],[secondLocation,'SHOP','Negozio Conto Vendita']])await owner.query('insert into public.stock_locations(id,code,name,location_type) values($1,$2,$2,$3)',[loc,code,type]);
-  await owner.query("insert into public.products(id,model,category) values($1,'Synthetic only','T-shirt')",[id(300)]);
-  for(let i=0;i<items.length;i++){await owner.query("insert into public.stock_items(id,kind,sku,name,unit_cost_eur,list_price_eur) values($1,'product',$2,'Synthetic only',12.30,99.99)",[items[i],`TEST-${i+1}`]);await owner.query("insert into public.product_variants(stock_item_id,product_id,color,size) values($1,$2,'Synthetic','M')",[items[i],id(300)]);await owner.query("insert into public.stock_movements(operation_id,stock_item_id,location_id,kind,quantity_delta,reason) values($1,$2,$3,'opening',$4,'Synthetic initial count')",[randomUUID(),items[i],location,i===2?0:20]);await owner.query("insert into public.shopify_catalog_variants(shop_domain,variant_gid,product_gid,sku,product_title,status,price_cents,source_updated_at,stock_item_id) values($1,$2,$3,$4,'Synthetic only','ACTIVE',9999,$5,$6)",[shop,gid('ProductVariant',i+1),gid('Product',i+1),`TEST-${i+1}`,time,items[i]]);}
-  await owner.query('insert into private.shopify_sync_configuration(shop_domain,enabled,online_location_id) values($1,true,$2)',[shop,location]);await owner.query('insert into private.shopify_location_mappings values($1,$2,$3)',[shop,gid('Location',1),location]);
+try {
+  run("initdb", [
+    "-D",
+    dataDirectory,
+    "-L",
+    resolve(binaryDirectory, "../share/postgresql"),
+    "--username=luckylap_qa_owner",
+    "--no-locale",
+    "--encoding=UTF8",
+    "--auth-local=trust",
+    "--auth-host=reject",
+  ]);
+  run("pg_ctl", [
+    "-D",
+    dataDirectory,
+    "-l",
+    join(temporary, "postgres.log"),
+    "-o",
+    `-p ${port} -k ${socketDirectory} -c listen_addresses='' -c unix_socket_permissions=0700 -c max_connections=12`,
+    "-w",
+    "start",
+  ]);
+  started = true;
+  owner = await connect("observer");
+  a = await connect("a");
+  b = await connect("b");
+  pids = Object.fromEntries(
+    await Promise.all(
+      [
+        ["owner", owner],
+        ["a", a],
+        ["b", b],
+      ].map(async ([name, c]) => [
+        name,
+        (await c.query("select pg_backend_pid() pid")).rows[0].pid,
+      ]),
+    ),
+  );
+  evidence.backendPids = pids;
+  equal(new Set(Object.values(pids)).size, 3, "Three real independent PostgreSQL connections");
+  await owner.query(
+    `create role anon nologin;create role authenticated nologin;create role service_role nologin bypassrls;create schema auth;create table auth.users(id uuid primary key);create table auth.sessions(id uuid primary key,user_id uuid not null references auth.users(id),not_after timestamptz);create function auth.jwt() returns jsonb language sql stable as $$select coalesce(nullif(current_setting('request.jwt.claims',true),''),'{}')::jsonb$$;create function auth.uid() returns uuid language sql stable as $$select(auth.jwt()->>'sub')::uuid$$;grant usage on schema auth to anon,authenticated,service_role;create schema extensions;create extension pgcrypto schema extensions;alter default privileges in schema public grant all on tables to anon,authenticated,service_role;alter default privileges in schema public grant execute on functions to anon,authenticated,service_role;`,
+  );
+  const directory = new URL("../migrations/", import.meta.url);
+  const baselineDirectory = process.env.LUCKYLAP_BASELINE_MIGRATIONS;
+  if (baselineDirectory && !baselineDirectory.startsWith("/"))
+    throw new Error("Baseline migrations directory must be absolute.");
+  for (const suffix of [
+    "initial_schema",
+    "finance_imports",
+    "sales_ecosystem",
+    "sales_lifecycle",
+    "shopify_catalog",
+    "shopify_receiver",
+    "area_passwords",
+    "shopify_sales_core",
+    "shopify_canonical_worker",
+  ]) {
+    const selected =
+      baselineDirectory && !["shopify_sales_core", "shopify_canonical_worker"].includes(suffix)
+        ? baselineDirectory
+        : directory;
+    const names = readdirSync(selected).filter((n) => n.endsWith(`_${suffix}.sql`));
+    assert.equal(names.length, 1);
+    try {
+      const sql = readFileSync(
+        selected instanceof URL ? new URL(names[0], selected) : join(selected, names[0]),
+        "utf8",
+      );
+      evidence.migrations.push({
+        name: names[0],
+        sha256: createHash("sha256").update(sql).digest("hex"),
+      });
+      await owner.query(sql);
+    } catch (e) {
+      throw new Error(`${names[0]}: ${e.message}`, { cause: e });
+    }
+  }
+  for (const role of roles) {
+    await owner.query("insert into auth.users values($1)", [users[role]]);
+    await owner.query("insert into auth.sessions(id,user_id) values($1,$2)", [
+      session(role),
+      users[role],
+    ]);
+    if (role === "outsider") continue;
+    await owner.query("insert into public.profiles(user_id,display_name) values($1,$2)", [
+      users[role],
+      role,
+    ]);
+    await owner.query(
+      "insert into public.memberships(user_id,role,active,finance_access) values($1,$2,$3,$4)",
+      [
+        users[role],
+        role === "inactive" ? "finance" : role,
+        role !== "inactive",
+        ["production", "finance"].includes(role),
+      ],
+    );
+  }
+  await owner.query(
+    "update public.app_settings set manual_sales_enabled=true,sales_started_at='2026-10-21T14:06:47.976341Z'",
+  );
+  for (const [loc, code, type] of [
+    [location, "TEST", "Magazzino"],
+    [external, "OUT", "Esterno"],
+    [secondLocation, "SHOP", "Negozio Conto Vendita"],
+  ])
+    await owner.query(
+      "insert into public.stock_locations(id,code,name,location_type) values($1,$2,$2,$3)",
+      [loc, code, type],
+    );
+  await owner.query(
+    "insert into public.products(id,model,category) values($1,'Synthetic only','T-shirt')",
+    [id(300)],
+  );
+  for (let i = 0; i < items.length; i++) {
+    await owner.query(
+      "insert into public.stock_items(id,kind,sku,name,unit_cost_eur,list_price_eur) values($1,'product',$2,'Synthetic only',12.30,99.99)",
+      [items[i], `TEST-${i + 1}`],
+    );
+    await owner.query(
+      "insert into public.product_variants(stock_item_id,product_id,color,size) values($1,$2,'Synthetic','M')",
+      [items[i], id(300)],
+    );
+    await owner.query(
+      "insert into public.stock_movements(operation_id,stock_item_id,location_id,kind,quantity_delta,reason) values($1,$2,$3,'opening',$4,'Synthetic initial count')",
+      [randomUUID(), items[i], location, i === 2 ? 0 : 20],
+    );
+    await owner.query(
+      "insert into public.shopify_catalog_variants(shop_domain,variant_gid,product_gid,sku,product_title,status,price_cents,source_updated_at,stock_item_id) values($1,$2,$3,$4,'Synthetic only','ACTIVE',9999,$5,$6)",
+      [shop, gid("ProductVariant", i + 1), gid("Product", i + 1), `TEST-${i + 1}`, time, items[i]],
+    );
+  }
+  await owner.query(
+    "insert into private.shopify_sync_configuration(shop_domain,enabled,online_location_id) values($1,true,$2)",
+    [shop, location],
+  );
+  await owner.query("insert into private.shopify_location_mappings values($1,$2,$3)", [
+    shop,
+    gid("Location", 1),
+    location,
+  ]);
 
-  const o=order(1,2);o.transactions=[transaction(1,4001,'CAPTURE')];o.totals.totalReceivedCents=4001;
-  const first=await processOrder(o);equal(first.result.status,'applied','Canonical future web order applies');const firstId=first.result.order_id;truth(firstId,'Core order ID returned');
-  equal(await balance(),20,'Unfulfilled order reserves without physical debit');equal((await owner.query('select sum(reserved_quantity)::int n from public.stock_reservations')).rows[0].n,2,'Physical ready stock is reserved');
-  equal((await owner.query('select channel,source_kind,created_by,payment_state,total_cents::text from public.sales_orders where id=$1',[firstId])).rows[0],{channel:'shopify_web',source_kind:'shopify_canonical',created_by:null,payment_state:'partially_paid',total_cents:'8002'},'Visible source, technical actor and exact price snapshot');
-  equal((await owner.query('select unit_price_cents::int p,list_price_cents::int list from public.sales_order_lines where order_id=$1',[firstId])).rows[0],{p:4001,list:9999},'Order price is independent of current catalog price');
-  equal(await count('order_payments'),1,'One observed partial capture');equal(await count('finance_entries'),0,'No invented approved accounting entries');
-  const firstSnapshot=await snapshot();equal((await apply(o,first.lease)).status,'replayed','Lost apply response can replay same finished lease and digest');equal(await snapshot(),firstSnapshot,'Terminal replay is effect-free');
-  const changed=clone(o);changed.taxesIncluded=false;await rejected(apply(changed,first.lease),'22023','worker_terminal_conflict');
-  equal((await processOrder(o)).result.status,'replayed','Different webhook/event IDs deduplicate by source order/effect identity');equal(await snapshot(),firstSnapshot,'Duplicate source snapshot makes no new business effects');
+  const o = order(1, 2);
+  o.transactions = [transaction(1, 4001, "CAPTURE")];
+  o.totals.totalReceivedCents = 4001;
+  const first = await processOrder(o);
+  equal(first.result.status, "applied", "Canonical future web order applies");
+  const firstId = first.result.order_id;
+  truth(firstId, "Core order ID returned");
+  equal(await balance(), 20, "Unfulfilled order reserves without physical debit");
+  equal(
+    (await owner.query("select sum(reserved_quantity)::int n from public.stock_reservations"))
+      .rows[0].n,
+    2,
+    "Physical ready stock is reserved",
+  );
+  equal(
+    (
+      await owner.query(
+        "select channel,source_kind,created_by,payment_state,total_cents::text from public.sales_orders where id=$1",
+        [firstId],
+      )
+    ).rows[0],
+    {
+      channel: "shopify_web",
+      source_kind: "shopify_canonical",
+      created_by: null,
+      payment_state: "partially_paid",
+      total_cents: "8002",
+    },
+    "Visible source, technical actor and exact price snapshot",
+  );
+  equal(
+    (
+      await owner.query(
+        "select unit_price_cents::int p,list_price_cents::int list from public.sales_order_lines where order_id=$1",
+        [firstId],
+      )
+    ).rows[0],
+    { p: 4001, list: 9999 },
+    "Order price is independent of current catalog price",
+  );
+  equal(await count("order_payments"), 1, "One observed partial capture");
+  equal(await count("finance_entries"), 0, "No invented approved accounting entries");
+  const firstSnapshot = await snapshot();
+  equal(
+    (await apply(o, first.lease)).status,
+    "replayed",
+    "Lost apply response can replay same finished lease and digest",
+  );
+  equal(await snapshot(), firstSnapshot, "Terminal replay is effect-free");
+  const changed = clone(o);
+  changed.taxesIncluded = false;
+  await rejected(apply(changed, first.lease), "22023", "worker_terminal_conflict");
+  equal(
+    (await processOrder(o)).result.status,
+    "replayed",
+    "Different webhook/event IDs deduplicate by source order/effect identity",
+  );
+  equal(await snapshot(), firstSnapshot, "Duplicate source snapshot makes no new business effects");
 
-  const partial=clone(o);partial.updatedAt=later(1);partial.transactions.push(transaction(2,4001,'CAPTURE'));partial.totals.totalReceivedCents=8002;partial.fulfillments=[fulfillment(1,partial.lines[0].id,1)];
-  equal((await processOrder(partial)).result.status,'applied','Second capture and partial fulfillment apply together');equal(await balance(),19,'Only actual successful fulfillment debits one physical unit');equal((await owner.query('select payment_state,fulfillment_state from public.sales_orders where id=$1',[firstId])).rows[0],{payment_state:'paid',fulfillment_state:'partial'},'Independent payment and fulfillment state');equal(await count('order_payments'),2,'Two partial captures retained');
-  const partialSnapshot=await snapshot();equal((await processOrder(partial)).result.status,'replayed','Separate event for partial state cannot duplicate capture or stock movement');equal(await snapshot(),partialSnapshot,'All duplicate effects remain single');
-  const older=clone(o);older.updatedAt='2026-10-21T14:10:30.000000001Z';equal((await processOrder(older)).result.status,'stale','Out-of-order source revision is ignored');equal(await snapshot(),partialSnapshot,'Stale revision cannot reverse effects');
-  const conflict=clone(partial);conflict.totals.currentTaxCents=1;await expectReview(conflict,'same_version_changed');
-  const nanos=clone(partial);nanos.updatedAt='2026-10-21T14:11:00.000000002Z';equal((await processOrder(nanos)).result.status,'applied','Nanosecond-different source revision survives PostgreSQL microsecond precision');equal((await owner.query('select source_updated_key from private.shopify_order_identities where order_id=$1',[firstId])).rows[0].source_updated_key,nanos.updatedAt,'Exact nine-digit ordering key retained');
+  const partial = clone(o);
+  partial.updatedAt = later(1);
+  partial.transactions.push(transaction(2, 4001, "CAPTURE"));
+  partial.totals.totalReceivedCents = 8002;
+  partial.fulfillments = [fulfillment(1, partial.lines[0].id, 1)];
+  equal(
+    (await processOrder(partial)).result.status,
+    "applied",
+    "Second capture and partial fulfillment apply together",
+  );
+  equal(await balance(), 19, "Only actual successful fulfillment debits one physical unit");
+  equal(
+    (
+      await owner.query(
+        "select payment_state,fulfillment_state from public.sales_orders where id=$1",
+        [firstId],
+      )
+    ).rows[0],
+    { payment_state: "paid", fulfillment_state: "partial" },
+    "Independent payment and fulfillment state",
+  );
+  equal(await count("order_payments"), 2, "Two partial captures retained");
+  const partialSnapshot = await snapshot();
+  equal(
+    (await processOrder(partial)).result.status,
+    "replayed",
+    "Separate event for partial state cannot duplicate capture or stock movement",
+  );
+  equal(await snapshot(), partialSnapshot, "All duplicate effects remain single");
+  const older = clone(o);
+  older.updatedAt = "2026-10-21T14:10:30.000000001Z";
+  equal(
+    (await processOrder(older)).result.status,
+    "stale",
+    "Out-of-order source revision is ignored",
+  );
+  equal(await snapshot(), partialSnapshot, "Stale revision cannot reverse effects");
+  const conflict = clone(partial);
+  conflict.totals.currentTaxCents = 1;
+  await expectReview(conflict, "same_version_changed");
+  const nanos = clone(partial);
+  nanos.updatedAt = "2026-10-21T14:11:00.000000002Z";
+  equal(
+    (await processOrder(nanos)).result.status,
+    "applied",
+    "Nanosecond-different source revision survives PostgreSQL microsecond precision",
+  );
+  equal(
+    (
+      await owner.query(
+        "select source_updated_key from private.shopify_order_identities where order_id=$1",
+        [firstId],
+      )
+    ).rows[0].source_updated_key,
+    nanos.updatedAt,
+    "Exact nine-digit ordering key retained",
+  );
 
-  const refunded=clone(nanos);refunded.updatedAt=later(2);refunded.transactions.push(transaction(3,2000,'REFUND',gid('OrderTransaction',1)));refunded.totals.totalRefundedCents=2000;refunded.refunds=[{id:gid('Refund',1),createdAt:time,updatedAt:time,totalRefundedCents:2000,lines:[]}];
-  equal((await processOrder(refunded)).result.status,'applied','Partial financial refund with parent capture applies');equal(await balance(),19,'Refund never invents physical return or restock');equal(await count('shopify_refund_observations'),1,'One confirmed financial refund observation');equal((await owner.query('select payment_state from public.sales_orders where id=$1',[firstId])).rows[0].payment_state,'partially_refunded','Refund state distinct from stock');
-  const reversal=clone(refunded);reversal.updatedAt=later(3);reversal.transactions[0].amountCents=4000;reversal.transactions[1].amountCents=4002;await expectReview(reversal,'source_effect_changed');
-  const cancelledFulfilled=clone(refunded);cancelledFulfilled.updatedAt=later(3);cancelledFulfilled.cancelledAt=later(3);await expectReview(cancelledFulfilled,'fulfilled_cancellation_requires_review');
+  const refunded = clone(nanos);
+  refunded.updatedAt = later(2);
+  refunded.transactions.push(transaction(3, 2000, "REFUND", gid("OrderTransaction", 1)));
+  refunded.totals.totalRefundedCents = 2000;
+  refunded.refunds = [
+    { id: gid("Refund", 1), createdAt: time, updatedAt: time, totalRefundedCents: 2000, lines: [] },
+  ];
+  equal(
+    (await processOrder(refunded)).result.status,
+    "applied",
+    "Partial financial refund with parent capture applies",
+  );
+  equal(await balance(), 19, "Refund never invents physical return or restock");
+  equal(
+    await count("shopify_refund_observations"),
+    1,
+    "One confirmed financial refund observation",
+  );
+  equal(
+    (await owner.query("select payment_state from public.sales_orders where id=$1", [firstId]))
+      .rows[0].payment_state,
+    "partially_refunded",
+    "Refund state distinct from stock",
+  );
+  const reversal = clone(refunded);
+  reversal.updatedAt = later(3);
+  reversal.transactions[0].amountCents = 4000;
+  reversal.transactions[1].amountCents = 4002;
+  await expectReview(reversal, "source_effect_changed");
+  const cancelledFulfilled = clone(refunded);
+  cancelledFulfilled.updatedAt = later(3);
+  cancelledFulfilled.cancelledAt = later(3);
+  await expectReview(cancelledFulfilled, "fulfilled_cancellation_requires_review");
 
-  const cancellable=order(2,30);const cancelInitial=(await processOrder(cancellable)).result;equal(cancelInitial.status,'applied','Demand beyond ready stock creates a production requirement');truth((await owner.query('select required_quantity from public.production_requirements r join public.sales_order_lines l on l.id=r.order_line_id where l.order_id=$1',[cancelInitial.order_id])).rows[0].required_quantity>0,'Production deficit is explicit');
-  const cancelled=clone(cancellable);cancelled.updatedAt=later(4);cancelled.cancelledAt=later(4);cancelled.lines[0].currentQuantity=0;equal((await processOrder(cancelled)).result.status,'applied','Unfulfilled cancellation releases reservations and uncompleted production');equal((await owner.query('select coalesce(sum(r.reserved_quantity),0)::int n from public.stock_reservations r join public.sales_order_lines l on l.id=r.order_line_id where l.order_id=$1',[cancelInitial.order_id])).rows[0].n,0,'Cancelled order has no reservations');equal(await balance(),19,'Cancellation does not manufacture a physical return');
-  const uncancel=clone(cancellable);uncancel.updatedAt=later(5);await expectReview(uncancel,'committed_source_effect_disappeared');
+  const cancellable = order(2, 30);
+  const cancelInitial = (await processOrder(cancellable)).result;
+  equal(
+    cancelInitial.status,
+    "applied",
+    "Demand beyond ready stock creates a production requirement",
+  );
+  truth(
+    (
+      await owner.query(
+        "select required_quantity from public.production_requirements r join public.sales_order_lines l on l.id=r.order_line_id where l.order_id=$1",
+        [cancelInitial.order_id],
+      )
+    ).rows[0].required_quantity > 0,
+    "Production deficit is explicit",
+  );
+  const cancelled = clone(cancellable);
+  cancelled.updatedAt = later(4);
+  cancelled.cancelledAt = later(4);
+  cancelled.lines[0].currentQuantity = 0;
+  equal(
+    (await processOrder(cancelled)).result.status,
+    "applied",
+    "Unfulfilled cancellation releases reservations and uncompleted production",
+  );
+  equal(
+    (
+      await owner.query(
+        "select coalesce(sum(r.reserved_quantity),0)::int n from public.stock_reservations r join public.sales_order_lines l on l.id=r.order_line_id where l.order_id=$1",
+        [cancelInitial.order_id],
+      )
+    ).rows[0].n,
+    0,
+    "Cancelled order has no reservations",
+  );
+  equal(await balance(), 19, "Cancellation does not manufacture a physical return");
+  const uncancel = clone(cancellable);
+  uncancel.updatedAt = later(5);
+  await expectReview(uncancel, "committed_source_effect_disappeared");
 
-  const unknown=order(3);unknown.lines[0].variantId=gid('ProductVariant',999);unknown.lines[0].sku='RETAIL-STICKER';await expectReview(unknown,'unmapped_sku');
-  const unknownPos=order(4);unknownPos.sourceName='pos';await expectReview(unknownPos,'pos_location_required');
-  const mappedPos=order(5);mappedPos.sourceName='pos';mappedPos.retailLocationId=gid('Location',1);equal((await processOrder(mappedPos)).result.status,'applied','Explicit POS location mapping routes physical reservation');
-  const wrongLocation=order(6);wrongLocation.fulfillments=[fulfillment(6,wrongLocation.lines[0].id)];wrongLocation.fulfillments[0].locationId=gid('Location',999);await expectReview(wrongLocation,'fulfillment_location_required');
-  const badCent=order(7);badCent.lines[0].originalUnitPriceCents=40.001;await expectReview(badCent,'invalid_canonical');
-  const badTotal=order(8);badTotal.totals.originalTotalCents=4002;await expectReview(badTotal,'order_totals_mismatch');
-  const extra=order(9);extra.customer={email:'synthetic@example.invalid'};await expectReview(extra,'invalid_canonical');
-  const edited=order(10);edited.edited=true;await expectReview(edited,'edited_order');
-  const duplicateTxn=order(11);duplicateTxn.transactions=[transaction(11,100),transaction(11,100)];duplicateTxn.totals.totalReceivedCents=200;await expectReview(duplicateTxn,'duplicate_source_id');
-  const foreignParent=order(12);foreignParent.transactions=[transaction(12,100,'REFUND',gid('OrderTransaction',999))];foreignParent.totals.totalRefundedCents=100;await expectReview(foreignParent,'unknown_parent_transaction');
-  const authorization=order(13);authorization.transactions=[transaction(13,4001,'AUTHORIZATION'),transaction(14,4001,'VOID',gid('OrderTransaction',13))];equal((await processOrder(authorization)).result.status,'applied','AUTHORIZATION and VOID snapshots are retained without incasso');equal((await owner.query('select count(*)::int n from public.order_payments p join public.sales_orders o on o.id=p.order_id where o.external_reference=$1',[shop+'/'+authorization.orderId])).rows[0].n,0,'Authorization is not a capture');
-  const history=order(14);history.createdAt='2026-10-20T12:00:00Z';const historySnapshot=await snapshot();equal((await processOrder(history)).result.status,'ignored','Only orders after explicit sales cutover enter the ecosystem');equal(await snapshot(),historySnapshot,'No historic import side effects');
-  const boundary=order(16);boundary.createdAt='2026-10-21T14:06:47.976340999Z';const boundarySnapshot=await snapshot();equal((await processOrder(boundary)).result.status,'ignored','One nanosecond before exact cutover stays historical despite PostgreSQL rounding');equal(await snapshot(),boundarySnapshot,'Cutover cannot round a historical order into the live ecosystem');
-  const discounted=order(17,2);discounted.lines[0].discountedTotalCents=7001;discounted.lines[0].lineDiscountCents=1001;discounted.lines[0].discountAllocationsCents=[500,501];for(const field of['originalTotalCents','currentTotalCents','originalSubtotalCents','currentSubtotalCents'])discounted.totals[field]=7001;discounted.totals.totalDiscountCents=1001;discounted.transactions=[transaction(17,7001)];discounted.totals.totalReceivedCents=7001;equal((await processOrder(discounted)).result.status,'applied','Odd-cent line discounts remain exact without rounding unit prices');
-  const shippingTax=order(18);shippingTax.taxesIncluded=false;shippingTax.totals.originalTaxCents=shippingTax.totals.currentTaxCents=880;shippingTax.totals.totalShippingPriceCents=shippingTax.totals.currentShippingPriceCents=501;shippingTax.totals.originalTotalCents=shippingTax.totals.currentTotalCents=5382;shippingTax.transactions=[transaction(18,5382)];shippingTax.totals.totalReceivedCents=5382;const taxResult=(await processOrder(shippingTax)).result;equal(taxResult.status,'applied','Shipping and tax stay separate while operational total includes both');equal((await owner.query('select total_cents::int n from public.sales_orders where id=$1',[taxResult.order_id])).rows[0].n,5382,'Operational total is not falsely reduced to line subtotal');
-  const orderDiscount=order(19);orderDiscount.totals.orderDiscountCents=1;await expectReview(orderDiscount,'order_discount_allocation_mismatch');
-  const coupon=order(29);coupon.hasDiscountCodes=true;coupon.lines[0].discountAllocationsCents=[400];const couponSecond=clone(coupon.lines[0]);couponSecond.id=gid('LineItem',2902);couponSecond.variantId=gid('ProductVariant',2);couponSecond.sku='TEST-2';couponSecond.originalUnitPriceCents=couponSecond.discountedTotalCents=4004;couponSecond.discountAllocationsCents=[401];coupon.lines.push(couponSecond);for(const field of['originalTotalCents','currentTotalCents','originalSubtotalCents','currentSubtotalCents'])coupon.totals[field]=7204;coupon.totals.orderDiscountCents=coupon.totals.totalDiscountCents=801;coupon.transactions=[transaction(29,7204)];coupon.totals.totalReceivedCents=7204;const couponResult=(await processOrder(coupon)).result;equal(couponResult.status,'applied','Order percentage coupon across two SKU uses observed odd-cent allocation exactly');equal((await owner.query('select sku_snapshot,discount_cents::int d,line_total_cents::int n from public.sales_order_lines where order_id=$1 order by sku_snapshot',[couponResult.order_id])).rows,[{sku_snapshot:'TEST-1',d:400,n:3601},{sku_snapshot:'TEST-2',d:401,n:3603}],'No coupon percentage or residual cent is recalculated');equal((await processOrder(coupon)).result.status,'replayed','Coupon order replay preserves exact line allocations');const missingCouponAllocation=clone(coupon);missingCouponAllocation.orderId=gid('Order',129);missingCouponAllocation.lines[0].id=gid('LineItem',12901);missingCouponAllocation.lines[1].id=gid('LineItem',12902);missingCouponAllocation.transactions[0].id=gid('OrderTransaction',129);missingCouponAllocation.lines[1].discountAllocationsCents=[400];await expectReview(missingCouponAllocation,'order_totals_mismatch');
-  const badAllocation=order(20);badAllocation.lines[0].discountedTotalCents=4000;await expectReview(badAllocation,'discount_allocation_mismatch');
-  const nullCurrency=order(21);nullCurrency.shopCurrency=null;const nullReceiptOrder=clone(nullCurrency);nullReceiptOrder.shopCurrency='EUR';const nullReceived=await receive(nullReceiptOrder);const nullLease=(await claim()).find(l=>l.job_id===nullReceived.job_id);const nullSnapshot=await snapshot();equal((await apply(nullCurrency,nullLease)).reason,'unsupported_currency_or_version','JSON null cannot bypass currency checks');equal(await snapshot(),nullSnapshot,'Malformed currency is atomic');
-  const newUnknown=clone(refunded);newUnknown.updatedAt=later(6);newUnknown.lines[0].sku='RETAIL-STICKER';const versionBefore=(await owner.query('select source_updated_key from private.shopify_order_identities where order_id=$1',[firstId])).rows[0].source_updated_key;await expectReview(newUnknown,'original_order_changed');equal((await owner.query('select source_updated_key from private.shopify_order_identities where order_id=$1',[firstId])).rows[0].source_updated_key,versionBefore,'Newer invalid source snapshot does not advance committed revision');
-  const missingPayment=clone(refunded);missingPayment.updatedAt=later(6);missingPayment.transactions=missingPayment.transactions.filter(t=>t.id!==gid('OrderTransaction',2));missingPayment.totals.totalReceivedCents=4001;await expectReview(missingPayment,'committed_source_effect_disappeared');
-  const changedFulfillment=clone(refunded);changedFulfillment.updatedAt=later(6);changedFulfillment.fulfillments[0].totalQuantity=2;changedFulfillment.fulfillments[0].lines[0].quantity=2;await expectReview(changedFulfillment,'source_effect_changed');
-  const zeroSuccess=order(27);zeroSuccess.transactions=[transaction(27,0)];const zeroId=(await processOrder(zeroSuccess)).result.order_id;equal((await owner.query('select count(*)::int n from public.order_payments where order_id=$1',[zeroId])).rows[0].n,0,'Zero successful transaction does not fabricate a cash observation');const zeroChanged=clone(zeroSuccess);zeroChanged.updatedAt=later(6);zeroChanged.transactions[0].amountCents=1;zeroChanged.totals.totalReceivedCents=1;await expectReview(zeroChanged,'source_effect_changed');
-  const pending=order(22);pending.transactions=[transaction(22,4001,'CAPTURE')];pending.transactions[0].status='PENDING';const pendingId=(await processOrder(pending)).result.order_id;equal((await owner.query('select count(*)::int n from public.order_payments where order_id=$1',[pendingId])).rows[0].n,0,'Pending capture has no observed incasso');const captured=clone(pending);captured.updatedAt=later(7);captured.transactions[0].status='SUCCESS';captured.totals.totalReceivedCents=4001;equal((await processOrder(captured)).result.status,'applied','Pending capture can become successful once');equal((await owner.query('select count(*)::int n from public.order_payments where order_id=$1',[pendingId])).rows[0].n,1,'Capture success creates exactly one observed payment');
-  const fullRefund=clone(captured);fullRefund.updatedAt=later(8);fullRefund.transactions.push(transaction(23,4001,'REFUND',gid('OrderTransaction',22)));fullRefund.totals.totalRefundedCents=4001;fullRefund.refunds=[{id:gid('Refund',23),createdAt:time,updatedAt:time,totalRefundedCents:4001,lines:[]}];equal((await processOrder(fullRefund)).result.status,'applied','Full financial refund can exist without physical return evidence');equal((await owner.query('select payment_state from public.sales_orders where id=$1',[pendingId])).rows[0].payment_state,'refunded','Full refund payment state');
-  for(const topic of['orders/fulfilled','orders/partially_fulfilled']){const receipt=await receive(fullRefund,randomUUID(),randomUUID(),topic);const lease=(await claim()).find(l=>l.job_id===receipt.job_id);equal((await apply(fullRefund,lease)).status,'replayed','Fulfillment topic remains only a durable canonical-read cue');}
-  const unknownBalance=order(24);unknownBalance.lines[0].variantId=gid('ProductVariant',3);unknownBalance.lines[0].sku='TEST-3';await owner.query('update public.stock_balances set quantity=null where stock_item_id=$1 and location_id=$2',[items[2],location]);await expectReview(unknownBalance,'unknown_physical_stock');await owner.query('update public.stock_balances set quantity=0 where stock_item_id=$1 and location_id=$2',[items[2],location]);
-  await owner.query('update private.shopify_sync_configuration set online_location_id=null where shop_domain=$1',[shop]);await expectReview(order(25),'online_location_required');await owner.query('update private.shopify_sync_configuration set online_location_id=$2 where shop_domain=$1',[shop,location]);
-  await owner.query('insert into private.shopify_location_mappings values($1,$2,$3)',[shop,gid('Location',2),secondLocation]);const mismatch=order(26);mismatch.fulfillments=[fulfillment(26,mismatch.lines[0].id)];mismatch.fulfillments[0].locationId=gid('Location',2);await expectReview(mismatch,'fulfillment_location_mismatch');
-  const consignmentPos=order(28);consignmentPos.sourceName='pos';consignmentPos.retailLocationId=gid('Location',2);await expectReview(consignmentPos,'invalid_sales_location');
+  const unknown = order(3);
+  unknown.lines[0].variantId = gid("ProductVariant", 999);
+  unknown.lines[0].sku = "RETAIL-STICKER";
+  await expectReview(unknown, "unmapped_sku");
+  const unknownPos = order(4);
+  unknownPos.sourceName = "pos";
+  await expectReview(unknownPos, "pos_location_required");
+  const mappedPos = order(5);
+  mappedPos.sourceName = "pos";
+  mappedPos.retailLocationId = gid("Location", 1);
+  equal(
+    (await processOrder(mappedPos)).result.status,
+    "applied",
+    "Explicit POS location mapping routes physical reservation",
+  );
+  const wrongLocation = order(6);
+  wrongLocation.fulfillments = [fulfillment(6, wrongLocation.lines[0].id)];
+  wrongLocation.fulfillments[0].locationId = gid("Location", 999);
+  await expectReview(wrongLocation, "fulfillment_location_required");
+  const badCent = order(7);
+  badCent.lines[0].originalUnitPriceCents = 40.001;
+  await expectReview(badCent, "invalid_canonical");
+  const badTotal = order(8);
+  badTotal.totals.originalTotalCents = 4002;
+  await expectReview(badTotal, "order_totals_mismatch");
+  const extra = order(9);
+  extra.customer = { email: "synthetic@example.invalid" };
+  await expectReview(extra, "invalid_canonical");
+  const edited = order(10);
+  edited.edited = true;
+  await expectReview(edited, "edited_order");
+  const duplicateTxn = order(11);
+  duplicateTxn.transactions = [transaction(11, 100), transaction(11, 100)];
+  duplicateTxn.totals.totalReceivedCents = 200;
+  await expectReview(duplicateTxn, "duplicate_source_id");
+  const foreignParent = order(12);
+  foreignParent.transactions = [transaction(12, 100, "REFUND", gid("OrderTransaction", 999))];
+  foreignParent.totals.totalRefundedCents = 100;
+  await expectReview(foreignParent, "unknown_parent_transaction");
+  const authorization = order(13);
+  authorization.transactions = [
+    transaction(13, 4001, "AUTHORIZATION"),
+    transaction(14, 4001, "VOID", gid("OrderTransaction", 13)),
+  ];
+  equal(
+    (await processOrder(authorization)).result.status,
+    "applied",
+    "AUTHORIZATION and VOID snapshots are retained without incasso",
+  );
+  equal(
+    (
+      await owner.query(
+        "select count(*)::int n from public.order_payments p join public.sales_orders o on o.id=p.order_id where o.external_reference=$1",
+        [shop + "/" + authorization.orderId],
+      )
+    ).rows[0].n,
+    0,
+    "Authorization is not a capture",
+  );
+  const history = order(14);
+  history.createdAt = "2026-10-20T12:00:00Z";
+  const historySnapshot = await snapshot();
+  equal(
+    (await processOrder(history)).result.status,
+    "ignored",
+    "Only orders after explicit sales cutover enter the ecosystem",
+  );
+  equal(await snapshot(), historySnapshot, "No historic import side effects");
+  const boundary = order(16);
+  boundary.createdAt = "2026-10-21T14:06:47.976340999Z";
+  const boundarySnapshot = await snapshot();
+  equal(
+    (await processOrder(boundary)).result.status,
+    "ignored",
+    "One nanosecond before exact cutover stays historical despite PostgreSQL rounding",
+  );
+  equal(
+    await snapshot(),
+    boundarySnapshot,
+    "Cutover cannot round a historical order into the live ecosystem",
+  );
+  const discounted = order(17, 2);
+  discounted.lines[0].discountedTotalCents = 7001;
+  discounted.lines[0].lineDiscountCents = 1001;
+  discounted.lines[0].discountAllocationsCents = [500, 501];
+  for (const field of [
+    "originalTotalCents",
+    "currentTotalCents",
+    "originalSubtotalCents",
+    "currentSubtotalCents",
+  ])
+    discounted.totals[field] = 7001;
+  discounted.totals.totalDiscountCents = 1001;
+  discounted.transactions = [transaction(17, 7001)];
+  discounted.totals.totalReceivedCents = 7001;
+  equal(
+    (await processOrder(discounted)).result.status,
+    "applied",
+    "Odd-cent line discounts remain exact without rounding unit prices",
+  );
+  const shippingTax = order(18);
+  shippingTax.taxesIncluded = false;
+  shippingTax.totals.originalTaxCents = shippingTax.totals.currentTaxCents = 880;
+  shippingTax.totals.totalShippingPriceCents = shippingTax.totals.currentShippingPriceCents = 501;
+  shippingTax.totals.originalTotalCents = shippingTax.totals.currentTotalCents = 5382;
+  shippingTax.transactions = [transaction(18, 5382)];
+  shippingTax.totals.totalReceivedCents = 5382;
+  const taxResult = (await processOrder(shippingTax)).result;
+  equal(
+    taxResult.status,
+    "applied",
+    "Shipping and tax stay separate while operational total includes both",
+  );
+  equal(
+    (
+      await owner.query("select total_cents::int n from public.sales_orders where id=$1", [
+        taxResult.order_id,
+      ])
+    ).rows[0].n,
+    5382,
+    "Operational total is not falsely reduced to line subtotal",
+  );
+  const orderDiscount = order(19);
+  orderDiscount.totals.orderDiscountCents = 1;
+  await expectReview(orderDiscount, "order_discount_allocation_mismatch");
+  const coupon = order(29);
+  coupon.hasDiscountCodes = true;
+  coupon.lines[0].discountAllocationsCents = [400];
+  const couponSecond = clone(coupon.lines[0]);
+  couponSecond.id = gid("LineItem", 2902);
+  couponSecond.variantId = gid("ProductVariant", 2);
+  couponSecond.sku = "TEST-2";
+  couponSecond.originalUnitPriceCents = couponSecond.discountedTotalCents = 4004;
+  couponSecond.discountAllocationsCents = [401];
+  coupon.lines.push(couponSecond);
+  for (const field of [
+    "originalTotalCents",
+    "currentTotalCents",
+    "originalSubtotalCents",
+    "currentSubtotalCents",
+  ])
+    coupon.totals[field] = 7204;
+  coupon.totals.orderDiscountCents = coupon.totals.totalDiscountCents = 801;
+  coupon.transactions = [transaction(29, 7204)];
+  coupon.totals.totalReceivedCents = 7204;
+  const couponResult = (await processOrder(coupon)).result;
+  equal(
+    couponResult.status,
+    "applied",
+    "Order percentage coupon across two SKU uses observed odd-cent allocation exactly",
+  );
+  equal(
+    (
+      await owner.query(
+        "select sku_snapshot,discount_cents::int d,line_total_cents::int n from public.sales_order_lines where order_id=$1 order by sku_snapshot",
+        [couponResult.order_id],
+      )
+    ).rows,
+    [
+      { sku_snapshot: "TEST-1", d: 400, n: 3601 },
+      { sku_snapshot: "TEST-2", d: 401, n: 3603 },
+    ],
+    "No coupon percentage or residual cent is recalculated",
+  );
+  equal(
+    (await processOrder(coupon)).result.status,
+    "replayed",
+    "Coupon order replay preserves exact line allocations",
+  );
+  const missingCouponAllocation = clone(coupon);
+  missingCouponAllocation.orderId = gid("Order", 129);
+  missingCouponAllocation.lines[0].id = gid("LineItem", 12901);
+  missingCouponAllocation.lines[1].id = gid("LineItem", 12902);
+  missingCouponAllocation.transactions[0].id = gid("OrderTransaction", 129);
+  missingCouponAllocation.lines[1].discountAllocationsCents = [400];
+  await expectReview(missingCouponAllocation, "order_totals_mismatch");
+  const badAllocation = order(20);
+  badAllocation.lines[0].discountedTotalCents = 4000;
+  await expectReview(badAllocation, "discount_allocation_mismatch");
+  const nullCurrency = order(21);
+  nullCurrency.shopCurrency = null;
+  const nullReceiptOrder = clone(nullCurrency);
+  nullReceiptOrder.shopCurrency = "EUR";
+  const nullReceived = await receive(nullReceiptOrder);
+  const nullLease = (await claim()).find((l) => l.job_id === nullReceived.job_id);
+  const nullSnapshot = await snapshot();
+  equal(
+    (await apply(nullCurrency, nullLease)).reason,
+    "unsupported_currency_or_version",
+    "JSON null cannot bypass currency checks",
+  );
+  equal(await snapshot(), nullSnapshot, "Malformed currency is atomic");
+  const newUnknown = clone(refunded);
+  newUnknown.updatedAt = later(6);
+  newUnknown.lines[0].sku = "RETAIL-STICKER";
+  const versionBefore = (
+    await owner.query(
+      "select source_updated_key from private.shopify_order_identities where order_id=$1",
+      [firstId],
+    )
+  ).rows[0].source_updated_key;
+  await expectReview(newUnknown, "original_order_changed");
+  equal(
+    (
+      await owner.query(
+        "select source_updated_key from private.shopify_order_identities where order_id=$1",
+        [firstId],
+      )
+    ).rows[0].source_updated_key,
+    versionBefore,
+    "Newer invalid source snapshot does not advance committed revision",
+  );
+  const missingPayment = clone(refunded);
+  missingPayment.updatedAt = later(6);
+  missingPayment.transactions = missingPayment.transactions.filter(
+    (t) => t.id !== gid("OrderTransaction", 2),
+  );
+  missingPayment.totals.totalReceivedCents = 4001;
+  await expectReview(missingPayment, "committed_source_effect_disappeared");
+  const changedFulfillment = clone(refunded);
+  changedFulfillment.updatedAt = later(6);
+  changedFulfillment.fulfillments[0].totalQuantity = 2;
+  changedFulfillment.fulfillments[0].lines[0].quantity = 2;
+  await expectReview(changedFulfillment, "source_effect_changed");
+  const zeroSuccess = order(27);
+  zeroSuccess.transactions = [transaction(27, 0)];
+  const zeroId = (await processOrder(zeroSuccess)).result.order_id;
+  equal(
+    (
+      await owner.query("select count(*)::int n from public.order_payments where order_id=$1", [
+        zeroId,
+      ])
+    ).rows[0].n,
+    0,
+    "Zero successful transaction does not fabricate a cash observation",
+  );
+  const zeroChanged = clone(zeroSuccess);
+  zeroChanged.updatedAt = later(6);
+  zeroChanged.transactions[0].amountCents = 1;
+  zeroChanged.totals.totalReceivedCents = 1;
+  await expectReview(zeroChanged, "source_effect_changed");
+  const pending = order(22);
+  pending.transactions = [transaction(22, 4001, "CAPTURE")];
+  pending.transactions[0].status = "PENDING";
+  const pendingId = (await processOrder(pending)).result.order_id;
+  equal(
+    (
+      await owner.query("select count(*)::int n from public.order_payments where order_id=$1", [
+        pendingId,
+      ])
+    ).rows[0].n,
+    0,
+    "Pending capture has no observed incasso",
+  );
+  const captured = clone(pending);
+  captured.updatedAt = later(7);
+  captured.transactions[0].status = "SUCCESS";
+  captured.totals.totalReceivedCents = 4001;
+  equal(
+    (await processOrder(captured)).result.status,
+    "applied",
+    "Pending capture can become successful once",
+  );
+  equal(
+    (
+      await owner.query("select count(*)::int n from public.order_payments where order_id=$1", [
+        pendingId,
+      ])
+    ).rows[0].n,
+    1,
+    "Capture success creates exactly one observed payment",
+  );
+  const fullRefund = clone(captured);
+  fullRefund.updatedAt = later(8);
+  fullRefund.transactions.push(transaction(23, 4001, "REFUND", gid("OrderTransaction", 22)));
+  fullRefund.totals.totalRefundedCents = 4001;
+  fullRefund.refunds = [
+    {
+      id: gid("Refund", 23),
+      createdAt: time,
+      updatedAt: time,
+      totalRefundedCents: 4001,
+      lines: [],
+    },
+  ];
+  equal(
+    (await processOrder(fullRefund)).result.status,
+    "applied",
+    "Full financial refund can exist without physical return evidence",
+  );
+  equal(
+    (await owner.query("select payment_state from public.sales_orders where id=$1", [pendingId]))
+      .rows[0].payment_state,
+    "refunded",
+    "Full refund payment state",
+  );
+  for (const topic of ["orders/fulfilled", "orders/partially_fulfilled"]) {
+    const receipt = await receive(fullRefund, randomUUID(), randomUUID(), topic);
+    const lease = (await claim()).find((l) => l.job_id === receipt.job_id);
+    equal(
+      (await apply(fullRefund, lease)).status,
+      "replayed",
+      "Fulfillment topic remains only a durable canonical-read cue",
+    );
+  }
+  const unknownBalance = order(24);
+  unknownBalance.lines[0].variantId = gid("ProductVariant", 3);
+  unknownBalance.lines[0].sku = "TEST-3";
+  await owner.query(
+    "update public.stock_balances set quantity=null where stock_item_id=$1 and location_id=$2",
+    [items[2], location],
+  );
+  await expectReview(unknownBalance, "unknown_physical_stock");
+  await owner.query(
+    "update public.stock_balances set quantity=0 where stock_item_id=$1 and location_id=$2",
+    [items[2], location],
+  );
+  await owner.query(
+    "update private.shopify_sync_configuration set online_location_id=null where shop_domain=$1",
+    [shop],
+  );
+  await expectReview(order(25), "online_location_required");
+  await owner.query(
+    "update private.shopify_sync_configuration set online_location_id=$2 where shop_domain=$1",
+    [shop, location],
+  );
+  await owner.query("insert into private.shopify_location_mappings values($1,$2,$3)", [
+    shop,
+    gid("Location", 2),
+    secondLocation,
+  ]);
+  const mismatch = order(26);
+  mismatch.fulfillments = [fulfillment(26, mismatch.lines[0].id)];
+  mismatch.fulfillments[0].locationId = gid("Location", 2);
+  await expectReview(mismatch, "fulfillment_location_mismatch");
+  const consignmentPos = order(28);
+  consignmentPos.sourceName = "pos";
+  consignmentPos.retailLocationId = gid("Location", 2);
+  await expectReview(consignmentPos, "invalid_sales_location");
 
   // The second line fails after earlier order/payment/first fulfillment writes.
-  const atomic=order(15);const empty=clone(atomic.lines[0]);empty.id=gid('LineItem',1502);empty.variantId=gid('ProductVariant',3);empty.sku='TEST-3';atomic.lines.push(empty);atomic.totals.originalTotalCents=atomic.totals.currentTotalCents=atomic.totals.originalSubtotalCents=atomic.totals.currentSubtotalCents=8002;atomic.transactions=[transaction(15,8002)];atomic.totals.totalReceivedCents=8002;atomic.fulfillments=[fulfillment(15,atomic.lines[0].id),fulfillment(16,empty.id)];const beforeAtomicBalance=await balance();await expectReview(atomic,'physical_fulfillment_shortage');equal(await balance(),beforeAtomicBalance,'Late second-line failure rolls back earlier stock debit');
+  const atomic = order(15);
+  const empty = clone(atomic.lines[0]);
+  empty.id = gid("LineItem", 1502);
+  empty.variantId = gid("ProductVariant", 3);
+  empty.sku = "TEST-3";
+  atomic.lines.push(empty);
+  atomic.totals.originalTotalCents =
+    atomic.totals.currentTotalCents =
+    atomic.totals.originalSubtotalCents =
+    atomic.totals.currentSubtotalCents =
+      8002;
+  atomic.transactions = [transaction(15, 8002)];
+  atomic.totals.totalReceivedCents = 8002;
+  atomic.fulfillments = [fulfillment(15, atomic.lines[0].id), fulfillment(16, empty.id)];
+  const beforeAtomicBalance = await balance();
+  await expectReview(atomic, "physical_fulfillment_shortage");
+  equal(
+    await balance(),
+    beforeAtomicBalance,
+    "Late second-line failure rolls back earlier stock debit",
+  );
 
-  for(const role of roles){for(const rpc of['claim_shopify_order_jobs($1,1,120)','apply_shopify_order($1,$2,$3)','finish_shopify_read_job($1,$2,\'review\',\'reader_review\',60)','requeue_shopify_order_job($1)']){const args=rpc.startsWith('apply')?[first.lease.job_id,first.lease.lease_token,o]:rpc.startsWith('finish')?[first.lease.job_id,first.lease.lease_token]:[first.lease.job_id];await rejected(value(`select public.${rpc} value`,args,'authenticated',role),'42501');}}
-  for(const role of['anon','authenticated','service_role'])for(const table of['shopify_sync_configuration','shopify_location_mappings','shopify_job_leases','shopify_order_identities','shopify_line_identities','shopify_effect_receipts'])equal((await owner.query('select has_table_privilege($1,$2,\'SELECT\') allowed',[role,`private.${table}`])).rows[0].allowed,false,'Private worker tables have no client or service table grants');
-  for(const table of['shopify_order_financials','shopify_transaction_observations','shopify_refund_observations']){equal(await value(`select count(*)::int value from public.${table}`,[],'authenticated','founder'),0,'Even founder needs Finance grant');equal(await value(`select count(*)::int value from public.${table}`,[],'authenticated','logistics'),0,'Operational member cannot read Finance observations');await rejected(value(`select count(*)::int value from public.${table}`,[],'anon'),'42501');await rejected(value(`delete from public.${table}`,[],'authenticated','founder'),'42501');}
-  await value('select public.configure_sensitive_password(\'finance\',\'synthetic-finance-6\') value');equal((await value('select public.unlock_sensitive_area(\'finance\',\'synthetic-finance-6\') value',[],'authenticated','founder')).status,'unlocked','Eligible current session unlocks Finance observations');truth(await value('select count(*)::int value from public.shopify_transaction_observations',[],'authenticated','founder')>0,'Authorized Finance can inspect transaction observations');truth(await value('select count(*)::int value from public.sales_orders',[],'authenticated','logistics')>0,'Operational prices and source states remain visible to all members');
-  equal((await owner.query("select count(*)::int n from public.audit_logs where table_name in('sales_orders','order_payments','shopify_refund_observations') and actor_id is not null")).rows[0].n,0,'Technical import audit actor stays NULL');
+  for (const role of roles) {
+    for (const rpc of [
+      "claim_shopify_order_jobs($1,1,120)",
+      "apply_shopify_order($1,$2,$3)",
+      "finish_shopify_read_job($1,$2,'review','reader_review',60)",
+      "requeue_shopify_order_job($1)",
+    ]) {
+      const args = rpc.startsWith("apply")
+        ? [first.lease.job_id, first.lease.lease_token, o]
+        : rpc.startsWith("finish")
+          ? [first.lease.job_id, first.lease.lease_token]
+          : [first.lease.job_id];
+      await rejected(value(`select public.${rpc} value`, args, "authenticated", role), "42501");
+    }
+  }
+  for (const role of ["anon", "authenticated", "service_role"])
+    for (const table of [
+      "shopify_sync_configuration",
+      "shopify_location_mappings",
+      "shopify_job_leases",
+      "shopify_order_identities",
+      "shopify_line_identities",
+      "shopify_effect_receipts",
+    ])
+      equal(
+        (
+          await owner.query("select has_table_privilege($1,$2,'SELECT') allowed", [
+            role,
+            `private.${table}`,
+          ])
+        ).rows[0].allowed,
+        false,
+        "Private worker tables have no client or service table grants",
+      );
+  for (const table of [
+    "shopify_order_financials",
+    "shopify_transaction_observations",
+    "shopify_refund_observations",
+  ]) {
+    equal(
+      await value(
+        `select count(*)::int value from public.${table}`,
+        [],
+        "authenticated",
+        "founder",
+      ),
+      0,
+      "Even founder needs Finance grant",
+    );
+    equal(
+      await value(
+        `select count(*)::int value from public.${table}`,
+        [],
+        "authenticated",
+        "logistics",
+      ),
+      0,
+      "Operational member cannot read Finance observations",
+    );
+    await rejected(value(`select count(*)::int value from public.${table}`, [], "anon"), "42501");
+    await rejected(value(`delete from public.${table}`, [], "authenticated", "founder"), "42501");
+  }
+  await value("select public.configure_sensitive_password('finance','synthetic-finance-6') value");
+  equal(
+    (
+      await value(
+        "select public.unlock_sensitive_area('finance','synthetic-finance-6') value",
+        [],
+        "authenticated",
+        "founder",
+      )
+    ).status,
+    "unlocked",
+    "Eligible current session unlocks Finance observations",
+  );
+  truth(
+    (await value(
+      "select count(*)::int value from public.shopify_transaction_observations",
+      [],
+      "authenticated",
+      "founder",
+    )) > 0,
+    "Authorized Finance can inspect transaction observations",
+  );
+  truth(
+    (await value(
+      "select count(*)::int value from public.sales_orders",
+      [],
+      "authenticated",
+      "logistics",
+    )) > 0,
+    "Operational prices and source states remain visible to all members",
+  );
+  equal(
+    (
+      await owner.query(
+        "select count(*)::int n from public.audit_logs where table_name in('sales_orders','order_payments','shopify_refund_observations') and actor_id is not null",
+      )
+    ).rows[0].n,
+    0,
+    "Technical import audit actor stays NULL",
+  );
 
   // Existing authenticated manual commands keep their behavior. Externally
   // managed orders accept actual production receipts, not manual source edits.
-  const occurred=new Date(Date.now()-1000).toISOString();const manualPayload={schema_version:1,channel:'direct',occurred_at:occurred,location_id:location,lines:[{stock_item_id:items[1],quantity:1,unit_price_cents:9999,discount_cents:0}],fulfillment_mode:'prepare',payment:{status:'unpaid'}};
-  const manualOperation=randomUUID();const manual=await value('select public.register_manual_sale($1,$2) value',[manualOperation,manualPayload],'authenticated','logistics');equal(manual.total_cents,9999,'Manual sale retains exact existing economics');equal((await value('select public.register_manual_sale($1,$2) value',[manualOperation,manualPayload],'authenticated','logistics')).replayed,true,'Existing manual replay still succeeds');
-  const manualPayment={order_id:manual.order_id,amount_cents:9999,method:'cash',occurred_at:occurred};equal((await value('select public.record_manual_payment($1,$2) value',[randomUUID(),manualPayment],'authenticated','logistics')).payment_state,'paid','Existing manual payment succeeds once');await rejected(value('select public.record_manual_payment($1,$2) value',[randomUUID(),manualPayment],'authenticated','logistics'),'22023','payment_already_recorded');
-  const externalManaged=order(30);externalManaged.lines[0].variantId=gid('ProductVariant',3);externalManaged.lines[0].sku='TEST-3';externalManaged.lines[0].quantity=externalManaged.lines[0].currentQuantity=2;externalManaged.lines[0].discountedTotalCents=8002;for(const field of['originalTotalCents','currentTotalCents','originalSubtotalCents','currentSubtotalCents'])externalManaged.totals[field]=8002;const producedOrder=(await processOrder(externalManaged)).result;const requirement=(await owner.query('select r.id,l.id line_id from public.production_requirements r join public.sales_order_lines l on l.id=r.order_line_id where l.order_id=$1',[producedOrder.order_id])).rows[0];
-  const externalPayment={...manualPayment,order_id:producedOrder.order_id,amount_cents:8002};await rejected(value('select public.record_manual_payment($1,$2) value',[randomUUID(),externalPayment],'authenticated','logistics'),'22023','external_order_managed_by_shopify');
-  const externalLines={order_id:producedOrder.order_id,occurred_at:occurred,reason:'Synthetic command only',lines:[{order_line_id:requirement.line_id,quantity:1}]};await rejected(value('select public.cancel_unfulfilled_lines($1,$2) value',[randomUUID(),externalLines],'authenticated','logistics'),'22023','external_order_managed_by_shopify');
-  const beforeProduction=await balance(items[2]);await owner.query('update public.app_settings set manual_sales_enabled=false where id');const productionOp=randomUUID();const productionPayload={requirement_id:requirement.id,quantity:1,occurred_at:occurred,reason:'Synthetic actual production receipt'};equal((await value('select public.complete_production($1,$2) value',[productionOp,productionPayload],'authenticated','production')).completed_quantity,1,'Actual production for Shopify works with manual sales disabled');equal(await balance(items[2]),beforeProduction+1,'Production receipt adds real physical unit');equal((await value('select public.complete_production($1,$2) value',[productionOp,productionPayload],'authenticated','production')).replayed,true,'Production retry does not fabricate additional stock');await rejected(value('select public.register_manual_sale($1,$2) value',[randomUUID(),manualPayload],'authenticated','logistics'),'42501','sales_disabled');await owner.query('update public.app_settings set manual_sales_enabled=true where id');await rejected(value('select public.fulfill_order_lines($1,$2) value',[randomUUID(),externalLines],'authenticated','logistics'),'22023','external_order_managed_by_shopify');
-  const producedFulfillment=clone(externalManaged);producedFulfillment.updatedAt=later(9);producedFulfillment.fulfillments=[fulfillment(30,producedFulfillment.lines[0].id)];equal((await processOrder(producedFulfillment)).result.status,'applied','Shopify fulfillment consumes the actual produced reservation');equal(await balance(items[2]),beforeProduction,'Produced and shipped unit is debited exactly once');await rejected(value('select public.fulfill_order_lines($1,$2) value',[randomUUID(),externalLines],'authenticated','logistics'),'22023');
-  const returned=order(31);returned.lines[0].variantId=gid('ProductVariant',2);returned.lines[0].sku='TEST-2';returned.transactions=[transaction(31,4001)];returned.totals.totalReceivedCents=4001;returned.fulfillments=[fulfillment(31,returned.lines[0].id)];const returnedBefore=await balance(items[1]);equal((await processOrder(returned)).result.status,'applied','Fully fulfilled reference order debits physical stock');equal(await balance(items[1]),returnedBefore-1,'Actual shipment debits one');const returnHint=clone(returned);returnHint.updatedAt=later(10);returnHint.lines[0].currentQuantity=0;returnHint.transactions.push(transaction(32,4001,'REFUND',gid('OrderTransaction',31)));returnHint.totals.totalRefundedCents=4001;returnHint.refunds=[{id:gid('Refund',32),createdAt:time,updatedAt:time,totalRefundedCents:4001,lines:[{id:gid('RefundLineItem',32),lineItemId:returned.lines[0].id,quantity:1,restockType:'RETURN',restocked:true,locationId:gid('Location',1)}]}];equal((await processOrder(returnHint)).result.status,'applied','Refund restocked hint can be observed financially');equal(await balance(items[1]),returnedBefore-1,'Even Shopify restocked=true cannot fabricate an ERP physical receipt');
-  const paidCancel=order(32);paidCancel.transactions=[transaction(33,4001)];paidCancel.totals.totalReceivedCents=4001;const paidCancelId=(await processOrder(paidCancel)).result.order_id;const paidCancelled=clone(paidCancel);paidCancelled.updatedAt=later(11);paidCancelled.cancelledAt=later(11);paidCancelled.lines[0].currentQuantity=0;equal((await processOrder(paidCancelled)).result.status,'applied','Paid unfulfilled order can be explicitly cancelled');equal((await owner.query('select refund_due_cents::int n from public.sales_orders where id=$1',[paidCancelId])).rows[0].n,4001,'Observed capture on cancelled order becomes refund due');const paidCancelledRefunded=clone(paidCancelled);paidCancelledRefunded.updatedAt=later(12);paidCancelledRefunded.transactions.push(transaction(34,4001,'REFUND',gid('OrderTransaction',33)));paidCancelledRefunded.totals.totalRefundedCents=4001;paidCancelledRefunded.refunds=[{id:gid('Refund',34),createdAt:time,updatedAt:time,totalRefundedCents:4001,lines:[]}];equal((await processOrder(paidCancelledRefunded)).result.status,'applied','Confirmed refund resolves cancellation refund due');equal((await owner.query('select refund_due_cents::int n from public.sales_orders where id=$1',[paidCancelId])).rows[0].n,0,'Refund due clears only after actual successful refund observation');
-  await owner.query("insert into public.stock_movements(operation_id,stock_item_id,location_id,kind,quantity_delta,reason) values($1,$2,$3,'opening',10,'Synthetic external stock')",[randomUUID(),items[1],external]);const externalSnapshot=await snapshot();await rejected(value('select public.register_manual_sale($1,$2) value',[randomUUID(),{...manualPayload,location_id:external}],'authenticated','logistics'),'22023','invalid_sales_location');equal(await snapshot(),externalSnapshot,'External location cannot sell even with initialized known stock');
-  await owner.query("insert into public.stock_movements(operation_id,stock_item_id,location_id,kind,quantity_delta,reason) values($1,$2,$3,'opening',10,'Synthetic LCM stock')",[randomUUID(),items[1],secondLocation]);const consignmentSnapshot=await snapshot();await rejected(value('select public.register_manual_sale($1,$2) value',[randomUUID(),{...manualPayload,location_id:secondLocation}],'authenticated','logistics'),'22023','invalid_sales_location');equal(await snapshot(),consignmentSnapshot,'LCM stock is reserved for the separate consignment workflow');
+  const occurred = new Date(Date.now() - 1000).toISOString();
+  const manualPayload = {
+    schema_version: 1,
+    channel: "direct",
+    occurred_at: occurred,
+    location_id: location,
+    lines: [{ stock_item_id: items[1], quantity: 1, unit_price_cents: 9999, discount_cents: 0 }],
+    fulfillment_mode: "prepare",
+    payment: { status: "unpaid" },
+  };
+  const manualOperation = randomUUID();
+  const manual = await value(
+    "select public.register_manual_sale($1,$2) value",
+    [manualOperation, manualPayload],
+    "authenticated",
+    "logistics",
+  );
+  equal(manual.total_cents, 9999, "Manual sale retains exact existing economics");
+  equal(
+    (
+      await value(
+        "select public.register_manual_sale($1,$2) value",
+        [manualOperation, manualPayload],
+        "authenticated",
+        "logistics",
+      )
+    ).replayed,
+    true,
+    "Existing manual replay still succeeds",
+  );
+  const manualPayment = {
+    order_id: manual.order_id,
+    amount_cents: 9999,
+    method: "cash",
+    occurred_at: occurred,
+  };
+  equal(
+    (
+      await value(
+        "select public.record_manual_payment($1,$2) value",
+        [randomUUID(), manualPayment],
+        "authenticated",
+        "logistics",
+      )
+    ).payment_state,
+    "paid",
+    "Existing manual payment succeeds once",
+  );
+  await rejected(
+    value(
+      "select public.record_manual_payment($1,$2) value",
+      [randomUUID(), manualPayment],
+      "authenticated",
+      "logistics",
+    ),
+    "22023",
+    "payment_already_recorded",
+  );
+  const externalManaged = order(30);
+  externalManaged.lines[0].variantId = gid("ProductVariant", 3);
+  externalManaged.lines[0].sku = "TEST-3";
+  externalManaged.lines[0].quantity = externalManaged.lines[0].currentQuantity = 2;
+  externalManaged.lines[0].discountedTotalCents = 8002;
+  for (const field of [
+    "originalTotalCents",
+    "currentTotalCents",
+    "originalSubtotalCents",
+    "currentSubtotalCents",
+  ])
+    externalManaged.totals[field] = 8002;
+  const producedOrder = (await processOrder(externalManaged)).result;
+  const requirement = (
+    await owner.query(
+      "select r.id,l.id line_id from public.production_requirements r join public.sales_order_lines l on l.id=r.order_line_id where l.order_id=$1",
+      [producedOrder.order_id],
+    )
+  ).rows[0];
+  const externalPayment = {
+    ...manualPayment,
+    order_id: producedOrder.order_id,
+    amount_cents: 8002,
+  };
+  await rejected(
+    value(
+      "select public.record_manual_payment($1,$2) value",
+      [randomUUID(), externalPayment],
+      "authenticated",
+      "logistics",
+    ),
+    "22023",
+    "external_order_managed_by_shopify",
+  );
+  const externalLines = {
+    order_id: producedOrder.order_id,
+    occurred_at: occurred,
+    reason: "Synthetic command only",
+    lines: [{ order_line_id: requirement.line_id, quantity: 1 }],
+  };
+  await rejected(
+    value(
+      "select public.cancel_unfulfilled_lines($1,$2) value",
+      [randomUUID(), externalLines],
+      "authenticated",
+      "logistics",
+    ),
+    "22023",
+    "external_order_managed_by_shopify",
+  );
+  const beforeProduction = await balance(items[2]);
+  await owner.query("update public.app_settings set manual_sales_enabled=false where id");
+  const productionOp = randomUUID();
+  const productionPayload = {
+    requirement_id: requirement.id,
+    quantity: 1,
+    occurred_at: occurred,
+    reason: "Synthetic actual production receipt",
+  };
+  equal(
+    (
+      await value(
+        "select public.complete_production($1,$2) value",
+        [productionOp, productionPayload],
+        "authenticated",
+        "production",
+      )
+    ).completed_quantity,
+    1,
+    "Actual production for Shopify works with manual sales disabled",
+  );
+  equal(
+    await balance(items[2]),
+    beforeProduction + 1,
+    "Production receipt adds real physical unit",
+  );
+  equal(
+    (
+      await value(
+        "select public.complete_production($1,$2) value",
+        [productionOp, productionPayload],
+        "authenticated",
+        "production",
+      )
+    ).replayed,
+    true,
+    "Production retry does not fabricate additional stock",
+  );
+  await rejected(
+    value(
+      "select public.register_manual_sale($1,$2) value",
+      [randomUUID(), manualPayload],
+      "authenticated",
+      "logistics",
+    ),
+    "42501",
+    "sales_disabled",
+  );
+  await owner.query("update public.app_settings set manual_sales_enabled=true where id");
+  await rejected(
+    value(
+      "select public.fulfill_order_lines($1,$2) value",
+      [randomUUID(), externalLines],
+      "authenticated",
+      "logistics",
+    ),
+    "22023",
+    "external_order_managed_by_shopify",
+  );
+  const producedFulfillment = clone(externalManaged);
+  producedFulfillment.updatedAt = later(9);
+  producedFulfillment.fulfillments = [fulfillment(30, producedFulfillment.lines[0].id)];
+  equal(
+    (await processOrder(producedFulfillment)).result.status,
+    "applied",
+    "Shopify fulfillment consumes the actual produced reservation",
+  );
+  equal(
+    await balance(items[2]),
+    beforeProduction,
+    "Produced and shipped unit is debited exactly once",
+  );
+  await rejected(
+    value(
+      "select public.fulfill_order_lines($1,$2) value",
+      [randomUUID(), externalLines],
+      "authenticated",
+      "logistics",
+    ),
+    "22023",
+  );
+  const returned = order(31);
+  returned.lines[0].variantId = gid("ProductVariant", 2);
+  returned.lines[0].sku = "TEST-2";
+  returned.transactions = [transaction(31, 4001)];
+  returned.totals.totalReceivedCents = 4001;
+  returned.fulfillments = [fulfillment(31, returned.lines[0].id)];
+  const returnedBefore = await balance(items[1]);
+  equal(
+    (await processOrder(returned)).result.status,
+    "applied",
+    "Fully fulfilled reference order debits physical stock",
+  );
+  equal(await balance(items[1]), returnedBefore - 1, "Actual shipment debits one");
+  const returnHint = clone(returned);
+  returnHint.updatedAt = later(10);
+  returnHint.lines[0].currentQuantity = 0;
+  returnHint.transactions.push(transaction(32, 4001, "REFUND", gid("OrderTransaction", 31)));
+  returnHint.totals.totalRefundedCents = 4001;
+  returnHint.refunds = [
+    {
+      id: gid("Refund", 32),
+      createdAt: time,
+      updatedAt: time,
+      totalRefundedCents: 4001,
+      lines: [
+        {
+          id: gid("RefundLineItem", 32),
+          lineItemId: returned.lines[0].id,
+          quantity: 1,
+          restockType: "RETURN",
+          restocked: true,
+          locationId: gid("Location", 1),
+        },
+      ],
+    },
+  ];
+  equal(
+    (await processOrder(returnHint)).result.status,
+    "applied",
+    "Refund restocked hint can be observed financially",
+  );
+  equal(
+    await balance(items[1]),
+    returnedBefore - 1,
+    "Even Shopify restocked=true cannot fabricate an ERP physical receipt",
+  );
+  const paidCancel = order(32);
+  paidCancel.transactions = [transaction(33, 4001)];
+  paidCancel.totals.totalReceivedCents = 4001;
+  const paidCancelId = (await processOrder(paidCancel)).result.order_id;
+  const paidCancelled = clone(paidCancel);
+  paidCancelled.updatedAt = later(11);
+  paidCancelled.cancelledAt = later(11);
+  paidCancelled.lines[0].currentQuantity = 0;
+  equal(
+    (await processOrder(paidCancelled)).result.status,
+    "applied",
+    "Paid unfulfilled order can be explicitly cancelled",
+  );
+  equal(
+    (
+      await owner.query("select refund_due_cents::int n from public.sales_orders where id=$1", [
+        paidCancelId,
+      ])
+    ).rows[0].n,
+    4001,
+    "Observed capture on cancelled order becomes refund due",
+  );
+  const paidCancelledRefunded = clone(paidCancelled);
+  paidCancelledRefunded.updatedAt = later(12);
+  paidCancelledRefunded.transactions.push(
+    transaction(34, 4001, "REFUND", gid("OrderTransaction", 33)),
+  );
+  paidCancelledRefunded.totals.totalRefundedCents = 4001;
+  paidCancelledRefunded.refunds = [
+    {
+      id: gid("Refund", 34),
+      createdAt: time,
+      updatedAt: time,
+      totalRefundedCents: 4001,
+      lines: [],
+    },
+  ];
+  equal(
+    (await processOrder(paidCancelledRefunded)).result.status,
+    "applied",
+    "Confirmed refund resolves cancellation refund due",
+  );
+  equal(
+    (
+      await owner.query("select refund_due_cents::int n from public.sales_orders where id=$1", [
+        paidCancelId,
+      ])
+    ).rows[0].n,
+    0,
+    "Refund due clears only after actual successful refund observation",
+  );
+  await owner.query(
+    "insert into public.stock_movements(operation_id,stock_item_id,location_id,kind,quantity_delta,reason) values($1,$2,$3,'opening',10,'Synthetic external stock')",
+    [randomUUID(), items[1], external],
+  );
+  const externalSnapshot = await snapshot();
+  await rejected(
+    value(
+      "select public.register_manual_sale($1,$2) value",
+      [randomUUID(), { ...manualPayload, location_id: external }],
+      "authenticated",
+      "logistics",
+    ),
+    "22023",
+    "invalid_sales_location",
+  );
+  equal(
+    await snapshot(),
+    externalSnapshot,
+    "External location cannot sell even with initialized known stock",
+  );
+  await owner.query(
+    "insert into public.stock_movements(operation_id,stock_item_id,location_id,kind,quantity_delta,reason) values($1,$2,$3,'opening',10,'Synthetic LCM stock')",
+    [randomUUID(), items[1], secondLocation],
+  );
+  const consignmentSnapshot = await snapshot();
+  await rejected(
+    value(
+      "select public.register_manual_sale($1,$2) value",
+      [randomUUID(), { ...manualPayload, location_id: secondLocation }],
+      "authenticated",
+      "logistics",
+    ),
+    "22023",
+    "invalid_sales_location",
+  );
+  equal(
+    await snapshot(),
+    consignmentSnapshot,
+    "LCM stock is reserved for the separate consignment workflow",
+  );
 
   // Explicit job state transitions, expired capabilities and safe retry/requeue.
-  const jobOrder=order(40);const jobReceipt=await receive(jobOrder);const jobLease=(await claim()).find(l=>l.job_id===jobReceipt.job_id);await rejected(apply(jobOrder,{...jobLease,lease_token:randomUUID()}),'22023','worker_lease_required');await owner.query("update private.shopify_job_leases set lease_expires_at=clock_timestamp()-interval '1 second' where job_id=$1",[jobLease.job_id]);await rejected(apply(jobOrder,jobLease),'22023','worker_lease_required');const renewed=(await claim()).find(l=>l.job_id===jobLease.job_id);truth(renewed.lease_token!==jobLease.lease_token,'Reclaimed expired lease has new token');await rejected(apply(jobOrder,jobLease),'22023','worker_lease_required');const readerReview=await value('select public.finish_shopify_read_job($1,$2,\'review\',\'reader_incomplete\',60) value',[renewed.job_id,renewed.lease_token]);equal(readerReview.status,'review','Reader review outcome is durable');equal(await value('select public.finish_shopify_read_job($1,$2,\'review\',\'reader_incomplete\',60) value',[renewed.job_id,renewed.lease_token]),readerReview,'Same finished reader outcome can replay without reset');equal(await value('select public.requeue_shopify_order_job($1) value',[renewed.job_id]),true,'Trusted operator can requeue reviewed job after correction');await rejected(apply(jobOrder,renewed),'22023','worker_lease_required');const requeued=(await claim()).find(l=>l.job_id===renewed.job_id);equal((await apply(jobOrder,requeued)).status,'applied','Requeued supported snapshot can apply once');
-  const disabled=order(41);await owner.query('update private.shopify_sync_configuration set enabled=false where shop_domain=$1',[shop]);const disabledSnapshot=await snapshot();const disabledResult=await processOrder(disabled);equal(disabledResult.result.status,'retry','Disabled shop leaves a durable retry without business effects');equal(await snapshot(),disabledSnapshot,'Disabled sync never imports');equal((await owner.query('select state,next_attempt_at>clock_timestamp() later from private.shopify_job_leases where job_id=$1',[disabledResult.lease.job_id])).rows[0],{state:'retry',later:true},'Retry has a future durable next_attempt_at');await owner.query('update private.shopify_sync_configuration set enabled=true where shop_domain=$1',[shop]);
-  const status=await value('select public.get_shopify_sync_status() value',[],'authenticated','logistics');equal(status.configured,true,'Team sync health reports configured shop');equal(status.enabled,true,'Team sync health reports explicit DB enabled flag');truth(status.counters.review>0&&status.counters.applied>0&&status.counters.retry>0,'Team sees review, handled and retry deliveries');truth(status.reviews.length>0&&status.reviews.length<=20,'Review health list is bounded');truth(status.reviews.every(r=>Object.keys(r).sort().join(',')==='observedAt,orderGid,reason'),'Review health exposes only source order ID, reason and timestamp');truth(!JSON.stringify(status).includes('CAPTURE')&&!JSON.stringify(status).includes('amount')&&!JSON.stringify(status).includes('token'),'Sync health cannot leak source financial payload or capabilities');for(const member of['founder','production','finance','logistics','consultant'])equal((await value('select public.get_shopify_sync_status() value',[],'authenticated',member)).configured,true,'All current staff can read sync health without Finance grant');for(const member of['outsider','inactive'])await rejected(value('select public.get_shopify_sync_status() value',[],'authenticated',member),'42501','membership_required');await rejected(value('select public.get_shopify_sync_status() value',[],'anon'),'42501');await owner.query('update public.memberships set active=false where user_id=$1',[users.logistics]);await rejected(value('select public.get_shopify_sync_status() value',[],'authenticated','logistics'),'42501','membership_required');await owner.query('update public.memberships set active=true where user_id=$1',[users.logistics]);
+  const jobOrder = order(40);
+  const jobReceipt = await receive(jobOrder);
+  const jobLease = (await claim()).find((l) => l.job_id === jobReceipt.job_id);
+  await rejected(
+    apply(jobOrder, { ...jobLease, lease_token: randomUUID() }),
+    "22023",
+    "worker_lease_required",
+  );
+  await owner.query(
+    "update private.shopify_job_leases set lease_expires_at=clock_timestamp()-interval '1 second' where job_id=$1",
+    [jobLease.job_id],
+  );
+  await rejected(apply(jobOrder, jobLease), "22023", "worker_lease_required");
+  const renewed = (await claim()).find((l) => l.job_id === jobLease.job_id);
+  truth(renewed.lease_token !== jobLease.lease_token, "Reclaimed expired lease has new token");
+  await rejected(apply(jobOrder, jobLease), "22023", "worker_lease_required");
+  const readerReview = await value(
+    "select public.finish_shopify_read_job($1,$2,'review','reader_incomplete',60) value",
+    [renewed.job_id, renewed.lease_token],
+  );
+  equal(readerReview.status, "review", "Reader review outcome is durable");
+  equal(
+    await value(
+      "select public.finish_shopify_read_job($1,$2,'review','reader_incomplete',60) value",
+      [renewed.job_id, renewed.lease_token],
+    ),
+    readerReview,
+    "Same finished reader outcome can replay without reset",
+  );
+  equal(
+    await value("select public.requeue_shopify_order_job($1) value", [renewed.job_id]),
+    true,
+    "Trusted operator can requeue reviewed job after correction",
+  );
+  await rejected(apply(jobOrder, renewed), "22023", "worker_lease_required");
+  const requeued = (await claim()).find((l) => l.job_id === renewed.job_id);
+  equal(
+    (await apply(jobOrder, requeued)).status,
+    "applied",
+    "Requeued supported snapshot can apply once",
+  );
+  const disabled = order(41);
+  await owner.query(
+    "update private.shopify_sync_configuration set enabled=false where shop_domain=$1",
+    [shop],
+  );
+  const disabledSnapshot = await snapshot();
+  const disabledResult = await processOrder(disabled);
+  equal(
+    disabledResult.result.status,
+    "retry",
+    "Disabled shop leaves a durable retry without business effects",
+  );
+  equal(await snapshot(), disabledSnapshot, "Disabled sync never imports");
+  equal(
+    (
+      await owner.query(
+        "select state,next_attempt_at>clock_timestamp() later from private.shopify_job_leases where job_id=$1",
+        [disabledResult.lease.job_id],
+      )
+    ).rows[0],
+    { state: "retry", later: true },
+    "Retry has a future durable next_attempt_at",
+  );
+  await owner.query(
+    "update private.shopify_sync_configuration set enabled=true where shop_domain=$1",
+    [shop],
+  );
+  const status = await value(
+    "select public.get_shopify_sync_status() value",
+    [],
+    "authenticated",
+    "logistics",
+  );
+  equal(status.configured, true, "Team sync health reports configured shop");
+  equal(status.enabled, true, "Team sync health reports explicit DB enabled flag");
+  truth(
+    status.counters.review > 0 && status.counters.applied > 0 && status.counters.retry > 0,
+    "Team sees review, handled and retry deliveries",
+  );
+  truth(status.reviews.length > 0 && status.reviews.length <= 20, "Review health list is bounded");
+  truth(
+    status.reviews.every((r) => Object.keys(r).sort().join(",") === "observedAt,orderGid,reason"),
+    "Review health exposes only source order ID, reason and timestamp",
+  );
+  truth(
+    !JSON.stringify(status).includes("CAPTURE") &&
+      !JSON.stringify(status).includes("amount") &&
+      !JSON.stringify(status).includes("token"),
+    "Sync health cannot leak source financial payload or capabilities",
+  );
+  for (const member of ["founder", "production", "finance", "logistics", "consultant"])
+    equal(
+      (await value("select public.get_shopify_sync_status() value", [], "authenticated", member))
+        .configured,
+      true,
+      "All current staff can read sync health without Finance grant",
+    );
+  for (const member of ["outsider", "inactive"])
+    await rejected(
+      value("select public.get_shopify_sync_status() value", [], "authenticated", member),
+      "42501",
+      "membership_required",
+    );
+  await rejected(value("select public.get_shopify_sync_status() value", [], "anon"), "42501");
+  await owner.query("update public.memberships set active=false where user_id=$1", [
+    users.logistics,
+  ]);
+  await rejected(
+    value("select public.get_shopify_sync_status() value", [], "authenticated", "logistics"),
+    "42501",
+    "membership_required",
+  );
+  await owner.query("update public.memberships set active=true where user_id=$1", [
+    users.logistics,
+  ]);
 
   // Real lease claim concurrency uses SKIP LOCKED, not a single-connection mock.
-  const qa=await receive(order(90));const qb=await receive(order(91));await begin(a);const claimedA=(await a.query('select public.claim_shopify_order_jobs($1,1,120) value',[randomUUID()])).rows[0].value;await begin(b);const claimedB=(await b.query('select public.claim_shopify_order_jobs($1,1,120) value',[randomUUID()])).rows[0].value;await b.query('commit');await a.query('commit');equal(claimedA.length,1,'First worker claims one job');equal(claimedB.length,1,'Second worker skips first transaction row lock');truth(claimedA[0].job_id!==claimedB[0].job_id,'Two workers cannot claim the same live lease');truth([qa.job_id,qb.job_id].includes(claimedA[0].job_id)&&[qa.job_id,qb.job_id].includes(claimedB[0].job_id),'Both jobs claimed once');evidence.concurrency.push({case:'SKIP LOCKED claims',a:claimedA[0].job_id,b:claimedB[0].job_id});
-  const same=order(92);const n1=await receive(same);const n2=await receive(same);const sameLeases=await claim();const l1=sameLeases.find(x=>x.job_id===n1.job_id),l2=sameLeases.find(x=>x.job_id===n2.job_id);const beforeSame=await count('sales_orders');await begin(a);equal((await a.query('select public.apply_shopify_order($1,$2,$3) value',[l1.job_id,l1.lease_token,same])).rows[0].value.status,'applied','First delivery applies before commit');await begin(b);const secondApply=b.query('select public.apply_shopify_order($1,$2,$3) value',[l2.job_id,l2.lease_token,same]);const wait=await waitBlocked();await a.query('commit');equal((await secondApply).rows[0].value.status,'replayed','Concurrent separate delivery waits on order advisory lock and replays');await b.query('commit');equal(await count('sales_orders'),beforeSame+1,'Concurrent delivery creates exactly one core order');evidence.concurrency.push({case:'same source order concurrent delivery',waiting:wait});
+  const qa = await receive(order(90));
+  const qb = await receive(order(91));
+  await begin(a);
+  const claimedA = (
+    await a.query("select public.claim_shopify_order_jobs($1,1,120) value", [randomUUID()])
+  ).rows[0].value;
+  await begin(b);
+  const claimedB = (
+    await b.query("select public.claim_shopify_order_jobs($1,1,120) value", [randomUUID()])
+  ).rows[0].value;
+  await b.query("commit");
+  await a.query("commit");
+  equal(claimedA.length, 1, "First worker claims one job");
+  equal(claimedB.length, 1, "Second worker skips first transaction row lock");
+  truth(claimedA[0].job_id !== claimedB[0].job_id, "Two workers cannot claim the same live lease");
+  truth(
+    [qa.job_id, qb.job_id].includes(claimedA[0].job_id) &&
+      [qa.job_id, qb.job_id].includes(claimedB[0].job_id),
+    "Both jobs claimed once",
+  );
+  evidence.concurrency.push({
+    case: "SKIP LOCKED claims",
+    a: claimedA[0].job_id,
+    b: claimedB[0].job_id,
+  });
+  const same = order(92);
+  const n1 = await receive(same);
+  const n2 = await receive(same);
+  const sameLeases = await claim();
+  const l1 = sameLeases.find((x) => x.job_id === n1.job_id),
+    l2 = sameLeases.find((x) => x.job_id === n2.job_id);
+  const beforeSame = await count("sales_orders");
+  await begin(a);
+  equal(
+    (
+      await a.query("select public.apply_shopify_order($1,$2,$3) value", [
+        l1.job_id,
+        l1.lease_token,
+        same,
+      ])
+    ).rows[0].value.status,
+    "applied",
+    "First delivery applies before commit",
+  );
+  await begin(b);
+  const secondApply = b.query("select public.apply_shopify_order($1,$2,$3) value", [
+    l2.job_id,
+    l2.lease_token,
+    same,
+  ]);
+  const wait = await waitBlocked();
+  await a.query("commit");
+  equal(
+    (await secondApply).rows[0].value.status,
+    "replayed",
+    "Concurrent separate delivery waits on order advisory lock and replays",
+  );
+  await b.query("commit");
+  equal(
+    await count("sales_orders"),
+    beforeSame + 1,
+    "Concurrent delivery creates exactly one core order",
+  );
+  evidence.concurrency.push({ case: "same source order concurrent delivery", waiting: wait });
 
   await manualRegression();
-  evidence.passed=true;
-}catch(error){evidence.failure={message:error.message,code:error.code,cause:error.cause?.message};throw error;}finally{
-  for(const c of clients.reverse())try{await c.end();}catch{}
-  if(started||existsSync(join(dataDirectory,'postmaster.pid')))try{run('pg_ctl',['-D',dataDirectory,'-m','immediate','-w','stop']);evidence.clusterStopped=true;}catch(error){evidence.cleanupError=error.message;process.exitCode=1;}
-  if(evidence.clusterStopped||!existsSync(join(dataDirectory,'postmaster.pid'))){rmSync(temporary,{recursive:true,force:true});evidence.clusterRemoved=!existsSync(temporary);}
-  evidence.finishedAt=new Date().toISOString();const root=resolve(fileURLToPath(new URL('../../',import.meta.url)));mkdirSync(join(root,'.private','deployment-proof'),{recursive:true});writeFileSync(join(root,'.private','deployment-proof','shopify-ecosystem.json'),`${JSON.stringify(evidence,null,2)}\n`,{mode:0o600});console.log(`${evidence.passed?'PASS':'FAIL'} ${evidence.checks} Shopify ecosystem checks on ${version}; backends=${JSON.stringify(pids)}; cluster stopped=${evidence.clusterStopped}`);
+  evidence.passed = true;
+} catch (error) {
+  evidence.failure = { message: error.message, code: error.code, cause: error.cause?.message };
+  throw error;
+} finally {
+  for (const c of clients.reverse())
+    try {
+      await c.end();
+    } catch {}
+  if (started || existsSync(join(dataDirectory, "postmaster.pid")))
+    try {
+      run("pg_ctl", ["-D", dataDirectory, "-m", "immediate", "-w", "stop"]);
+      evidence.clusterStopped = true;
+    } catch (error) {
+      evidence.cleanupError = error.message;
+      process.exitCode = 1;
+    }
+  if (evidence.clusterStopped || !existsSync(join(dataDirectory, "postmaster.pid"))) {
+    rmSync(temporary, { recursive: true, force: true });
+    evidence.clusterRemoved = !existsSync(temporary);
+  }
+  evidence.finishedAt = new Date().toISOString();
+  const root = resolve(fileURLToPath(new URL("../../", import.meta.url)));
+  mkdirSync(join(root, ".private", "deployment-proof"), { recursive: true });
+  writeFileSync(
+    join(root, ".private", "deployment-proof", "shopify-ecosystem.json"),
+    `${JSON.stringify(evidence, null, 2)}\n`,
+    { mode: 0o600 },
+  );
+  console.log(
+    `${evidence.passed ? "PASS" : "FAIL"} ${evidence.checks} Shopify ecosystem checks on ${version}; backends=${JSON.stringify(pids)}; cluster stopped=${evidence.clusterStopped}`,
+  );
 }

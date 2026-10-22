@@ -7,7 +7,10 @@
     "build": "NEXT_TELEMETRY_DISABLED=1 next build",
     "start": "next start --hostname 127.0.0.1",
     "test": "vitest run",
-    "typecheck": "tsc --noEmit"
+    "test:db": "node scripts/test-db.mjs",
+    "typecheck": "tsc --noEmit",
+    "format": "prettier --write . && prettier --write . --log-level warn",
+    "format:check": "prettier --check ."
   },
   "dependencies": {
     "@supabase/ssr": "0.12.7",
@@ -18,9 +21,12 @@
     "react-dom": "19.3.1"
   },
   "devDependencies": {
+    "@electric-sql/pglite": "0.5.10",
     "@types/node": "26.6.5",
     "@types/react": "19.3.0",
     "@types/react-dom": "19.3.0",
+    "pg": "8.23.1",
+    "prettier": "3.9.10",
     "typescript": "7.0.2",
     "vitest": "5.0.5"
   }

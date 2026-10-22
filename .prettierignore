@@ -1,0 +1,37 @@
+# File che Prettier non formatta. Prettier legge anche .gitignore.
+
+# Dipendenze, build e file generati
+node_modules/
+.next/
+out/
+coverage/
+package-lock.json
+next-env.d.ts
+*.tsbuildinfo
+
+# Documenti: sono prosa, restano come sono scritti
+*.md
+
+# Dati, asset statici e SQL
+/data/
+/public/
+supabase/**/*.sql
+*.ttf
+*.otf
+*.woff
+*.woff2
+*.png
+*.jpg
+*.jpeg
+*.gif
+*.webp
+*.ico
+*.pdf
+
+# Cartelle locali e di strumenti
+.impeccable/
+.private/
+
+# shopify-ecosystem.mjs legge questo file come testo e ne sostituisce righe esatte
+# (per esempio la riga «const directory = …»): riformattarlo rompe quell'harness.
+supabase/tests/sales-ecosystem.mjs

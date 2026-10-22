@@ -11,19 +11,37 @@ function fixture(): InventorySnapshot {
     },
     products: [{ model: "GT3RS", category: "T-shirt" }],
     variants: [{ sku: "LL-TS-GT3-XS", active_source_value: "Si" }],
-    inventory: [{
-      sku: "LL-TS-GT3-XS", model: "GT3RS", color: "Blu", size: "XS",
-      stocks: [{ location_code: "MAG01", quantity: 2, source_cell: "E6" }, { location_code: "NEG01", quantity: 0, source_cell: "F6" }],
-      network_quantity: 2, central_target_quantity: 3, unit_cost_eur: 13.2,
-      list_price_eur: 40, source: { sheet: "Assortimento", row: 6, range: "A6:V6" },
-    }],
+    inventory: [
+      {
+        sku: "LL-TS-GT3-XS",
+        model: "GT3RS",
+        color: "Blu",
+        size: "XS",
+        stocks: [
+          { location_code: "MAG01", quantity: 2, source_cell: "E6" },
+          { location_code: "NEG01", quantity: 0, source_cell: "F6" },
+        ],
+        network_quantity: 2,
+        central_target_quantity: 3,
+        unit_cost_eur: 13.2,
+        list_price_eur: 40,
+        source: { sheet: "Assortimento", row: 6, range: "A6:V6" },
+      },
+    ],
   };
 }
 
 describe("inventario autorevole Excel", () => {
   it("mantiene separati centrale, conto vendita e totale salvato", () => {
     const { items } = normalizeInventory(fixture());
-    expect(items[0]).toMatchObject({ centralQuantity: 2, consignmentQuantity: 0, totalQuantity: 2, unitCost: 13.2, webPrice: 40, sourceCell: "Assortimento!A6:V6" });
+    expect(items[0]).toMatchObject({
+      centralQuantity: 2,
+      consignmentQuantity: 0,
+      totalQuantity: 2,
+      unitCost: 13.2,
+      webPrice: 40,
+      sourceCell: "Assortimento!A6:V6",
+    });
   });
   it("conserva i mancanti senza trasformarli in zeri né derivare il totale", () => {
     const input = fixture();
@@ -51,7 +69,10 @@ describe("inventario autorevole Excel", () => {
     expect(result.items).toHaveLength(51);
     expect(new Set(result.items.map((item) => item.model)).size).toBe(9);
     expect(result.sourceMeta.title).toBe("LuckyLap_Gestione_inventario.xlsx");
-    expect(result.items.find((item) => item.sku === "LL-TS-GT3-NB-XS")).toMatchObject({ centralQuantity: 2, consignmentQuantity: 0 });
+    expect(result.items.find((item) => item.sku === "LL-TS-GT3-NB-XS")).toMatchObject({
+      centralQuantity: 2,
+      consignmentQuantity: 0,
+    });
     expect(result.items.some((item) => item.sku.startsWith("LL-STK"))).toBe(false);
   });
 });

@@ -1,0 +1,5 @@
+# Commit di sola formattazione da ignorare in git blame.
+# Per usarlo in locale: git config blame.ignoreRevsFile .git-blame-ignore-revs
+
+# style: formattazione automatica con Prettier
+7b63ba3cdf06833272b7426b4ab7dbb13c9433c9

@@ -1,0 +1,124 @@
+# Controlli automatici su ogni pull request e su ogni push in main.
+# Nessun segreto e nessun accesso a Supabase, Vercel o Shopify: solo dati sintetici.
+name: Controlli
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  # Minimo reale con il lockfile: Node.js 22.12 (vitest 5 accetta 22.12+, 24 e 26+;
+  # i pacchetti Supabase chiedono almeno 22). Il «20.9» del README non basta.
+  # Si usa 24, la stessa versione del progetto Vercel «luckylap» (Node.js 24.x,
+  # verificato il 22 ottobre 2026): se cambia su Vercel, cambiarla anche qui.
+  NODE_VERSION: "24"
+  NEXT_TELEMETRY_DISABLED: "1"
+
+jobs:
+  app:
+    name: App (tipi, test, build)
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v7
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: npm
+      - run: npm ci
+      - run: npm run typecheck
+      - run: npm test
+      # La build non richiede variabili d'ambiente: Supabase viene letto solo a runtime.
+      - run: npm run build
+
+  # Tutto il repository è formattato con Prettier (.prettierrc.json, .prettierignore).
+  formato:
+    name: Formato (Prettier)
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v7
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: npm
+      - run: npm ci
+      - run: npm run format:check
+
+  database:
+    name: Database (PGlite)
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v7
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: npm
+      - run: npm ci
+      # Senza LUCKYLAP_PG_BIN gli harness PostgreSQL reale risultano saltati.
+      - run: npm run test:db
+
+  concorrenza:
+    name: Concorrenza (PostgreSQL 17)
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v7
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: npm
+      - name: Installa PostgreSQL 17 dal repository ufficiale PGDG
+        run: |
+          set -euo pipefail
+          # Nessun cluster di sistema: ogni harness crea e rimuove il proprio.
+          sudo mkdir -p /etc/postgresql-common/createcluster.d
+          echo 'create_main_cluster = false' | sudo tee /etc/postgresql-common/createcluster.d/luckylap-ci.conf
+          if ! grep -rqs 'apt.postgresql.org' /etc/apt/sources.list /etc/apt/sources.list.d/; then
+            sudo install -d /usr/share/postgresql-common/pgdg
+            sudo curl --fail --silent --show-error --location \
+              -o /usr/share/postgresql-common/pgdg/apt.postgresql.org.asc \
+              https://www.postgresql.org/media/keys/ACCC4CF8.asc
+            . /etc/os-release
+            echo "deb [signed-by=/usr/share/postgresql-common/pgdg/apt.postgresql.org.asc] https://apt.postgresql.org/pub/repos/apt ${VERSION_CODENAME}-pgdg main" \
+              | sudo tee /etc/apt/sources.list.d/pgdg.list
+          fi
+          sudo apt-get update
+          sudo DEBIAN_FRONTEND=noninteractive apt-get install --yes --no-install-recommends postgresql-17
+          /usr/lib/postgresql/17/bin/postgres --version
+      - name: Prepara i percorsi usati dagli harness
+        run: |
+          set -euo pipefail
+          # Gli harness passano <bin>/../share/postgresql a initdb -L (struttura Homebrew).
+          # Su Ubuntu quei file stanno in /usr/share/postgresql/17.
+          if [ ! -e /usr/lib/postgresql/17/share/postgresql ]; then
+            sudo mkdir -p /usr/lib/postgresql/17/share
+            sudo ln -s /usr/share/postgresql/17 /usr/lib/postgresql/17/share/postgresql
+          fi
+          test -f /usr/lib/postgresql/17/share/postgresql/postgres.bki
+          # Gli harness creano i cluster temporanei in /private/tmp (percorso macOS).
+          sudo mkdir -p /private/tmp
+          sudo chmod 1777 /private/tmp
+      - run: npm ci
+      # initdb e postgres girano come utente runner, non come root.
+      - name: Harness SQL con PostgreSQL 17 reale
+        run: npm run test:db
+        env:
+          LUCKYLAP_PG_BIN: /usr/lib/postgresql/17/bin

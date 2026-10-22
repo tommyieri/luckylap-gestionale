@@ -1,9 +1,74 @@
-import{describe,expect,it}from"vitest";
-import{shopifySyncSnapshotFrom,shopifyReviewHref,shopifyReviewLabel}from"./status-model";
-export const statusFixture=()=>({configured:true,enabled:true,counters:{pending:2,retry:1,processing:1,review:1,applied:4,ignored:3,lastAppliedAt:"2026-10-21T12:00:00Z"},reviews:[{orderGid:"gid://shopify/Order/100",reason:"unmapped_sku",observedAt:"2026-10-21T12:00:00Z"}]});
-describe("minimal Shopify health projection",()=>{
- it("combines DB enablement with the private runtime flag, keeping source counts unchanged",()=>{const raw=statusFixture();expect(shopifySyncSnapshotFrom(raw,true)?.enabled).toBe(true);expect(shopifySyncSnapshotFrom(raw,false)).toMatchObject({enabled:false,counters:raw.counters});raw.enabled=false;expect(shopifySyncSnapshotFrom(raw,true)?.enabled).toBe(false);});
- it.each(["extra","fraction","negative","unsafe","missing","too-many","unsafe-reason","foreign-id","bad-date","expanded-review"])("rejects partial, expanded or unsafe %s replies",change=>{const raw=statusFixture()as unknown as Record<string,any>;if(change==="extra")raw.private_secret="PRIVATE_SENTINEL";if(change==="fraction")raw.counters.pending=1.1;if(change==="negative")raw.counters.retry=-1;if(change==="unsafe")raw.counters.applied=Number.MAX_SAFE_INTEGER;if(change==="missing")delete raw.counters.review;if(change==="too-many")raw.reviews=Array.from({length:21},()=>raw.reviews[0]);if(change==="unsafe-reason")raw.reviews[0].reason="customer@example.test";if(change==="foreign-id")raw.reviews[0].orderGid="gid://shopify/Product/1";if(change==="bad-date")raw.reviews[0].observedAt="not-a-date";if(change==="expanded-review")raw.reviews[0].lease_token="PRIVATE_SENTINEL";expect(shopifySyncSnapshotFrom(raw,true)).toBeNull();});
- it("builds an Admin link only for the configured canonical shop and exact Order GID",()=>{expect(shopifyReviewHref("synthetic.myshopify.com","gid://shopify/Order/100")).toBe("https://synthetic.myshopify.com/admin/orders/100");expect(shopifyReviewHref("synthetic.myshopify.com.attacker.test","gid://shopify/Order/100")).toBeNull();expect(shopifyReviewHref("synthetic.myshopify.com","gid://shopify/Order/100?token=x")).toBeNull();});
- it("uses human labels and a neutral fallback without echoing opaque reason codes",()=>{expect(shopifyReviewLabel("unmapped_sku")).toContain("SKU");expect(shopifyReviewLabel("brand_new_safe_code")).not.toContain("brand_new_safe_code");});
+import { describe, expect, it } from "vitest";
+import { shopifySyncSnapshotFrom, shopifyReviewHref, shopifyReviewLabel } from "./status-model";
+export const statusFixture = () => ({
+  configured: true,
+  enabled: true,
+  counters: {
+    pending: 2,
+    retry: 1,
+    processing: 1,
+    review: 1,
+    applied: 4,
+    ignored: 3,
+    lastAppliedAt: "2026-10-21T12:00:00Z",
+  },
+  reviews: [
+    {
+      orderGid: "gid://shopify/Order/100",
+      reason: "unmapped_sku",
+      observedAt: "2026-10-21T12:00:00Z",
+    },
+  ],
+});
+describe("minimal Shopify health projection", () => {
+  it("combines DB enablement with the private runtime flag, keeping source counts unchanged", () => {
+    const raw = statusFixture();
+    expect(shopifySyncSnapshotFrom(raw, true)?.enabled).toBe(true);
+    expect(shopifySyncSnapshotFrom(raw, false)).toMatchObject({
+      enabled: false,
+      counters: raw.counters,
+    });
+    raw.enabled = false;
+    expect(shopifySyncSnapshotFrom(raw, true)?.enabled).toBe(false);
+  });
+  it.each([
+    "extra",
+    "fraction",
+    "negative",
+    "unsafe",
+    "missing",
+    "too-many",
+    "unsafe-reason",
+    "foreign-id",
+    "bad-date",
+    "expanded-review",
+  ])("rejects partial, expanded or unsafe %s replies", (change) => {
+    const raw = statusFixture() as unknown as Record<string, any>;
+    if (change === "extra") raw.private_secret = "PRIVATE_SENTINEL";
+    if (change === "fraction") raw.counters.pending = 1.1;
+    if (change === "negative") raw.counters.retry = -1;
+    if (change === "unsafe") raw.counters.applied = Number.MAX_SAFE_INTEGER;
+    if (change === "missing") delete raw.counters.review;
+    if (change === "too-many") raw.reviews = Array.from({ length: 21 }, () => raw.reviews[0]);
+    if (change === "unsafe-reason") raw.reviews[0].reason = "customer@example.test";
+    if (change === "foreign-id") raw.reviews[0].orderGid = "gid://shopify/Product/1";
+    if (change === "bad-date") raw.reviews[0].observedAt = "not-a-date";
+    if (change === "expanded-review") raw.reviews[0].lease_token = "PRIVATE_SENTINEL";
+    expect(shopifySyncSnapshotFrom(raw, true)).toBeNull();
+  });
+  it("builds an Admin link only for the configured canonical shop and exact Order GID", () => {
+    expect(shopifyReviewHref("synthetic.myshopify.com", "gid://shopify/Order/100")).toBe(
+      "https://synthetic.myshopify.com/admin/orders/100",
+    );
+    expect(
+      shopifyReviewHref("synthetic.myshopify.com.attacker.test", "gid://shopify/Order/100"),
+    ).toBeNull();
+    expect(
+      shopifyReviewHref("synthetic.myshopify.com", "gid://shopify/Order/100?token=x"),
+    ).toBeNull();
+  });
+  it("uses human labels and a neutral fallback without echoing opaque reason codes", () => {
+    expect(shopifyReviewLabel("unmapped_sku")).toContain("SKU");
+    expect(shopifyReviewLabel("brand_new_safe_code")).not.toContain("brand_new_safe_code");
+  });
 });

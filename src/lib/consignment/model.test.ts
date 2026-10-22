@@ -1,11 +1,86 @@
-import{describe,expect,it}from"vitest";import{consignmentAmount,consignmentMargin,consignmentMoney,consignmentPending,consignmentPendingKey,consignmentSplit,formDate,parseConsignmentCommand}from"./model";import{cs,saleCommand,settlementCommand,transferCommand}from"./fixtures";
-describe("exact consignment commands",()=>{
- it.each([transferCommand,saleCommand,settlementCommand])("accepts an exact command without client-supplied privileges",build=>expect(parseConsignmentCommand(build())).toEqual(build()));
- it("uses exact integers and rounds the entire line once",()=>{expect(consignmentSplit(4001,1)).toEqual({unitShopPriceCents:5001,grossCents:5001,brandClaimCents:3001,shopShareCents:2000});expect(consignmentSplit(4001,2)).toEqual({unitShopPriceCents:5001,grossCents:10002,brandClaimCents:6001,shopShareCents:4001});expect(consignmentSplit(99999999999999,100000)).toBeNull();});
- it.each(["1e3","1.000,00","-1","1.001","NaN","","90000000000000.01"])("refuses ambiguous or unsafe received amount %s",raw=>expect(consignmentAmount(raw)).toBeNull());
- it("converts partial receipt money without binary rounding",()=>{expect(consignmentAmount("30,01")).toBe(3001);expect(consignmentAmount("0.01")).toBe(1);expect(consignmentAmount("90000000000000.00")).toBe(9000000000000000);});
- it("formats odd maximum cents and large negative commercial margins exactly",()=>{expect(consignmentMoney(8999999999999999)).toBe("89.999.999.999.999,99 €");expect(consignmentMargin(3001,null,2)).toBeNull();expect(consignmentMoney(consignmentMargin(3001,999999999999,100000))).toBe("−999.999.999.998.969,99 €");});
- it("interprets all dates as Europe/Rome and refuses nonexistent or ambiguous DST times",()=>{expect(formDate("2026-10-21T13:00")).toBe("2026-10-21T11:00:00.000Z");expect(formDate("2026-03-29T02:30")).toBeNull();expect(formDate("2026-10-25T02:30")).toBeNull();});
- it("refuses discounts, changed shape, invalid timestamps and actor forgery",()=>{const command=saleCommand();expect(parseConsignmentCommand({...command,actor_id:cs.user})).toBeNull();for(const extra of[{discount_cents:0},{expected_web_price_cents:-1},{quantity:0},{quantity:100001},{quantity:1.5},{occurred_at:"2026-10-21"},{reason:"x"},{shop_domain:"evil.example"}])expect(parseConsignmentCommand({...command,payload:{...command.payload,...extra}})).toBeNull();expect(parseConsignmentCommand({...settlementCommand(),payload:{...settlementCommand().payload,amount_cents:0}})).toBeNull();});
- it("keeps a frozen cross-form command recoverable by user after the original form disappears",()=>{const original=saleCommand(),map=new Map([[consignmentPendingKey(cs.user),JSON.stringify(original)]]),storage={getItem:(k:string)=>map.get(k)??null};expect(consignmentPending(storage,cs.user)).toEqual(original);expect(consignmentPending(storage,"different-user")).toBeNull();map.set(consignmentPendingKey(cs.user),"bad json");expect(()=>consignmentPending(storage,cs.user)).toThrow();});
+import { describe, expect, it } from "vitest";
+import {
+  consignmentAmount,
+  consignmentMargin,
+  consignmentMoney,
+  consignmentPending,
+  consignmentPendingKey,
+  consignmentSplit,
+  formDate,
+  parseConsignmentCommand,
+} from "./model";
+import { cs, saleCommand, settlementCommand, transferCommand } from "./fixtures";
+describe("exact consignment commands", () => {
+  it.each([transferCommand, saleCommand, settlementCommand])(
+    "accepts an exact command without client-supplied privileges",
+    (build) => expect(parseConsignmentCommand(build())).toEqual(build()),
+  );
+  it("uses exact integers and rounds the entire line once", () => {
+    expect(consignmentSplit(4001, 1)).toEqual({
+      unitShopPriceCents: 5001,
+      grossCents: 5001,
+      brandClaimCents: 3001,
+      shopShareCents: 2000,
+    });
+    expect(consignmentSplit(4001, 2)).toEqual({
+      unitShopPriceCents: 5001,
+      grossCents: 10002,
+      brandClaimCents: 6001,
+      shopShareCents: 4001,
+    });
+    expect(consignmentSplit(99999999999999, 100000)).toBeNull();
+  });
+  it.each(["1e3", "1.000,00", "-1", "1.001", "NaN", "", "90000000000000.01"])(
+    "refuses ambiguous or unsafe received amount %s",
+    (raw) => expect(consignmentAmount(raw)).toBeNull(),
+  );
+  it("converts partial receipt money without binary rounding", () => {
+    expect(consignmentAmount("30,01")).toBe(3001);
+    expect(consignmentAmount("0.01")).toBe(1);
+    expect(consignmentAmount("90000000000000.00")).toBe(9000000000000000);
+  });
+  it("formats odd maximum cents and large negative commercial margins exactly", () => {
+    expect(consignmentMoney(8999999999999999)).toBe("89.999.999.999.999,99 €");
+    expect(consignmentMargin(3001, null, 2)).toBeNull();
+    expect(consignmentMoney(consignmentMargin(3001, 999999999999, 100000))).toBe(
+      "−999.999.999.998.969,99 €",
+    );
+  });
+  it("interprets all dates as Europe/Rome and refuses nonexistent or ambiguous DST times", () => {
+    expect(formDate("2026-10-21T13:00")).toBe("2026-10-21T11:00:00.000Z");
+    expect(formDate("2026-03-29T02:30")).toBeNull();
+    expect(formDate("2026-10-25T02:30")).toBeNull();
+  });
+  it("refuses discounts, changed shape, invalid timestamps and actor forgery", () => {
+    const command = saleCommand();
+    expect(parseConsignmentCommand({ ...command, actor_id: cs.user })).toBeNull();
+    for (const extra of [
+      { discount_cents: 0 },
+      { expected_web_price_cents: -1 },
+      { quantity: 0 },
+      { quantity: 100001 },
+      { quantity: 1.5 },
+      { occurred_at: "2026-10-21" },
+      { reason: "x" },
+      { shop_domain: "evil.example" },
+    ])
+      expect(
+        parseConsignmentCommand({ ...command, payload: { ...command.payload, ...extra } }),
+      ).toBeNull();
+    expect(
+      parseConsignmentCommand({
+        ...settlementCommand(),
+        payload: { ...settlementCommand().payload, amount_cents: 0 },
+      }),
+    ).toBeNull();
+  });
+  it("keeps a frozen cross-form command recoverable by user after the original form disappears", () => {
+    const original = saleCommand(),
+      map = new Map([[consignmentPendingKey(cs.user), JSON.stringify(original)]]),
+      storage = { getItem: (k: string) => map.get(k) ?? null };
+    expect(consignmentPending(storage, cs.user)).toEqual(original);
+    expect(consignmentPending(storage, "different-user")).toBeNull();
+    map.set(consignmentPendingKey(cs.user), "bad json");
+    expect(() => consignmentPending(storage, cs.user)).toThrow();
+  });
 });

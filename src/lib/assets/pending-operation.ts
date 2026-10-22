@@ -1,12 +1,21 @@
 import { isTeamId } from "../team/model";
-import { AssetInputError, assetStoragePath, parseAssetFields, parseBrandLink, parseUploadDescriptor, type AssetFields, type UploadDescriptor } from "./model";
+import {
+  AssetInputError,
+  assetStoragePath,
+  parseAssetFields,
+  parseBrandLink,
+  parseUploadDescriptor,
+  type AssetFields,
+  type UploadDescriptor,
+} from "./model";
 
 export type PendingAssetOperation =
   | { kind: "file"; descriptor: UploadDescriptor; fields: AssetFields; path: string }
   | { kind: "link"; operationId: string; fields: AssetFields; url: string };
 
 export function parsePendingAssetOperation(value: unknown, userId: string): PendingAssetOperation {
-  if (!value || typeof value !== "object") throw new AssetInputError("Tentativo salvato non valido.");
+  if (!value || typeof value !== "object")
+    throw new AssetInputError("Tentativo salvato non valido.");
   const row = value as Record<string, unknown>;
   const fields = parseAssetFields(row.fields);
   if (row.kind === "link") {
@@ -14,9 +23,11 @@ export function parsePendingAssetOperation(value: unknown, userId: string): Pend
     return { kind: "link", operationId: row.operationId, fields, url: parseBrandLink(row.url) };
   }
   // Keep recovery of file attempts saved before the kind discriminator existed.
-  if (row.kind !== undefined && row.kind !== "file") throw new AssetInputError("Tentativo salvato non valido.");
+  if (row.kind !== undefined && row.kind !== "file")
+    throw new AssetInputError("Tentativo salvato non valido.");
   const descriptor = parseUploadDescriptor(row.descriptor);
-  if (row.path !== assetStoragePath(userId, descriptor)) throw new AssetInputError("Percorso non valido.");
+  if (row.path !== assetStoragePath(userId, descriptor))
+    throw new AssetInputError("Percorso non valido.");
   return { kind: "file", descriptor, fields, path: row.path };
 }
 

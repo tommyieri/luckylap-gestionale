@@ -62,8 +62,13 @@ export function readLocalWorkspace(raw: string | null): LocalWorkspaceRead {
   let issue = false;
   if (Array.isArray(parsed.appointments)) {
     for (const value of parsed.appointments) {
-      if (!isRecord(value) || !isNonemptyText(value.id) || !isNonemptyText(value.title)
-        || !isCalendarDate(value.date) || !isTime(value.time)) {
+      if (
+        !isRecord(value) ||
+        !isNonemptyText(value.id) ||
+        !isNonemptyText(value.title) ||
+        !isCalendarDate(value.date) ||
+        !isTime(value.time)
+      ) {
         issue = true;
         continue;
       }

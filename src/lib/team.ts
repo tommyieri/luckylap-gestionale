@@ -8,7 +8,21 @@ export const TEAM = [
 ] as const;
 
 const financeMembers = new Set(["founder", "gabriele", "gherardo"]);
-const sharedAreas = new Set(["inventory", "packaging", "costs", "margins", "discounts", "stock-adjustments", "calendar", "tasks", "notes", "assets", "products", "partners", "consignment"]);
+const sharedAreas = new Set([
+  "inventory",
+  "packaging",
+  "costs",
+  "margins",
+  "discounts",
+  "stock-adjustments",
+  "calendar",
+  "tasks",
+  "notes",
+  "assets",
+  "products",
+  "partners",
+  "consignment",
+]);
 
 export function canAccessModule(memberId: string, module: string): boolean {
   if (!TEAM.some((member) => member.id === memberId)) return false;

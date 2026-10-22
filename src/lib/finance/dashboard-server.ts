@@ -8,6 +8,12 @@ import { dashboardSettlementsFromRows } from "./settlements";
 export async function readDashboardSettlements(supabase: SupabaseClient) {
   const access = await financeWorkAccess(supabase);
   if (access.status !== "authorized") throw new Error("Lettura Finance non disponibile.");
-  const rows = await readCompletePages((from, to) => supabase.from("consignment_settlements").select("id,sale_id,amount_cents,occurred_at,method,reference", { count: "exact" }).order("id").range(from, to));
+  const rows = await readCompletePages((from, to) =>
+    supabase
+      .from("consignment_settlements")
+      .select("id,sale_id,amount_cents,occurred_at,method,reference", { count: "exact" })
+      .order("id")
+      .range(from, to),
+  );
   return dashboardSettlementsFromRows(rows);
 }

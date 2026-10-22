@@ -10,7 +10,9 @@ describe("trusted membership", () => {
     expect(memberFromDatabase("verified-user", { ...row, active: false }, profile)).toBeNull();
     expect(memberFromDatabase("verified-user", { ...row, role: "admin" }, profile)).toBeNull();
     expect(memberFromDatabase("verified-user", null, profile)).toBeNull();
-    expect(memberFromDatabase("verified-user", row, { ...profile, user_id: "another-user" })).toBeNull();
+    expect(
+      memberFromDatabase("verified-user", row, { ...profile, user_id: "another-user" }),
+    ).toBeNull();
   });
   it("requires an explicit area grant and the current role, never an assurance string", () => {
     const member = memberFromDatabase("verified-user", row, profile)!;
@@ -26,7 +28,10 @@ describe("trusted membership", () => {
 
 describe("password sign-in input", () => {
   it("validates bounds without changing the password", () => {
-    expect(parseCredentials(" name@example.com ", " keep spaces ")).toEqual({ email: "name@example.com", password: " keep spaces " });
+    expect(parseCredentials(" name@example.com ", " keep spaces ")).toEqual({
+      email: "name@example.com",
+      password: " keep spaces ",
+    });
     expect(parseCredentials("no-address", "password")).toBeNull();
     expect(parseCredentials("name@example.com", "")).toBeNull();
     expect(parseCredentials("name@example.com", "a".repeat(5))).toBeNull();

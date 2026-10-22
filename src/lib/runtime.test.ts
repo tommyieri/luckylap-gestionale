@@ -12,6 +12,8 @@ describe("anteprima locale senza accesso pubblico implicito", () => {
     expect(isLocalPreviewEnabled({ LUCKYLAP_LOCAL_PREVIEW: "true", VERCEL: "1" })).toBe(false);
   });
   it("non abilita un'anteprima senza autenticazione nel runtime di produzione", () => {
-    expect(isLocalPreviewEnabled({ LUCKYLAP_LOCAL_PREVIEW: "true", NODE_ENV: "production" })).toBe(false);
+    expect(isLocalPreviewEnabled({ LUCKYLAP_LOCAL_PREVIEW: "true", NODE_ENV: "production" })).toBe(
+      false,
+    );
   });
 });

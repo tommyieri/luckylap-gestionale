@@ -1,36 +1,104 @@
-import {describe,expect,it} from "vitest";
-import {financeWorkFromRows} from "./read";
-import {workId,workRows,shopifyWorkRows} from "./fixtures";
-describe("Finance facts remain distinct",()=>{
-  it("links sale/payment/cancellation without converting them to manual entries or double counting an incasso",()=>{
-    const rows=workRows(),original=structuredClone(rows),snapshot=financeWorkFromRows(rows);
-    expect(snapshot.entries).toHaveLength(1);expect(snapshot.payments).toHaveLength(1);expect(snapshot.facts).toHaveLength(3);
-    expect(snapshot.facts.find(f=>f.kind==="payment_reported")?.paymentId).toBe(snapshot.payments[0].id);
+import { describe, expect, it } from "vitest";
+import { financeWorkFromRows } from "./read";
+import { workId, workRows, shopifyWorkRows } from "./fixtures";
+describe("Finance facts remain distinct", () => {
+  it("links sale/payment/cancellation without converting them to manual entries or double counting an incasso", () => {
+    const rows = workRows(),
+      original = structuredClone(rows),
+      snapshot = financeWorkFromRows(rows);
+    expect(snapshot.entries).toHaveLength(1);
+    expect(snapshot.payments).toHaveLength(1);
+    expect(snapshot.facts).toHaveLength(3);
+    expect(snapshot.facts.find((f) => f.kind === "payment_reported")?.paymentId).toBe(
+      snapshot.payments[0].id,
+    );
     expect(rows).toEqual(original);
   });
-  it("marks a void while preserving the original declared value",()=>{
-    const rows=workRows();rows.voids.push({id:workId(7),finance_entry_id:workId(1),reason:"Synthetic correction",created_at:"2026-10-21T13:00:00Z",created_by:workId(10)});
-    const entry=financeWorkFromRows(rows).entries[0];expect(entry.cents).toBe(1234);expect(entry.void?.reason).toBe("Synthetic correction");
+  it("marks a void while preserving the original declared value", () => {
+    const rows = workRows();
+    rows.voids.push({
+      id: workId(7),
+      finance_entry_id: workId(1),
+      reason: "Synthetic correction",
+      created_at: "2026-10-21T13:00:00Z",
+      created_by: workId(10),
+    });
+    const entry = financeWorkFromRows(rows).entries[0];
+    expect(entry.cents).toBe(1234);
+    expect(entry.void?.reason).toBe("Synthetic correction");
   });
-  it("keeps two Shopify captures, a financial refund and authorization/void apart from manual declarations",()=>{
-    const snapshot=financeWorkFromRows(shopifyWorkRows());expect(snapshot.payments.filter(p=>p.source==="manual_declaration")).toHaveLength(1);expect(snapshot.payments.filter(p=>p.source==="shopify_observation").map(p=>p.cents).sort()).toEqual([4000,6000]);expect(snapshot.refunds[0].cents).toBe(1000);expect(snapshot.shopifyTransactions).toHaveLength(5);expect(snapshot.entries).toHaveLength(1);expect(snapshot.shopifyFinancials[0].totals.originalTaxCents).toBeNull();expect(snapshot.orders.find(o=>o.source==="shopify_canonical")?.channel).toBe("shopify_pos");
+  it("keeps two Shopify captures, a financial refund and authorization/void apart from manual declarations", () => {
+    const snapshot = financeWorkFromRows(shopifyWorkRows());
+    expect(snapshot.payments.filter((p) => p.source === "manual_declaration")).toHaveLength(1);
+    expect(
+      snapshot.payments
+        .filter((p) => p.source === "shopify_observation")
+        .map((p) => p.cents)
+        .sort(),
+    ).toEqual([4000, 6000]);
+    expect(snapshot.refunds[0].cents).toBe(1000);
+    expect(snapshot.shopifyTransactions).toHaveLength(5);
+    expect(snapshot.entries).toHaveLength(1);
+    expect(snapshot.shopifyFinancials[0].totals.originalTaxCents).toBeNull();
+    expect(snapshot.orders.find((o) => o.source === "shopify_canonical")?.channel).toBe(
+      "shopify_pos",
+    );
   });
-  it("refuses source mismatches, missing financial snapshots, orphan refunds and captures without their single observation",()=>{
-    for(const change of[
-      (r:ReturnType<typeof shopifyWorkRows>)=>{(r.payments[1] as Record<string,unknown>).source_kind="manual_declaration";},
-      (r:ReturnType<typeof shopifyWorkRows>)=>{r.shopifyFinancials=[];},
-      (r:ReturnType<typeof shopifyWorkRows>)=>{r.refunds=[];},
-      (r:ReturnType<typeof shopifyWorkRows>)=>{(r.shopifyTransactions[1] as Record<string,unknown>).kind="AUTHORIZATION";},
-      (r:ReturnType<typeof shopifyWorkRows>)=>{r.payments.splice(1,1);r.facts=r.facts.filter(f=>(f as Record<string,unknown>).payment_id!==workId(22));},
-      (r:ReturnType<typeof shopifyWorkRows>)=>{(r.facts.find(f=>(f as Record<string,unknown>).fact_kind==="refund_observed") as Record<string,unknown>).amount_cents=1;},
-    ]){const rows=shopifyWorkRows();change(rows);expect(()=>financeWorkFromRows(rows)).toThrow("Lettura Finance non completa.");}
+  it("refuses source mismatches, missing financial snapshots, orphan refunds and captures without their single observation", () => {
+    for (const change of [
+      (r: ReturnType<typeof shopifyWorkRows>) => {
+        (r.payments[1] as Record<string, unknown>).source_kind = "manual_declaration";
+      },
+      (r: ReturnType<typeof shopifyWorkRows>) => {
+        r.shopifyFinancials = [];
+      },
+      (r: ReturnType<typeof shopifyWorkRows>) => {
+        r.refunds = [];
+      },
+      (r: ReturnType<typeof shopifyWorkRows>) => {
+        (r.shopifyTransactions[1] as Record<string, unknown>).kind = "AUTHORIZATION";
+      },
+      (r: ReturnType<typeof shopifyWorkRows>) => {
+        r.payments.splice(1, 1);
+        r.facts = r.facts.filter((f) => (f as Record<string, unknown>).payment_id !== workId(22));
+      },
+      (r: ReturnType<typeof shopifyWorkRows>) => {
+        (
+          r.facts.find(
+            (f) => (f as Record<string, unknown>).fact_kind === "refund_observed",
+          ) as Record<string, unknown>
+        ).amount_cents = 1;
+      },
+    ]) {
+      const rows = shopifyWorkRows();
+      change(rows);
+      expect(() => financeWorkFromRows(rows)).toThrow("Lettura Finance non completa.");
+    }
   });
-  it("refuses orphan/mismatched payment facts, truncated sale facts, voids and altered cancellation totals",()=>{
-    for(const change of [
-      (r:ReturnType<typeof workRows>)=>{r.payments=[];},
-      (r:ReturnType<typeof workRows>)=>{r.facts.shift();},
-      (r:ReturnType<typeof workRows>)=>{(r.orders[0] as Record<string,unknown>).cancelled_cents=1;},
-      (r:ReturnType<typeof workRows>)=>{r.voids.push({id:workId(7),finance_entry_id:workId(999),reason:"Synthetic",created_at:"2026-10-21T13:00:00Z",created_by:workId(10)});},
-    ]){const rows=workRows();change(rows);expect(()=>financeWorkFromRows(rows)).toThrow("Lettura Finance non completa.");}
+  it("refuses orphan/mismatched payment facts, truncated sale facts, voids and altered cancellation totals", () => {
+    for (const change of [
+      (r: ReturnType<typeof workRows>) => {
+        r.payments = [];
+      },
+      (r: ReturnType<typeof workRows>) => {
+        r.facts.shift();
+      },
+      (r: ReturnType<typeof workRows>) => {
+        (r.orders[0] as Record<string, unknown>).cancelled_cents = 1;
+      },
+      (r: ReturnType<typeof workRows>) => {
+        r.voids.push({
+          id: workId(7),
+          finance_entry_id: workId(999),
+          reason: "Synthetic",
+          created_at: "2026-10-21T13:00:00Z",
+          created_by: workId(10),
+        });
+      },
+    ]) {
+      const rows = workRows();
+      change(rows);
+      expect(() => financeWorkFromRows(rows)).toThrow("Lettura Finance non completa.");
+    }
   });
 });
