@@ -122,6 +122,18 @@ describe("niente testate proprie nelle pagine", () => {
     expect(found).toEqual([]);
   });
 
+  it("AuthShell e le pagine radice not-found ed error non importano moduli CSS", () => {
+    // Next precarica su ogni pagina il CSS dei confini radice: un modulo qui pesa ovunque.
+    const files = [
+      join(COMPONENTS, "auth-shell.tsx"),
+      join(APP, "not-found.tsx"),
+      join(APP, "error.tsx"),
+      join(APP, "global-error.tsx"),
+    ];
+    const found = files.filter((path) => /\.module\.css["']/.test(read(path))).map(sourceName);
+    expect(found).toEqual([]);
+  });
+
   it("solo il guscio e AuthShell aprono <main>", () => {
     const found = sources.filter((path) => /<main\b/.test(read(path))).map(sourceName);
     expect(found.sort()).toEqual(["components/auth-shell.tsx", "components/workspace-frame.tsx"]);

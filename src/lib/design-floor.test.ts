@@ -394,10 +394,13 @@ describe("pavimento di stile dei CSS di src", () => {
       globals.rules
         .filter((rule) => !rule.media.length && rule.selector === selector)
         .flatMap((rule) => rule.declarations);
-    expect(declarationsOfSelector(".button")).toContainEqual({
-      property: "min-height",
-      value: "var(--tap)",
-    });
+    expect(declarationsOfSelector(".button")).toEqual(
+      expect.arrayContaining([
+        { property: "min-height", value: "var(--tap)" },
+        // Anche un'etichetta corta («Oggi» del calendario) resta un bersaglio da 44 px.
+        { property: "min-width", value: "var(--tap)" },
+      ]),
+    );
     expect(declarationsOfSelector(".icon-button")).toEqual(
       expect.arrayContaining([
         { property: "min-height", value: "var(--tap)" },

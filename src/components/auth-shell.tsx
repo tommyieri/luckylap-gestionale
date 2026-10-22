@@ -1,6 +1,9 @@
 import type { ReactNode } from "react";
-import styles from "./auth.module.css";
 
+/*
+ * Stili solo in globals.css (`.setup-*`), nessun modulo CSS: le pagine radice not-found ed
+ * error usano AuthShell, e Next precarica il CSS dei confini radice su ogni pagina.
+ */
 export function AuthShell({
   title,
   description,
@@ -12,9 +15,9 @@ export function AuthShell({
 }) {
   return (
     <main className="setup-page">
-      <section className={`setup-panel ${styles.panel}`}>
+      <section className="setup-panel">
         <span className="wordmark">LuckyLap</span>
-        <span className={styles.eyebrow}>Workspace del team</span>
+        <span className="setup-eyebrow">Workspace del team</span>
         <h1>{title}</h1>
         <p>{description}</p>
         {children}

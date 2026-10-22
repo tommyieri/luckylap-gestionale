@@ -332,6 +332,7 @@ body:has(dialog[open]) {
   gap: 8px;
   padding: 10px 16px;
   min-height: var(--tap);
+  min-width: var(--tap);
   border-radius: var(--radius-control);
   font-family: var(--f-body);
   font-weight: 500;
@@ -556,7 +557,7 @@ body:has(dialog[open]) {
   padding: 8px 30px 8px 10px;
   color: #414b38;
   cursor: pointer;
-  max-width: 190px;
+  max-width: 240px;
 }
 .select-wrap > svg {
   position: absolute;
@@ -1439,6 +1440,7 @@ body:has(dialog[open]) {
   background: var(--tint);
 }
 .setup-panel {
+  width: 100%;
   max-width: 570px;
   background: #fff;
   border: 1px solid var(--rule);
@@ -1447,8 +1449,25 @@ body:has(dialog[open]) {
 }
 .setup-panel .wordmark {
   color: var(--green);
-  margin-bottom: 32px;
+  margin-bottom: 25px;
   display: block;
+}
+.setup-eyebrow {
+  display: block;
+  color: var(--muted);
+  font-size: var(--text-sm);
+  margin-bottom: 10px;
+}
+.setup-actions {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  flex-wrap: wrap;
+  margin-top: 24px;
+}
+.setup-panel .setup-help {
+  font-size: var(--text-sm);
+  margin-top: 20px;
 }
 .setup-panel h1 {
   font-family: var(--f-cond);
@@ -1510,9 +1529,6 @@ body:has(dialog[open]) {
     flex: 1;
     justify-content: flex-end;
   }
-  .select-wrap select {
-    max-width: 175px;
-  }
   .inventory-table thead th,
   .product-row td {
     padding-left: 13px;
@@ -1562,6 +1578,7 @@ body:has(dialog[open]) {
   }
   .inventory-filters {
     flex: none;
+    flex-wrap: wrap;
     width: 100%;
     justify-content: flex-start;
   }
@@ -1571,8 +1588,9 @@ body:has(dialog[open]) {
   .search-input {
     flex-basis: 100%;
   }
+  /* Almeno 220 px: «Tutte le disponibilità» a 16 px non si taglia; se non ci stanno in due, una per riga. */
   .select-wrap {
-    flex: 1;
+    flex: 1 1 220px;
   }
   .select-wrap select {
     width: 100%;
@@ -1783,9 +1801,6 @@ body:has(dialog[open]) {
   }
   .inventory-filters {
     flex-wrap: wrap;
-  }
-  .select-wrap {
-    min-width: calc(50% - 5px);
   }
   .group-button {
     margin-top: 2px;
