@@ -419,6 +419,32 @@ describe("comandi del team", () => {
     }
   });
 
+  it("ogni Server Action accetta solo il suo comando: un altro tipo non arriva al database", async () => {
+    const fake = fakeSupabase(tables());
+    const result = await executePartnerCommand(fake.client, stateCommand, NOW, {
+      kind: "record_partner_activity",
+    });
+    expect(result).toMatchObject({ status: "rejected", code: "invalid_partner_payload" });
+    expect(fake.order).toEqual(["getUser"]);
+    expect(fake.rpcCalls).toEqual([]);
+    const same = fakeSupabase(tables(), {
+      rpc: () => ({
+        data: {
+          id: partnerFixtureId(1),
+          version: 5,
+          stage: "risposto",
+          activity_id: partnerFixtureId(2),
+          replayed: false,
+        },
+        error: null,
+      }),
+    });
+    expect(
+      await executePartnerCommand(same.client, stateCommand, NOW, { kind: "set_partner_state" }),
+    ).toMatchObject({ status: "success" });
+    expect(same.rpcCalls.map((call) => call.name)).toEqual(["set_partner_state"]);
+  });
+
   it("«Verifica»: senza accesso resta non confermato e la risposta ripetuta torna come già registrata", async () => {
     const retry = { ...stateCommand, retry: true };
     const outsider = fakeSupabase(tables(), { user: null });

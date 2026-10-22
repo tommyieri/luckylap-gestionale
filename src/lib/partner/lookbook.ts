@@ -52,3 +52,20 @@ export function partnerLookbookHeaders(
     "X-Content-Type-Options": "nosniff",
   };
 }
+
+/**
+ * Dimensione di ogni PDF in data/partner-lookbooks, per /partner/dati senza leggere il disco
+ * (la pagina non porta i PDF nella sua traccia). lookbook.test.ts la confronta con i file.
+ */
+export const PARTNER_LOOKBOOK_BYTES: Record<PartnerLookbookCode, number> = {
+  negozi: 3051669,
+  eventi: 2903389,
+  collab: 2051682,
+  porsche_club: 2592305,
+  club: 2444810,
+};
+
+/** «2,9 MB». */
+export function formatLookbookSize(bytes: number): string {
+  return `${(bytes / (1024 * 1024)).toFixed(1).replace(".", ",")} MB`;
+}

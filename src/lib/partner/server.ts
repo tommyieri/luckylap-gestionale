@@ -8,6 +8,7 @@ import {
   parsePartnerCommand,
   partnerCommandOutcome,
   partnerCommandRejection,
+  type PartnerCommandKind,
   type PartnerCommandResult,
 } from "./commands";
 import {
@@ -349,6 +350,7 @@ export async function executePartnerCommand(
   supabase: SupabaseClient,
   value: unknown,
   now: Date = new Date(),
+  options: { kind?: PartnerCommandKind } = {},
 ): Promise<PartnerCommandResult> {
   const retry =
     value !== null && typeof value === "object" && (value as { retry?: unknown }).retry === true;
@@ -364,7 +366,9 @@ export async function executePartnerCommand(
     return retry
       ? uncertain()
       : rejected("partner_access_required", PARTNER_ERROR_MESSAGES.partner_access_required.message);
-  const command = parsePartnerCommand(value, now);
+  // Ogni Server Action accetta solo il suo comando: un altro tipo vale come payload non valido.
+  const parsed = parsePartnerCommand(value, now);
+  const command = parsed && (!options.kind || parsed.kind === options.kind) ? parsed : null;
   if (!command)
     return retry
       ? uncertain()

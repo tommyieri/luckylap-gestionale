@@ -291,6 +291,9 @@ export function hasControlCharacters(value: string): boolean {
   return /[\u0000-\u0008\u000b\u000c\u000e-\u001f\u007f]/.test(value);
 }
 
+/** Avviso in cima alle pagine Partner nell'anteprima locale (00-sequenza §1.5). */
+export const PARTNER_PREVIEW_NOTICE = "Anteprima locale: dati sintetici, salvataggio disattivato.";
+
 /** «CO 007»: tre cifre, di più solo oltre 999. */
 export const formatCo = (co: number) => `CO ${String(co).padStart(3, "0")}`;
 

@@ -784,4 +784,4 @@ export function partnerSummaryFixture(overrides: Partial<PartnerSummary> = {}): 
   };
 }
 
-export const PARTNER_PREVIEW_NOTICE = "Anteprima locale: dati sintetici, salvataggio disattivato.";
+export { PARTNER_PREVIEW_NOTICE } from "./model";
