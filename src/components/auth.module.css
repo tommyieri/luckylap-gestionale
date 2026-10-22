@@ -29,11 +29,6 @@
   background: var(--paper);
   color: var(--ink);
 }
-.form input:focus-visible,
-.form select:focus-visible {
-  outline: 3px solid #82a35c;
-  outline-offset: 3px;
-}
 .error {
   color: var(--red) !important;
   font-size: 12px !important;
