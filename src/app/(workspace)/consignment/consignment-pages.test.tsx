@@ -133,8 +133,4 @@ describe("parole del conto vendita", () => {
     );
     expect(found).toEqual([]);
   });
-
-  it("nessun «Magadzino» nei file nuovi", () => {
-    expect(ui.filter((file) => /magadzino/i.test(readFileSync(file, "utf8")))).toEqual([]);
-  });
 });

@@ -83,6 +83,7 @@ Valgono già:
 - La password condivisa dai cinque account è voluta: non è un difetto da correggere.
 - Hosting e backup restano come sono finché Tommi non decide.
 - Nel prossimo modulo Partner tutti vedranno e faranno tutto.
+- Il magazzino centrale (`MAG01`) si chiama «Magadzino»: è il nome voluto, non un refuso, e non si rinomina. «Magazzino» resta la parola generica: sezione del menu, tipo di sede, «il nostro magazzino».
 
 Da fare, ognuna in un lavoro dedicato e solo con l'OK di Tommi. Oggi il codice fa ancora diversamente: non correggerlo di passaggio in altri lavori.
 

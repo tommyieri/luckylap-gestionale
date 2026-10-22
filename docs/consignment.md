@@ -223,7 +223,7 @@ Vitest (tutti con dati sintetici, albero React senza DOM per i componenti):
 | `src/lib/consignment/shop-finance.test.ts` | 8 | Pannello mensile, accesso negato prima delle query, pagamenti come movimenti, `loadConsignmentToSettle`. |
 | `src/lib/consignment/links.test.ts` | 5 | Indirizzi validi o ritorno all'elenco. |
 | `src/app/consignment/actions.test.ts` | 4 | Anteprima senza invii, pagine rilette dopo un successo. |
-| `src/app/(workspace)/consignment/consignment-pages.test.tsx` | 7 | Anteprima sintetica (spenta con `VERCEL=1` e `NODE_ENV=production`), «Pagina non trovata», titolo della conta uguale all'h1, parole vietate, nessun «Magadzino». |
+| `src/app/(workspace)/consignment/consignment-pages.test.tsx` | 6 | Anteprima sintetica (spenta con `VERCEL=1` e `NODE_ENV=production`), «Pagina non trovata», titolo della conta uguale all'h1, parole vietate. |
 | Componenti `consignment-*.test.tsx` | 54 | Elenco 6, negozio 9, griglia 5, resoconto 9, ordine 6, invii incerti 11, pannello Finance 8: stati vuoti e da contare, «—» e «0», riepilogo della correzione, totali dal vivo, doppio invio, recupero anche dalla chiave vecchia, mancanze in ambra, avviso di consegna oltre il magazzino, pulsanti Finance nascosti. |
 | `src/lib/finance/dashboard.test.ts`, `src/app/(workspace)/finance/finance-preview.test.tsx` | 16 + 3 | Pagamenti del negozio nei conti, nessun doppio conteggio, resoconti fuori dai saldi; anteprima di `/finance`. |
 | `src/lib/auth/inventory-model.test.ts`, `src/components/inventory-workspace.test.tsx` | 6 + 2 | Colonna «In negozio». |
