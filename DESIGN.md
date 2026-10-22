@@ -1,58 +1,70 @@
 ---
 name: LuckyLap Gestionale
-description: Sistema visivo operativo del gestionale interno LuckyLap.
+description: Sistema visivo operativo del gestionale interno LuckyLap, allineato al roadbook Partner.
 colors:
   green: "#1d4b07"
+  green-2: "#2b6311"
   green-dark: "#15370a"
   green-wash: "#e4ecdb"
+  on-green: "#ffffff"
+  on-green-2: "#cfdec2"
   paper: "#ffffff"
   ink: "#121512"
+  ink-2: "#394037"
   muted: "#5a6257"
   rule: "#c9cfc3"
+  rule-soft: "#e1e5dc"
   tint: "#f3f5f0"
   amber: "#875800"
-  amber-wash: "#f8f1df"
+  amber-wash: "#f6ead1"
   red: "#9b3b25"
 typography:
   display:
-    fontFamily: "BarlowCondensed, Barlow, sans-serif"
-    fontSize: "38px"
+    fontFamily: "Barlow Condensed, Arial Narrow, Helvetica Neue, Arial, sans-serif"
+    fontSize: "30px"
     fontWeight: 700
     lineHeight: 1
-    letterSpacing: "-0.03em"
+    letterSpacing: "0.01em"
   headline:
-    fontFamily: "Barlow, Arial, sans-serif"
-    fontSize: "29px"
-    fontWeight: 600
-    lineHeight: 1.2
-    letterSpacing: "-0.025em"
+    fontFamily: "Barlow Condensed, Arial Narrow, Helvetica Neue, Arial, sans-serif"
+    fontSize: "clamp(28px, 4.2vw, 38px)"
+    fontWeight: 700
+    lineHeight: 1.05
+    letterSpacing: "-0.005em"
   title:
-    fontFamily: "Barlow, Arial, sans-serif"
-    fontSize: "16px"
+    fontFamily: "Barlow Condensed, Arial Narrow, Helvetica Neue, Arial, sans-serif"
+    fontSize: "24px"
+    fontWeight: 700
+    lineHeight: 1.1
+  navigation:
+    fontFamily: "Barlow Condensed, Arial Narrow, Helvetica Neue, Arial, sans-serif"
+    fontSize: "18px"
     fontWeight: 600
-    lineHeight: 1.5
-    letterSpacing: "-0.01em"
+    lineHeight: 1.1
+    letterSpacing: "0.02em"
+  numeric:
+    fontFamily: "Barlow Condensed, Arial Narrow, Helvetica Neue, Arial, sans-serif"
+    fontWeight: 600
+    letterSpacing: "0.01em"
+    fontFeature: "tnum"
   body:
-    fontFamily: "Barlow, Arial, sans-serif"
-    fontSize: "14px"
+    fontFamily: "Barlow, Helvetica Neue, Arial, sans-serif"
+    fontSize: "16px"
     fontWeight: 400
     lineHeight: 1.5
   table:
-    fontFamily: "Barlow, Arial, sans-serif"
-    fontSize: "12px"
+    fontFamily: "Barlow, Helvetica Neue, Arial, sans-serif"
+    fontSize: "14px"
     fontWeight: 400
     lineHeight: 1.4
   label:
-    fontFamily: "Barlow, Arial, sans-serif"
-    fontSize: "10px"
-    fontWeight: 500
-    lineHeight: 1.5
+    fontFamily: "Barlow Condensed, Arial Narrow, Helvetica Neue, Arial, sans-serif"
+    fontSize: "12px"
+    fontWeight: 600
+    letterSpacing: "0.08em"
 rounded:
-  compact: "3px"
-  tag: "4px"
-  control: "5px"
-  note: "6px"
-  radius: "8px"
+  radius: "0px"
+  control: "2px"
 spacing:
   xs: "4px"
   sm: "8px"
@@ -60,55 +72,107 @@ spacing:
   md: "16px"
   panel-gap: "20px"
   lg: "24px"
-  xl: "28px"
   wide: "32px"
+  tap: "44px"
+  tabs: "48px"
+  topband: "52px"
+  bottombar: "60px"
+  sidebar: "232px"
 components:
   button-primary:
-    backgroundColor: "{colors.green}"
+    backgroundColor: "{colors.ink}"
     textColor: "{colors.paper}"
     rounded: "{rounded.control}"
-    padding: "9px 14px"
+    padding: "10px 16px"
+    height: "{spacing.tap}"
+  button-primary-hover:
+    backgroundColor: "{colors.ink-2}"
+    textColor: "{colors.paper}"
   button-secondary:
     backgroundColor: "{colors.paper}"
     textColor: "#2e3827"
     rounded: "{rounded.control}"
-    padding: "9px 14px"
+    padding: "10px 16px"
+    height: "{spacing.tap}"
   search-input:
     backgroundColor: "{colors.paper}"
     textColor: "{colors.ink}"
     rounded: "{rounded.control}"
     padding: "0 11px"
+    height: "{spacing.tap}"
+  sidebar:
+    backgroundColor: "{colors.green}"
+    textColor: "{colors.on-green}"
+    width: "{spacing.sidebar}"
   navigation-item:
-    textColor: "#d9e4d0"
-    rounded: "{rounded.control}"
-    padding: "9px 12px"
+    textColor: "{colors.on-green-2}"
+    typography: "{typography.navigation}"
+    rounded: "{rounded.radius}"
+    padding: "0 20px"
+    height: "48px"
   navigation-item-active:
-    backgroundColor: "{colors.green-wash}"
-    textColor: "{colors.green-dark}"
-    rounded: "{rounded.control}"
-    padding: "9px 12px"
-  stock-status:
-    textColor: "{colors.green}"
-    typography: "{typography.label}"
+    backgroundColor: "{colors.paper}"
+    textColor: "{colors.ink}"
+    typography: "{typography.navigation}"
+    rounded: "{rounded.radius}"
+    padding: "0 20px"
+    height: "48px"
+  tab:
+    backgroundColor: "{colors.paper}"
+    textColor: "{colors.ink-2}"
+    padding: "0 14px"
+    height: "{spacing.tabs}"
+  tab-active:
+    backgroundColor: "{colors.paper}"
+    textColor: "{colors.ink}"
+    padding: "0 14px"
+    height: "{spacing.tabs}"
+  bottom-bar:
+    backgroundColor: "{colors.paper}"
+    textColor: "{colors.ink-2}"
+    height: "{spacing.bottombar}"
+  sheet-item:
+    backgroundColor: "{colors.paper}"
+    textColor: "{colors.ink}"
+    typography: "{typography.navigation}"
+    padding: "0 12px"
+    height: "52px"
   panel:
     backgroundColor: "{colors.paper}"
     textColor: "{colors.ink}"
     rounded: "{rounded.radius}"
-    padding: "23px"
+    padding: "24px"
+  panel-warning:
+    backgroundColor: "{colors.amber-wash}"
+    textColor: "{colors.ink}"
+    rounded: "{rounded.radius}"
+    padding: "24px"
+  roadbook-row:
+    backgroundColor: "{colors.paper}"
+    textColor: "{colors.ink}"
+    padding: "12px 16px"
+    height: "56px"
+  roadbook-box-now:
+    backgroundColor: "{colors.green}"
+    textColor: "{colors.on-green}"
+  roadbook-box-late:
+    backgroundColor: "{colors.amber-wash}"
+    textColor: "{colors.amber}"
+  roadbook-box-done:
+    backgroundColor: "{colors.green-wash}"
+    textColor: "{colors.green}"
+  stock-status:
+    textColor: "{colors.green}"
+    typography: "{typography.label}"
   inventory-row:
     backgroundColor: "{colors.paper}"
     textColor: "{colors.ink}"
     typography: "{typography.table}"
     padding: "11px 17px"
-  calendar-day:
-    textColor: "{colors.ink}"
-    rounded: "{rounded.control}"
-    padding: "7px 9px"
   calendar-day-selected:
-    backgroundColor: "{colors.green}"
+    backgroundColor: "{colors.ink}"
     textColor: "{colors.paper}"
-    rounded: "{rounded.control}"
-    padding: "7px 9px"
+    rounded: "{rounded.radius}"
   product-detail:
     backgroundColor: "{colors.paper}"
     textColor: "{colors.ink}"
@@ -122,141 +186,169 @@ components:
 
 **Creative North Star: "LuckyLap operativo"**
 
-L'identità riprende il progetto partner del brand: verde racing, superfici chiare, inchiostro scuro e Barlow. La cultura automobilistica emerge nel marchio condensato e inclinato; l'interfaccia di lavoro usa caratteri regolari e una gerarchia misurata.
+Il gestionale prende il mondo visivo del roadbook Partner: carta bianca, inchiostro verde-nero, filetti da 1 px, verde racing solo dove serve agire adesso, Barlow Condensed dritto per cifre, codici e titoli. È una superficie Operate: chi la usa deve fare un'operazione, spesso dal telefono, non leggere un racconto. Navigazione e controlli restano standard: barra laterale, schede, barra in basso, `dialog` nativo.
 
-Il gestionale privilegia quantità leggibili, separatori sottili e controlli familiari. Le superfici sono compatte e prevalentemente piatte. La navigazione scura dà un riferimento stabile, mentre il contenuto rimane chiaro e ordinato.
+Ogni pagina per i membri vive nello stesso guscio (`src/components/workspace-frame.tsx`). La barra laterale verde è la testata del roadbook; le schede in alto sono la barra dei settori; il contenuto sta su carta. Dal guscio si arriva a ogni pagina in uno o due tocchi e si sa sempre dove si è. Struttura, mappa delle sezioni e regole per le pagine nuove: [layout condiviso](docs/workspace-layout.md).
 
 **Key Characteristics:**
 
-- Verde racing come accento e riferimento di navigazione.
-- Dati compatti con gerarchia tipografica e numeri allineati.
-- Superfici chiare, bordi sottili e profondità limitata agli elementi sovrapposti.
-- Navigazione laterale su desktop e menu apribile su telefono.
+- Testata verde fissa: barra laterale sul desktop, fascia verde e barra in basso sul telefono.
+- Righe quadrate, filetti sottili, nessuna ombra sui pannelli.
+- Due voci: Barlow Condensed per nomi, numeri, codici, titoli e menu; Barlow per frasi e controlli.
+- Testo leggibile sul telefono: minimo 12 px, corrente e campi a 16 px, bersagli da 44 px.
 
-Rilievo dell'implementazione del 21 ottobre 2026: `src/app/globals.css`, `src/components/management-app.tsx` e schermate finali desktop, telefono e packaging. Le regole descrivono la prima anteprima locale; non attestano l'attivazione dei servizi condivisi.
+I token normativi sono in `:root` di `src/app/globals.css`, ripresi nel frontmatter. `.impeccable/design.json` descrive ancora la versione del 21 ottobre: si aggiorna in un lavoro a parte.
 
 ## Colors
 
-La palette associa un verde scuro netto a bianchi leggermente verdi e toni neutri caldi.
+Verde racing pieno solo per la testata e per ciò che è adesso o fatto; il resto è inchiostro su carta.
 
 ### Primary
 
-- **Verde racing** (`green`): azioni principali, collegamenti, disponibilità e giorno selezionato nel calendario.
-- **Verde scuro** (`green-dark`): sfondo della navigazione laterale e testo della voce selezionata.
-- **Verde chiaro** (`green-wash`): voce selezionata, filtri attivi e piccoli stati interattivi.
+- **Verde racing** (`green`): fondo della barra laterale e della fascia del telefono, casella «adesso» delle righe roadbook, collegamenti, anello di focus. Altrove il verde è testo, filetto da 1 px o campitura chiara, mai un fondo pieno.
+- **Verde secondo** (`green-2`): filetti dentro la testata verde.
+- **Verde scuro** (`green-dark`): testo verde più scuro su fondi chiari, dove serve più contrasto.
+- **Verde chiaro** (`green-wash`): stato «fatto», filtri attivi e piccoli stati interattivi.
+- **Testo su verde** (`on-green`, `on-green-2`): marchio e voce al passaggio del mouse; voci inattive e testo secondario della testata (contrasto circa 7:1).
 
 ### Neutral
 
-- **Bianco** (`paper`): pannelli, tabella, barra superiore e dettaglio prodotto.
-- **Inchiostro** (`ink`): titoli, quantità e testo principale.
-- **Grigio verde** (`muted`): descrizioni, etichette e informazioni secondarie.
-- **Bordo grigio verde** (`rule`): confini dei pannelli, separatori e campi.
-- **Fondo chiaro** (`tint`): sfondo generale e aree di appoggio.
+- **Carta** (`paper`): fondo della pagina, delle schede, della barra in basso, dei pannelli e della voce di menu attiva.
+- **Inchiostro** (`ink`, `ink-2`): titoli, quantità, testo principale; pulsante principale, scheda attiva, giorno scelto e toast. `ink-2` per paragrafi e voci inattive delle schede (oltre 10:1 su carta).
+- **Grigio verde** (`muted`): etichette e informazioni secondarie.
+- **Filetti** (`rule`, `rule-soft`): confini di pannelli, righe e campi; barre dei segnaposto di caricamento.
+- **Fondo chiaro** (`tint`): passaggio del mouse sulle righe e avvisi neutri.
 
-Ambra (`amber`, `amber-wash`) e rosso (`red`) sono colori di stato, rispettivamente per dati da verificare e quantità esaurite. Non costituiscono ulteriori accenti di brand. Gli stati di magazzino abbinano colore e testo: Disponibile, Esaurito, Da verificare.
+### Stato
+
+- **Ambra** (`amber`, `amber-wash`): solo tempo e attenzione (in ritardo, dato da verificare, pannello di avviso), sempre con il suo wash.
+- **Rosso** (`red`): solo errori e impossibilità, per esempio un'operazione fallita o una variante esaurita. È una deviazione dal roadbook, che non usa il rosso: un gestionale deve dire quando un'operazione non è riuscita.
+
+**The Ink Inversion Rule.** La selezione è inversione d'inchiostro, non verde: voce attiva della barra laterale in carta sul verde, voce attiva del foglio «Altro», giorno scelto e pulsante principale in inchiostro su carta.
 
 **The State Labels Rule.** Accompagnare il colore di stato con una dicitura leggibile; preservare la distinzione tra zero e dato mancante.
 
-I valori normativi sono nel frontmatter. Le rampe OKLCH nel sidecar sono sintetizzate per esplorazione nel pannello Impeccable, non sono una scala già applicata alla UI.
-
 ## Typography
 
-**Display Font:** Barlow Condensed, registrato nel CSS come `BarlowCondensed`, con Barlow e sans-serif di riserva. Il marchio usa il file Bold Italic locale.
+**Display Font:** Barlow Condensed dritto (500, 600, 700; woff2 latin e latin-ext presi dal roadbook Partner), con Arial Narrow, Helvetica Neue, Arial e sans-serif di riserva. Token `--f-cond`.
 
-**Body Font:** Barlow, con Arial e sans-serif di riserva. I pesi locali disponibili sono 400, 500, 600 e 700, con `font-display: swap`.
+**Body Font:** Barlow (400, 500, 600, 700, TTF locali), con Helvetica Neue, Arial e sans-serif di riserva. Token `--f-body`.
 
-L'inclinazione è riservata al marchio e al monogramma del brand. Titoli e dati conservano forme regolari. Gli SKU usano Barlow di corpo minore, non un carattere monospaziato.
+**Character:** due voci, come nel roadbook. Il Condensed dritto porta nomi, numeri, codici, etichette, titoli, schede e voci di menu; Barlow porta le frasi e tutto ciò che si preme. Niente corsivo, neanche nel marchio.
 
 ### Hierarchy
 
-- **Display:** marchio nella navigazione; le proprietà sono nel token `display`.
-- **Headline:** titolo della pagina; si riduce a 27 px sotto 980 px e a 26 px sotto 430 px.
-- **Title:** titolo dei pannelli; rimane più contenuto del titolo di pagina.
-- **Body:** testo generale. Descrizioni e contenuti operativi ricorrono anche a corpi di 11–13 px.
-- **Table:** righe dei prodotti; SKU secondario a 9 px, intestazioni a 10 px.
-- **Label:** metadati e stati. Le etichette dei gruppi di navigazione sono maiuscole, a 9 px con spaziatura di 0,1 em.
+- **Display** (Condensed 700, 30 px nella barra laterale, 24 px nella fascia del telefono): marchio «LuckyLap».
+- **Headline** (Condensed 700, `--text-title`, `clamp(28px, 4.2vw, 38px)`): `h1` di ogni pagina e dei pannelli di stato. È il nome della voce di menu.
+- **Title** (Condensed 700, 24 px): titoli dei riquadri di Oggi e del foglio «Altro»; 20 px nei titoli delle righe roadbook.
+- **Navigation** (Condensed 600, 18 px, 0.02em): voci della barra laterale e del foglio; 17 px nelle schede, 13 px nella barra in basso.
+- **Numeric** (`.num`, Condensed 600, cifre tabellari): quantità, importi, date, ore, SKU, numeri d'ordine.
+- **Body** (Barlow 400, 16 px, 1.5): testo corrente, paragrafi sotto i titoli, avvisi, campi.
+- **Table** (Barlow 400, 14 px): celle e testo secondario.
+- **Label** (`.label`, Condensed 600, 12 px, 0.08em, maiuscolo): etichette brevi e metadati.
 
-**The Aligned Numbers Rule.** Quantità e importi usano cifre tabulari; le colonne numeriche della tabella sono allineate a destra.
+Scala del testo: `--text-xs` 12, `--text-sm` 14, `--text-md` 16, `--text-lg` 18, `--text-xl` 24 px. Nessun testo sotto 12 px; `input`, `select` e `textarea` a 16 px a ogni larghezza, così iOS non ingrandisce la pagina. Lo controlla `src/lib/design-floor.test.ts`.
+
+**The Aligned Numbers Rule.** Quantità e importi usano cifre tabulari (`font-variant-numeric: tabular-nums` è già sul `body`); le colonne numeriche delle tabelle sono allineate a destra.
+
+**The No Eyebrow Rule.** Niente sopratitoli in maiuscolo sopra i titoli: il menu dice già dove si è.
 
 ## Layout
 
-La barra laterale è fissa e larga 232 px sul desktop, con riduzioni a 210 px e 200 px nei passaggi intermedi. La barra superiore è alta 68 px. Il contenuto ha una larghezza massima di 1620 px, margini automatici e padding laterale ordinario di 38 px. La pagina inizia con titolo e azione, seguiti da un riepilogo orizzontale, strumenti di ricerca e tabella.
-
-I pannelli ricorrono a una distanza di 20 px; i controlli usano intervalli più stretti di 7–12 px. L'implementazione combina i passi dello schema di spaziatura con aggiustamenti locali osservati, per esempio padding di 23 px nei pannelli e di 34 px sopra il contenuto.
-
-Sotto 760 px la barra laterale diventa un menu apribile con sfondo oscurato. La barra superiore scende a 58 px, nasconde la data e conserva sezione attiva e indicazione locale. Il contenuto ha padding di 20 px, ridotto a 15 px sotto 430 px. La ricerca occupa la larghezza disponibile e i filtri vanno a capo.
-
-La tabella mobile mostra prodotto/SKU, taglia e quantità centrale; in conto vendita mostra invece la quantità affidata. Colore, prezzi e altri dettagli restano nel pannello prodotto. Il riepilogo mantiene quattro valori. I contenitori di tabella gestiscono lo scorrimento senza allargare l'intera pagina.
-
-Calendario e agenda sono affiancati con proporzioni 1,65:1 sul desktop e diventano una colonna sotto 1250 px. Le colonne di attività e note seguono la stessa riduzione a una colonna. I breakpoint effettivi sono registrati nel sidecar.
+- **Desktop (oltre 760 px).** Barra laterale ferma a sinistra, larga 232 px (210 sotto 1250, 200 sotto 1000). A destra la colonna del contenuto: schede ferme in alto (48 px) quando la sezione ha più pagine, poi `main` largo al massimo 1280 px, con margini di 24 px (32 oltre 1250).
+- **Telefono (fino a 760 px).** Fascia verde di 52 px con marchio e sezione attiva, che scorre via con la pagina. Restano ferme solo le schede. Barra fissa in basso di 60 px più la safe area, nascosta mentre un campo ha il focus. Margini laterali `--gutter` (almeno 16 px, rispettano la safe area); `main` lascia in fondo lo spazio della barra.
+- **Barre delle pagine.** Le barre fisse in basso usano `bottom: var(--ws-fixed-bottom)`, quelle ferme in alto `top: var(--ws-sticky-top)`: così non finiscono sotto la barra di navigazione o sotto le schede.
+- **Ritmo.** Pannelli a 16–20 px di distanza, controlli a 8–12 px, bersagli da 44 px.
+- **Oggi.** Due colonne oltre 1000 px (Agenda a sinistra, proporzione 1,25:1), una sotto.
+- **Tabelle.** Sul telefono le tabelle scorrono nel loro contenitore: la pagina non scorre mai in orizzontale. La tabella del magazzino mostra prodotto e SKU, taglia e quantità centrale; il resto è nel dettaglio prodotto.
+- Scala z-index: schede 10, barra laterale 20, barra in basso 30, barre fisse delle pagine 35, toast 40. I `dialog` stanno nel top layer.
 
 ## Elevation & Depth
 
-Pannelli e tabelle sono piatti: si distinguono tramite fondo, bordo e spaziatura. La navigazione scura e le campiture verdi chiare definiscono il contesto senza ombre diffuse. Le ombre compaiono soltanto nel dettaglio prodotto sovrapposto e nel messaggio di conferma.
+Il sistema è piatto: pannelli, righe e testata si distinguono con fondo, filetti e spaziatura. Nessuna ombra su pannelli, righe, menu o schede.
 
 ### Shadow Vocabulary
 
-- **Dettaglio prodotto:** ombra laterale (`-12px 0 40px #12200720`); accompagna il pannello ancorato al margine destro e un backdrop scuro trasparente.
-- **Conferma temporanea:** ombra breve (`0 7px 24px #10200830`); separa il messaggio dal contenuto sottostante.
+- **Dettaglio prodotto:** ombra laterale (`-12px 0 40px #12200720`) sul pannello ancorato al margine destro, con un backdrop scuro trasparente.
+- **Conferma temporanea:** ombra breve (`0 7px 24px #10200830`) sul toast in inchiostro.
 
-**The Flat Panels Rule.** Conservare bordi e campiture come separazione ordinaria dei pannelli; usare le ombre osservate per gli elementi sovrapposti.
+**The Flat Panels Rule.** Bordi e campiture separano i pannelli; le ombre restano solo agli elementi sovrapposti.
 
-Il dettaglio entra lateralmente in 0,2 s con `cubic-bezier(.16,1,.3,1)`. Le transizioni cromatiche durano 0,16 s con `ease-out`. La preferenza `prefers-reduced-motion: reduce` disattiva animazioni e transizioni.
+Movimento: colori in 160 ms, foglio «Altro» in 260 ms, dettaglio prodotto in 200 ms, sempre con `--ease` (`cubic-bezier(0.16, 1, 0.3, 1)`). Con `prefers-reduced-motion: reduce` niente animazioni né transizioni.
 
 ## Shapes
 
-I pannelli hanno angoli lievemente arrotondati con il token `radius`; i controlli impiegano `control`, i piccoli cartellini `compact` o `tag`. I bordi sono perlopiù di 1 px. La forma rimane rettangolare, con pochi cerchi riservati a indicatori di stato e campioni colore.
+Righe quadrate, come nel roadbook. Pannelli, righe, schede, voci di menu, foglio «Altro» e cartellini hanno angoli a 0 (`--radius`). I controlli (pulsanti, campi, select) hanno 2 px (`--radius-control`). Il 50% resta a pallini di stato e campioni colore. Nessun altro raggio: lo controlla `src/lib/design-floor.test.ts`.
 
-Il dettaglio prodotto è un pannello rettangolare a tutta altezza, aderente al margine destro, senza bordo né arrotondamento. I contenitori delle tabelle ritagliano le righe entro il perimetro arrotondato. Gli stati selezionati cambiano campitura, non geometria.
+I filetti sono da 1 px; 1,5 px d'inchiostro aprono le liste roadbook e la testata del foglio «Altro»; 3 px d'inchiostro segnano la scheda attiva (sotto) e la voce attiva della barra in basso (sopra). Gli stati selezionati cambiano campitura o filetto, non geometria.
 
 ## Components
 
+### Navigation (barra laterale)
+
+`<nav aria-label="Sezioni del gestionale">` su fondo verde. Marchio «LuckyLap» e «Gestionale» in Condensed, link a `/`. Al massimo sette voci (icona Lucide 20 px e testo Condensed 600 18 px), alte 48 px, quadrate, filtrate per permesso. Inattive in `on-green-2`; al passaggio del mouse fondo bianco all'8%. La voce attiva è in inversione: carta e inchiostro. Finance e Controllo CEO hanno il lucchetto da 14 px. Nel piede: nome del membro, «Account e sicurezza», «Esci» (pulsante da 44 px con bordo `on-green-2`). Sul telefono la barra diventa la fascia verde con marchio e sezione attiva.
+
+### Tabs
+
+`<nav aria-label="Pagine di {sezione}">`, solo con almeno due pagine. Striscia ferma in alto, fondo carta e filetto d'inchiostro sotto. Link Condensed 600 17 px, alti 48 px; attivo in inchiostro con filetto da 3 px e `aria-current="page"`, inattivi in `ink-2`. Se non ci stanno scorrono in orizzontale senza barra di scorrimento.
+
+### Bottom bar
+
+Solo sul telefono, dopo `main` nel DOM. Fondo carta, filetto d'inchiostro sopra, cinque celle uguali: Oggi, Vendite, Magazzino, Partner, «Altro». Icona 22 px ed etichetta Condensed 600 13 px. Attiva in inchiostro, peso 700, filetto da 3 px sul bordo alto.
+
+### Sheet («Altro»)
+
+`dialog` nativo aperto con `showModal()`, ancorato in basso, largo quanto lo schermo, alto al massimo 80dvh, quadrato. Titolo «Altro» e «Chiudi»; righe da 52 px per Team, Finance e Controllo CEO se visibili, poi «Account e sicurezza» ed «Esci». La riga attiva è in inversione d'inchiostro. Si chiude con Esc, tocco sullo sfondo, «Chiudi» e a ogni cambio di pagina; il focus torna su «Altro».
+
+### Panel (`WorkspacePanel`)
+
+Stato di una pagina dentro il guscio: configurazione mancante, accesso negato, area chiusa, errore, pagina non trovata. Sezione quadrata con filetto da 1 px, larga al massimo 640 px, allineata a sinistra. `h1` in Headline, paragrafo 16 px in `ink-2`, azioni sotto (a tutta larghezza sul telefono). La variante di avviso ha fondo `amber-wash`, bordo e icona ambra. Nessun sopratitolo e nessun link indietro: il menu è sempre lì. Fuori dal gruppo (`/auth/login`, `/auth/confirm`) resta `AuthShell`.
+
+### Roadbook rows
+
+`src/components/roadbook.module.css`: lista aperta da un filetto d'inchiostro da 1,5 px; ogni riga è una griglia «colonna di controllo | contenuto | lato», alta almeno 56 px, con filetto `rule` sotto. La colonna di controllo (76 px, 56 sul telefono, filetto d'inchiostro a destra) porta l'ora o il giorno in Condensed 700 24 px, oppure una casella Condensed 600 13 px in maiuscolo: verde pieno se è adesso, ambra se è in ritardo, verde chiaro se è fatto. Titolo Condensed 700 20 px, meta 14 px. Il link del titolo copre tutta la riga.
+
 ### Buttons
 
-Controlli compatti con icona lineare e testo. Il primario usa verde racing e testo bianco, il secondario fondo bianco e bordo grigio verde. Il padding ordinario è di 9 × 14 px, l'altezza minima 38 px, il testo 12 px e il raggio quello di `control`. L'hover del primario scurisce il fondo; il secondario assume un verde molto chiaro. Il focus visibile globale usa un contorno verde di 3 px con offset di 3 px. I pulsanti disabilitati hanno opacità 0,5.
+Bersaglio da 44 px, testo Barlow 500 14 px, angolo da 2 px. Il principale è in inchiostro con testo carta (al passaggio `ink-2`); il secondario è bianco con bordo `rule` e fondo verde molto chiaro al passaggio. I pulsanti a icona sono 44 × 44 px. Focus verde da 2 px con scarto di 2 px (bianco sulle testate verdi). Disabilitati a opacità 0,5.
 
 ### Inputs / Fields
 
-Campi chiari con bordo sottile, raggio `control`, testo operativo di 12 px e altezza minima 38 px. La ricerca combina icona, campo senza bordo interno e cancellazione contestuale. Il focus della ricerca agisce sul contenitore con bordo verde e contorno chiaro; gli altri campi conservano il contorno globale visibile. Le etichette rimangono distinte dai segnaposto.
-
-### Navigation
-
-Icone lineari e testo di 13 px, raggruppati da piccole etichette maiuscole. Ogni voce occupa almeno 41 px in altezza; la voce selezionata usa verde chiaro e testo verde scuro. L'hover delle altre voci schiarisce il fondo in modo contenuto. Sul telefono il menu include chiusura, focus contenuto nel pannello ed Escape.
+Campi chiari con bordo sottile, angolo da 2 px, testo a 16 px e altezza minima di 44 px. La ricerca combina icona, campo senza bordo interno e cancellazione da 44 px; il focus agisce sul contenitore con bordo e anello verdi. Le etichette restano distinte dai segnaposto. Cursore di testo verde.
 
 ### Chips / Status
 
-Le etichette di disponibilità sono testo di 10 px con un punto di 5 px. La taglia è un piccolo cartellino chiaro con bordo e raggio `compact`. Il filtro per modello usa campitura verde chiaro quando attivo e comunica la selezione anche con `aria-pressed`. Questi elementi non assumono l'aspetto di grandi pillole promozionali.
-
-### Cards / Containers
-
-Pannelli bianchi, bordo sottile e raggio `radius`. Il pannello standard ha padding di 23 px; strumenti e tabella adottano spaziature proprie più compatte. Le intestazioni allineano titolo e metadati. I materiali di packaging usano una tabella semplice con voci, quantità e costo unitario; i dati assenti hanno una dicitura esplicita.
+Le etichette di disponibilità sono testo da 12 px con un pallino da 5 px: Disponibile in verde, Esaurito in rosso, Da verificare in ambra. La taglia è un cartellino quadrato con bordo chiaro. I filtri usano il verde chiaro quando sono attivi e comunicano la selezione anche con `aria-pressed`. Niente pillole promozionali.
 
 ### Inventory Table
 
-Intestazione verde molto chiara, gruppi per modello ancora più chiari e righe separate da linee sottili. Il prodotto dispone nome e SKU su due livelli; taglia al centro, numeri a destra, stato leggibile. L'hover schiarisce la riga e il focus del pulsante prodotto evidenzia l'intera riga. La variante compatta mobile conserva una gerarchia leggibile senza rimpicciolire l'interfaccia.
+Intestazione verde molto chiara, gruppi per modello ancora più chiari, righe separate da filetti sottili. Nome e SKU su due livelli; taglia al centro, numeri in Condensed a destra, stato leggibile. Il passaggio del mouse schiarisce la riga e il focus del pulsante prodotto evidenzia l'intera riga.
 
 ### Calendar
 
-Griglia a sette colonne con celle rettangolari. Il giorno corrente è sottolineato; quello selezionato usa verde pieno e testo bianco. Un piccolo contatore comunica gli appuntamenti. L'agenda della data selezionata mostra orario, titolo e testo secondario in una colonna adiacente o sottostante.
+Griglia a sette colonne con celle quadrate. Il giorno corrente ha un filetto verde sotto il numero; quello scelto è in inversione d'inchiostro. Un piccolo contatore in verde chiaro indica gli appuntamenti.
 
 ### Product Detail
 
-Pannello laterale nativo `dialog`, largo 456 px sul desktop e contenuto entro la larghezza disponibile. Presenta titolo e SKU, quantità in due riquadri, listino a righe e nota della fonte. La chiusura ha un pulsante dedicato, Escape e clic sul backdrop. Il focus iniziale va alla chiusura.
+Pannello laterale nativo `dialog`, largo 456 px sul desktop e contenuto entro la larghezza disponibile. Titolo, SKU da copiare, quantità, costi e listini a righe, nota sulle rettifiche con il link a `/stock/rettifiche`. Si chiude con un pulsante dedicato, Escape e clic sullo sfondo; il focus iniziale va alla chiusura.
 
 ## Do's and Don'ts
 
 ### Do:
 
-- **Do** riusare verde racing, Barlow e superfici chiare del brand.
-- **Do** allineare quantità e importi con cifre tabulari, mantenendo nome e SKU su due livelli.
-- **Do** accompagnare disponibilità e dati mancanti con testo leggibile oltre al colore.
-- **Do** mantenere focus visibile, Escape negli overlay e movimento riducibile.
+- **Do** usare il Condensed dritto per numeri, codici, date, ore, titoli e voci di menu, con cifre tabellari.
+- **Do** tenere il verde pieno per testata, adesso e fatto; selezionare con l'inversione d'inchiostro.
+- **Do** accompagnare disponibilità, ritardi e dati mancanti con testo leggibile oltre al colore.
+- **Do** usare `WorkspacePanel` per gli stati e `roadbook.module.css` per le righe, con i token di `globals.css`.
+- **Do** mantenere focus visibile, Escape negli overlay, bersagli da 44 px e movimento riducibile.
 - **Do** adattare le colonne alla larghezza del telefono e lasciare i dettagli nel pannello prodotto.
 
 ### Don't:
 
-- **Don't** sostituire palette e tipografia esistenti con quelle generiche dei kit di dashboard.
-- **Don't** applicare ombre diffuse a ogni pannello o usare effetti decorativi che riducano la leggibilità dei dati.
-- **Don't** usare il font condensato inclinato del marchio per tabelle o testo operativo.
+- **Don't** sostituire palette e tipografia con quelle generiche dei kit di dashboard, né ridichiarare i token in un modulo CSS.
+- **Don't** aggiungere testate proprie, link «Torna al workspace» o sopratitoli in maiuscolo: il guscio dice già dove si è.
+- **Don't** usare il corsivo, nemmeno nel marchio, o angoli arrotondati su pannelli e righe.
+- **Don't** applicare ombre a pannelli e righe o effetti decorativi che riducano la leggibilità dei dati.
+- **Don't** scendere sotto 12 px di testo o sotto 16 px nei campi.
 - **Don't** affidare al solo colore gli stati di magazzino o rappresentare un dato mancante come zero.
 - **Don't** forzare tutte le colonne desktop dentro la larghezza del telefono riducendo la scala dell'intera pagina.

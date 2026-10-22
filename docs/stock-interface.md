@@ -1,6 +1,6 @@
 # Rettifiche del magazzino condiviso
 
-La pagina `/stock` consente a tutti i membri attivi di consultare le quantità fisiche, riservate e disponibili e di registrare variazioni di scorta motivate. Riprende Barlow, verde racing e componenti compatti del sistema visivo LuckyLap, con modulo e disponibilità affiancati sul desktop e in una colonna sul telefono.
+La pagina `/stock/rettifiche` (scheda «Rettifiche» della sezione Magazzino) consente a tutti i membri attivi di consultare le quantità fisiche, riservate e disponibili e di registrare variazioni di scorta motivate. Fino al 22 ottobre 2026 stava su `/stock`, che ora è la scheda «Giacenze» con l'inventario completo (vedi [layout condiviso](workspace-layout.md)). Riprende Barlow, verde racing e componenti compatti del sistema visivo LuckyLap, con modulo e disponibilità affiancati sul desktop e in una colonna sul telefono.
 
 ## Operazione
 
@@ -24,7 +24,7 @@ La Server Action cerca prima il movimento append-only per operation ID, sotto RL
 
 La RPC esistente controlla il flag prima della propria ricerca idempotente. Se il movimento non è leggibile e il flag è ora disattivato, non si può provare l'esito precedente: il tentativo resta incerto e congelato, con istruzione esplicita di verificarlo con Tommi. Un cambio di membership o errore di lettura durante un retry non viene scambiato per prova che l'operazione originaria non sia avvenuta. Errori SQL e parametri grezzi non raggiungono il browser.
 
-Dopo una ricevuta confermata vengono invalidate `/stock`, `/` e `/sales`; il client rilegge la route corrente. Un errore di aggiornamento del rendering non cancella una ricevuta già confermata e non genera automaticamente un nuovo UUID.
+Dopo una ricevuta confermata vengono invalidate `/stock` (giacenze), `/` (Oggi) e `/sales`; il client rilegge la route corrente, cioè `/stock/rettifiche`. La Server Action resta in `src/app/stock/actions.ts`. Un errore di aggiornamento del rendering non cancella una ricevuta già confermata e non genera automaticamente un nuovo UUID.
 
 ## Verifica
 

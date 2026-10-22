@@ -24,7 +24,7 @@ Alcuni documenti scritti prima del modello attuale chiedono ancora una sessione 
 
 ## Magazzino e packaging
 
-- [Rettifiche del magazzino condiviso](stock-interface.md): pagina `/stock` per consultare le quantità e registrare variazioni motivate.
+- [Rettifiche del magazzino condiviso](stock-interface.md): pagina `/stock/rettifiche` per consultare le quantità e registrare variazioni motivate.
 - [Packaging T-shirt nel database](packaging-backend.md): scatole e adesivi, prenotazioni, consumo alla consegna e rettifiche.
 - [Interfaccia packaging](packaging-interface.md): pagina `/packaging` semplificata, con due materiali, carenze e modifica della quantità.
 
@@ -55,6 +55,7 @@ Alcuni documenti scritti prima del modello attuale chiedono ancora una sessione 
 
 ## Team, contenuti e sviluppo
 
+- [Layout condiviso e navigazione](workspace-layout.md): guscio comune a tutte le pagine, mappa delle sezioni, token di stile e regole per le pagine nuove.
 - [Workspace condiviso del team](team-workspace.md): route `/team` con calendario e call, attività e note nel database.
 - [Libreria del brand e sviluppo prodotti](assets-development.md): route `/assets` e `/development`, con bucket privato per gli originali.
 - [Ricerca UI UX Pro Max](ui-ux-pro-max-research.md): fonte, licenza e comandi della ricerca usata per l'interfaccia.

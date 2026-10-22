@@ -14,7 +14,7 @@ L’app mantiene due percorsi separati. `npm run dev` abilita l’anteprima loca
 
 ## Cookie, cache e richieste
 
-`src/proxy.ts` copre `/`, `/auth/:path*`, `/finance/:path*`, `/team/:path*`, `/sales/:path*`, `/stock/:path*` e `/audit/:path*`, comprese le Server Actions sulle pagine di Auth. Aggiorna i cookie di sessione e applica sempre `Cache-Control: private, no-cache, no-store, must-revalidate, max-age=0`, `Pragma: no-cache` ed `Expires: 0`, riportando anche gli header di cache richiesti da `@supabase/ssr` quando scrive i cookie. Non usare cache CDN personalizzate su queste risposte.
+`src/proxy.ts` copre tutte le pagine dell'app: `/` (Oggi), il primo segmento di ogni pagina del gruppo `src/app/(workspace)` e `/auth/:path*`, comprese le Server Actions sulle pagine di Auth. Lo verifica `src/proxy.test.ts`: una pagina con un primo segmento nuovo fuori dal `matcher` fa fallire `npm test`. Aggiorna i cookie di sessione e applica sempre `Cache-Control: private, no-cache, no-store, must-revalidate, max-age=0`, `Pragma: no-cache` ed `Expires: 0`, riportando anche gli header di cache richiesti da `@supabase/ssr` quando scrive i cookie. Non usare cache CDN personalizzate su queste risposte.
 
 L’autenticazione viene eseguita esclusivamente sul server: i cookie sono `HttpOnly`, `SameSite=Lax` e `Secure` in produzione. I Server Component hanno un client in sola lettura; solo le Server Actions optano esplicitamente per scrivere cookie. L’utility browser Supabase non è usata per autenticare gli utenti e non deve essere introdotta come alternativa senza rivedere questa architettura.
 
