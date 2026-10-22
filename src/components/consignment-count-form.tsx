@@ -59,10 +59,40 @@ export function countEntries(
   return invalid.size ? { status: "invalid", invalid } : { status: "ok", entries };
 }
 
-/** «Hai contato 23 magliette in 14 varianti. Le altre 34 varianti risultano 0.» */
-export function countSummary(first: boolean, draft: CountDraft): string {
-  if (!first)
-    return `Correggi ${variantsLabel(draft.lines.length)}: in tutto ${tshirtsLabel(draft.pieces)} nelle varianti corrette.`;
+const SUMMARY_SIZES = 3;
+const sizesLabel = (n: number) => (n === 1 ? "1 taglia" : `${n} taglie`);
+const piecesNumber = new Intl.NumberFormat("it-IT");
+
+/**
+ * Prima conta: «Hai contato 23 magliette in 14 varianti. Le altre 34 varianti
+ * risultano 0.» Correzione: le taglie che cambiano (al massimo tre per nome) e
+ * il totale del negozio prima e dopo, così un errore di battitura si vede.
+ */
+export function countSummary(
+  page: Pick<ShopPage, "shop" | "shopStock" | "items">,
+  draft: CountDraft,
+): string {
+  if (page.shop.firstCountedAt !== null) {
+    const current = (itemId: string) => shopQuantity(page, itemId) ?? 0;
+    const counted = new Map(draft.lines.map((l) => [l.stock_item_id, l.quantity]));
+    const changes = page.items.flatMap((item) => {
+      const quantity = counted.get(item.id);
+      return quantity === undefined || quantity === current(item.id)
+        ? []
+        : [`${item.label} da ${current(item.id)} a ${quantity}`];
+    });
+    const before = page.items.reduce((sum, item) => sum + current(item.id), 0);
+    const after =
+      before + draft.lines.reduce((sum, l) => sum + l.quantity - current(l.stock_item_id), 0);
+    const listed = changes.slice(0, SUMMARY_SIZES).join(", ");
+    const others = changes.length - SUMMARY_SIZES;
+    const head = changes.length
+      ? `Cambi ${sizesLabel(changes.length)}: ${listed}${others === 1 ? " e un’altra" : others > 1 ? ` e altre ${others}` : ""}.`
+      : "Nessuna taglia cambia.";
+    return before === after
+      ? `${head} In negozio restano ${tshirtsLabel(after)}.`
+      : `${head} In negozio passano da ${piecesNumber.format(before)} a ${tshirtsLabel(after)}.`;
+  }
   const counted = `Hai contato ${tshirtsLabel(draft.pieces)} in ${variantsLabel(draft.variants)}.`;
   if (!draft.zeros) return counted;
   return `${counted} ${draft.zeros === 1 ? "L’altra variante risulta 0." : `Le altre ${variantsLabel(draft.zeros)} risultano 0.`}`;
@@ -224,7 +254,7 @@ export function ConsignmentCountForm({ page, now }: { page: ShopPage; now: strin
           tabIndex={-1}
           ref={revealConfirm}
         >
-          <p className={styles.confirmText}>{countSummary(first, draft)}</p>
+          <p className={styles.confirmText}>{countSummary(page, draft)}</p>
           <div className={styles.actions}>
             <button
               type="button"

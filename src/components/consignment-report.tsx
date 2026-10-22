@@ -186,23 +186,22 @@ export function ReportForm({
   const pieces = totals?.pieces ?? 0;
   return (
     <form className={styles.form} onSubmit={submit} noValidate>
-      {report ? (
-        <p className={styles.sectionNote}>
-          Correggi i pezzi venduti. I prezzi delle righe già registrate restano quelli della prima
-          volta. La giacenza del negozio cambia solo della differenza.
-        </p>
-      ) : (
-        <p className={styles.sectionNote}>
-          Scrivi quante magliette ha venduto il negozio a {monthLabel(month)}, come nel messaggio
-          del negozio. Al salvataggio la giacenza del negozio scende (la nostra no) e Finance vede
-          subito l’importo da fatturare.
-        </p>
-      )}
+      <p className={styles.sectionNote}>
+        {report
+          ? "Correggi i pezzi venduti: i prezzi già registrati restano, la giacenza cambia solo della differenza."
+          : `Scrivi i pezzi venduti a ${monthLabel(month)}: la giacenza del negozio scende, la nostra no.`}
+      </p>
       {beforeColumn && (
-        <p className={styles.sectionNote}>
-          «Prima della conta»: pezzi venduti prima della conta di questo mese. Vanno in fattura ma
-          non scendono dalla giacenza, perché la conta li esclude già.
-        </p>
+        <details className={styles.foldSmall}>
+          <summary>
+            <ChevronRight size={16} strokeWidth={2} className={styles.foldIcon} aria-hidden />
+            Cosa va in «Prima della conta»
+          </summary>
+          <p className={styles.sectionNote}>
+            I pezzi venduti prima della conta di questo mese. Vanno in fattura ma non scendono dalla
+            giacenza, perché la conta li esclude già.
+          </p>
+        </details>
       )}
       {!allowed && (
         <p className={styles.error} role="alert">
@@ -330,18 +329,25 @@ export function ReportForm({
           />
         </label>
       )}
-      <div className={styles.actionBar}>
+      <div className={`${styles.actionBar} ${styles.reportBar}`}>
         {message && (
           <div className={styles.barMessage}>
             <FormMessage message={message} />
           </div>
         )}
+        {/* Sul telefono restano pezzi e «Da fatturare», uno sopra l'altro, accanto al pulsante. */}
         <p className={styles.barSummary}>
           {totals ? (
             <>
-              <span className="num">{piecesLabel(totals.pieces)}</span> · Incasso negozio{" "}
-              <span className="num">{money(totals.grossCents)}</span> · Da fatturare{" "}
-              <span className="num">{money(totals.brandCents)}</span>
+              <span className="num">{piecesLabel(totals.pieces)}</span>
+              <span className={styles.barGross}>
+                {" "}
+                · Incasso negozio <span className="num">{money(totals.grossCents)}</span>
+              </span>
+              <span>
+                <span className={styles.barSep}> · </span>Da fatturare{" "}
+                <span className="num">{money(totals.brandCents)}</span>
+              </span>
               <span className={styles.barNote}> · LuckyLap {bpsLabel(shareBps)}</span>
             </>
           ) : (

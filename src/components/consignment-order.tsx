@@ -17,6 +17,7 @@ import {
   orderProgress,
   shopQuantity,
   shopStockGrid,
+  type OrderProgressLine,
   type ShopOrder,
   type ShopPage,
 } from "../lib/consignment/shop-read";
@@ -280,7 +281,46 @@ function OrderEditor({
   );
 }
 
-/** «Consegnato»: già compilato con tutto il residuo, modificabile per una consegna parziale. */
+export type DeliveryShortfall = {
+  /** Righe con più magliette di quelle libere in magazzino: «GT3RS Blu M (1 su 2)». */
+  short: { itemId: string; text: string }[];
+  missing: number;
+  /** Gli stessi campi con le righe corte abbassate a quelle in magazzino. */
+  inStock: Record<string, string>;
+  inStockPieces: number;
+};
+/**
+ * Consegna scritta contro la disponibilità di adesso (`null` vale 0, come in
+ * `orderProgress`). Il database ricontrolla comunque: qui serve solo ad
+ * avvisare prima dell'invio, perché se ne manca una non si registra niente.
+ */
+export function deliveryShortfall(
+  lines: readonly OrderProgressLine[],
+  values: Record<string, string>,
+): DeliveryShortfall {
+  const short: DeliveryShortfall["short"] = [];
+  const inStock = { ...values };
+  let missing = 0,
+    inStockPieces = 0;
+  for (const line of lines) {
+    const typed = quantityField(values[line.itemId] ?? "", 0);
+    if (typed === null) continue;
+    const free = Math.max(0, line.available ?? 0);
+    if (typed > free) {
+      short.push({ itemId: line.itemId, text: `${line.label} (${free} su ${typed})` });
+      missing += typed - free;
+      inStock[line.itemId] = String(free);
+    }
+    inStockPieces += Math.min(typed, free);
+  }
+  return { short, missing, inStock, inStockPieces };
+}
+
+/**
+ * «Consegnato»: già compilato con tutto il residuo, modificabile per una
+ * consegna parziale. Se il magazzino non basta lo dice prima dell'invio e
+ * propone di consegnare solo quelle che ci sono.
+ */
 function DeliveryForm({
   page,
   order,
@@ -305,6 +345,7 @@ function DeliveryForm({
   const remaining = (itemId: string) => open.find((l) => l.itemId === itemId)?.remaining ?? 0;
   const parsed = lineFields(values, remaining);
   const pieces = parsed.status === "ok" ? parsed.lines.reduce((s, l) => s + l.quantity, 0) : 0;
+  const shortfall = deliveryShortfall(open, values);
 
   async function submit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -395,6 +436,27 @@ function DeliveryForm({
           />
         </label>
       </div>
+      {shortfall.short.length > 0 && (
+        <div className={`${styles.warning} ${styles.shortfall}`} role="status">
+          <p>
+            Il magazzino non basta, mancano {tshirtsLabel(shortfall.missing)}:{" "}
+            {shortfall.short.map((s) => s.text).join(", ")}. Così la consegna non si registra.
+          </p>
+          {shortfall.inStockPieces > 0 && (
+            <button
+              type="button"
+              className="button button-secondary"
+              onClick={() => {
+                setValues(shortfall.inStock);
+                setInvalid(new Set());
+                setMessage(null);
+              }}
+            >
+              Consegna solo quelle in magazzino
+            </button>
+          )}
+        </div>
+      )}
       <div className={styles.actions}>
         <button
           type="submit"

@@ -94,13 +94,32 @@ describe("conta in negozio", () => {
       [item("GT3RS", "Blu", "M")]: 5,
       [item("964", "Bianco", "L")]: 2,
     })!;
-    expect(countSummary(true, draft)).toBe(
+    expect(countSummary(first, draft)).toBe(
       "Hai contato 7 magliette in 2 varianti. Le altre 21 varianti risultano 0.",
     );
+  });
+
+  it("riepilogo della correzione: taglie che cambiano e totale del negozio prima e dopo", () => {
+    // In negozio: GT3RS Blu M 5, GT3RS Blu L 2, 964 Bianco L 1 (8 magliette).
     const counted = page();
-    const fix = countDraft(counted, { [item("GT3RS", "Blu", "L")]: 3 })!;
-    expect(countSummary(false, fix)).toBe(
-      "Correggi 1 variante: in tutto 3 magliette nelle varianti corrette.",
+    const fix = (entries: Record<string, number>) =>
+      countSummary(counted, countDraft(counted, entries)!);
+    expect(fix({ [item("GT3RS", "Blu", "M")]: 4 })).toBe(
+      "Cambi 1 taglia: GT3RS Blu M da 5 a 4. In negozio passano da 8 a 7 magliette.",
+    );
+    expect(
+      fix({
+        [item("F40", "Rosso", "M")]: 2,
+        [item("GT3RS", "Blu", "M")]: 4,
+        [item("964", "Bianco", "L")]: 1,
+        [item("GT3RS", "Blu", "L")]: 0,
+        [item("GT3RS", "Bianco", "XS")]: 1,
+      }),
+    ).toBe(
+      "Cambi 4 taglie: GT3RS Blu M da 5 a 4, GT3RS Blu L da 2 a 0, GT3RS Bianco XS da 0 a 1 e un’altra. In negozio restano 8 magliette.",
+    );
+    expect(fix({ [item("964", "Bianco", "L")]: 1 })).toBe(
+      "Nessuna taglia cambia. In negozio restano 8 magliette.",
     );
   });
 

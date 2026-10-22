@@ -40,7 +40,13 @@ describe("campi del resoconto", () => {
 
 describe("modulo del mese", () => {
   it("righe delle magliette in negozio, colonna «Prima della conta» dopo una conta del mese", () => {
-    const t = text(render("2026-10"));
+    const html = render("2026-10");
+    const t = text(html);
+    // Introduzione di una frase; la spiegazione della colonna si apre a richiesta.
+    expect(t).toContain(
+      "Scrivi i pezzi venduti a ottobre 2026: la giacenza del negozio scende, la nostra no.",
+    );
+    expect(html).toMatch(/<details[^>]*><summary>.*Cosa va in «Prima della conta»<\/summary>/);
     expect(t).toContain("GT3RS Blu M");
     expect(t).toContain("GT3RS Blu L");
     expect(t).toContain("964 Bianco L");

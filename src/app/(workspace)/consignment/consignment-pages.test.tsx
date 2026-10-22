@@ -34,6 +34,7 @@ vi.mock("../../consignment/actions", () => ({
 import ConsignmentPage from "./page";
 import ShopPage, { generateMetadata as shopMetadata } from "./[code]/page";
 import ReportPage, { generateMetadata as reportMetadata } from "./[code]/resoconto/[month]/page";
+import CountPage, { generateMetadata as countMetadata } from "./[code]/conta/page";
 import { ConsignmentShops } from "../../../components/consignment-shops";
 import { ShopFrame } from "../../../components/consignment-shop";
 import { AccessPanel } from "../../../components/access-panel";
@@ -88,6 +89,17 @@ describe("anteprima locale del conto vendita (00-sequenza §1.5)", () => {
     expect(await reportMetadata(params({ code: "NEG01", month: "09-2026" }))).toEqual({
       title: "Pagina non trovata",
     });
+  });
+
+  it("conta: titolo del documento uguale all'h1, prima conta o correzione", async () => {
+    for (const [code, title] of [
+      ["NEG01", "Correggi la conta"],
+      ["NEG02", "Conta in negozio"],
+    ]) {
+      expect(await countMetadata(params({ code }))).toEqual({ title });
+      const page = (await CountPage(params({ code }))) as ReactElement<Record<string, unknown>>;
+      expect(page.props.title).toBe(title);
+    }
   });
 });
 

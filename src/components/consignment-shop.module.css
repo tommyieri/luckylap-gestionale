@@ -628,6 +628,12 @@ details[open] > summary > .foldIcon {
   padding: 6px 8px;
   border-bottom: 1px solid var(--rule);
 }
+/* Consegna: avviso prima dell'invio quando il magazzino non basta. */
+.shortfall {
+  display: grid;
+  justify-items: start;
+  gap: 10px;
+}
 
 /* Riepilogo del mese: quattro numeri su una riga di filetti. */
 .summary {
@@ -931,13 +937,32 @@ details[open] > summary > .foldIcon {
     min-height: 68px;
     padding: 6px 2px;
   }
+  /*
+   * Il tocco su «Controlla e salva» toglie il focus al campo: la barra di
+   * navigazione ricompare e --ws-fixed-bottom torna alla sua altezza. Se la
+   * barra salisse subito, il dito si alzerebbe fuori dal pulsante e il click
+   * andrebbe perso: sale dopo 300 ms. Con un campo a fuoco scende subito.
+   */
   .actionBar {
     margin: 0 calc(-1 * var(--gutter-r)) 0 calc(-1 * var(--gutter));
     padding: 10px var(--gutter-r) 10px var(--gutter);
+    transition: bottom 0s linear 300ms;
+  }
+  body:has(:is(input, textarea, select):focus) .actionBar {
+    transition: none;
   }
   .actionBar .barActions,
   .actionBar .barActions :global(.button) {
     flex: 1 1 auto;
+  }
+  /* Resoconto: pezzi e «Da fatturare» su due righe corte, il pulsante accanto. */
+  .reportBar .barSummary {
+    display: grid;
+    line-height: 1.25;
+  }
+  .reportBar .barGross,
+  .reportBar .barSep {
+    display: none;
   }
   .line,
   .linesBefore .line {
@@ -1074,7 +1099,8 @@ details[open] > summary > .foldIcon {
     flex-direction: column;
     align-items: stretch;
   }
-  .actions :global(.button) {
+  .actions :global(.button),
+  .shortfall :global(.button) {
     width: 100%;
   }
 }

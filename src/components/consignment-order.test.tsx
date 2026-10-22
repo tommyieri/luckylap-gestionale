@@ -7,9 +7,18 @@ vi.mock("../app/consignment/actions", () => ({
   runConsignmentCommand: vi.fn(),
 }));
 
-import { ConsignmentOrder, lineFields, ReturnStockForm } from "./consignment-order";
+import {
+  ConsignmentOrder,
+  deliveryShortfall,
+  lineFields,
+  ReturnStockForm,
+} from "./consignment-order";
 import { item, shopPageRows } from "../lib/consignment/shop-fixtures";
-import { orderLinesFromReport, shopPageFromRows } from "../lib/consignment/shop-read";
+import {
+  orderLinesFromReport,
+  orderProgress,
+  shopPageFromRows,
+} from "../lib/consignment/shop-read";
 
 const NOW = "2026-10-22T10:00:00.000Z";
 const page = () => shopPageFromRows(shopPageRows("NEG01"), NOW);
@@ -69,6 +78,34 @@ describe("ordine del negozio", () => {
       /aria-label="GT3RS Blu M, richieste"[^>]*value="3"|value="3"[^>]*aria-label="GT3RS Blu M, richieste"/,
     );
     expect(t).toContain("Salva ordine");
+  });
+});
+
+describe("consegna contro il magazzino di adesso", () => {
+  it("residuo oltre il magazzino: avviso prima dell'invio e proposta di consegnare quelle che ci sono", () => {
+    const p = page();
+    const lines = orderProgress(
+      p,
+      p.orders.find((o) => o.number === 2)!,
+    ).lines;
+    const [m, l] = [item("GT3RS", "Blu", "M"), item("F40", "Rosso", "L")];
+    // Residuo proposto dal modulo: GT3RS Blu M 2 (in magazzino 1), F40 Rosso L 3 (esaurita).
+    expect(deliveryShortfall(lines, { [m]: "2", [l]: "3" })).toEqual({
+      short: [
+        { itemId: m, text: "GT3RS Blu M (1 su 2)" },
+        { itemId: l, text: "F40 Rosso L (0 su 3)" },
+      ],
+      missing: 4,
+      inStock: { [m]: "1", [l]: "0" },
+      inStockPieces: 1,
+    });
+    expect(deliveryShortfall(lines, { [m]: "1", [l]: "" })).toMatchObject({
+      short: [],
+      missing: 0,
+      inStockPieces: 1,
+    });
+    // Un campo scritto male lo segnala già il controllo del modulo.
+    expect(deliveryShortfall(lines, { [m]: "due", [l]: "0" }).short).toEqual([]);
   });
 });
 
