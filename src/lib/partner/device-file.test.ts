@@ -6,7 +6,11 @@ import {
   PARTNER_DEVICE_FILE_MAX_BYTES,
   PartnerDeviceFileError,
   describePartnerDeviceFile,
+  describePartnerDeviceImport,
+  describePartnerDevicePlan,
+  parsePartnerDevicePreview,
   parsePartnerDeviceText,
+  validatePartnerDevicePayload,
   readPartnerDeviceFile,
   sha256Hex,
   type PartnerDeviceFileSummary,
@@ -284,5 +288,101 @@ describe("descrizione dell'anteprima", () => {
     expect(
       describePartnerDeviceFile({ ...summary, exportedAt: "2025-12-30T10:00:00Z" }, NOW),
     ).toMatch(/esportato il 30 dicembre 2025:/);
+  });
+});
+
+describe("payload già normalizzato e anteprima del database", () => {
+  it("ricontrolla sul server il payload con le regole di private.partner_device_payload", async () => {
+    const { payload } = await readPartnerDeviceFile(encode(base()), NOW);
+    expect(validatePartnerDevicePayload(payload, NOW)).toBe(payload);
+    const broken: Record<string, unknown>[] = [
+      { ...payload, schema_version: 2 },
+      { ...payload, file_sha256: "ABC" },
+      { ...payload, device: "tablet" },
+      { ...payload, exported_at: "ieri" },
+      { ...payload, exported_at: "2019-12-31T23:00:00Z" },
+      { ...payload, exported_at: "2026-10-24T10:00:00Z" },
+      { ...payload, stages: { L014: "perso" } },
+      { ...payload, stages: { "L 14": "contattato" } },
+      { ...payload, texts: { "L014|collab|titolo": "x" } },
+      { ...payload, texts: { "L014|collab|subject": "x".repeat(301) } },
+      { ...payload, names: { L014: "a\u0007b" } },
+      { ...payload, approaches: [] },
+      { ...payload, extra: true },
+    ];
+    for (const value of broken) expect(validatePartnerDevicePayload(value, NOW)).toBeNull();
+    const { names: _names, ...missing } = payload;
+    expect(validatePartnerDevicePayload(missing, NOW)).toBeNull();
+    expect(validatePartnerDevicePayload(null, NOW)).toBeNull();
+  });
+
+  const preview = {
+    file_sha256: "c".repeat(64),
+    device: "telefono",
+    exported_at: "2026-10-22T08:00:00+00:00",
+    already_imported: false,
+    device_import_id: null,
+    file: { stages: 12, texts: 3, approaches: 4 },
+    plan: {
+      stages_applied: 10,
+      texts_applied: 3,
+      approaches_applied: 4,
+      differences: 3,
+      ignored: 2,
+      unknown: 1,
+    },
+    differences: [
+      {
+        kind: "stage",
+        source_key: "L014",
+        co: 14,
+        approach: null,
+        from: "risposto",
+        to: "contattato",
+      },
+      { kind: "stage", source_key: "L015", co: 15, approach: null, from: "chiuso", to: "risposto" },
+      { kind: "text", source_key: "L016", co: 16, approach: "collab", from: null, to: null },
+    ],
+    names_changed: [{ source_key: "L014", co: 14, file_name: "Vecchio nome", name: "Nome nuovo" }],
+    unknown_keys: ["X999"],
+  };
+
+  it("legge l'anteprima e la racconta come spec 02 §5.8", () => {
+    const parsed = parsePartnerDevicePreview(preview)!;
+    expect(parsed.plan).toEqual({
+      stagesApplied: 10,
+      textsApplied: 3,
+      approachesApplied: 4,
+      differences: 3,
+      ignored: 2,
+      unknown: 1,
+    });
+    expect(parsed.namesChanged).toEqual([
+      { sourceKey: "L014", co: 14, fileName: "Vecchio nome", name: "Nome nuovo" },
+    ]);
+    expect(describePartnerDevicePlan(parsed)).toBe(
+      "Applico 10 stati, 3 testi, 4 approcci. 2 stati sono diversi: restano quelli del gestionale e li trovi in «Da controllare». 1 testo è diverso da quello del team: resta quello del gestionale e lo trovi in «Da controllare». 1 voce riguarda contatti o messaggi che il gestionale non conosce: la salto.",
+    );
+    expect(describePartnerDevicePlan({ ...parsed, alreadyImported: true })).toBe(
+      "Questo file è già stato importato: importarlo di nuovo non cambia niente.",
+    );
+    expect(describePartnerDeviceImport(parsed.plan)).toBe(
+      "File importato: 10 stati, 3 testi, 4 approcci. 3 differenze da controllare.",
+    );
+    expect(describePartnerDeviceImport({ ...parsed.plan, differences: 0, stagesApplied: 1 })).toBe(
+      "File importato: 1 stato, 3 testi, 4 approcci.",
+    );
+  });
+
+  it("anteprima con forma inattesa: null", () => {
+    for (const value of [
+      null,
+      { ...preview, plan: { ...preview.plan, unknown: -1 } },
+      { ...preview, device: "tablet" },
+      { ...preview, differences: [{ ...preview.differences[0], from: "perso" }] },
+      { ...preview, unknown_keys: ["../x"] },
+      { ...preview, device_import_id: "x" },
+    ])
+      expect(parsePartnerDevicePreview(value)).toBeNull();
   });
 });
