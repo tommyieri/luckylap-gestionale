@@ -2,7 +2,7 @@
 
 Il modulo `/consignment` (scheda «Conto vendita» della sezione Vendite) segue le magliette che LuckyLap lascia nei negozi in conto vendita: quante ce ne sono in ogni negozio, quante ne ha vendute il negozio ogni mese, quanto gli va fatturato e quanto ha pagato, e gli ordini di magliette nuove. Sostituisce il modulo precedente (affidi, vendite singole, regolamenti), le cui funzioni restano nel database: vedi «Comandi precedenti» in fondo.
 
-Migrazione: `supabase/migrations/20261022200100_consignment_monthly.sql`, solo aggiunte. Il codice legge le tabelle nuove anche fuori dal modulo (colonna «In negozio» delle Giacenze, Finance): la migrazione va applicata in produzione prima del merge, come in «Produzione».
+Migrazione: `supabase/migrations/20261022215046_consignment_monthly.sql`, solo aggiunte. Il codice legge le tabelle nuove anche fuori dal modulo (colonna «In negozio» delle Giacenze, Finance): la migrazione va applicata in produzione prima del merge, come in «Produzione».
 
 ## Regole
 
@@ -203,7 +203,7 @@ Consegne al negozio, magliette riportate e conte non consumano packaging. Ogni p
 
 ## Produzione
 
-Stato al 22 ottobre 2026: migrazione **non ancora applicata**. Procedura (piano di lavoro, §1.3):
+Stato al 22 ottobre 2026: migrazione **applicata** in produzione con versione cloud `20261022215046`; il testo salvato coincide con il file (md5 `e8034a44547da0dffd076cb383e05fa6`). Impronte di `stock_balances`, `stock_movements`, `stock_locations`, `packaging_consumptions` e delle tabelle del vecchio conto vendita identiche prima e dopo. `consignment_shops` ha una riga per NEG01 (60%, +10 €, magazzino di partenza MAG01, non ancora contato); le tre funzioni precedenti esistono ancora. Procedura seguita (piano di lavoro, §1.3):
 
 1. Impronte in sola lettura di `stock_balances` e `stock_movements` (conteggio e somma delle quantità per sede), `packaging_consumptions`, `consignment_transfers`, `consignment_sales`, `consignment_settlements`.
 2. Applicazione della migrazione e rinomina del file alla versione assegnata dal cloud.
