@@ -100,7 +100,7 @@ describe("parole del conto vendita", () => {
   const ui = [
     ...files(join(SRC, "app", "(workspace)", "consignment")),
     ...files(join(SRC, "components")).filter((f) =>
-      /consignment-(shops|shop|stock-grid|count-form|report|order|shop-settings|pending)\.tsx$/.test(
+      /consignment-(shops|shop|stock-grid|count-form|report|order|shop-settings|pending|monthly-finance)\.tsx$/.test(
         f,
       ),
     ),

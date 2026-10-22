@@ -137,6 +137,8 @@ describe("pagamenti come movimenti Finance", () => {
         reference: "Bonifico sintetico",
         shopName: "Negozio sintetico",
         month: "2026-09",
+        monthLabel: "settembre 2026",
+        href: "/consignment/NEG01/resoconto/2026-09",
       },
       {
         id: sx.closedPayment,
@@ -150,6 +152,8 @@ describe("pagamenti come movimenti Finance", () => {
         reference: null,
         shopName: "Negozio sintetico chiuso",
         month: "2026-09",
+        monthLabel: "settembre 2026",
+        href: "/consignment/NEG03/resoconto/2026-09",
       },
     ]);
   });

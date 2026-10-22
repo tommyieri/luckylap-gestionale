@@ -4,7 +4,7 @@ La pagina `/stock/rettifiche` (scheda «Rettifiche» della sezione Magazzino) co
 
 ## Operazione
 
-Si scelgono esplicitamente uno SKU e un magazzino. La tabella del luogo scelto permette ricerca e selezione dell'articolo; la stessa scelta è disponibile nel menu nativo. Le tre quantità restano distinte. Saldo assente o NULL è mostrato come «Da verificare» e blocca le rettifiche: non viene convertito in zero e non si inventa una conta iniziale.
+Si scelgono esplicitamente uno SKU e un magazzino. Si scelgono solo le sedi di tipo «Magazzino»: la merce del negozio si conta e si cambia da Conto vendita, e una rettifica da qui falserebbe il resoconto mensile. La lettura tiene solo i magazzini e non legge le disponibilità delle altre sedi; la Server Action rifiuta ogni altra sede con il codice `shop_location` («Le quantità del negozio si cambiano da Conto vendita.») prima della RPC, e il database rifiuta comunque i movimenti `adjustment` sulle sedi «Negozio Conto Vendita» (trigger `reject_shop_adjustment`). Nella colonna «In negozio» delle Giacenze (`/stock`) c'è la somma dei negozi attivi già contati, «—» finché nessun negozio è stato contato. La tabella del luogo scelto permette ricerca e selezione dell'articolo; la stessa scelta è disponibile nel menu nativo. Le tre quantità restano distinte. Saldo assente o NULL è mostrato come «Da verificare» e blocca le rettifiche: non viene convertito in zero e non si inventa una conta iniziale.
 
 Il modulo invia **un delta**, non un saldo assoluto: aggiunta o sottrazione di un intero tra 1 e 1.000.000.000, con causale da 3 a 500 caratteri. Non invia il saldo visto nella pagina, un ruolo, un costo o l'autore. Un controllo UI intercetta sottrazioni già incompatibili con le riserve; l'autorità finale è la RPC PostgreSQL `adjust_stock`, che ricontrolla membership attuale, articolo/location, saldo noto e vincolo fisico ≥ riservato sotto lock.
 
@@ -28,6 +28,6 @@ Dopo una ricevuta confermata vengono invalidate `/stock` (giacenze), `/` (Oggi) 
 
 ## Verifica
 
-**51 test superati** nei file `src/lib/stock/model.test.ts` e `src/lib/stock/server.test.ts`: delta e limiti, causali, campi proibiti, zero/NULL, proiezioni incoerenti, tutti i ruoli operativi, membership prima di ogni azione, flag disattivato, ricevuta identica recuperata, conflitti, retry con accesso revocato, errori sanitizzati, invalidazione e letture complete.
+**56 test superati** nei file `src/lib/stock/model.test.ts` e `src/lib/stock/server.test.ts`: delta e limiti, causali, campi proibiti, zero/NULL, proiezioni incoerenti, tutti i ruoli operativi, membership prima di ogni azione, flag disattivato, ricevuta identica recuperata, conflitti, retry con accesso revocato, errori sanitizzati, invalidazione, letture complete, sedi del negozio escluse e rifiutate (`shop_location`).
 
 TypeScript superato sia sui sorgenti sia su una copia locale indipendente con le stesse dipendenze installate. Il controllo nella cartella Documents ha richiesto più tempo per i moduli scaricati da iCloud, poi si è concluso con codice zero. Nessuna modifica è stata fatta alla copia runtime principale. I test di azione usano mock del confine Supabase: la logica SQL di rettifica e il vincolo riserve hanno inoltre verifiche database dedicate nella suite vendite. Restano alla verifica finale del progetto build integrata e interazione browser.

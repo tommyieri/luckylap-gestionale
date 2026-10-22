@@ -1,6 +1,6 @@
 # Finance: conti, andamento e categorie
 
-La panoramica `/finance` legge le importazioni BudgetFlow, il lavoro Finance e gli incassi del conto vendita con la sessione dell’utente. Mantiene i controlli esistenti di identità, membership, ruolo e password Finance; ogni query usa RLS. Una lettura fallita o incompleta impedisce la visualizzazione dell’intera panoramica. Non usa chiavi amministrative, dati locali o cache condivise.
+La panoramica `/finance` legge le importazioni BudgetFlow, il lavoro Finance, gli incassi vecchi del conto vendita e i resoconti mensili dei negozi con i loro pagamenti, con la sessione dell’utente. Mantiene i controlli esistenti di identità, membership, ruolo e password Finance; ogni query usa RLS. Una lettura fallita o incompleta impedisce la visualizzazione dell’intera panoramica. Non usa chiavi amministrative, dati locali o cache condivise.
 
 ## Regole del calcolo
 
@@ -11,9 +11,12 @@ La panoramica `/finance` legge le importazioni BudgetFlow, il lavoro Finance e g
 - Una riga di trasferimento con conto di origine e destinazione applica l’importo con il segno originale al primo conto e l’opposto al secondo. Il trasferimento non alimenta le categorie di entrata/costo. Non si creano trasferimenti a partire da gateway o descrizioni.
 - Le voci manuali non annullate hanno il segno determinato dal tipo entrata/uscita. Un account esplicito alimenta il conto indicato; l’assenza di conto rimane da attribuire. Non sono deduplicate automaticamente fonti diverse: rimane la conferma di verifica nel modulo di inserimento.
 - I pagamenti di ordine dichiarati con metodo `cash` e gli incassi conto vendita `cash` alimentano Cash una sola volta. Del conto vendita entra l’incasso realmente registrato, senza sommare nuovamente lordo o credito del 60%.
+- **Conto vendita mensile.** Il resoconto del mese non è un movimento: incasso del negozio, quota del negozio e importo da fatturare non entrano in saldi, grafico o categorie, e il resoconto non crea `finance_entries`, `commercial_facts` né `sales_orders`. Entra solo il denaro ricevuto: ogni pagamento non annullato di `consignment_report_payments` è un movimento con sorgente `shop_payment`, id `shop-payment:<id>`, categoria Vendite, giorno del pagamento a Roma. Conto: quello indicato, normalizzato come gli altri; contanti senza conto in Cash; altrimenti da attribuire. Un pagamento modificato conta con i valori attuali; si corregge solo nel resoconto (`update_consignment_payment`), che ne conserva lo storico.
 - Gli altri pagamenti, capture Shopify e rimborsi rimangono da attribuire quando il conto non è noto. Il gateway non viene interpretato come conto Revolut. `sale_observed`, annulli commerciali, fatti Finance collegati ai pagamenti, dettagli fiscali e transazioni descrittive non sono sommati ai conti.
 
 ## Interfaccia
+
+Il pannello «Conto vendita · da incassare» sta prima dei movimenti, con un link nella navigazione della pagina (`#conto-vendita-da-incassare`). Una riga per resoconto, dal mese più recente: negozio, mese, pezzi, incasso del negozio, da fatturare, fattura, incassato, residuo e stato, con il link al resoconto. In alto un solo totale, «Da incassare», somma dei residui. Pannello e pagamenti nei saldi vengono dalla stessa lettura; se non riesce, la panoramica non si mostra. Lo stesso pannello sta in `/finance/work` al posto del blocco vecchio, con sotto «Vendite registrate prima del resoconto mensile» solo se esistono vendite del modulo precedente. Nel registro un pagamento del negozio ha la fonte «Pagamento del negozio», l'ancora `movimento-shop_payment-<id>` e, nel dettaglio, il link «Modifica nel resoconto». Il modulo della voce manuale ricorda: «Gli incassi del conto vendita si registrano dal resoconto del negozio: non inserirli anche qui.»
 
 La selezione dei conti controlla grafico, categorie e registro. Anno e mese filtrano le categorie; il registro può disattivare il filtro del periodo e consultare pending, futuri e movimenti senza conto. Un clic su una categoria apre i movimenti corrispondenti. Le categorie senza righe rimangono visibili con zero movimenti; eventuali categorie originali diverse sono conservate separatamente.
 
@@ -29,6 +32,8 @@ Il modulo mantiene conto e categoria facoltativi e permette una categoria person
 
 ## Verifica
 
-Test sintetici coprono centesimi oltre la precisione aggregata di `Number`, pending/futuri, riporto annuale, trasferimenti, voci annullate, conto sconosciuto, incassi cash, Shopify senza conto, assenza di doppio conteggio dei fatti, incassi conto vendita, giorno Europe/Rome e categorie. Il nuovo loader è testato per negazione prima della query e letture incomplete. Non sono salvati dati finanziari reali nelle fixture Git.
+`buildFinanceDashboard(imports, work, reportDate, options = {})` riceve le fonti in più nell'oggetto `options`: `settlements` (incassi vecchi) e `shopPayments` (pagamenti dei resoconti).
+
+Test sintetici coprono centesimi oltre la precisione aggregata di `Number`, pending/futuri, riporto annuale, trasferimenti, voci annullate, conto sconosciuto, incassi cash, Shopify senza conto, assenza di doppio conteggio dei fatti, incassi conto vendita, pagamenti del negozio (conto, Cash, da attribuire, nessun doppio conteggio con gli incassi vecchi), resoconti mai nei saldi, giorno Europe/Rome e categorie. Il nuovo loader è testato per negazione prima della query e letture incomplete. Non sono salvati dati finanziari reali nelle fixture Git.
 
 La modifica non richiede migrazioni o scritture sul database. La scelta dei pattern di conti/categorie e del filtro temporale si basa sulle schermate fornite e sulla descrizione ufficiale di [Budget Flow](https://budget-flow.app/); grafica e componenti seguono il sistema LuckyLap.

@@ -64,6 +64,9 @@ export function shopOrderParam(value: unknown): number | "nuovo" | null {
 
 export const NEW_SHOP_HREF = `${CONSIGNMENT_HREF}/nuovo`;
 
+/** Ancora del pannello «Conto vendita · da incassare» nelle pagine Finance. */
+export const CONSIGNMENT_FINANCE_ANCHOR = "conto-vendita-da-incassare";
+
 /** Ancora di un pagamento del negozio in Finance (decisione 13). */
 export const shopPaymentAnchor = (paymentId: string) => `movimento-shop_payment-${paymentId}`;
 /** `/finance#movimento-shop_payment-<id>`. */

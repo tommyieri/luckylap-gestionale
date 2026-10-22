@@ -6,6 +6,12 @@ export type StockItem = {
   active: boolean;
 };
 export type StockLocation = { id: string; code: string; name: string; active: boolean };
+/**
+ * Le rettifiche valgono solo per le sedi di questo tipo (06 R7). La merce del
+ * negozio si conta e si cambia da Conto vendita; il database rifiuta comunque le
+ * rettifiche sulle sedi «Negozio Conto Vendita» (`shop_location`).
+ */
+export const ADJUSTABLE_LOCATION_TYPE = "Magazzino";
 export type StockAvailability = {
   itemId: string;
   locationId: string;

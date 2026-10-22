@@ -797,6 +797,97 @@ details[open] > summary > .foldIcon {
   text-decoration: line-through;
 }
 
+/* Pannello «Conto vendita · da incassare» in Finance: stesso riquadro delle sezioni Finance. */
+.financePanel {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  margin-top: 20px;
+  border: 1px solid var(--rule);
+  background: var(--paper);
+  scroll-margin-top: calc(var(--ws-sticky-top) + 16px);
+}
+.financePreview {
+  margin-bottom: 20px;
+}
+.financeHead {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 12px 24px;
+  padding: 18px 20px 14px;
+}
+.financeTitle {
+  font-size: var(--text-lg);
+  font-weight: 600;
+  line-height: 1.25;
+}
+.financeLead {
+  max-width: 64ch;
+  margin-top: 4px;
+  color: var(--ink-2);
+  font-size: var(--text-sm);
+}
+.financeTotal {
+  display: grid;
+  justify-items: end;
+  gap: 4px;
+  color: var(--ink-2);
+  font-size: var(--text-sm);
+  text-align: right;
+}
+.financeTotalValue {
+  color: var(--ink);
+  font-family: var(--f-cond);
+  font-size: 32px;
+  font-weight: 700;
+  line-height: 1;
+  font-variant-numeric: tabular-nums;
+}
+.financeBody {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: 14px;
+  padding: 0 20px 16px;
+}
+.wideRow .financeSide {
+  display: grid;
+  align-content: center;
+  justify-items: end;
+  gap: 4px;
+  text-align: right;
+}
+.financeAmount {
+  font-family: var(--f-cond);
+  font-size: var(--text-xl);
+  font-weight: 700;
+  line-height: 1;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+.financeAmountLabel {
+  color: var(--ink-2);
+  font-size: var(--text-sm);
+}
+.financeFoot {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 4px 20px;
+}
+.financeCellNote {
+  display: block;
+  color: var(--ink-2);
+  font-family: var(--f-body);
+  font-size: var(--text-sm);
+  font-weight: 400;
+}
+.tableScroll {
+  max-width: 100%;
+  overflow-x: auto;
+}
+
 /* Caricamento: righe vuote alte come quelle vere, nessuna animazione. */
 .loading {
   display: grid;
@@ -959,6 +1050,25 @@ details[open] > summary > .foldIcon {
   .table .rowShort td {
     padding-right: 8px;
     padding-left: 8px;
+  }
+  .financeHead {
+    padding: 16px 16px 12px;
+  }
+  .financeTotal {
+    justify-items: start;
+    text-align: left;
+  }
+  .financeBody {
+    padding: 0 16px 16px;
+  }
+  .wideRow .financeSide {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: baseline;
+    justify-content: flex-start;
+    gap: 4px 10px;
+    padding: 0 12px 12px;
+    text-align: left;
   }
   .actions {
     flex-direction: column;

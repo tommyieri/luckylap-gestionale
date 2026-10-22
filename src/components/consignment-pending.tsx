@@ -21,6 +21,7 @@ import {
   type ConsignmentResult,
 } from "../lib/consignment/model";
 import {
+  PREVIEW_NOTICE,
   shopAttemptSummary,
   shopPending,
   shopPendingKey,
@@ -44,7 +45,7 @@ const STORAGE_MESSAGE = "Il tentativo non può essere conservato. Nessun invio e
 const LOST_MESSAGE =
   "Connessione interrotta: l’operazione potrebbe essere già registrata. Verifica lo stesso invio senza crearne un altro.";
 export const FLASH_KEY = "luckylap.consignment.shop.flash";
-export const PREVIEW_NOTICE = "Anteprima locale: dati sintetici, salvataggio disattivato.";
+export { PREVIEW_NOTICE };
 
 type Storage2 = Pick<Storage, "getItem" | "setItem" | "removeItem">;
 export type SendOutcome = { result: ShopResult; kept: boolean };

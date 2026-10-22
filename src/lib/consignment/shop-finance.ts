@@ -3,7 +3,7 @@ import type { SupabaseClient } from "@supabase/supabase-js";
 import type { VerifiedMember } from "../auth/model";
 import { verifiedMember } from "../auth/server";
 import { verifiedSensitiveAccess } from "../auth/sensitive-access";
-import { financeAccountLabel } from "../finance/dashboard";
+import { financeAccountLabel, type DashboardShopPayment } from "../finance/dashboard";
 import { stockRecord as record, stockUuid as uuid } from "../stock/model";
 import { consignmentDate, MAX_CENTS } from "./model";
 import { consignmentPages } from "./read";
@@ -61,20 +61,7 @@ export type MonthlyFinance = {
   loadedAt: string;
 };
 /** Pagamento del negozio come movimento Finance: sorgente `shop_payment`, id `shop-payment:<id>`. */
-export type DashboardShopPayment = {
-  id: string;
-  reportId: string;
-  locationId: string;
-  cents: number;
-  paidAt: string;
-  method: PaymentMethod;
-  /** Conto normalizzato; contanti senza conto → «Cash»; altrimenti da attribuire. */
-  account: string | null;
-  allocationNote: string | null;
-  reference: string | null;
-  shopName: string;
-  month: string;
-};
+export type { DashboardShopPayment };
 type Payment = {
   id: string;
   reportId: string;
@@ -179,8 +166,9 @@ export function dashboardShopPaymentsFromRows(
   const { reports, payments, shops } = parseMonthly(reportRows, paymentRows, locationRows);
   return payments
     .filter((p) => !p.voided)
-    .map((p) => {
+    .map((p): DashboardShopPayment => {
       const report = reports.find((r) => r.id === p.reportId)!,
+        shop = shops.get(p.locationId)!,
         account = financeAccountLabel(p.accountLabel) ?? (p.method === "cash" ? "Cash" : null);
       return {
         id: p.id,
@@ -192,8 +180,10 @@ export function dashboardShopPaymentsFromRows(
         account,
         allocationNote: account ? null : "Conto dell’incasso conto vendita non attribuito.",
         reference: p.reference,
-        shopName: shops.get(p.locationId)!.name,
+        shopName: shop.name,
         month: report.month,
+        monthLabel: monthLabel(report.month),
+        href: consignmentShopHref(shop.code, report.month),
       };
     })
     .sort((a, b) => Date.parse(a.paidAt) - Date.parse(b.paidAt) || a.id.localeCompare(b.id));

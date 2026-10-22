@@ -807,6 +807,9 @@ export function momentLabel(value: string): string {
 // ---------------------------------------------------------------------------
 // Testi per l'interfaccia. Parole da non usare: vedi docs/consignment.md.
 
+/** Avviso dell'anteprima locale (00-sequenza §1.5). */
+export const PREVIEW_NOTICE = "Anteprima locale: dati sintetici, salvataggio disattivato.";
+
 /** 6000 → «60%», 6050 → «60,5%». */
 export function bpsLabel(bps: number): string {
   const whole = Math.trunc(bps / 100),

@@ -1,4 +1,4 @@
-import { stockRecord, stockUuid, type StockSnapshot } from "./model";
+import { ADJUSTABLE_LOCATION_TYPE, stockRecord, stockUuid, type StockSnapshot } from "./model";
 
 export type StockRows = {
   settings: unknown;
@@ -37,14 +37,16 @@ export function stockSnapshotFromRows(
       active: bool(row.active),
     };
   });
-  const locations = rows.locations.map((value) => {
-    const row = object(value);
-    return {
-      id: id(row.id),
-      code: text(row.code, 120),
-      name: text(row.name, 240),
-      active: bool(row.active),
-    };
+  // Solo i magazzini: le sedi del negozio non entrano nelle rettifiche (06 R7).
+  const locations = rows.locations.flatMap((value) => {
+    const row = object(value),
+      location = {
+        id: id(row.id),
+        code: text(row.code, 120),
+        name: text(row.name, 240),
+        active: bool(row.active),
+      };
+    return text(row.location_type, 120) === ADJUSTABLE_LOCATION_TYPE ? [location] : [];
   });
   unique(items.map((item) => item.id));
   unique(items.map((item) => item.sku));
