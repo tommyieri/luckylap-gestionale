@@ -1,12 +1,34 @@
-// test-db: pglite minimo 286
+// test-db: pglite minimo 336
 // Partner (P2): migrazione partner_module su PGlite, con i soli dati sintetici del repository
 // Partner finto in fixtures/partner (domini example.test, numeri +39 000 000 00xx). Auth simulato,
-// nessun accesso cloud. Quattro gruppi, ognuno su un database nuovo: schema e sicurezza, import
-// della ricerca, comandi del team, file dei dispositivi.
+// nessun accesso cloud. Cinque gruppi, ognuno su un database nuovo: schema e sicurezza, import
+// della ricerca, comandi del team, file dei dispositivi, generatore offline. I lotti dell'import
+// vengono dal generatore vero (supabase/generate-partner-import.mjs); il gruppo 5 lo esegue anche
+// da riga di comando su un repository git usa e getta, in una cartella temporanea poi cancellata.
 import assert from "node:assert/strict";
+import { execFileSync, spawnSync } from "node:child_process";
 import { createHash, randomUUID } from "node:crypto";
-import { readFileSync, readdirSync } from "node:fs";
-import { pathToFileURL } from "node:url";
+import {
+  chmodSync,
+  cpSync,
+  existsSync,
+  mkdirSync,
+  mkdtempSync,
+  readFileSync,
+  readdirSync,
+  rmSync,
+  statSync,
+  writeFileSync,
+} from "node:fs";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
+import { fileURLToPath, pathToFileURL } from "node:url";
+import {
+  RESEARCH_KEYS,
+  WINDOWS,
+  buildPartnerImport,
+  linkValue,
+} from "../generate-partner-import.mjs";
 
 if (!process.argv[2])
   throw new Error("Passare il percorso esterno di @electric-sql/pglite/dist/index.js.");
@@ -170,142 +192,10 @@ function repository() {
   };
 }
 const sha = (text) => createHash("sha256").update(text, "utf8").digest("hex");
-const WINDOW_OFFSET = {
-  subito: 1,
-  dicembre_gennaio: 2,
-  febbraio_marzo: 4,
-  aprile_giugno: 6,
-  secondo_semestre_2027: 9,
-};
-const WINDOW_ORDER = Object.keys(WINDOW_OFFSET);
-const RESEARCH_KEYS = [
-  "why",
-  "description",
-  "idea",
-  "pitch",
-  "hero",
-  "when",
-  "route",
-  "date_note",
-  "application",
-  "cost",
-  "followers",
-  "flags",
-  "lang",
-  "score",
-  "eu",
-  "sources",
-  "extra",
-];
-const SLOTS = [
-  ["email", "email"],
-  ["phone", "phone"],
-  ["whatsapp", "whatsapp"],
-  ["instagram", "ig"],
-  ["form", "form"],
-  ["brand_page", "brand_page"],
-  ["web", "web"],
-];
-
-function contactMonth(lead, generated) {
-  if (lead.month) return `${lead.month}-01`;
-  const [year, month] = generated.split("-").map(Number);
-  const total = year * 12 + month - 1 + WINDOW_OFFSET[lead.window];
-  return `${Math.floor(total / 12)}-${String((total % 12) + 1).padStart(2, "0")}-01`;
-}
-
-function researchEntry(lead, generated, skipped) {
-  const research = {};
-  for (const key of RESEARCH_KEYS) if (key in lead) research[key] = lead[key];
-  if (skipped !== undefined) research.skipped_it = skipped;
-  return {
-    source_key: lead.id,
-    name: lead.name.trim(),
-    city: lead.city,
-    country: lead.country,
-    type_label: lead.type,
-    sections: [...lead.sections],
-    priority: lead.priority,
-    contact_month: contactMonth(lead, generated),
-    event_starts_on: lead.date_start || null,
-    event_ends_on: lead.date_end || null,
-    preferred_channel: lead.channel,
-    research,
-    contacts: SLOTS.filter(([, key]) => lead[key]).map(([slot, key]) => ({
-      slot,
-      value: lead[key],
-      verified: slot === "email" ? Boolean(lead.email_ok) : false,
-    })),
-    variants: (lead.variants ?? []).map((v) => ({
-      approach: v.approach,
-      channel: v.channel,
-      language: v.language,
-      to: v.to,
-      cc: v.cc,
-      lookbook: v.lookbook || null,
-      subject: v.subject,
-      body: v.body,
-      follow_up: v.follow_up,
-      confirm_email: v.confirm_email,
-      gist_it: v.gist_it,
-      notes_it: v.notes_it,
-      form_fields_it: v.form_fields_it,
-    })),
-  };
-}
-
-// Stesso formato che scriverà supabase/generate-partner-import.mjs (vedi l'intestazione di
-// private.stage_partner_research nella migrazione). Ordine: periodo del sito, poi il suo CO.
+// Lotti dell'import con il generatore vero (supabase/generate-partner-import.mjs, funzione pura).
+// Ordine: periodo del sito, poi il suo CO. Ogni .sql entro batchBytes.
 function buildResearchImport({ partners, varianti, context, commit, batchBytes = 40000 }) {
-  const skipped = new Map(varianti.contacts.map((c) => [c.id, c.skipped_it]));
-  const leads = [...partners.leads].sort(
-    (a, b) => WINDOW_ORDER.indexOf(a.window) - WINDOW_ORDER.indexOf(b.window) || a.co - b.co,
-  );
-  const entries = leads.map((lead) =>
-    researchEntry(lead, partners.generated, skipped.get(lead.id)),
-  );
-  const header = {
-    schema_version: 1,
-    source: "luckylap-partner",
-    source_sha256: sha(JSON.stringify({ partners, varianti, context })),
-    source_commit: commit,
-    source_generated: partners.generated,
-  };
-  const normalized = sha(JSON.stringify({ ...header, context_md: context, partners: entries }));
-  const text = (list, index, count) =>
-    JSON.stringify({
-      ...header,
-      normalized_sha256: normalized,
-      batch_index: index,
-      batch_count: count,
-      ...(index === 1 ? { context_md: context } : {}),
-      partners: list,
-    });
-  const chunks = [];
-  let current = [];
-  for (const entry of entries) {
-    const index = chunks.length + 1;
-    if (current.length && Buffer.byteLength(text([...current, entry], index, 100)) > batchBytes) {
-      chunks.push(current);
-      current = [];
-    }
-    if (Buffer.byteLength(text([entry], chunks.length + 1, 100)) > batchBytes)
-      throw new Error(`Contatto ${entry.source_key} più grande del lotto.`);
-    current.push(entry);
-  }
-  chunks.push(current);
-  const batches = chunks.map((list, i) => {
-    const body = text(list, i + 1, chunks.length);
-    return { text: body, sha: sha(body) };
-  });
-  return { normalized, batches, entries };
-}
-
-// File .sql come quelli del generatore: la quotatura non compare nel testo.
-function stageSql(batchText) {
-  let tag = "partner_lotto";
-  while (batchText.includes(`$${tag}$`)) tag += "_x";
-  return `select private.stage_partner_research($${tag}$${batchText}$${tag}$);`;
+  return buildPartnerImport({ partners, variants: varianti, context, commit, batchBytes });
 }
 
 function devicePayload(text) {
@@ -756,11 +646,19 @@ try {
       "Lingua fuori elenco",
     );
     await fails(stage(db, "{non è json"), "22023", "invalid_partner_research", "Lotto non JSON");
-    const empty = buildResearchImport({
-      ...data,
-      partners: { ...data.partners, leads: [] },
-      commit: "c3d4e5f",
+    // Il generatore rifiuta un import vuoto: il lotto si scrive a mano per provare il database.
+    const emptyText = JSON.stringify({
+      ...JSON.parse(built.batches[0].text),
+      normalized_sha256: sha("import vuoto"),
+      source_commit: "c3d4e5f",
+      batch_index: 1,
+      batch_count: 1,
+      partners: [],
     });
+    const empty = {
+      normalized: sha("import vuoto"),
+      batches: [{ text: emptyText, sha: sha(emptyText) }],
+    };
     await fails(
       runImport(db, empty),
       "22023",
@@ -1077,7 +975,7 @@ try {
       co: 3,
     });
     const built2 = buildResearchImport({ ...second, commit: "0a1b2c3d4e" });
-    for (const batch of built2.batches) await db.exec(stageSql(batch.text));
+    for (const batch of built2.batches) await db.exec(batch.sql);
     eq(
       await count(db, "private.partner_import_staging", "normalized_sha256 = $1", [
         built2.normalized,
@@ -3045,8 +2943,498 @@ try {
     await db.close();
   }
 
+  // -------------------------------------------------------------------------
+  // 5. Generatore offline (supabase/generate-partner-import.mjs)
+  // -------------------------------------------------------------------------
+  {
+    const data = repository();
+    const build = (overrides = {}, commit = "f6ad90c") =>
+      buildPartnerImport({
+        partners: data.partners,
+        variants: data.varianti,
+        context: data.context,
+        commit,
+        ...overrides,
+      });
+    const same = (a, b) => JSON.stringify(a) === JSON.stringify(b);
+    const built = build();
+    const again = build();
+    eq(
+      [again.normalized, again.batches.map((b) => b.sql), again.applySql],
+      [built.normalized, built.batches.map((b) => b.sql), built.applySql],
+      "Generatore: SHA-256 e file stabili a parità di dati",
+    );
+    ok(
+      build({}, "b2c3d4e").normalized !== built.normalized,
+      "Generatore: un altro commit è un altro import",
+    );
+    for (const batchBytes of [40000, 6000, 4000]) {
+      const sized = build({ batchBytes });
+      const texts = sized.batches.map((b) => JSON.parse(b.text));
+      ok(
+        sized.normalized === built.normalized &&
+          sized.batches.every(
+            (b) => Buffer.byteLength(b.sql, "utf8") <= batchBytes && b.sha === sha(b.text),
+          ) &&
+          texts.every((t, i) => t.batch_index === i + 1 && t.batch_count === texts.length) &&
+          same(
+            texts.flatMap((t) => t.partners),
+            built.entries,
+          ) &&
+          texts.map((t) => t.context_md ?? "").join("") === data.context,
+        `Generatore: .sql entro ${batchBytes} byte (${sized.batches.length} lotti), stessi contatti e CONTESTO.md`,
+      );
+    }
+    const [first] = built.batches;
+    const tag = /\$(partner_[0-9a-fx]+)\$/.exec(first.sql)?.[1];
+    ok(
+      tag &&
+        first.sql.startsWith("-- Import Partner") &&
+        first.sql.includes(
+          `select private.stage_partner_research($${tag}$${first.text}$${tag}$);`,
+        ) &&
+        !first.text.includes(`$${tag}$`),
+      "Generatore: il .sql contiene il lotto esatto tra quotature dollaro assenti dal testo",
+    );
+    eq(
+      built.applySql.trim().split("\n").at(-1),
+      `select private.apply_partner_research('${built.normalized}', array[${built.batches.map((b) => `'${b.sha}'`).join(", ")}]::text[]);`,
+      "Generatore: il file apply elenca lo SHA-256 di ogni lotto",
+    );
+    eq(
+      built.entries.map((e) => [e.source_key, e.contact_month]),
+      [
+        ["L001", "2026-10-01"],
+        ["L002", "2026-11-01"],
+        ["n003", "2026-12-01"],
+        ["n004", "2027-02-01"],
+        ["n005", "2027-04-01"],
+        ["L006", "2027-07-01"],
+      ],
+      "Generatore: ordine per periodo e CO del sito; mese vuoto dal periodo",
+    );
+    const leadsWith = (id, patch) => ({
+      ...data.partners,
+      leads: data.partners.leads.map((l) => (l.id === id ? { ...l, ...patch } : l)),
+    });
+    eq(
+      WINDOWS.map(
+        (window) =>
+          build({ partners: leadsWith("L001", { month: "", window, co: 99 }) }).entries.find(
+            (e) => e.source_key === "L001",
+          ).contact_month,
+      ),
+      ["2026-11-01", "2026-12-01", "2027-02-01", "2027-04-01", "2027-07-01"],
+      "Generatore: senza mese, +1, +2, +4, +6, +9 mesi dalla data della ricerca",
+    );
+    eq(
+      ["L001", "n003"].map((key) =>
+        built.entries.find((e) => e.source_key === key).contacts.map((c) => [c.slot, c.verified]),
+      ),
+      [
+        [
+          ["email", true],
+          ["phone", false],
+          ["instagram", false],
+          ["web", false],
+        ],
+        [
+          ["phone", false],
+          ["whatsapp", false],
+          ["instagram", false],
+          ["web", false],
+        ],
+      ],
+      "Generatore: recapiti per slot (ig → instagram), email verificata da email_ok, vuoti esclusi",
+    );
+    const l001 = built.entries[0];
+    ok(
+      !JSON.stringify(built.entries).includes('"draft"') &&
+        l001.research.skipped_it === "Media scartato: il negozio non ha una rivista." &&
+        Object.keys(l001.research).every((k) => [...RESEARCH_KEYS, "skipped_it"].includes(k)) &&
+        l001.variants.map((v) => v.approach).join() === "vendita,collab",
+      "Generatore: draft non importato, skipped_it da varianti.json, solo i testi della ricerca",
+    );
+
+    const errors = [];
+    const rejectsBuild = (overrides, pattern, label) => {
+      let error = null;
+      try {
+        build(overrides);
+      } catch (caught) {
+        error = caught;
+      }
+      ok(error && pattern.test(error.message), `Generatore: ${label} (${error?.message})`);
+      if (error) errors.push(error.message);
+    };
+    // Variante cambiata in entrambi i file (resta coerente) oppure in uno solo.
+    const withVariant = (id, approach, patch, both = true) => {
+      const partners = structuredClone(data.partners);
+      const varianti = structuredClone(data.varianti);
+      Object.assign(
+        partners.leads.find((l) => l.id === id).variants.find((v) => v.approach === approach),
+        patch,
+      );
+      if (both)
+        Object.assign(
+          varianti.contacts.find((c) => c.id === id).variants.find((v) => v.approach === approach),
+          patch,
+        );
+      return { partners, variants: varianti };
+    };
+    const rebuild =
+      /diverse da research\/bozze\/varianti\.json: rilanciare python3 tools\/build_data\.py/;
+    rejectsBuild(
+      withVariant("L001", "vendita", { body: "Hallo, anders." }, false),
+      rebuild,
+      "varianti diverse tra i due file → errore",
+    );
+    rejectsBuild(
+      { partners: leadsWith("L002", { variants: undefined }) },
+      rebuild,
+      "varianti tolte da partners.json ma non da varianti.json → errore",
+    );
+    rejectsBuild(
+      { partners: leadsWith("n004", { draft: { id: "n004", body: "Hello" } }) },
+      /n004: ha un draft ma nessuna variante/,
+      "draft senza varianti → errore",
+    );
+    rejectsBuild(
+      { partners: leadsWith("L001", { priority: "altissima" }) },
+      /L001: priorità non valido/,
+      "priorità fuori elenco",
+    );
+    rejectsBuild(
+      { partners: leadsWith("L001", { sections: ["vendita", "vendita"] }) },
+      /L001: sezioni non valide/,
+      "sezioni ripetute",
+    );
+    rejectsBuild(
+      { partners: leadsWith("L001", { channel: "fax" }) },
+      /L001: canale preferito non valido/,
+      "canale preferito fuori elenco",
+    );
+    rejectsBuild(
+      withVariant("L001", "collab", { language: "jp" }),
+      /L001, variante collab: lingua non valido/,
+      "lingua della variante fuori elenco",
+    );
+    rejectsBuild(
+      withVariant("L002", "evento", { lookbook: "catalogo" }),
+      /L002, variante evento: lookbook non valido/,
+      "lookbook fuori elenco",
+    );
+    rejectsBuild(
+      withVariant("L001", "vendita", { body: "x".repeat(8001) }),
+      /campo body oltre i limiti/,
+      "testo oltre 8000 caratteri",
+    );
+    rejectsBuild(
+      { partners: leadsWith("L002", { sources: ["ftp://raduno-due.example.test/"] }) },
+      /L002: le fonti devono essere indirizzi http\(s\)/,
+      "fonte non http(s)",
+    );
+    rejectsBuild(
+      { partners: leadsWith("L002", { date_start: "2027-02-30" }) },
+      /L002: date_start non è una data reale/,
+      "data non reale",
+    );
+    rejectsBuild(
+      { partners: leadsWith("L001", { month: "2026-13" }) },
+      /L001: mese di contatto non valido/,
+      "mese non valido",
+    );
+    rejectsBuild(
+      { partners: leadsWith("L001", { why: "Riga\u0007campanello" }) },
+      /L001: caratteri di controllo/,
+      "caratteri di controllo",
+    );
+    rejectsBuild(
+      { partners: leadsWith("L001", { name: "N".repeat(241) }) },
+      /L001: campo name oltre i limiti/,
+      "nome oltre 240 caratteri",
+    );
+    rejectsBuild(
+      {
+        partners: {
+          ...data.partners,
+          leads: [...data.partners.leads, { ...data.partners.leads[0], co: 9 }],
+        },
+      },
+      /Contatto L001 ripetuto/,
+      "codice ripetuto",
+    );
+    rejectsBuild(
+      { partners: { ...data.partners, leads: [] } },
+      /nessun contatto/,
+      "nessun contatto",
+    );
+    rejectsBuild(
+      { batchBytes: 2500 },
+      /da solo supera --batch-bytes/,
+      "contatto più grande del lotto",
+    );
+    rejectsBuild(
+      { batchBytes: 100 },
+      /--batch-bytes deve essere un intero/,
+      "lotto troppo piccolo",
+    );
+    rejectsBuild(
+      { commit: "xyz" },
+      /Commit del repository Partner non valido/,
+      "commit non valido",
+    );
+    eq(
+      errors.filter((message) => /@|example\.test|\+39|000 000|Hallo|Hello|Garage/.test(message)),
+      [],
+      "Generatore: gli errori citano codici e campi, mai recapiti, nomi o testi",
+    );
+    eq(
+      ["@", "example.test", "+39", "000 000", "Hallo", "Garage"].filter((needle) =>
+        JSON.stringify(built.report).includes(needle),
+      ),
+      [],
+      "Generatore: il resoconto ha solo conteggi e codici",
+    );
+    eq(
+      pick(built.report, [
+        "partners_total",
+        "variants_total",
+        "by_section",
+        "contacts_without_link_value",
+        "drafts_not_imported",
+      ]),
+      {
+        partners_total: 6,
+        variants_total: 8,
+        by_section: { vendita: 3, eventi: 3, collab: 4 },
+        contacts_without_link_value: [
+          { source_key: "L006", slot: "phone" },
+          { source_key: "L006", slot: "web" },
+        ],
+        drafts_not_imported: 1,
+      },
+      "Generatore: conteggi del resoconto",
+    );
+
+    // CONTESTO.md più grande di un lotto: diviso tra i primi lotti, riunito dal database.
+    {
+      const longContext = `${data.context}\n`.repeat(25);
+      const split = build({ context: longContext, batchBytes: 6000 });
+      ok(
+        split.batches.filter((b) => JSON.parse(b.text).context_md !== undefined).length >= 3,
+        "Generatore: CONTESTO.md lungo diviso in più lotti",
+      );
+      const db = await freshDb({ withImport: false });
+      for (const batch of split.batches) await db.exec(batch.sql);
+      await db.exec(split.applySql);
+      eq(
+        await one(
+          db,
+          "select context_md = $1 as same, batch_count from public.partner_research_imports",
+          [longContext],
+        ),
+        { same: true, batch_count: split.batches.length },
+        "Generatore: il database riunisce CONTESTO.md nell'ordine dei lotti",
+      );
+      await db.close();
+    }
+
+    // Riga di comando su un repository git usa e getta con i file del fixture.
+    const GENERATOR = fileURLToPath(new URL("../generate-partner-import.mjs", import.meta.url));
+    const temp = mkdtempSync(join(tmpdir(), "luckylap-partner-generatore-"));
+    try {
+      const repo = join(temp, "luckylap-partner");
+      cpSync(fileURLToPath(fixtureRoot), repo, { recursive: true });
+      const gitEnv = {
+        ...process.env,
+        GIT_CONFIG_GLOBAL: "/dev/null",
+        GIT_CONFIG_NOSYSTEM: "1",
+        GIT_AUTHOR_NAME: "Harness Partner",
+        GIT_AUTHOR_EMAIL: "harness@example.test",
+        GIT_COMMITTER_NAME: "Harness Partner",
+        GIT_COMMITTER_EMAIL: "harness@example.test",
+      };
+      const gitIn = (cwd, ...args) =>
+        execFileSync("git", ["-C", cwd, ...args], {
+          env: gitEnv,
+          encoding: "utf8",
+          stdio: ["ignore", "pipe", "pipe"],
+        });
+      gitIn(temp, "init", "-q", repo);
+      gitIn(repo, "add", "-A");
+      gitIn(repo, "commit", "-q", "-m", "Repository Partner sintetico");
+      const commit = gitIn(repo, "rev-parse", "HEAD").trim();
+      const outputs = [];
+      const run = (...args) => {
+        const result = spawnSync(process.execPath, [GENERATOR, ...args], { encoding: "utf8" });
+        outputs.push(result.stdout, result.stderr);
+        return result;
+      };
+
+      const out = join(temp, "uscita", "partner-import");
+      const result = run("--partner-repo", repo, "--output-dir", out, "--batch-bytes", "6000");
+      ok(
+        result.status === 0 && /6 contatti, 8 varianti, \d+ lotti/.test(result.stdout),
+        `CLI: generazione riuscita (${result.stderr.trim()})`,
+      );
+      const expected = build({ batchBytes: 6000 }, commit);
+      const prefix = `2026-10-21-${expected.normalized.slice(0, 8)}`;
+      const batchFile = (index) => `${prefix}-${String(index).padStart(2, "0")}.sql`;
+      const names = readdirSync(out).sort();
+      eq(
+        names,
+        [
+          ...expected.batches.map((b) => batchFile(b.index)),
+          `${prefix}-apply.sql`,
+          `${prefix}.report.json`,
+        ].sort(),
+        "CLI: un .sql per lotto, il file apply e il resoconto",
+      );
+      eq(
+        [statSync(out).mode & 0o777, ...names.map((n) => statSync(join(out, n)).mode & 0o777)],
+        [0o700, ...names.map(() => 0o600)],
+        "CLI: cartella 0700, file 0600",
+      );
+      eq(
+        [
+          ...expected.batches.map((b) => readFileSync(join(out, batchFile(b.index)), "utf8")),
+          readFileSync(join(out, `${prefix}-apply.sql`), "utf8"),
+        ],
+        [...expected.batches.map((b) => b.sql), expected.applySql],
+        "CLI: file uguali alla funzione pura con il commit del repository",
+      );
+      const report = JSON.parse(readFileSync(join(out, `${prefix}.report.json`), "utf8"));
+      eq(
+        [report.source_commit, report.batch_count, report.files.apply, report.files.batches],
+        [
+          commit,
+          expected.batches.length,
+          `${prefix}-apply.sql`,
+          expected.batches.map((b) => batchFile(b.index)),
+        ],
+        "CLI: resoconto con commit, numero di lotti e nomi dei file",
+      );
+      const db = await freshDb({ withImport: false });
+      for (const name of report.files.batches) await db.exec(readFileSync(join(out, name), "utf8"));
+      await db.exec(readFileSync(join(out, report.files.apply), "utf8"));
+      eq(
+        await one(
+          db,
+          `select (select count(*)::int from public.partners) partners,
+             (select count(*)::int from public.partner_message_variants) variants,
+             (select source_commit from public.partner_research_imports) source_commit,
+             (select count(*)::int from private.partner_import_staging) staging`,
+        ),
+        { partners: 6, variants: 8, source_commit: commit, staging: 0 },
+        "CLI: i .sql applicati in ordine, poi apply: import completo, transito vuoto",
+      );
+      const byKey = (a, b) => (a.join("|") < b.join("|") ? -1 : 1);
+      eq(
+        (
+          await q(
+            db,
+            "select p.source_key, c.kind, c.link_value from public.partner_contacts c join public.partners p on p.id = c.partner_id",
+          )
+        )
+          .map((r) => [r.source_key, r.kind, r.link_value])
+          .sort(byKey),
+        expected.entries
+          .flatMap((e) => e.contacts.map((c) => [e.source_key, c.slot, linkValue(c.slot, c.value)]))
+          .sort(byKey),
+        "CLI: il resoconto calcola link_value come private.partner_link_value",
+      );
+      await db.close();
+
+      const before = names.map((n) => readFileSync(join(out, n), "utf8"));
+      const repeat = run("--partner-repo", repo, "--output-dir", out, "--batch-bytes", "6000");
+      ok(
+        repeat.status === 1 &&
+          /già un import con gli stessi dati/.test(repeat.stderr) &&
+          readdirSync(out).length === names.length &&
+          names.every((n, i) => readFileSync(join(out, n), "utf8") === before[i]),
+        "CLI: secondo run nella stessa cartella rifiutato, nessun file sovrascritto",
+      );
+      const sub = run("--partner-repo", join(repo, "site"), "--output-dir", join(temp, "sotto"));
+      ok(
+        sub.status === 1 &&
+          /radice di un repository git/.test(sub.stderr) &&
+          !existsSync(join(temp, "sotto")),
+        "CLI: --partner-repo deve essere la radice del repository",
+      );
+      const inside = join(repo, "uscita");
+      const notIgnored = run("--partner-repo", repo, "--output-dir", inside);
+      ok(
+        notIgnored.status === 1 &&
+          /non è ignorata/.test(notIgnored.stderr) &&
+          !existsSync(inside) &&
+          gitIn(repo, "status", "--porcelain") === "",
+        "CLI: cartella dentro un repository e non ignorata: rifiutata e rimossa",
+      );
+      const open = join(temp, "aperta");
+      mkdirSync(open);
+      chmodSync(open, 0o755);
+      const openRun = run("--partner-repo", repo, "--output-dir", open);
+      ok(
+        openRun.status === 1 && /privata/.test(openRun.stderr) && readdirSync(open).length === 0,
+        "CLI: cartella di output non privata rifiutata",
+      );
+      const usage = run("--partner-repo", repo);
+      const badSize = run(
+        "--partner-repo",
+        repo,
+        "--output-dir",
+        join(temp, "x"),
+        "--batch-bytes",
+        "40kb",
+      );
+      ok(
+        usage.status === 1 &&
+          /^Uso: /.test(usage.stderr) &&
+          badSize.status === 1 &&
+          /--batch-bytes deve essere un intero/.test(badSize.stderr),
+        "CLI: argomenti mancanti o non validi",
+      );
+      writeFileSync(join(repo, "appunti.txt"), "bozza\n");
+      const dirtyOut = join(temp, "sporco");
+      const dirty = run("--partner-repo", repo, "--output-dir", dirtyOut);
+      ok(
+        dirty.status === 1 &&
+          /modifiche non committate/.test(dirty.stderr) &&
+          !existsSync(dirtyOut),
+        "CLI: repository Partner con modifiche rifiutato, nessuna cartella creata",
+      );
+      rmSync(join(repo, "appunti.txt"));
+      // Come nel gestionale: .private/ ignorata dentro un repository va bene.
+      writeFileSync(join(repo, ".gitignore"), "/.private/\n");
+      gitIn(repo, "add", ".gitignore");
+      gitIn(repo, "commit", "-q", "-m", "Ignora .private");
+      const ignored = run(
+        "--partner-repo",
+        repo,
+        "--output-dir",
+        join(repo, ".private", "partner-import"),
+      );
+      ok(
+        ignored.status === 0 &&
+          readdirSync(join(repo, ".private", "partner-import")).length > 2 &&
+          gitIn(repo, "status", "--porcelain") === "",
+        `CLI: cartella ignorata dentro un repository ammessa (${ignored.stderr.trim()})`,
+      );
+      eq(
+        outputs.filter((text) =>
+          /@|example\.test|\+39|000 000|Hallo|Hello|Garage|Sintetico/.test(text),
+        ),
+        [],
+        "CLI: stdout e stderr senza email, telefoni, nomi o testi",
+      );
+    } finally {
+      rmSync(temp, { recursive: true, force: true });
+    }
+  }
+
   console.log(
-    `PASS ${checks} checks — Partner: schema, RLS e grant, audit senza recapiti, import della ricerca, comandi del team, file dei dispositivi; PGlite con dati sintetici, nessun accesso cloud.`,
+    `PASS ${checks} checks — Partner: schema, RLS e grant, audit senza recapiti, import della ricerca, comandi del team, file dei dispositivi, generatore offline; PGlite con dati sintetici, nessun accesso cloud.`,
   );
 } catch (error) {
   console.log(`FAIL ${checks} checks — ${error.message}`);
