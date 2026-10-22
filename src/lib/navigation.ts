@@ -31,7 +31,13 @@ export type NavAccess =
   /** Anteprima locale. */
   | { status: "preview" }
   | { status: "member"; displayName: string; finance: boolean; ceo: boolean };
-export type AccountLink = { href: string; label: string; match: string[] };
+export type AccountLink = {
+  href: string;
+  label: string;
+  /** Nome breve nella fascia verde del telefono e accanto ad «Altro». */
+  band: string;
+  match: string[];
+};
 export type NavLocation = { section: SectionId | "account" | null; tab: NavTab | null };
 
 const deepFreeze = <T>(value: T): T => {
@@ -107,11 +113,16 @@ export const SECTIONS: readonly NavSection[] = deepFreeze<NavSection[]>([
   },
 ]);
 
-/** Fuori dalle sezioni: piede della barra laterale (desktop) e foglio «Altro» (telefono). */
+/**
+ * Fuori dalle sezioni: piede della barra laterale (desktop) e foglio «Altro» (telefono).
+ * Prima la guida «Come si usa», poi l'account.
+ */
 export const ACCOUNT_LINKS: readonly AccountLink[] = deepFreeze<AccountLink[]>([
+  { href: "/guida", label: "Come si usa", band: "Come si usa", match: ["/guida"] },
   {
     href: "/auth/account",
     label: "Account e sicurezza",
+    band: "Account",
     match: ["/auth/account", "/auth/password", "/auth/verify"],
   },
 ]);

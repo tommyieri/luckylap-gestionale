@@ -34,7 +34,7 @@ Una sola fonte: `src/lib/navigation.ts`, funzioni pure senza React né icone.
 | Finance | `/finance` | Panoramica `/finance`, Registrazioni `/finance/work`, Documenti `/finance/documents` | chi può aprire Finance | «Altro» |
 | Controllo CEO | `/audit` | — | il founder | «Altro» |
 
-- Fuori dalle sezioni (`ACCOUNT_LINKS`): «Account e sicurezza» (`/auth/account`, accesa anche da `/auth/password` e `/auth/verify`) ed «Esci». Sul desktop stanno nel piede della barra laterale, sul telefono in «Altro».
+- Fuori dalle sezioni (`ACCOUNT_LINKS`): «Come si usa» (`/guida`), «Account e sicurezza» (`/auth/account`, accesa anche da `/auth/password` e `/auth/verify`) ed «Esci». Sul desktop stanno nel piede della barra laterale, sul telefono in «Altro». Ogni voce ha un nome breve (`band`) per la fascia verde del telefono: «Come si usa» e «Account».
 - Finance e Controllo CEO compaiono solo a chi può entrare, con la regola esistente `isSensitiveAreaEligible` (`src/lib/auth/model.ts`), senza copie. Voci per persona: Luca ed Ettore 5, Gabriele e Gherardo 6, Tommi 7. In anteprima locale 7; senza sessione o con account non abilitato nessuna; con verifica in corso o non riuscita le 5 aperte a tutti. Le schede seguono la stessa regola: chi non vede Finance non ne vede nemmeno le schede, neanche su `/auth/area/finance` o su `/finance`.
 - **Prefisso più lungo.** Un `href` combacia se il percorso è uguale o continua con `/`; `/` combacia solo con `/`. Vince l'`href` più lungo tra schede, sezioni e `also`. Così `/stock/rettifiche` accende Rettifiche, `/consignment/NEG01/conta` accende Conto vendita e `/sales-old` non accende niente.
 - `also`: percorsi senza scheda che accendono la sezione. Finance ha `/auth/area/finance`, Controllo CEO `/auth/area/audit`.
@@ -44,11 +44,11 @@ Una sola fonte: `src/lib/navigation.ts`, funzioni pure senza React né icone.
 
 ## Struttura visiva
 
-- **Desktop (oltre 760 px).** Barra laterale verde, ferma, larga 232 px (210 sotto 1250, 200 sotto 1000). Marchio «LuckyLap» in Barlow Condensed 700 dritto, link a `/`. Voci in Condensed 600, alte 48 px; la voce attiva è in inversione d'inchiostro, carta sul verde. Finance e Controllo CEO hanno il lucchetto, con il testo nascosto «(con password)». Nel piede: nome, «Account e sicurezza», «Esci»; in anteprima «Anteprima locale · Dati solo su questo browser» e «Account e sicurezza», senza «Esci».
+- **Desktop (oltre 760 px).** Barra laterale verde, ferma, larga 232 px (210 sotto 1250, 200 sotto 1000). Marchio «LuckyLap» in Barlow Condensed 700 dritto, link a `/`. Voci in Condensed 600, alte 48 px; la voce attiva è in inversione d'inchiostro, carta sul verde. Finance e Controllo CEO hanno il lucchetto, con il testo nascosto «(con password)». Nel piede: nome, «Come si usa», «Account e sicurezza», «Esci»; in anteprima «Anteprima locale · Dati solo su questo browser», «Come si usa» e «Account e sicurezza», senza «Esci».
 - **Schede.** Striscia ferma in alto, alta 48 px, fondo carta e filetto d'inchiostro sotto. La scheda attiva ha il filetto d'inchiostro da 3 px. Se non ci stanno scorrono in orizzontale, e quella attiva viene portata in vista.
 - **Contenuto.** `<main id="contenuto">`, largo al massimo 1280 px, margini 24 px (32 oltre 1250 px). Il collegamento «Vai al contenuto» è il primo elemento della pagina.
 - **Telefono (fino a 760 px).** La barra laterale diventa una fascia verde alta 52 px con marchio e sezione attiva: scorre via con la pagina. Restano ferme solo le schede. In basso una barra fissa di 60 px più la safe area: Oggi, Vendite, Magazzino, Partner, «Altro».
-- **«Altro».** Pulsante con `aria-haspopup="dialog"`; si accende quando la pagina attiva è nel foglio. Il foglio è un `dialog` nativo aperto con `showModal()`, ancorato in basso: Team, Finance e Controllo CEO se visibili, poi «Account e sicurezza» ed «Esci». Si chiude con Esc, con un tocco sullo sfondo, con «Chiudi» e a ogni cambio di pagina; il focus torna su «Altro».
+- **«Altro».** Pulsante con `aria-haspopup="dialog"`; si accende quando la pagina attiva è nel foglio. Il foglio è un `dialog` nativo aperto con `showModal()`, ancorato in basso: Team, Finance e Controllo CEO se visibili, poi «Come si usa», «Account e sicurezza» ed «Esci». Si chiude con Esc, con un tocco sullo sfondo, con «Chiudi» e a ogni cambio di pagina; il focus torna su «Altro».
 - **Tastiera aperta.** Mentre un campo ha il focus la barra in basso si nasconde, così non copre il campo.
 - La barra in basso sta dopo `main` nel DOM: con la tastiera si arriva prima al contenuto. In stampa menu, schede e barra in basso sono nascosti.
 - Scala z-index: schede 10, barra laterale 20, barra in basso 30, barre fisse delle pagine 35, toast 40. I `dialog` stanno nel top layer.
@@ -65,6 +65,16 @@ Una sola fonte: `src/lib/navigation.ts`, funzioni pure senza React né icone.
 - Righe e liste con `src/components/roadbook.module.css`: colonna di controllo a sinistra (ora, giorno o numero in Condensed), casella verde piena solo per «adesso», ambra per il ritardo, verde chiaro per il fatto.
 - Invii dall'esito incerto con `src/components/pending-attempt.tsx`: data italiana all'ora di Roma, righe leggibili, codice tecnico solo in «Codice per l’assistenza», «Scarta» solo per i tentativi che non potranno riuscire.
 - Una cartella del gruppo può avere i suoi `loading.tsx`, `error.tsx` e `not-found.tsx`: si vedono dentro il guscio.
+
+## La guida «Come si usa»
+
+`/guida` (`src/app/(workspace)/guida/page.tsx`) è la guida breve per i cinque del team: entrare e uscire, il menu, Partner, conto vendita e resoconto del mese, Finance e Controllo CEO, telefono, cosa fare se qualcosa non va e a chi chiedere. Non è un'ottava sezione: sta in `ACCOUNT_LINKS`, prima di «Account e sicurezza».
+
+- Il testo è fisso, in `src/components/guide-view.tsx`, e descrive l'app com'è oggi, con i nomi veri di sezioni, schede e pulsanti. Quando una pagina cambia nome, scopo o pulsanti, si aggiorna anche la guida.
+- «Il menu» elenca le sezioni che la persona vede (`visibleSections`), con una frase per sezione (`SECTION_TEXT`) e per scheda (`TAB_TEXT`). Una sezione o una scheda nuova della mappa senza la sua frase fa fallire `guide-view.test.tsx`.
+- Finance e Controllo CEO: tutti leggono cosa sono e chi li apre. Il riquadro «Aprire e chiudere Finance», con i link a `/auth/area/finance` (e `/auth/area/audit` per Tommi), compare solo a chi può entrare, con la regola `isSensitiveAreaEligible`.
+- Il magazzino centrale si chiama «Magadzino» anche nella guida; «Magazzino» è la sezione.
+- Telefono: indice in cima su due colonne, parti una sotto l'altra. Computer: indice fermo a destra. Testo a 16 px, righe al massimo di 72 caratteri.
 
 ## Token e caratteri
 
@@ -92,10 +102,11 @@ Con `npm run dev` l'anteprima locale (`isLocalPreviewEnabled()` in `src/lib/runt
 
 | Dove | Con anteprima locale |
 | --- | --- |
-| Menu | Tutte e 7 le sezioni, piede «Anteprima locale · Dati solo su questo browser» con «Account e sicurezza», niente «Esci». |
+| Menu | Tutte e 7 le sezioni, piede «Anteprima locale · Dati solo su questo browser» con «Come si usa» e «Account e sicurezza», niente «Esci». |
 | `/` | Avviso «Anteprima locale: Oggi legge solo dal database.» e riquadri «Non disponibile nell’anteprima locale.». Nessuna lettura. |
 | `/stock` | Giacenze dallo snapshot `data/inventory-source.json`, con dettaglio prodotto ed export CSV. |
 | `/team` | `LocalPreviewWorkspace`: calendario, attività e note sul `localStorage` del browser. |
+| `/guida` | La guida come la vede Tommi, con l'avviso «Anteprima locale: la guida come la vede Tommi, con Finance e Controllo CEO.». |
 | Altre pagine | Senza configurazione Supabase mostrano lo stato «da collegare», dentro il guscio. |
 
 ## Test di guardia
@@ -106,6 +117,7 @@ Girano con `npm test`, senza browser:
 - `src/components/workspace-nav.test.tsx`: barra laterale, barra in basso e schede per percorso e per stato di accesso (`aria-current`, voci nascoste, piede, «Altro» con `aria-haspopup="dialog"`, nessun link esterno nel menu).
 - `src/lib/workspace-routes.test.ts`: ogni `page.tsx` sta nel gruppo, tranne login e conferma; ogni voce della mappa ha la sua pagina; nessun link indietro nelle pagine e nei componenti; nessun `AuthShell` nelle pagine del gruppo; `AuthShell` e le pagine radice `not-found` ed `error` senza moduli CSS; `<main>` solo nel guscio e in `AuthShell`, «Vai al contenuto» solo nel guscio; le ancore statiche (`evento-`, `attivita-`, `nota-` in Team, `contenuto-` in Grafica e foto, `progetto-` in Nuovi prodotti) esistono una volta sola.
 - `src/proxy.test.ts`: ogni primo segmento con una pagina, tolti i gruppi `(…)`, è nel `matcher`; anche `/`.
+- `src/components/guide-view.test.tsx` e `src/app/(workspace)/guida/page.test.tsx`: le sette parti della guida, una frase per ogni sezione e scheda della mappa, il riquadro Finance solo a chi può entrare, niente parole tecniche, anteprima spenta con `VERCEL=1` e `NODE_ENV=production`.
 - `src/lib/design-floor.test.ts`: in tutti i `.css` di `src` nessun testo sotto 12 px, campi a 16 px, angoli ammessi, token dichiarati solo in `globals.css`, i sei `@font-face` di Barlow Condensed con i file in `public/fonts`, `.button` (altezza e larghezza minime) e `.icon-button` da 44 px, numeri e codici in Condensed.
 - `src/app/error-pages.test.tsx`, `src/components/pending-attempt.test.tsx`, `src/lib/auth/current-member.test.ts`, `src/lib/today/model.test.ts`: pagine di errore, invii da verificare, accesso corrente e regole di Oggi.
 

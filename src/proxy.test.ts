@@ -55,7 +55,7 @@ describe("matcher del proxy", () => {
       expect(segments.join("/")).not.toMatch(/[()]/);
       if (segments.length) expect(matcher).toContain(`/${segments[0]}/:path*`);
     }
-    expect(firstSegments).toEqual(expect.arrayContaining(["partner", "stock", "auth"]));
+    expect(firstSegments).toEqual(expect.arrayContaining(["partner", "stock", "auth", "guida"]));
   });
 
   it("copre la home `/`, che è Oggi", () => {
