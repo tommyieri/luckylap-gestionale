@@ -7,6 +7,7 @@ import {
   orderProgress,
   reportDraft,
   reportFormRows,
+  reportMonthAllowed,
   reportMonthRows,
   reportOverview,
   shopHistory,
@@ -14,6 +15,7 @@ import {
   shopQuantity,
   shopReminders,
   shopsFromRows,
+  shopStartMonth,
   shopStockGrid,
   suggestedReportMonth,
   type ShopPageRows,
@@ -344,6 +346,46 @@ describe("resoconto mensile", () => {
     expect(reportDraft(p, "2026-10", { [gt3BluM]: { quantity: 1.5, beforeCount: 0 } }).status).toBe(
       "invalid",
     );
+  });
+});
+
+describe("mesi ammessi", () => {
+  // Avvio delle vendite nei dati sintetici: 31 agosto 22:00 UTC, cioè il 1° settembre a Roma.
+  const now = "2026-10-22T10:00:00Z";
+  it("dall'avvio delle vendite al mese corrente, a Roma, come consignment_period nel database", () => {
+    const { settings } = page();
+    expect(reportMonthAllowed(settings, "2026-08", now)).toBe(false);
+    expect(reportMonthAllowed(settings, "2026-09", now)).toBe(true);
+    expect(reportMonthAllowed(settings, "2026-10", now)).toBe(true);
+    expect(reportMonthAllowed(settings, "2026-11", now)).toBe(false);
+    // Il mese nuovo comincia a mezzanotte di Roma (ora solare dal 25 ottobre), non in UTC.
+    expect(reportMonthAllowed(settings, "2026-11", "2026-10-31T22:59:00Z")).toBe(false);
+    expect(reportMonthAllowed(settings, "2026-11", "2026-10-31T23:00:00Z")).toBe(true);
+    expect(reportMonthAllowed({ ...settings, startedAt: null }, "2026-10", now)).toBe(false);
+  });
+  it("ogni mese elencato si può registrare; nessun mese prima dell'avvio", () => {
+    const p = page();
+    expect(reportMonthRows(p, "2026-11-05T10:00:00Z").map((r) => [r.month, r.allowed])).toEqual([
+      ["2026-11", true],
+      ["2026-10", true],
+      ["2026-09", true],
+    ]);
+    const stopped = { ...p, settings: { ...p.settings, startedAt: null } };
+    expect(reportMonthRows(stopped, now).every((r) => !r.allowed)).toBe(true);
+    expect(suggestedReportMonth(stopped, "2026-11-05T10:00:00Z")).toBeNull();
+  });
+  it("mese di partenza: avvio delle vendite per un negozio esistente, mese di creazione per uno nuovo", () => {
+    const { shop, settings } = page();
+    expect(shop.migrated).toBe(true);
+    expect(shopStartMonth(shop, settings)).toBe("2026-09");
+    const created = { ...shop, migrated: false };
+    expect(shopStartMonth({ ...created, createdAt: "2026-08-20T10:00:00Z" }, settings)).toBe(
+      "2026-09",
+    );
+    expect(shopStartMonth({ ...created, createdAt: "2026-10-31T23:30:00Z" }, settings)).toBe(
+      "2026-11",
+    );
+    expect(shopStartMonth(shop, { ...settings, startedAt: null })).toBeNull();
   });
 });
 
