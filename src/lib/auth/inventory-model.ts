@@ -6,7 +6,10 @@ export type DatabaseInventoryRows = {
   variants: unknown[];
   balances: unknown[];
   locations: unknown[];
+  /** `consignment_shops`: un negozio vale solo dopo la prima conta (`first_counted_at`). */
+  shops: unknown[];
 };
+const SHOP_TYPE = "Negozio Conto Vendita";
 type Row = Record<string, unknown>;
 const row = (value: unknown): Row => {
   if (value === null || typeof value !== "object" || Array.isArray(value))
@@ -59,8 +62,27 @@ export function inventoryFromDatabase(data: DatabaseInventoryRows): {
   const codes = new Map<string, string>();
   for (const [id, location] of locations) {
     const code = text(location.code);
+    text(location.location_type);
     if (codes.has(code)) throw new Error("Codice magazzino duplicato.");
+    if (typeof location.active !== "boolean") throw new Error("Sede inventario non valida.");
     codes.set(code, id);
+  }
+  // «In negozio» (03-4): solo i negozi attivi già contati. Prima della prima conta
+  // la giacenza del negozio è sconosciuta; dopo, un saldo assente vale 0, come
+  // nella pagina del negozio.
+  const countedShops: string[] = [];
+  const shopIds = new Set<string>();
+  for (const value of data.shops) {
+    const shop = row(value),
+      id = text(shop.location_id),
+      location = locations.get(id),
+      first = shop.first_counted_at;
+    if (!location || location.location_type !== SHOP_TYPE || shopIds.has(id))
+      throw new Error("Negozio inventario non valido.");
+    if (first !== null && (typeof first !== "string" || !Number.isFinite(Date.parse(first))))
+      throw new Error("Conta del negozio non valida.");
+    shopIds.add(id);
+    if (first !== null && location.active === true) countedShops.push(id);
   }
   const items = data.items.map((value): InventoryItem => {
     const item = row(value),
@@ -98,7 +120,9 @@ export function inventoryFromDatabase(data: DatabaseInventoryRows): {
       return locationId ? (balanceIndex.get(`${id}:${locationId}`) ?? null) : null;
     };
     const centralQuantity = quantityFor("MAG01"),
-      consignmentQuantity = quantityFor("NEG01");
+      consignmentQuantity = countedShops.length
+        ? countedShops.reduce((sum, shop) => sum + (balanceIndex.get(`${id}:${shop}`) ?? 0), 0)
+        : null;
     return {
       id,
       sku,
@@ -133,7 +157,7 @@ export function inventoryFromDatabase(data: DatabaseInventoryRows): {
       notes: [
         "Fonte iniziale: inventario Excel indicato dal founder. Shopify non utilizzato.",
         "Le giacenze mostrate sono lette dal database con i permessi del tuo account.",
-        "Il totale rete somma stock centrale e conto vendita; un valore sconosciuto rimane da verificare.",
+        "Il totale rete somma stock centrale e negozi già contati; un valore sconosciuto rimane da verificare.",
         "La data di lettura si riferisce all’estrazione del file originale, non a una conta fisica.",
       ],
     },

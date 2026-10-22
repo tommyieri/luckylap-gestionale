@@ -194,7 +194,7 @@ try {
     "20261021130138_brand_assets_and_development.sql",
   ])
     await owner.query(readFileSync(new URL(`../migrations/${file}`, import.meta.url), "utf8"));
-  const localPartner = new URL("../migrations/20261022200000_partner_module.sql", import.meta.url),
+  const localPartner = new URL("../migrations/20261022215908_partner_module.sql", import.meta.url),
     dependency =
       partnerMigration ??
       (existsSync(localPartner)

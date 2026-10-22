@@ -4,6 +4,8 @@ import type { VerifiedMember } from "../../lib/auth/model";
 import { romeDayLabel } from "../../lib/today/model";
 import { AgendaTile, PreviewTile, StockTile, TileFallback } from "./today-tiles";
 import { PartnerWorkTile, PreparationTile } from "./work-tiles";
+import { isSensitiveAreaEligible } from "../../lib/auth/model";
+import { ConsignmentTile } from "./consignment-tile";
 import styles from "./today.module.css";
 
 export type TodayAccess =
@@ -51,6 +53,11 @@ export function TodaySheet({ access, now }: { access: TodayAccess; now: Date }) 
             <Suspense fallback={<TileFallback tile="stock" />}>
               <StockTile supabase={access.supabase} />
             </Suspense>
+            {isSensitiveAreaEligible(access.member, "finance") && (
+              <Suspense fallback={<TileFallback tile="consignment" />}>
+                <ConsignmentTile supabase={access.supabase} member={access.member} />
+              </Suspense>
+            )}
           </>
         )}
       </div>

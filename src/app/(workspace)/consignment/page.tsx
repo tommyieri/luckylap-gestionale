@@ -1,33 +1,21 @@
 import type { Metadata } from "next";
-import { redirect } from "next/navigation";
-import { WorkspacePanel } from "@/components/workspace-panel";
-import { ConsignmentWorkspace } from "@/components/consignment-workspace";
-import { getSupabasePublicConfig } from "@/lib/supabase/config";
-import { createSupabaseServerClient } from "@/lib/supabase/server";
-import { readConsignmentWorkspace } from "@/lib/consignment/server";
+import { AccessPanel } from "../../../components/access-panel";
+import { ConsignmentShops } from "../../../components/consignment-shops";
+import { requireMember } from "../../../lib/auth/current-member";
+import { previewShopList } from "../../../lib/consignment/shop-fixtures";
+import { readConsignmentShops } from "../../../lib/consignment/shop-server";
+import { SHOP_SETUP } from "./load";
+
 export const dynamic = "force-dynamic";
 export const metadata: Metadata = { title: "Conto vendita" };
+
+/** Elenco dei negozi in conto vendita. Un errore di lettura arriva a `error.tsx`. */
 export default async function ConsignmentPage() {
-  try {
-    getSupabasePublicConfig();
-  } catch {
-    return (
-      <WorkspacePanel
-        title="Conto vendita da collegare."
-        description="Servono il database condiviso e il catalogo verificato per gestire magliette affidate, vendite e regolamenti."
-      />
-    );
-  }
-  const access = await readConsignmentWorkspace(await createSupabaseServerClient()).catch(() => ({
-    status: "unavailable" as const,
-  }));
-  if (access.status === "signed-out") redirect("/auth/login");
-  if (access.status !== "ready")
-    return (
-      <WorkspacePanel
-        title="Conto vendita non disponibile."
-        description="Non è stato possibile verificare l’accesso e leggere tutti i dati. Ricarica tra poco; nessun elenco parziale viene mostrato."
-      />
-    );
-  return <ConsignmentWorkspace snapshot={access.snapshot} member={access.member} />;
+  const current = await requireMember();
+  if (current.status === "preview")
+    return <ConsignmentShops list={previewShopList()} canFinance preview />;
+  if (current.status !== "member")
+    return <AccessPanel status={current.status} setup={SHOP_SETUP} />;
+  const read = await readConsignmentShops(current.supabase, current.member);
+  return <ConsignmentShops list={read.list} canFinance={read.canFinance} />;
 }

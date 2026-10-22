@@ -41,6 +41,7 @@ vi.mock("@/lib/supabase/config", () => ({ getSupabasePublicConfig: mocks.config 
 vi.mock("@/lib/finance-revisions/model", () => import("../../../../lib/finance-revisions/model"));
 vi.mock("@/lib/finance-revisions/server", () => ({ loadFinanceRevisionHistory: mocks.history }));
 vi.mock("@/lib/team/read", () => ({ readTeamPages: mocks.profiles }));
+vi.mock("@/lib/runtime", () => ({ isLocalPreviewEnabled: () => false }));
 import Page, { dynamic } from "./page";
 const actor = "91000000-0000-4000-8000-000000000001",
   source = "91000000-0000-4000-8000-000000000002";

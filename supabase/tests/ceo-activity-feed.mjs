@@ -1,4 +1,4 @@
-// test-db: postgres minimo 120
+// test-db: postgres minimo 121
 // PostgreSQL 17 reale e gate CEO esistente; Auth/JWT e tutti i dati sono sintetici.
 // Nessun DSN, cloud, worktree P2/P3 o segreto operativo viene utilizzato.
 import assert from "node:assert/strict";
@@ -480,18 +480,30 @@ try {
   await log("consignment_reports", { id: report, location_id: randomUUID() });
   await log(
     "consignment_report_payments",
-    { id: payment, report_id: report, amount_cents: 5000 },
+    {
+      id: payment,
+      report_id: report,
+      amount_cents: 5000,
+      finance_direction: "expense",
+      finance_category: "Eventi",
+    },
     { at: newer, operation: "UPDATE", old: { id: payment, report_id: report, amount_cents: 4000 } },
   );
   await log(
     "consignment_payment_revisions",
-    { id: revision, payment_id: payment, version: 2, snapshot: { amount_cents: 5000 } },
+    {
+      id: revision,
+      payment_id: payment,
+      version: 2,
+      snapshot: { amount_cents: 5000, finance: { direction: "expense", category: "Eventi" } },
+    },
     { at: newer },
   );
   result = await feed({ area: "finance" });
   const payments = result.items.filter((item) => item.message.includes("incasso"));
   eq(payments.length, 1);
-  ok(payments[0].message.includes("da 40,00 € a 50,00 €"));
+  ok(payments[0].message.includes("da 40,00 € a -50,00 €"));
+  ok(payments[0].message.includes("Eventi"));
   // Concurrent commits: one statement never reads half an uncommitted action.
   await writerA.query("begin");
   await writerB.query("begin");

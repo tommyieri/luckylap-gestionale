@@ -8,6 +8,8 @@
 
 **Specifica:** `docs/superpowers/specs/2026-10-22-p4-p6-design.md`.
 
+**Aggiornamento del 23 ottobre:** Tommi ha confermato la consegna P2/P3 e autorizzato l’integrazione e il merge su main. I vincoli di attesa e di consegna in bozza sotto descrivono la fase iniziale; lo stato corrente e le verifiche finali sono in `docs/p4-p6-stato.md`.
+
 ## Vincoli globali
 
 Seguire AGENTS.md, DESIGN.md e la proprietà dei file. P3 termina i file Finance condivisi prima dell'integrazione P4. Nessuna mutazione cloud o main; dati sintetici soltanto. Centesimi interi, Europe/Rome, password d'area invariate. Le migrazioni P5 dipendono dallo schema P2/P3 pubblicato e saranno provate su una copia di integrazione, mai applicate al cloud senza approvazione.

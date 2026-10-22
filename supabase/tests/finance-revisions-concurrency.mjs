@@ -1,4 +1,4 @@
-// test-db: postgres minimo 30
+// test-db: postgres minimo 32
 // Real PostgreSQL 17 connections, disposable private socket, synthetic data only.
 import assert from "node:assert/strict";
 import { randomUUID } from "node:crypto";
@@ -369,6 +369,29 @@ try {
     users.finance,
   ]);
   evidence.cases.push("logout during lock wait: no mutation");
+  // Expiry must be evaluated after a real wait, not at statement start.
+  await owner.query(
+    "update private.area_grants set expires_at=clock_timestamp()+interval '500 milliseconds' where session_id=$1 and area='finance'",
+    [session("finance")],
+  );
+  await a.query("begin");
+  await a.query("select id from public.finance_entries where id=$1 for update", [sourceIds.manual]);
+  await begin(b);
+  const expired = caught(rev(b, payload("manual", { expected_version: 1 })));
+  await blocks(owner, pb, pa);
+  await owner.query("select pg_sleep(0.6)");
+  await a.query("commit");
+  equal(
+    (await expired).error?.message,
+    "finance_access_required",
+    "area expires naturally during source lock wait",
+  );
+  await b.query("rollback");
+  await owner.query(
+    "update private.area_grants set expires_at=clock_timestamp()+interval '8 hours' where session_id=$1 and area='finance'",
+    [session("finance")],
+  );
+  evidence.cases.push("natural Finance expiry during lock wait: no mutation");
   // Whole transaction rollback preserves revision, receipt and order together.
   const before = (
     await owner.query(

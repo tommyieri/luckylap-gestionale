@@ -1,0 +1,154 @@
+{
+  "contacts": [
+    {
+      "id": "L001",
+      "skipped_it": "Media scartato: il negozio non ha una rivista.",
+      "variants": [
+        {
+          "approach": "vendita",
+          "channel": "email",
+          "language": "de",
+          "to": "info@garage-uno.example.test",
+          "cc": "",
+          "subject": "LuckyLap im Garage Sintetico Uno",
+          "body": "Hallo,\n\nwir sind LuckyLap, ein synthetischer Testtext.\n\nViele Grüße\nTommi",
+          "follow_up": "Hallo, eine kurze Nachfrage zu unserer letzten Nachricht.",
+          "confirm_email": "",
+          "form_fields_it": "",
+          "gist_it": "Proposta di conto vendita per il negozio.",
+          "notes_it": "Allegare il lookbook Stockists.",
+          "lookbook": "negozi"
+        },
+        {
+          "approach": "collab",
+          "channel": "email",
+          "language": "en",
+          "to": "info@garage-uno.example.test",
+          "cc": "",
+          "subject": "A shirt together",
+          "body": "Hello,\n\nthis is a synthetic test message about a collaboration.\n\nBest regards\nTommi",
+          "follow_up": "Hello again, a short follow-up.",
+          "confirm_email": "",
+          "form_fields_it": "",
+          "gist_it": "Maglietta in collaborazione.",
+          "notes_it": "",
+          "lookbook": "collab"
+        }
+      ]
+    },
+    {
+      "id": "L002",
+      "skipped_it": "Vendita scartata: è un evento, non un negozio.",
+      "variants": [
+        {
+          "approach": "evento",
+          "channel": "form",
+          "language": "en",
+          "to": "https://raduno-due.example.test/espositori",
+          "cc": "",
+          "subject": "Exhibitor request: LuckyLap",
+          "body": "Hello,\n\nthis is a synthetic exhibitor request for a small stand.\n\nBest regards\nTommi",
+          "follow_up": "Hello, a short follow-up on our exhibitor request.",
+          "confirm_email": "Thank you for confirming our stand (synthetic text).",
+          "form_fields_it": "Nome, azienda, email, tipo di stand.",
+          "gist_it": "Richiesta di uno stand.",
+          "notes_it": "Il modulo chiede la misura dello stand.",
+          "lookbook": "eventi"
+        }
+      ]
+    },
+    {
+      "id": "n003",
+      "skipped_it": "",
+      "variants": [
+        {
+          "approach": "collab",
+          "channel": "phone",
+          "language": "it",
+          "to": "+39 000 000 0003",
+          "cc": "",
+          "subject": "",
+          "body": "Cosa dire al telefono: presentare LuckyLap e proporre una maglietta per il raduno (testo sintetico).",
+          "follow_up": "Richiamare dopo una settimana.",
+          "confirm_email": "",
+          "form_fields_it": "",
+          "gist_it": "Telefonata al club.",
+          "notes_it": "Chiedere del presidente.",
+          "lookbook": "club"
+        }
+      ]
+    },
+    {
+      "id": "L006",
+      "skipped_it": "",
+      "variants": [
+        {
+          "approach": "vendita",
+          "channel": "email",
+          "language": "de",
+          "to": "segreteria@club-sei.example.test",
+          "cc": "",
+          "subject": "Shirts für den Club-Shop",
+          "body": "Hallo,\n\nsynthetischer Text über den Club-Shop.\n\nViele Grüße\nTommi",
+          "follow_up": "Hallo, eine kurze Nachfrage.",
+          "confirm_email": "",
+          "form_fields_it": "",
+          "gist_it": "Negozio del club.",
+          "notes_it": "",
+          "lookbook": "negozi"
+        },
+        {
+          "approach": "evento",
+          "channel": "email",
+          "language": "de",
+          "to": "segreteria@club-sei.example.test",
+          "cc": "",
+          "subject": "Ein Stand beim Sommertreffen",
+          "body": "Hallo,\n\nsynthetischer Text über einen Stand.\n\nViele Grüße\nTommi",
+          "follow_up": "Hallo, eine kurze Nachfrage zum Stand.",
+          "confirm_email": "",
+          "form_fields_it": "",
+          "gist_it": "Banco al raduno.",
+          "notes_it": "",
+          "lookbook": "porsche_club"
+        },
+        {
+          "approach": "su_misura",
+          "channel": "email",
+          "language": "de",
+          "to": "segreteria@club-sei.example.test",
+          "cc": "",
+          "subject": "Ein eigenes Shirt für den Club",
+          "body": "Hallo,\n\nsynthetischer Text über ein eigenes Shirt.\n\nViele Grüße\nTommi",
+          "follow_up": "Hallo, eine kurze Nachfrage zum Shirt.",
+          "confirm_email": "",
+          "form_fields_it": "",
+          "gist_it": "Maglietta su misura.",
+          "notes_it": "",
+          "lookbook": "porsche_club"
+        },
+        {
+          "approach": "media",
+          "channel": "email",
+          "language": "en",
+          "to": "segreteria@club-sei.example.test",
+          "cc": "",
+          "subject": "A story for the club magazine",
+          "body": "Hello,\n\nsynthetic text about the club magazine.\n\nBest regards\nTommi",
+          "follow_up": "Hello, a short follow-up.",
+          "confirm_email": "",
+          "form_fields_it": "",
+          "gist_it": "Articolo nella rivista del club.",
+          "notes_it": "",
+          "lookbook": ""
+        }
+      ]
+    }
+  ],
+  "changes": [
+    {
+      "batch": 1,
+      "changes": "Lotto sintetico di prova: varianti scritte per i contatti con messaggi."
+    }
+  ]
+}

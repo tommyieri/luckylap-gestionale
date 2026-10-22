@@ -15,6 +15,7 @@ import {
 } from "@/lib/finance-revisions/model";
 import { loadFinanceRevisionHistory } from "@/lib/finance-revisions/server";
 import { readTeamPages } from "@/lib/team/read";
+import { isLocalPreviewEnabled } from "@/lib/runtime";
 export const dynamic = "force-dynamic";
 export const metadata: Metadata = { title: "Movimento Finance" };
 const panel = (title: string, description: string) => (
@@ -31,6 +32,11 @@ export default async function FinanceMovementPage({
 }: {
   searchParams: Promise<Record<string, string | string[] | undefined>>;
 }) {
+  if (isLocalPreviewEnabled())
+    return panel(
+      "Editor non disponibile nell’anteprima.",
+      "Le modifiche richiedono il workspace condiviso e la sessione Finance.",
+    );
   try {
     getSupabasePublicConfig();
   } catch {

@@ -75,7 +75,7 @@ try {
     "20261021130138_brand_assets_and_development.sql",
   ])
     await db.exec(migration(name));
-  const dependency = new URL("../migrations/20261022200000_partner_module.sql", import.meta.url);
+  const dependency = new URL("../migrations/20261022215908_partner_module.sql", import.meta.url);
   const actual = process.argv[3] ?? (existsSync(dependency) ? dependency : null);
   await db.exec(
     readFileSync(

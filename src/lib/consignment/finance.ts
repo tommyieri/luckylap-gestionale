@@ -6,6 +6,10 @@ import { verifiedSensitiveAccess } from "../auth/sensitive-access";
 import { stockRecord as record, stockUuid as uuid } from "../stock/model";
 import { consignmentDate, consignmentSplit, MAX_CENTS } from "./model";
 import { consignmentPages } from "./read";
+import {
+  readEffectiveLegacySettlements,
+  type EffectiveLegacySettlementSummary,
+} from "../finance-revisions/consignment-projection";
 export type ConsignmentFinanceRow = {
   saleId: string;
   occurredAt: string;
@@ -19,6 +23,7 @@ export type ConsignmentFinanceRow = {
   shopShareCents: number;
   settledCents: number;
   remainingCents: number;
+  overpaidCents: number;
 };
 export type ConsignmentFinanceSnapshot = { rows: ConsignmentFinanceRow[]; loadedAt: string };
 function fail(): never {
@@ -32,6 +37,7 @@ export function consignmentFinanceFromRows(
   sales: unknown[],
   settlements: unknown[],
   loadedAt = new Date().toISOString(),
+  effective?: EffectiveLegacySettlementSummary[],
 ): ConsignmentFinanceSnapshot {
   const rows = sales.map((raw) => {
     const r = record(raw) ?? fail(),
@@ -63,9 +69,25 @@ export function consignmentFinanceFromRows(
       shopShareCents: share,
       settledCents: 0,
       remainingCents: brand,
+      overpaidCents: 0,
     };
   });
   if (new Set(rows.map((r) => r.saleId)).size !== rows.length) fail();
+  if (effective) {
+    if (
+      settlements.length ||
+      effective.length !== rows.length ||
+      new Set(effective.map((r) => r.saleId)).size !== rows.length
+    )
+      fail();
+    for (const row of rows) {
+      const summary = effective.find((s) => s.saleId === row.saleId) ?? fail();
+      if (summary.claimCents !== BigInt(row.brandClaimCents)) fail();
+      row.settledCents = Number(summary.netCents);
+      row.remainingCents = Number(summary.amountDueCents);
+      row.overpaidCents = Number(summary.refundDueCents);
+    }
+  }
   const seen = new Set<string>();
   for (const raw of settlements) {
     const r = record(raw) ?? fail(),
@@ -99,12 +121,14 @@ export async function readConsignmentFinance(supabase: SupabaseClient, member: V
       if (after !== null) q = q.gt("id", after);
       return q;
     });
-  const [sales, settlements] = await Promise.all([
-    read(
-      "consignment_sales",
-      "id,occurred_at,location_id,sku_snapshot,quantity,external_reference,web_price_cents,gross_cents,brand_claim_cents,shop_share_cents,shop:stock_locations!consignment_sales_location_id_fkey(code,name)",
-    ),
-    read("consignment_settlements", "id,sale_id,amount_cents"),
-  ]);
-  return { status: "ready" as const, snapshot: consignmentFinanceFromRows(sales, settlements) };
+  const sales = await read(
+    "consignment_sales",
+    "id,occurred_at,location_id,sku_snapshot,quantity,external_reference,web_price_cents,gross_cents,brand_claim_cents,shop_share_cents,shop:stock_locations!consignment_sales_location_id_fkey(code,name)",
+  );
+  const ids = sales.map((raw) => id((record(raw) ?? fail()).id));
+  const effective = await readEffectiveLegacySettlements(supabase, ids);
+  return {
+    status: "ready" as const,
+    snapshot: consignmentFinanceFromRows(sales, [], new Date().toISOString(), effective),
+  };
 }

@@ -202,6 +202,7 @@ export function StockAdjustmentForm({
             ))}
           </select>
         </label>
+        <p className={styles.help}>Il negozio si conta dal Conto vendita.</p>
       </fieldset>
       {selected && (
         <div className={styles.selectionResult}>
@@ -237,7 +238,7 @@ export function StockAdjustmentForm({
           <p>
             {snapshot.items.find((row) => row.id === command.itemId)?.sku ?? command.itemId} ·{" "}
             {snapshot.locations.find((row) => row.id === command.locationId)?.name ??
-              command.locationId}
+              "Sede non più tra i magazzini"}
           </p>
           <p>
             <strong>

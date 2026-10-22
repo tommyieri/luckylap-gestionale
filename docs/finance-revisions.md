@@ -1,6 +1,6 @@
 # P4 — Nucleo delle revisioni Finance
 
-Il nucleo conserva le fonti e registra correzioni applicative complete, attribuite all’utente autenticato. Non applica migrazioni al cloud, non abilita funzioni operative e non chiama Shopify. Le schermate Finance e il nuovo contratto P3 vanno integrati separatamente prima della pubblicazione.
+Finance conserva le fonti e registra correzioni applicative complete, attribuite all’utente autenticato. Saldi, grafici, categorie, filtri e registro usano la stessa proiezione corretta. Non chiama Shopify né modifica le osservazioni del provider.
 
 ## Fonti e versioni
 
@@ -40,7 +40,7 @@ I nomi esatti dei campi e i DTO si trovano in `src/lib/finance-revisions/model.t
 
 `public.finance_movement_revisions` è append-only e leggibile soltanto con `private.can_finance()`. La vista `finance_revision_current` usa `security_invoker=true`. I client non hanno DML né accesso alle ricevute private; i wrapper pubblici sono invoker e i processori privati controllano l’autorizzazione corrente. Rimangono in vigore membership, password Finance, versione della password, scadenza e presenza della sessione Auth nel database.
 
-API nuove per l’integrazione:
+API della proiezione:
 
 - `loadFinanceRevisions(client)` legge tutte le revisioni correnti, con paginazione completa e conteggio esatto.
 - `loadFinanceRevisionHistory(client, ref)` legge fonte/versione zero e storico ordinato, senza inventare revisioni mancanti.
@@ -63,14 +63,20 @@ Eliminare un incasso riapre il residuo. Ripristinarlo dopo un altro pagamento es
 
 `private.effective_consignment_settlement_summary` somma gli incassi effettivi corretti della vecchia vendita e conserva il credito/60–40 originale. Il vecchio `record_consignment_settlement` usa questo residuo sotto lock della medesima vendita, con ricevuta invariata. `readEffectiveLegacySettlements` espone netto, credito, residuo e sovraincasso solo dopo una nuova verifica Finance.
 
-**Requisiti di integrazione prima di applicare la migrazione:**
+**Collegamenti operativi:**
 
-1. Il reader Vendite deve accettare anche gli stati parziali per ordini manuali e consumare sempre la nuova proiezione, compresi i passaggi di giorno delle date future. Il modulo del pagamento deve usare `effectiveAmountDueCents`.
-2. La dashboard P3 deve aggiungere le revisioni alla propria opzione, mantenendo `settlements` e `shopPayments`; i ripristini di manuali già annullati devono fornire la versione zero mancante dal vecchio filtro.
-3. I reader legacy conto vendita non devono validare il totale dei pagamenti raw come totale efficace. Dopo una correzione, raw originali più nuovo saldo possono superare il credito: il controllo corretto è sulla proiezione. Non sommare lordo, credito e incasso.
+1. Vendite legge la proiezione efficace, compresi i passaggi di giorno delle date future. Il modulo del pagamento usa `effectiveAmountDueCents` e consente il nuovo incasso del residuo.
+2. La dashboard conserva `settlements` e `shopPayments`, applica le revisioni prima di ogni aggregazione e recupera la fonte originale per i manuali già annullati.
+3. Il reader legacy conto vendita conserva credito e ripartizione, ma usa il netto degli incassi corretti. Dopo una correzione, originali più nuovo saldo possono superare il credito: residuo e sovraincasso dipendono dalla proiezione efficace. Non si sommano lordo, credito e incasso.
 4. La vecchia azione `void_finance_entry` rimane compatibile per fonti mai corrette e per retry già riusciti. Su una fonte revisionata risponde `use_finance_revisions`; i nuovi pulsanti devono usare P4.
 
-Questi adattamenti delle schermate/reader esistenti attendono la consegna P3; il nucleo non cambia di nascosto il codice occupato.
+## Incassi mensili P3
+
+`/finance/incasso/<UUID>` usa il pagamento P3 e il suo storico completo. Data, importo, conto, entrata/uscita, categoria, descrizione e stato pianificato vengono corretti con `update_consignment_payment`, la stessa versione attesa e le stesse ricevute P3. Eliminare imposta `voided`; ripristinare copia uno snapshot storico in una nuova versione. I vecchi comandi P3 rimangono compatibili e conservano i campi Finance quando non li specificano.
+
+Solo importi non eliminati, non pianificati e con data già raggiunta nel giorno di Roma concorrono all’incassato netto. Una uscita lo riduce; un’eccedenza resta visibile come «Da restituire». Nessuna correzione cambia pezzi venduti, prezzi, scorte, ripartizione o fattura. Lo stato operativo del pagamento viene riletto dal medesimo calcolo anche per chi non ha accesso ai dati Finance: la risposta contiene soltanto ID e stato.
+
+Oggi mostra i conti mensili e legacy da regolare soltanto agli utenti idonei Finance. Riverifica sessione, ruolo e apertura dell’area prima delle proiezioni; senza accesso corrente non legge importi. Un errore impedisce la visualizzazione di totali parziali.
 
 ## Verifiche locali
 

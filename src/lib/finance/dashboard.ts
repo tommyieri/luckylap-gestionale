@@ -4,7 +4,7 @@ import { FINANCE_CATEGORY_GROUPS, financeCategoryGroup } from "./categories";
 
 export type FinanceMovement = {
   id: string;
-  source: "budgetflow" | "manual" | "payment" | "refund" | "consignment";
+  source: "budgetflow" | "manual" | "payment" | "refund" | "consignment" | "shop_payment";
   sourceId: string;
   date: string;
   cents: bigint;
@@ -16,6 +16,8 @@ export type FinanceMovement = {
   future: boolean;
   transfer: boolean;
   allocationNote: string | null;
+  /** Pagina della fonte, se ne ha una: per i pagamenti del negozio, il resoconto del mese. */
+  href?: string;
 };
 export type AccountBalance = {
   name: string;
@@ -54,6 +56,39 @@ export type DashboardSettlement = {
   occurredAt: string;
   method: "cash" | "bank_transfer" | "other";
   reference: string;
+};
+/**
+ * Pagamento di un resoconto mensile del conto vendita (decisione 13): sorgente
+ * `shop_payment`, id `shop-payment:<id>`. Solo i pagamenti non annullati; il
+ * resoconto resta un importo da incassare e non diventa mai un movimento.
+ */
+export type DashboardShopPayment = {
+  id: string;
+  reportId: string;
+  locationId: string;
+  cents: number;
+  paidAt: string;
+  method: "bank_transfer" | "cash" | "other";
+  /** Conto normalizzato; contanti senza conto → «Cash»; altrimenti da attribuire. */
+  account: string | null;
+  allocationNote: string | null;
+  reference: string | null;
+  shopName: string;
+  month: string;
+  monthLabel: string;
+  /** Il resoconto del mese: lì il pagamento si modifica, con il suo storico. */
+  href: string;
+  direction?: "income" | "expense";
+  category?: string | null;
+  description?: string;
+  pending?: boolean;
+};
+/** Fonti in più della dashboard (decisione 14). P4 aggiunge `revisions`. */
+export type FinanceDashboardOptions = {
+  /** Incassi vecchi del conto vendita (`consignment_settlements`). */
+  settlements?: DashboardSettlement[];
+  /** Pagamenti dei resoconti mensili del conto vendita. */
+  shopPayments?: DashboardShopPayment[];
 };
 
 /** Parse decimal source text, never multiply a floating point euro amount. */
@@ -96,8 +131,9 @@ export function buildFinanceDashboard(
   imports: FinanceSnapshot,
   work: FinanceWorkSnapshot,
   reportDate: string,
-  settlements: DashboardSettlement[] = [],
+  options: FinanceDashboardOptions = {},
 ): FinanceDashboard {
+  const { settlements = [], shopPayments = [] } = options;
   if (!transactionTiming(reportDate, false, reportDate))
     throw new Error("Data del riepilogo non valida.");
   const movements: FinanceMovement[] = imports.transactions.map((row) => {
@@ -199,6 +235,30 @@ export function buildFinanceDashboard(
       future: date > reportDate,
       transfer: false,
       allocationNote: cash ? null : "Conto dell’incasso conto vendita non attribuito.",
+    });
+  }
+  // Solo il denaro ricevuto dal negozio, una volta, sul suo conto. Incasso del
+  // negozio, quota e importo da fatturare restano fuori da saldi e categorie.
+  for (const row of shopPayments) {
+    const date = inRome(row.paidAt),
+      account = financeAccountLabel(row.account);
+    movements.push({
+      id: `shop-payment:${row.id}`,
+      source: "shop_payment",
+      sourceId: row.id,
+      date,
+      cents: workCents(row.cents) * (row.direction === "expense" ? -1n : 1n),
+      account,
+      targetAccount: null,
+      category: row.category === undefined ? "Vendite" : (row.category ?? ""),
+      description:
+        row.description ??
+        [`Resoconto di ${row.monthLabel}`, row.shopName, row.reference].filter(Boolean).join(" · "),
+      pending: row.pending ?? false,
+      future: date > reportDate,
+      transfer: false,
+      allocationNote: account ? null : "Conto dell’incasso conto vendita non attribuito.",
+      href: row.href,
     });
   }
   if (new Set(movements.map((row) => row.id)).size !== movements.length)

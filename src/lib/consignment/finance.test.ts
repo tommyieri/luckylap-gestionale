@@ -1,8 +1,11 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
-const mocks = vi.hoisted(() => ({ member: vi.fn(), sensitive: vi.fn() }));
+const mocks = vi.hoisted(() => ({ member: vi.fn(), sensitive: vi.fn(), effective: vi.fn() }));
 vi.mock("server-only", () => ({}));
 vi.mock("../auth/server", () => ({ verifiedMember: mocks.member }));
 vi.mock("../auth/sensitive-access", () => ({ verifiedSensitiveAccess: mocks.sensitive }));
+vi.mock("../finance-revisions/consignment-projection", () => ({
+  readEffectiveLegacySettlements: mocks.effective,
+}));
 import { consignmentFinanceFromRows, readConsignmentFinance } from "./finance";
 import { consignmentSaleRow, cs } from "./fixtures";
 const financeSale = () => ({
@@ -19,6 +22,16 @@ beforeEach(() => {
   vi.clearAllMocks();
   mocks.member.mockResolvedValue({ status: "member", member });
   mocks.sensitive.mockResolvedValue(false);
+  mocks.effective.mockImplementation(async (_db, ids: string[]) =>
+    ids.map((saleId) => ({
+      saleId,
+      claimCents: 3001n,
+      netCents: 0n,
+      amountDueCents: 3001n,
+      refundDueCents: 0n,
+      corrected: false,
+    })),
+  );
 });
 describe("isolated Finance credit projection", () => {
   it("denied or locked users make zero table queries", async () => {
@@ -63,7 +76,7 @@ describe("isolated Finance credit projection", () => {
       consignmentFinanceFromRows([], [{ id: cs.settlement, sale_id: cs.sale, amount_cents: 1 }]),
     ).toThrow(/completa/);
   });
-  it("reads exactly the two RLS tables after the fresh password gate", async () => {
+  it("reads the RLS source and canonical effective summary after the fresh password gate", async () => {
     mocks.sensitive.mockResolvedValue(true);
     const calls: string[] = [];
     const replies = [
@@ -83,6 +96,7 @@ describe("isolated Finance credit projection", () => {
     const result = await readConsignmentFinance(client as never, member);
     expect(result.status).toBe("ready");
     expect(mocks.sensitive).toHaveBeenCalledWith(client, member, "finance");
-    expect(calls).toEqual(["consignment_sales", "consignment_settlements"]);
+    expect(calls).toEqual(["consignment_sales"]);
+    expect(mocks.effective).toHaveBeenCalledWith(client, [cs.sale]);
   });
 });

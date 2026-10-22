@@ -32,6 +32,9 @@ const euro = (value: number | null) =>
     : new Intl.NumberFormat("it-IT", { style: "currency", currency: "EUR" }).format(value);
 const qty = (value: number | null) =>
   value === null ? "n.d." : new Intl.NumberFormat("it-IT").format(value);
+/** «In negozio»: «—» finché nessun negozio è stato contato (03-4). */
+const shopQty = (value: number | null) =>
+  value === null ? "—" : new Intl.NumberFormat("it-IT").format(value);
 const sumKnown = (values: (number | null)[]) =>
   values.length && values.every((value) => value !== null)
     ? values.reduce<number>((sum, value) => sum + (value ?? 0), 0)
@@ -186,7 +189,7 @@ function InventoryView({
       "Colore",
       "Taglia",
       "Magazzino",
-      "LCM",
+      "In negozio",
       "Costo unitario EUR",
       "Prezzo web EUR",
     ];
@@ -250,10 +253,10 @@ function InventoryView({
           </strong>
         </div>
         <div className="summary-cell">
-          <span>LCM · conto vendita</span>
+          <span>In negozio</span>
           <strong className={inConsignment === null ? "value-unavailable" : ""}>
-            {qty(inConsignment)}
-            <small>{inConsignment === null ? "dato incompleto" : "pezzi"}</small>
+            {shopQty(inConsignment)}
+            <small>{inConsignment === null ? "da contare" : "pezzi"}</small>
           </strong>
         </div>
         <div className="summary-source">
@@ -270,7 +273,8 @@ function InventoryView({
         <AlertCircle size={16} />
         <p>
           Le quantità mancanti sono indicate con <strong>n.d.</strong> e non vengono considerate
-          zero. Le scorte Shopify non sono incluse.
+          zero. «In negozio» somma i negozi già contati in Conto vendita: <strong>—</strong> finché
+          nessun negozio è stato contato. Le scorte Shopify non sono incluse.
         </p>
       </div>
       <section className="inventory-panel" aria-label="Inventario prodotti">
@@ -342,7 +346,7 @@ function InventoryView({
                   Magazzino
                 </th>
                 <th scope="col" className="numeric">
-                  LCM · conto vendita
+                  In negozio
                 </th>
                 <th scope="col" className="numeric">
                   Prezzo web
@@ -399,7 +403,7 @@ function InventoryView({
                     <td
                       className={`numeric quantity ${item.consignmentQuantity === null ? "muted" : ""}`}
                     >
-                      {qty(item.consignmentQuantity)}
+                      {shopQty(item.consignmentQuantity)}
                     </td>
                     <td className="numeric price">{euro(item.webPrice)}</td>
                     <td>
@@ -435,7 +439,7 @@ function InventoryView({
           </EmptyState>
         )}
         <div className="table-footer">
-          <span>Magazzino e LCM restano separati.</span>
+          <span>Magazzino e negozi restano separati.</span>
           <span>
             {filtered.length} / {items.length} varianti
           </span>
@@ -527,10 +531,10 @@ function ProductDetail({
               </strong>
             </div>
             <div>
-              <span>LCM · conto vendita</span>
+              <span>In negozio</span>
               <strong>
-                {qty(item.consignmentQuantity)}
-                <small>{item.consignmentQuantity === null ? "da verificare" : "pezzi"}</small>
+                {shopQty(item.consignmentQuantity)}
+                <small>{item.consignmentQuantity === null ? "da contare" : "pezzi"}</small>
               </strong>
             </div>
           </div>

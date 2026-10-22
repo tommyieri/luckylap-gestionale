@@ -7,7 +7,15 @@ export async function runFinanceWork(value: unknown): Promise<FinanceWorkResult>
   try {
     const supabase = await createSupabaseServerClient({ writable: true });
     const result = await executeFinanceWork(supabase, value);
-    if (result.status === "success") revalidatePath("/finance/work");
+    if (result.status === "success") {
+      for (const path of ["/finance", "/finance/work", "/", "/audit"]) {
+        try {
+          revalidatePath(path);
+        } catch {
+          /* A confirmed receipt survives cache errors. */
+        }
+      }
+    }
     return result;
   } catch {
     return {
