@@ -1,5 +1,5 @@
 .notice {
-  font-size: 12px;
+  font-size: var(--text-md);
   color: var(--muted);
   line-height: 1.7;
   max-width: 90ch;
@@ -20,11 +20,11 @@
   margin-bottom: 20px;
 }
 .libraryHeading h2 {
-  font-size: 18px;
+  font-size: var(--text-lg);
   font-weight: 600;
 }
 .libraryHeading h2 span {
-  font-size: 12px;
+  font-size: var(--text-sm);
   color: var(--muted);
   font-weight: 400;
   margin-left: 7px;
@@ -38,7 +38,7 @@
 .filters label {
   display: grid;
   gap: 5px;
-  font-size: 11px;
+  font-size: var(--text-sm);
   color: var(--muted);
   min-width: 0;
 }
@@ -49,12 +49,12 @@
 .filters select {
   min-width: 0;
   width: 100%;
-  min-height: 39px;
+  min-height: var(--tap);
   padding: 9px 11px;
   border: 1px solid var(--rule);
-  border-radius: 5px;
+  border-radius: var(--radius-control);
   background: var(--paper);
-  font-size: 12px;
+  font-size: var(--text-md);
   color: var(--ink);
 }
 .grid {
@@ -69,7 +69,7 @@
   min-width: 0;
   background: var(--paper);
   border: 1px solid var(--rule);
-  border-radius: 8px;
+  border-radius: 0;
   overflow: hidden;
 }
 .preview {
@@ -99,7 +99,7 @@
   gap: 10px;
   justify-items: center;
   color: var(--muted);
-  font-size: 11px;
+  font-size: var(--text-sm);
 }
 .filePlaceholder svg {
   color: var(--green);
@@ -108,25 +108,25 @@
   padding: 17px;
 }
 .type {
-  font-size: 10px;
+  font-size: var(--text-xs);
   color: var(--muted);
   margin-bottom: 6px;
 }
 .assetBody h3 {
-  font-size: 16px;
+  font-size: var(--text-md);
   font-weight: 600;
   line-height: 1.4;
   overflow-wrap: anywhere;
 }
 .description {
-  font-size: 12px;
+  font-size: var(--text-sm);
   line-height: 1.7;
   white-space: pre-wrap;
   overflow-wrap: anywhere;
   margin-top: 9px;
 }
 .fileMeta {
-  font-size: 10px;
+  font-size: var(--text-xs);
   color: var(--muted);
   overflow-wrap: anywhere;
   line-height: 1.6;
@@ -139,19 +139,19 @@
   display: inline-flex;
   align-items: center;
   gap: 6px;
-  font-size: 11px;
+  font-size: var(--text-sm);
   margin-top: 12px;
-  min-height: 25px;
+  min-height: var(--tap);
 }
 .uploadPanel {
   background: var(--paper);
   border: 1px solid var(--rule);
-  border-radius: 8px;
+  border-radius: 0;
   padding: 22px;
   min-width: 0;
 }
 .uploadPanel h2 {
-  font-size: 17px;
+  font-size: var(--text-lg);
   font-weight: 600;
   line-height: 1.4;
   margin-bottom: 20px;
@@ -164,7 +164,7 @@
 }
 .form label {
   display: block;
-  font-size: 11px;
+  font-size: var(--text-sm);
   font-weight: 500;
   margin-bottom: 14px;
   min-width: 0;
@@ -179,22 +179,22 @@
   display: block;
   width: 100%;
   min-width: 0;
-  min-height: 40px;
+  min-height: var(--tap);
   margin-top: 6px;
   padding: 9px 10px;
   border: 1px solid var(--rule);
-  border-radius: 5px;
+  border-radius: var(--radius-control);
   color: var(--ink);
   background: #fff;
   font-family: inherit;
-  font-size: 12px;
+  font-size: var(--text-md);
 }
 .form textarea {
   resize: vertical;
   line-height: 1.7;
 }
 .form input[type="file"] {
-  font-size: 10px;
+  font-size: var(--text-md);
   padding: 9px 7px;
 }
 .fieldPair {
@@ -205,14 +205,14 @@
 .help {
   display: block;
   font-weight: 400;
-  font-size: 10px;
+  font-size: var(--text-xs);
   line-height: 1.7;
   color: var(--muted);
   margin-top: 8px;
 }
 .error,
 .success {
-  font-size: 11px;
+  font-size: var(--text-sm);
   line-height: 1.7;
   margin-top: 16px;
   overflow-wrap: anywhere;
@@ -224,10 +224,10 @@
   color: var(--green);
 }
 .pending > strong {
-  font-size: 13px;
+  font-size: var(--text-sm);
 }
 .pending > p {
-  font-size: 12px;
+  font-size: var(--text-sm);
   line-height: 1.7;
   margin-top: 10px;
   overflow-wrap: anywhere;
@@ -239,19 +239,19 @@
   margin-top: 17px;
 }
 .actions button {
-  font-size: 11px;
+  font-size: var(--text-sm);
 }
 .empty {
   padding: 25px 0;
 }
 .empty h3 {
-  font-size: 19px;
+  font-size: var(--text-lg);
   font-weight: 500;
   line-height: 1.4;
   margin-bottom: 9px;
 }
 .empty p {
-  font-size: 12px;
+  font-size: var(--text-sm);
   line-height: 1.7;
   color: var(--muted);
   max-width: 60ch;
@@ -270,7 +270,6 @@
     gap: 25px;
   }
   .notice {
-    font-size: 11px;
     margin-bottom: 23px;
   }
   .grid {
@@ -281,30 +280,20 @@
     padding: 13px;
   }
   .assetBody h3 {
-    font-size: 14px;
+    font-size: var(--text-md);
   }
   .description {
-    font-size: 11px;
+    font-size: var(--text-sm);
   }
   .type,
   .fileMeta {
-    font-size: 9px;
+    font-size: var(--text-xs);
   }
   .fileLink {
-    font-size: 10px;
+    font-size: var(--text-xs);
   }
   .uploadPanel {
     padding: 20px 17px;
-  }
-  .form input,
-  .form textarea,
-  .form select,
-  .filters input,
-  .filters select {
-    font-size: 16px;
-  }
-  .form input[type="file"] {
-    font-size: 12px;
   }
   .filters {
     gap: 9px;
@@ -328,6 +317,6 @@
     aspect-ratio: 4/3;
   }
   .assetBody h3 {
-    font-size: 16px;
+    font-size: var(--text-md);
   }
 }

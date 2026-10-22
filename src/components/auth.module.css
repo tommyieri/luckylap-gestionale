@@ -5,7 +5,7 @@
 .eyebrow {
   display: block;
   color: var(--muted);
-  font-size: 11px;
+  font-size: var(--text-sm);
   margin-bottom: 10px;
 }
 .form {
@@ -16,26 +16,26 @@
 .form label {
   display: grid;
   gap: 6px;
-  font-size: 12px;
+  font-size: var(--text-sm);
   font-weight: 500;
 }
 .form input,
 .form select {
   width: 100%;
-  min-height: 43px;
+  min-height: var(--tap);
   padding: 10px 12px;
   border: 1px solid var(--rule);
-  border-radius: 5px;
+  border-radius: var(--radius-control);
   background: var(--paper);
   color: var(--ink);
 }
 .error {
   color: var(--red) !important;
-  font-size: 12px !important;
+  font-size: var(--text-sm) !important;
   line-height: 1.6 !important;
 }
 .help {
-  font-size: 12px !important;
+  font-size: var(--text-sm) !important;
   margin-top: 20px !important;
 }
 .actions {
@@ -52,16 +52,16 @@
   padding: 15px;
   background: var(--tint);
   border: 1px solid var(--rule);
-  border-radius: 6px;
+  border-radius: 0;
   margin-top: 24px;
 }
 .status strong {
   display: block;
-  font-size: 13px;
+  font-size: var(--text-sm);
   margin-bottom: 4px;
 }
 .status p {
-  font-size: 12px !important;
+  font-size: var(--text-sm) !important;
 }
 .qr {
   display: block;
@@ -75,7 +75,7 @@
 .secret {
   display: block;
   overflow-wrap: anywhere;
-  font-size: 12px;
+  font-size: var(--text-sm);
   background: var(--tint);
   padding: 12px;
   margin: 8px 0;
@@ -86,19 +86,12 @@
   margin-top: 25px;
 }
 .mfaSection h2 {
-  font-size: 17px;
+  font-size: var(--text-lg);
   margin-bottom: 9px;
 }
 .mfaSection p {
-  font-size: 12px;
+  font-size: var(--text-sm);
 }
 .panel :global(.wordmark) {
   margin-bottom: 25px;
-}
-
-@media (max-width: 640px) {
-  .form input,
-  .form select {
-    font-size: 16px;
-  }
 }

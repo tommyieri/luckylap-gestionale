@@ -1,7 +1,7 @@
 .section {
   background: var(--paper);
   border: 1px solid var(--rule);
-  border-radius: 8px;
+  border-radius: 0;
   margin-top: 22px;
   overflow: hidden;
 }
@@ -14,18 +14,18 @@
   border-bottom: 1px solid var(--rule);
 }
 .heading h2 {
-  font-size: 18px;
+  font-size: var(--text-lg);
 }
 .heading > span {
-  font-size: 11px;
+  font-size: var(--text-sm);
   color: var(--green);
   background: var(--green-wash);
   border: 1px solid var(--rule);
-  border-radius: 4px;
+  border-radius: 0;
   padding: 4px 8px;
 }
 .caption {
-  font-size: 12px;
+  font-size: var(--text-sm);
   color: var(--muted);
   line-height: 1.7;
   margin: 14px 22px;
@@ -35,7 +35,7 @@
   grid-template-columns: repeat(6, minmax(0, 1fr));
   margin: 18px 22px;
   border: 1px solid var(--rule);
-  border-radius: 6px;
+  border-radius: 0;
 }
 .counts > div {
   padding: 12px 14px;
@@ -45,22 +45,26 @@
   border-left: 1px solid var(--rule);
 }
 .counts dt {
-  font-size: 10px;
+  font-size: var(--text-xs);
   color: var(--muted);
   line-height: 1.6;
 }
 .counts dd {
   margin: 4px 0 0;
-  font-size: 24px;
+  font-family: var(--f-cond);
+  font-size: var(--text-xl);
+  font-weight: 600;
   font-variant-numeric: tabular-nums;
   color: var(--ink);
 }
 .reviews {
   border-top: 1px solid var(--rule);
   padding: 18px 22px;
-  font-size: 12px;
+  font-size: var(--text-sm);
 }
 .reviews summary {
+  min-height: var(--tap);
+  padding: 11px 0;
   cursor: pointer;
   font-weight: 600;
   color: var(--green);
@@ -84,18 +88,21 @@
   border-top: 1px solid var(--rule);
 }
 .reviews strong {
-  font-size: 12px;
+  font-size: var(--text-sm);
   line-height: 1.6;
   display: block;
 }
 .reviews li span {
   display: block;
-  font-size: 10px;
+  font-size: var(--text-xs);
   color: var(--muted);
   margin-top: 3px;
 }
 .reviews a {
-  font-size: 11px;
+  display: inline-flex;
+  align-items: center;
+  min-height: var(--tap);
+  font-size: var(--text-sm);
   flex-shrink: 0;
 }
 @media (max-width: 900px) {
@@ -113,9 +120,6 @@
   .heading {
     padding: 16px;
     align-items: flex-start;
-  }
-  .heading h2 {
-    font-size: 17px;
   }
   .heading > span {
     white-space: nowrap;
@@ -147,8 +151,5 @@
     align-items: flex-start;
     flex-direction: column;
     gap: 8px;
-  }
-  .counts dd {
-    font-size: 22px;
   }
 }
