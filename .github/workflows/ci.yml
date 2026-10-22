@@ -17,8 +17,8 @@ concurrency:
 env:
   # Minimo reale con il lockfile: Node.js 22.12 (vitest 5 accetta 22.12+, 24 e 26+;
   # i pacchetti Supabase chiedono almeno 22). Il «20.9» del README non basta.
-  # Si usa 24, la LTS attiva. La versione Node del progetto Vercel non è scritta
-  # nel repository: verificarla nel progetto e allineare questo valore.
+  # Si usa 24, la stessa versione del progetto Vercel «luckylap» (Node.js 24.x,
+  # verificato il 22 ottobre 2026): se cambia su Vercel, cambiarla anche qui.
   NODE_VERSION: "24"
   NEXT_TELEMETRY_DISABLED: "1"
 
