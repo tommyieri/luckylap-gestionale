@@ -1,0 +1,30 @@
+{
+  "formato": "luckylap-partner-export",
+  "versione": 1,
+  "esportato": "2026-10-20T17:30:00.000Z",
+  "dispositivo": "telefono",
+  "contatti": {
+    "L001": "Garage Sintetico Uno",
+    "L002": "Raduno Due (nome vecchio)",
+    "n003": "Club Registro Tre",
+    "n004": "Creator Sintetico Quattro",
+    "Z999": "Contatto sparito"
+  },
+  "stato": {
+    "L001": "contattato",
+    "L002": "risposto",
+    "n003": "contattato",
+    "n004": "da_contattare",
+    "Z999": "contattato"
+  },
+  "testi": {
+    "L001|vendita|body": "Hallo,\n\nTesto modificato sul telefono (sintetico).\n\nViele Grüße\nTommi",
+    "L002|evento|subject": "Oggetto scritto sul telefono",
+    "L001|media|body": "Testo per una variante che non esiste"
+  },
+  "approccio": {
+    "L001": "vendita",
+    "L002": "evento"
+  },
+  "vista": null
+}

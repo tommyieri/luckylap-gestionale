@@ -53,6 +53,10 @@ Alcuni documenti scritti prima del modello attuale chiedono ancora una sessione 
 
 - [Conto vendita](consignment.md): modulo `/consignment` con negozi, conta in negozio, resoconto mensile da fatturare (60% LuckyLap, 40% negozio), pagamenti in Finance e ordini del negozio.
 
+## Partner
+
+- [Partner nel gestionale](partner.md): pagina `/partner` con contatti, periodi, messaggi e stati, import della ricerca e dei file «Esporta», lookbook, privacy e GitHub Pages.
+
 ## Team, contenuti e sviluppo
 
 - [Layout condiviso e navigazione](workspace-layout.md): guscio comune a tutte le pagine, mappa delle sezioni, token di stile e regole per le pagine nuove.
