@@ -214,7 +214,9 @@ describe("two material packaging workspace", () => {
       })),
     };
     const copy = text(PackagingWorkspace({ snapshot: changed, member }));
-    expect(copy).toContain("Consumi da riconciliare:  6");
+    expect(copy).toContain("Scatole e adesivi da scalare:  6");
+    expect(copy).toContain("3  da scalare");
+    expect(copy).not.toContain("riconciliare");
     expect(copy).toContain("Mancano 2");
     expect(copy).toContain("provvisorie");
   });

@@ -33,7 +33,7 @@ const failure = (error: unknown, stored = false): AssetResult => ({
     error instanceof AssetInputError
       ? error.message
       : stored
-        ? "Il file può essere già caricato nel contenitore privato, ma la voce non è confermata. Usa Verifica e completa prima di inviarlo di nuovo."
+        ? "Il file può essere già nell’archivio privato del team, ma la voce non è confermata. Usa Verifica e completa prima di inviarlo di nuovo."
         : "Operazione non confermata. Aggiorna la libreria prima di riprovare.",
 });
 
@@ -117,7 +117,7 @@ export async function registerBrandLink(input: {
   try {
     const { supabase } = await access();
     if (!isTeamId(input?.operationId))
-      throw new AssetInputError("Ricarica la pagina per aggiungere il collegamento.");
+      throw new AssetInputError("Ricarica la pagina per aggiungere il link.");
     const fields = parseAssetFields(input.fields),
       url = parseBrandLink(input.url);
     const registered = await supabase.rpc("register_brand_asset", {
@@ -135,7 +135,7 @@ export async function registerBrandLink(input: {
     assertRegistration(registered.error);
     if (!isTeamId(registered.data)) throw new Error("Registrazione non confermata.");
     revalidatePath("/assets");
-    return { id: registered.data, success: "Collegamento aggiunto alla libreria del team." };
+    return { id: registered.data, success: "Link aggiunto alla libreria del team." };
   } catch (error) {
     return failure(error);
   }

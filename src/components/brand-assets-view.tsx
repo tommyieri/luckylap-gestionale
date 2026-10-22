@@ -53,8 +53,8 @@ export function BrandAssetsView({
         </p>
       )}
       <p className={styles.notice}>
-        Gli originali sono conservati nel contenitore privato del brand. I collegamenti esterni si
-        aprono nel servizio di origine.
+        Gli originali sono conservati nell’archivio privato del team. I link esterni si aprono nel
+        servizio di origine.
       </p>
       <div className={styles.layout}>
         <section aria-labelledby="library-title" className={styles.library}>
@@ -115,7 +115,7 @@ export function BrandAssetsView({
               <p>
                 {showArchived
                   ? "Qui compaiono i contenuti tolti dalla libreria. «Ripristina» li riporta per tutti."
-                  : "Carica un originale o aggiungi un collegamento a una grafica, un logo, una foto o un video."}
+                  : "Carica un originale o aggiungi un link a una grafica, un logo, una foto o un video."}
               </p>
             </div>
           ) : (
@@ -156,7 +156,7 @@ export function BrandAssetsView({
                           <FileImage size={28} aria-hidden="true" />
                           <span>
                             {external
-                              ? "Collegamento"
+                              ? "Link"
                               : asset.contentType === "image/svg+xml"
                                 ? "SVG · solo download"
                                 : "Originale"}
@@ -189,7 +189,7 @@ export function BrandAssetsView({
                           rel="noopener noreferrer"
                           className={styles.fileLink}
                         >
-                          Apri collegamento
+                          Apri link
                           <ExternalLink size={13} aria-hidden="true" />
                         </a>
                       )}

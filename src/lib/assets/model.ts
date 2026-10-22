@@ -148,9 +148,7 @@ export function parseBrandLink(value: unknown): string {
     url.password ||
     url.href.length > 2048
   )
-    throw new AssetInputError(
-      "Il collegamento deve usare HTTPS, senza credenziali nell’indirizzo.",
-    );
+    throw new AssetInputError("Il link deve usare HTTPS, senza credenziali nell’indirizzo.");
   return url.href;
 }
 

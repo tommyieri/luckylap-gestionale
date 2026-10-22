@@ -57,22 +57,30 @@
   font-variant-numeric: tabular-nums;
   color: var(--ink);
 }
+.updated {
+  font-size: var(--text-md);
+  line-height: 1.6;
+  margin: 0 22px 16px;
+}
+.updated strong {
+  font-weight: 600;
+}
 .reviews {
   border-top: 1px solid var(--rule);
   padding: 18px 22px;
   font-size: var(--text-sm);
+  background: var(--amber-wash);
 }
-.reviews summary {
-  min-height: var(--tap);
-  padding: 11px 0;
-  cursor: pointer;
+.reviews h3 {
+  font-size: var(--text-md);
   font-weight: 600;
-  color: var(--green);
+  color: var(--ink);
 }
-.reviews > p {
-  margin-top: 12px;
-  color: var(--muted);
-  line-height: 1.7;
+.reviewHelp {
+  margin-top: 6px;
+  color: var(--ink-2);
+  font-size: var(--text-md);
+  line-height: 1.6;
 }
 .reviews ul {
   list-style: none;
@@ -104,6 +112,18 @@
   min-height: var(--tap);
   font-size: var(--text-sm);
   flex-shrink: 0;
+}
+.technical {
+  border-top: 1px solid var(--rule);
+}
+.technical summary {
+  display: flex;
+  align-items: center;
+  min-height: var(--tap);
+  padding: 0 22px;
+  font-size: var(--text-sm);
+  color: var(--muted);
+  cursor: pointer;
 }
 @media (max-width: 900px) {
   .counts {
@@ -144,8 +164,14 @@
   .counts > div:nth-child(n + 3) {
     border-top: 1px solid var(--rule);
   }
+  .updated {
+    margin: 0 16px 14px;
+  }
   .reviews {
     padding: 16px;
+  }
+  .technical summary {
+    padding: 0 16px;
   }
   .reviews li {
     align-items: flex-start;

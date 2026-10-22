@@ -54,4 +54,42 @@ describe("Shopify health source and cases", () => {
     expect(html).toContain("Attivo");
     expect(html).not.toContain("/admin/orders/");
   });
+  it("in vista l'ultimo aggiornamento e i casi con l'istruzione; i contatori nei dettagli tecnici", () => {
+    const snapshot = shopifySyncSnapshotFrom(raw(), true)!;
+    const html = renderToStaticMarkup(
+      <ShopifySyncHealth
+        status={{ status: "ready", snapshot }}
+        shopDomain="synthetic.myshopify.com"
+      />,
+    );
+    expect(html).toContain("Ultimo aggiornamento: <strong>21/10/26, 14:00 (ora di Roma)</strong>");
+    expect(html).toContain("Casi da verificare · 1");
+    expect(html).toContain(
+      "Se compare un caso, avvisa Tommi. Non registrare a mano lo stesso ordine.",
+    );
+    const technical = html.slice(html.indexOf("<details"));
+    expect(technical).toMatch(/^<details[^>]*><summary>Dettagli tecnici<\/summary>/);
+    expect(technical).not.toMatch(/^<details[^>]*open/);
+    for (const label of [
+      "In attesa",
+      "In elaborazione",
+      "Notifiche gestite",
+      "Notifiche escluse",
+    ]) {
+      expect(html.indexOf(label)).toBeGreaterThan(html.indexOf("<details"));
+    }
+    expect(html).not.toContain("Europe/Rome");
+    expect(html).toContain("Magadzino");
+  });
+  it("senza casi non chiede di avvisare nessuno", () => {
+    const quiet = { ...raw(), counters: { ...raw().counters, review: 0 }, reviews: [] };
+    const html = renderToStaticMarkup(
+      <ShopifySyncHealth
+        status={{ status: "ready", snapshot: shopifySyncSnapshotFrom(quiet, true)! }}
+        shopDomain="synthetic.myshopify.com"
+      />,
+    );
+    expect(html).not.toContain("Casi da verificare");
+    expect(html).not.toContain("avvisa Tommi");
+  });
 });

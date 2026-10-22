@@ -231,10 +231,10 @@ export function PackagingWorkspace({
       )}
       {(deficit > 0 || snapshot.failures > 0) && (
         <section className={styles.review} aria-labelledby="packaging-review">
-          <h2 id="packaging-review">Consumi da riconciliare: {stockQuantity(deficit)}</h2>
+          <h2 id="packaging-review">Scatole e adesivi da scalare: {stockQuantity(deficit)}</h2>
           <p>
-            Le quantità registrate sono provvisorie finché i consumi mancanti non sono verificati.
-            Aggiorna la conta se necessario, poi registra i consumi ancora da scalare.
+            Le quantità registrate sono provvisorie finché queste scatole e questi adesivi non sono
+            scalati. Se serve, aggiorna prima la conta, poi registrali.
           </p>
           {historical > 0 && (
             <p>
@@ -276,9 +276,7 @@ export function PackagingWorkspace({
                 <h3 id={`material-${item.id}`}>{item.name}</h3>
                 {item.specifications && <p>{item.specifications}</p>}
                 {item.deficit > 0 && (
-                  <p className={styles.attention}>
-                    {stockQuantity(item.deficit)} unità da riconciliare
-                  </p>
+                  <p className={styles.attention}>{stockQuantity(item.deficit)} da scalare</p>
                 )}
               </div>
               <dl className={styles.quantities}>
