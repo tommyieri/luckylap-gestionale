@@ -1,8 +1,27 @@
-Self-hosted Barlow and Barlow Condensed fonts.
-Source: official Google Fonts repository, downloaded 2026-10-21.
+Caratteri Barlow e Barlow Condensed ospitati nel gestionale.
+Autore: Jeremy Tribby. Licenza SIL Open Font License 1.1:
+OFL-Barlow.txt e OFL-BarlowCondensed.txt.
+
+Barlow (testo corrente, campi, pulsanti)
+Fonte: repository ufficiale di Google Fonts, scaricato il 21 ottobre 2026.
 https://github.com/google/fonts/tree/main/ofl/barlow
+File: Barlow-Regular.ttf, Barlow-Medium.ttf, Barlow-SemiBold.ttf,
+Barlow-Bold.ttf.
+
+Barlow Condensed (numeri, codici, titoli, marchio, voci di menu)
+Fonte: repository LuckyLap Partner, cartella site/fonts, commit f6ad90c
+(i file arrivano con il commit 2ede806). Sono i sottoinsiemi woff2 latin e
+latin-ext di Google Fonts, stessi file e stessi unicode-range di
+site/fonts/fonts.css. Copiati il 22 ottobre 2026.
 https://github.com/google/fonts/tree/main/ofl/barlowcondensed
 
-Files: Barlow-Regular.ttf, Barlow-Medium.ttf, Barlow-SemiBold.ttf,
-Barlow-Bold.ttf, BarlowCondensed-BoldItalic.ttf.
-Licenses: OFL-Barlow.txt and OFL-BarlowCondensed.txt (SIL Open Font License).
+SHA-256:
+31ff5e6e96a096fde4d78bc838719e69b093db2d0b062b96e423c065a6d1b2b1  barlow-condensed-500-latin.woff2
+f8ec026d88a29e8d6a920c82348d90d08200a771e7763c5888376e407ac83a8f  barlow-condensed-500-latin-ext.woff2
+5bc49d41f32810a114765314392332ce2acae2276635eee265a50319a12c1b49  barlow-condensed-600-latin.woff2
+a2f92ada1d0eaf10dd83b11392ea389c039aa78f6e17418fc062c23f0ba78438  barlow-condensed-600-latin-ext.woff2
+e3e520cb7468f2efd60bc2ce96694567c3312f4ef414fffbe605e3ad146b24e6  barlow-condensed-700-latin.woff2
+0c1655655b5a1fa18382367f471b943c8e009c5cf36a3898433babd92fc606e2  barlow-condensed-700-latin-ext.woff2
+
+Il marchio usa Barlow Condensed 700 dritto, come il roadbook Partner.
+BarlowCondensed-BoldItalic.ttf non serve più ed è stato tolto.

@@ -22,7 +22,7 @@ Il progetto GitHub `tommyieri/luckylap-partner` è la fonte per identità e sist
 
 ## Stato della consegna
 
-App pubblicata su Vercel con dati in Supabase: cinque account personali, permessi nel database (RLS), password separate per Finance e Controllo CEO. Moduli collegati: inventario (`/`), rettifiche (`/stock`), vendite e ordini Shopify (`/sales`), conto vendita (`/consignment`), packaging (`/packaging`), calendario, attività e note (`/team`), Finance (`/finance`), grafiche (`/assets`), nuovi prodotti (`/development`), Controllo CEO (`/audit`). Partner per ora rimanda al progetto separato. L'anteprima locale, con snapshot inventario e note sul browser, resta solo per lo sviluppo.
+App pubblicata su Vercel con dati in Supabase: cinque account personali, permessi nel database (RLS), password separate per Finance e Controllo CEO. Moduli collegati: Oggi (`/`), magazzino (`/stock`), rettifiche (`/stock/rettifiche`), vendite e ordini Shopify (`/sales`), conto vendita (`/consignment`), packaging (`/packaging`), Partner (`/partner`), calendario, attività e note (`/team`), Finance (`/finance`), grafiche (`/assets`), nuovi prodotti (`/development`), Controllo CEO (`/audit`). Ogni pagina ha lo stesso menu: al massimo sette sezioni, senza le aree in cui la persona non può entrare. Partner dentro il gestionale: ha già la sua sezione, e fino alla tappa Partner la pagina rimanda al roadbook online. L'anteprima locale, con snapshot inventario e note sul browser, resta solo per lo sviluppo.
 
 ## Esiti attesi
 

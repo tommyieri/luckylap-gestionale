@@ -9,9 +9,30 @@
 // cluster usa e getta in /private/tmp, su socket privata.
 // Esce con codice 1 se un harness fallisce o esegue meno controlli del minimo,
 // se un file manca o se in supabase/tests compare un file eseguibile non
-// elencato qui sotto.
+// registrato.
+//
+// Registrazione di un harness: nelle due mappe qui sotto (gli harness già
+// esistenti) oppure, per ogni harness nuovo, con una riga tra le prime 10 del
+// file stesso, così questo runner non cambia a ogni lavoro:
+//
+//   // test-db: pglite minimo 155
+//   // test-db: postgres minimo 14
+//
+// La modalità decide gli argomenti, come nelle mappe; il minimo è un intero
+// maggiore di 0. Un file eseguibile senza riga, non elencato e non escluso
+// resta un errore («Harness non elencato»). Un file elencato qui sotto (o
+// escluso) che ha anche la riga è un errore: una sola registrazione per file.
+// Gli harness registrati con la riga girano dopo quelli delle mappe, in ordine
+// di nome.
 import { spawn, spawnSync } from "node:child_process";
-import { accessSync, appendFileSync, constants, existsSync, readdirSync } from "node:fs";
+import {
+  accessSync,
+  appendFileSync,
+  constants,
+  existsSync,
+  readdirSync,
+  readFileSync,
+} from "node:fs";
 import { createRequire } from "node:module";
 import { dirname, extname, isAbsolute, join, relative, resolve, sep } from "node:path";
 import { fileURLToPath } from "node:url";
@@ -56,6 +77,11 @@ const EXCLUDED = new Map([
   ["sales-concurrency.sh", "involucro di sales-concurrency.mjs, che il runner esegue già"],
 ]);
 
+// Riga di registrazione in testa al file (vedi il commento all'inizio).
+const HEADER_LINES = 10;
+const REGISTRATION_LINE = /^\s*\/\/\s*test-db:(.*)$/;
+const REGISTRATION_VALUE = /^\s*(pglite|postgres) minimo (\d+)\s*$/;
+
 // Estensioni considerate eseguibili. La cartella fixtures contiene solo dati.
 const EXECUTABLE_EXTENSIONS = new Set([".mjs", ".js", ".cjs", ".ts", ".mts", ".cts", ".sh"]);
 const DATA_DIRECTORIES = new Set(["fixtures"]);
@@ -94,7 +120,34 @@ function executableFiles(directory, prefix = "") {
   return found;
 }
 
+// Legge la riga «// test-db: …» tra le prime righe del file.
+// Restituisce null senza riga, { error } se la riga non è valida.
+function headerRegistration(name) {
+  const lines = readFileSync(join(testsDirectory, name), "utf8").split(/\r?\n/, HEADER_LINES);
+  const found = lines.map((line) => line.match(REGISTRATION_LINE)).filter(Boolean);
+  if (found.length === 0) return null;
+  if (found.length > 1)
+    return { error: `supabase/tests/${name} ha più righe «// test-db:» in testa: ne serve una.` };
+  const value = found[0][1].match(REGISTRATION_VALUE);
+  if (!value) {
+    return {
+      error:
+        `Riga di registrazione non valida in supabase/tests/${name}: «${found[0][0].trim()}». ` +
+        "Formato: «// test-db: pglite minimo N» oppure «// test-db: postgres minimo N».",
+    };
+  }
+  const minimum = Number(value[2]);
+  if (!Number.isSafeInteger(minimum) || minimum < 1) {
+    return {
+      error: `Minimo di controlli non valido in supabase/tests/${name}: deve essere un intero maggiore di 0.`,
+    };
+  }
+  return { mode: value[1], minimum };
+}
+
+// Controlla gli elenchi e i file; restituisce gli harness registrati con la riga in testa.
 function checkInventory() {
+  const registered = { pglite: new Map(), postgres: new Map() };
   const listed = [...PGLITE_HARNESSES.keys(), ...POSTGRES_HARNESSES.keys()];
   const duplicates = listed.filter(
     (name) => (PGLITE_HARNESSES.has(name) && POSTGRES_HARNESSES.has(name)) || EXCLUDED.has(name),
@@ -108,13 +161,28 @@ function checkInventory() {
       );
     }
   }
-  for (const name of executableFiles(testsDirectory)) {
-    if (!listed.includes(name) && !EXCLUDED.has(name)) {
+  for (const name of executableFiles(testsDirectory).sort()) {
+    const header = headerRegistration(name);
+    if (header?.error) {
+      problems.push(header.error);
+      continue;
+    }
+    if (listed.includes(name) || EXCLUDED.has(name)) {
+      if (header) {
+        problems.push(
+          `supabase/tests/${name} è elencato in scripts/test-db.mjs e ha anche la riga «// test-db:». Tenere una sola registrazione.`,
+        );
+      }
+      continue;
+    }
+    if (header) registered[header.mode].set(name, header.minimum);
+    else {
       problems.push(
-        `Harness non elencato: supabase/tests/${name}. Aggiungerlo a scripts/test-db.mjs oppure escluderlo con un motivo.`,
+        `Harness non elencato: supabase/tests/${name}. Aggiungere in testa al file la riga «// test-db: pglite minimo N» (o «postgres»), oppure escluderlo in scripts/test-db.mjs con un motivo.`,
       );
     }
   }
+  return registered;
 }
 
 function resolvePglite() {
@@ -175,7 +243,7 @@ function checkPostgresBin(binDirectory) {
 function runHarness(name, mode, minimum, args) {
   const file = join(testsDirectory, name);
   say("");
-  say(`==> ${name} (${MODE_LABEL[mode]})`);
+  say(`==> ${name} (${MODE_LABEL[mode]}${fromHeader.has(name) ? ", riga in testa" : ""})`);
   if (!existsSync(file)) {
     problems.push(`File mancante: supabase/tests/${name}.`);
     results.push({ name, mode, outcome: "mancante", checks: null, seconds: null });
@@ -217,7 +285,7 @@ function runHarness(name, mode, minimum, args) {
         outcome = `fallito (minimo ${minimum})`;
         problems.push(
           `${name} ha eseguito ${checks} controlli, meno del minimo di ${minimum}. Se la riduzione è voluta, ` +
-            "aggiornare insieme il minimo in scripts/test-db.mjs e i documenti che citano il numero.",
+            `aggiornare insieme il minimo ${minimumPlace(name)} e i documenti che citano il numero.`,
         );
       }
       if (outcome !== "superato") annotate("error", `${name}: ${outcome}`);
@@ -272,8 +340,10 @@ function printSummary() {
   }
   const grown = results.filter((r) => r.outcome === "superato" && r.checks > r.minimum);
   if (grown.length > 0) {
-    const list = grown.map((r) => `${r.name} ${r.checks} (minimo ${r.minimum})`).join(", ");
-    say(`Più controlli del minimo: ${list}. Alzare il minimo in scripts/test-db.mjs.`);
+    const list = grown
+      .map((r) => `${r.name} ${r.checks} (minimo ${r.minimum}, ${minimumPlace(r.name)})`)
+      .join(", ");
+    say(`Più controlli del minimo: ${list}. Alzare il minimo.`);
   }
   if (process.env.GITHUB_STEP_SUMMARY) {
     const markdown = [
@@ -294,41 +364,46 @@ function printSummary() {
   }
 }
 
-checkInventory();
+const registered = checkInventory();
+const fromHeader = new Set([...registered.pglite.keys(), ...registered.postgres.keys()]);
+const minimumPlace = (name) =>
+  fromHeader.has(name) ? `nella riga in testa a supabase/tests/${name}` : "in scripts/test-db.mjs";
+const pgliteHarnesses = new Map([...PGLITE_HARNESSES, ...registered.pglite]);
+const postgresHarnesses = new Map([...POSTGRES_HARNESSES, ...registered.postgres]);
 
 const pglite = resolvePglite();
 if (pglite.error) {
   problems.push(pglite.error);
-  skip(PGLITE_HARNESSES, "pglite", "non eseguito");
+  skip(pgliteHarnesses, "pglite", "non eseguito");
 } else {
   say(`PGlite: ${relative(root, pglite.path)}`);
-  for (const [name, minimum] of PGLITE_HARNESSES)
+  for (const [name, minimum] of pgliteHarnesses)
     await runHarness(name, "pglite", minimum, [pglite.path]);
 }
 
 const binDirectory = process.env.LUCKYLAP_PG_BIN?.trim();
 if (!binDirectory) {
-  skip(POSTGRES_HARNESSES, "postgres", "saltato");
+  skip(postgresHarnesses, "postgres", "saltato");
   say("");
   say(
-    `Saltati ${POSTGRES_HARNESSES.size} harness PostgreSQL 17 reale: ${[...POSTGRES_HARNESSES.keys()].join(", ")}.`,
+    `Saltati ${postgresHarnesses.size} harness PostgreSQL 17 reale: ${[...postgresHarnesses.keys()].join(", ")}.`,
   );
   say("Per eseguirli impostare LUCKYLAP_PG_BIN con la cartella bin di PostgreSQL 17.");
   annotate(
     "notice",
-    `Saltati ${POSTGRES_HARNESSES.size} harness PostgreSQL 17 reale: LUCKYLAP_PG_BIN non impostata.`,
+    `Saltati ${postgresHarnesses.size} harness PostgreSQL 17 reale: LUCKYLAP_PG_BIN non impostata.`,
   );
 } else {
   const pg = resolvePg();
   const error = pg.error ?? checkPostgresBin(binDirectory);
   if (error) {
     problems.push(error);
-    skip(POSTGRES_HARNESSES, "postgres", "non eseguito");
+    skip(postgresHarnesses, "postgres", "non eseguito");
   } else {
     say("");
     say(`PostgreSQL 17: ${binDirectory}`);
     say(`pg: ${relative(root, pg.path)}`);
-    for (const [name, minimum] of POSTGRES_HARNESSES) {
+    for (const [name, minimum] of postgresHarnesses) {
       await runHarness(name, "postgres", minimum, [binDirectory, pg.path]);
     }
   }

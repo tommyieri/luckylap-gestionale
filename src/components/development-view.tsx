@@ -1,9 +1,8 @@
 "use client";
 
-import Link from "next/link";
 import { useActionState, useEffect, useRef, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
-import { Archive, ArrowLeft, Boxes, Plus, RefreshCw, Save } from "lucide-react";
+import { Archive, Plus, RefreshCw, Save } from "lucide-react";
 import { saveDevelopment } from "../app/development/actions";
 import {
   DEVELOPMENT_STAGES,
@@ -175,11 +174,11 @@ function ArchiveProject({ project }: { project: DevelopmentProject }) {
 export function DevelopmentView({
   projects,
   members,
-  displayName,
   operationId,
 }: {
   projects: DevelopmentProject[];
   members: TeamMember[];
+  /** Non più mostrato qui: il nome del membro sta nel menu del guscio. */
   displayName: string;
   operationId: string;
 }) {
@@ -197,143 +196,121 @@ export function DevelopmentView({
         .includes(query.trim().toLocaleLowerCase("it")),
   );
   return (
-    <div className={shared.page}>
-      <a href="#development-content" className="skip-link">
-        Vai ai prodotti in sviluppo
-      </a>
-      <header className={shared.header}>
-        <Link href="/" className={shared.brand}>
-          LuckyLap
-        </Link>
-        <span className={shared.area}>
-          <Boxes size={15} aria-hidden="true" />
-          Sviluppo prodotti
-        </span>
-        <Link href="/auth/account" className={shared.account}>
-          {displayName}
-          <span>Il tuo account</span>
-        </Link>
-      </header>
-      <main id="development-content" className={shared.main} tabIndex={-1}>
-        <Link href="/" className={shared.back}>
-          <ArrowLeft size={14} aria-hidden="true" />
-          Torna al workspace
-        </Link>
-        <div className={shared.heading}>
-          <div>
-            <h1>Le prossime idee, in produzione.</h1>
-            <p>Dall’idea al campione, fino al prodotto pronto.</p>
-          </div>
-          <button
-            className="button button-secondary"
-            onClick={() => startRefresh(() => router.refresh())}
-            disabled={refreshing}
-          >
-            <RefreshCw size={14} aria-hidden="true" />
-            {refreshing ? "Aggiornamento…" : "Aggiorna"}
-          </button>
+    <div className={shared.main}>
+      <div className={shared.heading}>
+        <div>
+          <h1>Nuovi prodotti</h1>
+          <p>Dall’idea al campione, fino al prodotto pronto.</p>
         </div>
-        <p className={styles.notice}>
-          Le schede sono condivise con il team. Il passaggio a “Pronto” descrive lo sviluppo del
-          prodotto: non crea SKU o quantità di magazzino.
-        </p>
-        <div className={styles.layout}>
-          <section className={styles.projects} aria-labelledby="projects-title">
-            <h2 id="projects-title">
-              Schede prodotto <span>{projects.length}</span>
-            </h2>
-            <div className={styles.filters}>
-              <label>
-                Cerca
-                <input
-                  type="search"
-                  value={query}
-                  onChange={(event) => setQuery(event.target.value)}
-                  placeholder="Nome o brief"
-                />
-              </label>
-              <label>
-                Fase
-                <select value={stage} onChange={(event) => setStage(event.target.value)}>
-                  <option value="active">Progetti aperti</option>
-                  <option value="">Tutte le fasi</option>
-                  {DEVELOPMENT_STAGES.map((value) => (
-                    <option key={value} value={value}>
-                      {stageLabels[value]}
-                    </option>
-                  ))}
-                </select>
-              </label>
-              <label>
-                Referente
-                <select value={owner} onChange={(event) => setOwner(event.target.value)}>
-                  <option value="">Tutti</option>
-                  <option value="unassigned">Da assegnare</option>
-                  {members.map((member) => (
-                    <option key={member.id} value={member.id}>
-                      {member.name}
-                    </option>
-                  ))}
-                </select>
-              </label>
-            </div>
-            {visible.length === 0 ? (
-              <div className={styles.empty}>
-                <h3>
-                  {projects.length
-                    ? "Nessuna scheda corrisponde ai filtri."
-                    : "La prossima novità parte da qui."}
-                </h3>
-                <p>
-                  Crea una scheda con l’idea, il brief e il referente. Il team potrà aggiornarla
-                  durante lo sviluppo.
-                </p>
-              </div>
-            ) : (
-              <ul className={styles.list}>
-                {visible.map((project) => (
-                  <li key={project.id} className={styles.project}>
-                    <div className={styles.projectTop}>
-                      <span className={styles.stage}>{stageLabels[project.stage]}</span>
-                      <span>
-                        {members.find((member) => member.id === project.ownerId)?.name ??
-                          (project.ownerId ? "Membro non disponibile" : "Da assegnare")}
-                      </span>
-                    </div>
-                    <h3>{project.name}</h3>
-                    {project.brief && <p className={styles.brief}>{project.brief}</p>}
-                    {project.targetDate && (
-                      <p className={styles.target}>
-                        Obiettivo:{" "}
-                        <time dateTime={project.targetDate}>
-                          {new Intl.DateTimeFormat("it-IT", {
-                            dateStyle: "medium",
-                            timeZone: "UTC",
-                          }).format(new Date(`${project.targetDate}T12:00:00Z`))}
-                        </time>
-                      </p>
-                    )}
-                    <div className={styles.projectActions}>
-                      <details className={styles.edit}>
-                        <summary>Modifica scheda</summary>
-                        <ProjectForm project={project} members={members} />
-                      </details>
-                      {project.stage !== "archived" && <ArchiveProject project={project} />}
-                    </div>
-                  </li>
+        <button
+          className="button button-secondary"
+          onClick={() => startRefresh(() => router.refresh())}
+          disabled={refreshing}
+        >
+          <RefreshCw size={14} aria-hidden="true" />
+          {refreshing ? "Aggiornamento…" : "Aggiorna"}
+        </button>
+      </div>
+      <p className={styles.notice}>
+        Le schede sono condivise con il team. Il passaggio a “Pronto” descrive lo sviluppo del
+        prodotto: non crea SKU o quantità di magazzino.
+      </p>
+      <div className={styles.layout}>
+        <section className={styles.projects} aria-labelledby="projects-title">
+          <h2 id="projects-title">
+            Schede prodotto <span>{projects.length}</span>
+          </h2>
+          <div className={styles.filters}>
+            <label>
+              Cerca
+              <input
+                type="search"
+                value={query}
+                onChange={(event) => setQuery(event.target.value)}
+                placeholder="Nome o brief"
+              />
+            </label>
+            <label>
+              Fase
+              <select value={stage} onChange={(event) => setStage(event.target.value)}>
+                <option value="active">Progetti aperti</option>
+                <option value="">Tutte le fasi</option>
+                {DEVELOPMENT_STAGES.map((value) => (
+                  <option key={value} value={value}>
+                    {stageLabels[value]}
+                  </option>
                 ))}
-              </ul>
-            )}
-          </section>
-          <aside className={styles.newProject}>
-            <ProjectForm members={members} initialOperationId={operationId} />
-          </aside>
-        </div>
-        <footer className={shared.footer}>
-          <span>LuckyLap · Sviluppo prodotti</span>
-          <span>Brief e avanzamento condivisi</span>
-        </footer>
-      </main>
+              </select>
+            </label>
+            <label>
+              Referente
+              <select value={owner} onChange={(event) => setOwner(event.target.value)}>
+                <option value="">Tutti</option>
+                <option value="unassigned">Da assegnare</option>
+                {members.map((member) => (
+                  <option key={member.id} value={member.id}>
+                    {member.name}
+                  </option>
+                ))}
+              </select>
+            </label>
+          </div>
+          {visible.length === 0 ? (
+            <div className={styles.empty}>
+              <h3>
+                {projects.length
+                  ? "Nessuna scheda corrisponde ai filtri."
+                  : "La prossima novità parte da qui."}
+              </h3>
+              <p>
+                Crea una scheda con l’idea, il brief e il referente. Il team potrà aggiornarla
+                durante lo sviluppo.
+              </p>
+            </div>
+          ) : (
+            <ul className={styles.list}>
+              {visible.map((project) => (
+                <li key={project.id} id={`progetto-${project.id}`} className={styles.project}>
+                  <div className={styles.projectTop}>
+                    <span className={styles.stage}>{stageLabels[project.stage]}</span>
+                    <span>
+                      {members.find((member) => member.id === project.ownerId)?.name ??
+                        (project.ownerId ? "Membro non disponibile" : "Da assegnare")}
+                    </span>
+                  </div>
+                  <h3>{project.name}</h3>
+                  {project.brief && <p className={styles.brief}>{project.brief}</p>}
+                  {project.targetDate && (
+                    <p className={styles.target}>
+                      Obiettivo:{" "}
+                      <time dateTime={project.targetDate}>
+                        {new Intl.DateTimeFormat("it-IT", {
+                          dateStyle: "medium",
+                          timeZone: "UTC",
+                        }).format(new Date(`${project.targetDate}T12:00:00Z`))}
+                      </time>
+                    </p>
+                  )}
+                  <div className={styles.projectActions}>
+                    <details className={styles.edit}>
+                      <summary>Modifica scheda</summary>
+                      <ProjectForm project={project} members={members} />
+                    </details>
+                    {project.stage !== "archived" && <ArchiveProject project={project} />}
+                  </div>
+                </li>
+              ))}
+            </ul>
+          )}
+        </section>
+        <aside className={styles.newProject}>
+          <ProjectForm members={members} initialOperationId={operationId} />
+        </aside>
+      </div>
+      <footer className={shared.footer}>
+        <span>LuckyLap · Nuovi prodotti</span>
+        <span>Brief e avanzamento condivisi</span>
+      </footer>
     </div>
   );
 }

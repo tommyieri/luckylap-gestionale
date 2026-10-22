@@ -1,8 +1,7 @@
 "use client";
 
-import Link from "next/link";
 import { useState } from "react";
-import { ArrowLeft, Download, ExternalLink, FileImage, Images } from "lucide-react";
+import { Download, ExternalLink, FileImage } from "lucide-react";
 import { ASSET_TYPES, assetTypeLabels, parseBrandLink, type BrandAsset } from "../lib/assets/model";
 import type { SupabasePublicConfig } from "../lib/supabase/config";
 import { BrandAssetUpload } from "./brand-assets-upload";
@@ -11,12 +10,12 @@ import styles from "./brand-assets.module.css";
 
 export function BrandAssetsView({
   assets,
-  displayName,
   userId,
   config,
   operationId,
 }: {
   assets: BrandAsset[];
+  /** Non più mostrato qui: il nome del membro sta nel menu del guscio. */
   displayName: string;
   userId: string;
   config: SupabasePublicConfig;
@@ -32,168 +31,146 @@ export function BrandAssetsView({
         .includes(query.trim().toLocaleLowerCase("it")),
   );
   return (
-    <div className={shared.page}>
-      <a href="#assets-content" className="skip-link">
-        Vai alla libreria
-      </a>
-      <header className={shared.header}>
-        <Link href="/" className={shared.brand}>
-          LuckyLap
-        </Link>
-        <span className={shared.area}>
-          <Images size={15} aria-hidden="true" />
-          Contenuti del brand
-        </span>
-        <Link href="/auth/account" className={shared.account}>
-          {displayName}
-          <span>Il tuo account</span>
-        </Link>
-      </header>
-      <main id="assets-content" className={shared.main} tabIndex={-1}>
-        <Link href="/" className={shared.back}>
-          <ArrowLeft size={14} aria-hidden="true" />
-          Torna al workspace
-        </Link>
-        <div className={shared.heading}>
-          <div>
-            <h1>La libreria di LuckyLap.</h1>
-            <p>Loghi, grafiche, foto e video condivisi con il team.</p>
-          </div>
+    <div className={shared.main}>
+      <div className={shared.heading}>
+        <div>
+          <h1>Grafica e foto</h1>
+          <p>Loghi, grafiche, foto e video condivisi con il team.</p>
         </div>
-        <p className={styles.notice}>
-          Gli originali sono conservati nel contenitore privato del brand. I collegamenti esterni si
-          aprono nel servizio di origine.
-        </p>
-        <div className={styles.layout}>
-          <section aria-labelledby="library-title" className={styles.library}>
-            <div className={styles.libraryHeading}>
-              <h2 id="library-title">
-                Contenuti <span>{assets.length}</span>
-              </h2>
-              <div className={styles.filters}>
-                <label>
-                  Cerca
-                  <input
-                    type="search"
-                    value={query}
-                    onChange={(event) => setQuery(event.target.value)}
-                    placeholder="Nome o descrizione"
-                  />
-                </label>
-                <label>
-                  Tipo
-                  <select value={filter} onChange={(event) => setFilter(event.target.value)}>
-                    <option value="">Tutti</option>
-                    {ASSET_TYPES.map((type) => (
-                      <option key={type} value={type}>
-                        {assetTypeLabels[type]}
-                      </option>
-                    ))}
-                  </select>
-                </label>
-              </div>
+      </div>
+      <p className={styles.notice}>
+        Gli originali sono conservati nel contenitore privato del brand. I collegamenti esterni si
+        aprono nel servizio di origine.
+      </p>
+      <div className={styles.layout}>
+        <section aria-labelledby="library-title" className={styles.library}>
+          <div className={styles.libraryHeading}>
+            <h2 id="library-title">
+              Contenuti <span>{assets.length}</span>
+            </h2>
+            <div className={styles.filters}>
+              <label>
+                Cerca
+                <input
+                  type="search"
+                  value={query}
+                  onChange={(event) => setQuery(event.target.value)}
+                  placeholder="Nome o descrizione"
+                />
+              </label>
+              <label>
+                Tipo
+                <select value={filter} onChange={(event) => setFilter(event.target.value)}>
+                  <option value="">Tutti</option>
+                  {ASSET_TYPES.map((type) => (
+                    <option key={type} value={type}>
+                      {assetTypeLabels[type]}
+                    </option>
+                  ))}
+                </select>
+              </label>
             </div>
-            {visible.length === 0 ? (
-              <div className={styles.empty}>
-                <h3>
-                  {assets.length
-                    ? "Nessun contenuto corrisponde ai filtri."
-                    : "Uno spazio per il brand."}
-                </h3>
-                <p>
-                  Carica un originale o aggiungi un collegamento a una grafica, un logo, una foto o
-                  un video.
-                </p>
-              </div>
-            ) : (
-              <ul className={styles.grid}>
-                {visible.map((asset) => {
-                  let external: string | null = null;
-                  try {
-                    if (asset.externalUrl) external = parseBrandLink(asset.externalUrl);
-                  } catch {
-                    /* An invalid legacy URL is not rendered as a link. */
-                  }
-                  const preview =
-                    asset.storagePath &&
-                    asset.contentType &&
-                    ["image/png", "image/jpeg", "image/webp"].includes(asset.contentType);
-                  const video =
-                    asset.storagePath &&
-                    asset.contentType &&
-                    ["video/mp4", "video/webm"].includes(asset.contentType);
-                  return (
-                    <li key={asset.id} className={styles.asset}>
-                      <div className={styles.preview}>
-                        {preview ? (
-                          <img
-                            src={`/assets/files/${asset.id}?preview=1`}
-                            alt={asset.name}
-                            loading="lazy"
-                          />
-                        ) : video ? (
-                          <video
-                            controls
-                            preload="none"
-                            aria-label={asset.name}
-                            src={`/assets/files/${asset.id}?preview=1`}
-                          />
-                        ) : (
-                          <div className={styles.filePlaceholder}>
-                            <FileImage size={28} aria-hidden="true" />
-                            <span>
-                              {external
-                                ? "Collegamento"
-                                : asset.contentType === "image/svg+xml"
-                                  ? "SVG · solo download"
-                                  : "Originale"}
-                            </span>
-                          </div>
-                        )}
-                      </div>
-                      <div className={styles.assetBody}>
-                        <p className={styles.type}>{assetTypeLabels[asset.assetType]}</p>
-                        <h3>{asset.name}</h3>
-                        {asset.description && (
-                          <p className={styles.description}>{asset.description}</p>
-                        )}
-                        <p className={styles.fileMeta}>
-                          {asset.originalName}
-                          {asset.size
-                            ? ` · ${(asset.size / 1024 / 1024).toLocaleString("it-IT", { maximumFractionDigits: 2 })} MB`
-                            : ""}
-                        </p>
-                        {asset.storagePath && (
-                          <a href={`/assets/files/${asset.id}`} className={styles.fileLink}>
-                            <Download size={13} aria-hidden="true" />
-                            Scarica originale
-                          </a>
-                        )}
-                        {external && (
-                          <a
-                            href={external}
-                            target="_blank"
-                            rel="noopener noreferrer"
-                            className={styles.fileLink}
-                          >
-                            Apri collegamento
-                            <ExternalLink size={13} aria-hidden="true" />
-                          </a>
-                        )}
-                      </div>
-                    </li>
-                  );
-                })}
-              </ul>
-            )}
-          </section>
-          <BrandAssetUpload config={config} userId={userId} initialOperationId={operationId} />
-        </div>
-        <footer className={shared.footer}>
-          <span>LuckyLap · Contenuti del brand</span>
-          <span>Originali privati, senza conversioni</span>
-        </footer>
-      </main>
+          </div>
+          {visible.length === 0 ? (
+            <div className={styles.empty}>
+              <h3>
+                {assets.length
+                  ? "Nessun contenuto corrisponde ai filtri."
+                  : "Uno spazio per il brand."}
+              </h3>
+              <p>
+                Carica un originale o aggiungi un collegamento a una grafica, un logo, una foto o un
+                video.
+              </p>
+            </div>
+          ) : (
+            <ul className={styles.grid}>
+              {visible.map((asset) => {
+                let external: string | null = null;
+                try {
+                  if (asset.externalUrl) external = parseBrandLink(asset.externalUrl);
+                } catch {
+                  /* An invalid legacy URL is not rendered as a link. */
+                }
+                const preview =
+                  asset.storagePath &&
+                  asset.contentType &&
+                  ["image/png", "image/jpeg", "image/webp"].includes(asset.contentType);
+                const video =
+                  asset.storagePath &&
+                  asset.contentType &&
+                  ["video/mp4", "video/webm"].includes(asset.contentType);
+                return (
+                  <li key={asset.id} id={`contenuto-${asset.id}`} className={styles.asset}>
+                    <div className={styles.preview}>
+                      {preview ? (
+                        <img
+                          src={`/assets/files/${asset.id}?preview=1`}
+                          alt={asset.name}
+                          loading="lazy"
+                        />
+                      ) : video ? (
+                        <video
+                          controls
+                          preload="none"
+                          aria-label={asset.name}
+                          src={`/assets/files/${asset.id}?preview=1`}
+                        />
+                      ) : (
+                        <div className={styles.filePlaceholder}>
+                          <FileImage size={28} aria-hidden="true" />
+                          <span>
+                            {external
+                              ? "Collegamento"
+                              : asset.contentType === "image/svg+xml"
+                                ? "SVG · solo download"
+                                : "Originale"}
+                          </span>
+                        </div>
+                      )}
+                    </div>
+                    <div className={styles.assetBody}>
+                      <p className={styles.type}>{assetTypeLabels[asset.assetType]}</p>
+                      <h3>{asset.name}</h3>
+                      {asset.description && (
+                        <p className={styles.description}>{asset.description}</p>
+                      )}
+                      <p className={styles.fileMeta}>
+                        {asset.originalName}
+                        {asset.size
+                          ? ` · ${(asset.size / 1024 / 1024).toLocaleString("it-IT", { maximumFractionDigits: 2 })} MB`
+                          : ""}
+                      </p>
+                      {asset.storagePath && (
+                        <a href={`/assets/files/${asset.id}`} className={styles.fileLink}>
+                          <Download size={13} aria-hidden="true" />
+                          Scarica originale
+                        </a>
+                      )}
+                      {external && (
+                        <a
+                          href={external}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className={styles.fileLink}
+                        >
+                          Apri collegamento
+                          <ExternalLink size={13} aria-hidden="true" />
+                        </a>
+                      )}
+                    </div>
+                  </li>
+                );
+              })}
+            </ul>
+          )}
+        </section>
+        <BrandAssetUpload config={config} userId={userId} initialOperationId={operationId} />
+      </div>
+      <footer className={shared.footer}>
+        <span>LuckyLap · Grafica e foto</span>
+        <span>Originali privati, senza conversioni</span>
+      </footer>
     </div>
   );
 }

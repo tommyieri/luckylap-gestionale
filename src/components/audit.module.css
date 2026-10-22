@@ -1,15 +1,16 @@
 .notice,
 .scope {
-  font-size: 12px;
+  font-size: var(--text-sm);
   line-height: 1.7;
   color: var(--muted);
   max-width: 100ch;
 }
 .notice {
+  font-size: var(--text-md);
   margin-bottom: 25px;
 }
 .scope {
-  font-size: 11px;
+  font-size: var(--text-sm);
   margin-top: 20px;
 }
 .tableScroll {
@@ -21,7 +22,7 @@
   width: 100%;
   border-collapse: collapse;
   text-align: left;
-  font-size: 12px;
+  font-size: var(--text-sm);
   table-layout: fixed;
 }
 .table thead {
@@ -30,7 +31,7 @@
 .table th {
   padding: 12px 20px;
   font-weight: 500;
-  font-size: 10px;
+  font-size: var(--text-xs);
   color: var(--muted);
   border-bottom: 1px solid var(--rule);
 }
@@ -56,7 +57,7 @@
   background: #fbfcf8;
 }
 .table time {
-  font-size: 11px;
+  font-size: var(--text-sm);
   font-variant-numeric: tabular-nums;
   line-height: 1.6;
 }
@@ -65,7 +66,7 @@
 }
 .table time small {
   display: block;
-  font-size: 10px;
+  font-size: var(--text-xs);
   color: var(--muted);
 }
 .table strong {
@@ -74,27 +75,28 @@
 .areaName {
   display: block;
   color: var(--muted);
-  font-size: 11px;
+  font-size: var(--text-sm);
   line-height: 1.5;
   margin-top: 5px;
 }
 .actor {
-  font-size: 12px;
+  font-size: var(--text-sm);
   line-height: 1.6;
 }
 .removed {
   color: var(--red);
 }
 .references summary {
-  font-size: 11px;
+  font-size: var(--text-sm);
   color: var(--green);
   cursor: pointer;
-  min-height: 24px;
+  min-height: var(--tap);
+  padding: 11px 0;
   width: fit-content;
 }
 .references dl {
   margin-top: 7px;
-  font-size: 10px;
+  font-size: var(--text-xs);
 }
 .references dl > div + div {
   margin-top: 8px;
@@ -110,7 +112,7 @@
   line-height: 1.5;
 }
 .noReference {
-  font-size: 10px;
+  font-size: var(--text-xs);
   color: var(--muted);
   line-height: 1.6;
 }
@@ -127,40 +129,39 @@
   border-top: 1px solid var(--rule);
 }
 .pagination > span {
-  font-size: 11px;
+  font-size: var(--text-sm);
   color: var(--muted);
 }
 .pagination a {
-  font-size: 11px;
+  font-size: var(--text-sm);
 }
 .empty {
   padding: 28px 20px;
 }
 .empty h3 {
-  font-size: 18px;
+  font-size: var(--text-lg);
   font-weight: 500;
   margin-bottom: 8px;
 }
 .empty p {
-  font-size: 12px;
+  font-size: var(--text-sm);
   color: var(--muted);
   line-height: 1.7;
 }
 @media (max-width: 760px) {
   .notice {
-    font-size: 11px;
     margin-bottom: 20px;
   }
   .scope {
-    font-size: 10px;
+    font-size: var(--text-xs);
   }
   .table th {
-    font-size: 9px;
+    font-size: var(--text-xs);
     padding: 11px 11px;
   }
   .table td {
     padding: 15px 11px;
-    font-size: 11px;
+    font-size: var(--text-sm);
   }
   .table th:first-child {
     width: 89px;
@@ -172,10 +173,10 @@
     width: 28%;
   }
   .table time {
-    font-size: 10px;
+    font-size: var(--text-xs);
   }
   .table time small {
-    font-size: 9px;
+    font-size: var(--text-xs);
   }
   .referenceColumn {
     display: none;
@@ -186,24 +187,24 @@
   }
   .areaName,
   .actor {
-    font-size: 10px;
+    font-size: var(--text-xs);
   }
   .references summary {
-    font-size: 10px;
+    font-size: var(--text-xs);
   }
   .references dl {
-    font-size: 9px;
+    font-size: var(--text-xs);
   }
   .pagination {
     padding: 15px 12px;
     gap: 10px;
   }
   .pagination a {
-    font-size: 10px;
+    font-size: var(--text-xs);
     padding: 8px 10px;
   }
   .pagination > span {
-    font-size: 10px;
+    font-size: var(--text-xs);
   }
   .empty {
     padding: 25px 16px;

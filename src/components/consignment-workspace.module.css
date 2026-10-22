@@ -19,16 +19,15 @@
 }
 .tabs button {
   flex: 1;
-  min-height: 38px;
+  min-height: var(--tap);
   padding: 8px;
   border: 1px solid var(--rule);
-  border-radius: 5px;
+  border-radius: var(--radius-control);
   background: var(--paper);
   color: var(--muted);
-  font:
-    500 11px Barlow,
-    Arial,
-    sans-serif;
+  font-family: var(--f-body);
+  font-size: var(--text-sm);
+  font-weight: 500;
 }
 .tabs button[aria-pressed="true"] {
   background: var(--green-wash);
@@ -55,16 +54,18 @@
   display: flex;
   justify-content: space-between;
   gap: 15px;
-  font-size: 12px;
+  font-size: var(--text-sm);
   line-height: 1.7;
   margin: 5px 0;
 }
 .price strong {
+  font-family: var(--f-cond);
+  font-weight: 600;
   font-variant-numeric: tabular-nums;
 }
 .price small {
   display: block;
-  font-size: 10px;
+  font-size: var(--text-xs);
   line-height: 1.7;
   color: var(--muted);
   margin-top: 9px;
@@ -73,7 +74,7 @@
   display: grid;
   gap: 10px;
   margin: 18px 0;
-  font-size: 12px;
+  font-size: var(--text-sm);
 }
 .split > div {
   display: flex;
@@ -91,23 +92,22 @@
 }
 .filter {
   display: block;
-  font-size: 11px;
+  font-size: var(--text-sm);
   margin: 18px 22px;
 }
 .filter select {
   display: block;
   width: 100%;
-  min-height: 40px;
+  min-height: var(--tap);
   margin-top: 7px;
   padding: 9px 10px;
   border: 1px solid var(--rule);
-  border-radius: 5px;
+  border-radius: var(--radius-control);
   background: var(--paper);
   color: var(--ink);
-  font:
-    400 13px Barlow,
-    Arial,
-    sans-serif;
+  font-family: var(--f-body);
+  font-size: var(--text-md);
+  font-weight: 400;
 }
 .records {
   padding: 0;
@@ -121,13 +121,13 @@
   border-bottom: 0;
 }
 .records h3 {
-  font-size: 14px;
+  font-size: var(--text-md);
   font-weight: 600;
   line-height: 1.5;
   overflow-wrap: anywhere;
 }
 .records p {
-  font-size: 11px;
+  font-size: var(--text-sm);
   color: var(--muted);
   line-height: 1.8;
   margin-top: 7px;
@@ -141,7 +141,7 @@
   font-weight: 500;
 }
 .financeHelp {
-  font-size: 11px;
+  font-size: var(--text-sm);
   color: var(--muted);
   line-height: 1.8;
   margin-top: 22px;
@@ -150,28 +150,30 @@
 }
 .recovery {
   border: 1px solid var(--rule);
-  border-radius: 8px;
+  border-radius: 0;
   background: var(--paper);
   padding: 22px;
   margin-bottom: 24px;
   max-width: 90ch;
 }
 .recovery h2 {
-  font-size: 18px;
+  font-size: var(--text-lg);
   font-weight: 600;
 }
 .recovery p {
-  font-size: 12px;
+  font-size: var(--text-sm);
   color: var(--muted);
   line-height: 1.8;
   margin: 10px 0 16px;
 }
 .recovery details {
-  font-size: 12px;
+  font-size: var(--text-sm);
   line-height: 1.8;
   margin-bottom: 18px;
 }
 .recovery summary {
+  min-height: var(--tap);
+  padding: 9px 0;
   cursor: pointer;
   color: var(--green);
   font-weight: 500;
@@ -194,7 +196,7 @@
 }
 .recovery small {
   display: block;
-  font-size: 10px;
+  font-size: var(--text-xs);
   color: var(--muted);
   overflow-wrap: anywhere;
   margin-top: 15px;
@@ -216,14 +218,11 @@
   .filter {
     margin: 18px;
   }
-  .filter select {
-    font-size: 16px;
-  }
   .records > li {
     padding: 18px;
   }
   .split {
-    font-size: 11px;
+    font-size: var(--text-sm);
   }
   .recovery {
     padding: 18px;
@@ -233,14 +232,11 @@
     gap: 0;
     margin-top: 12px;
   }
-  .tabs button {
-    font-size: 12px;
-  }
 }
 .financeSection {
   background: var(--paper);
   border: 1px solid var(--rule);
-  border-radius: 8px;
+  border-radius: 0;
   overflow: hidden;
   margin-top: 24px;
 }
@@ -253,28 +249,31 @@
   border-bottom: 1px solid var(--rule);
 }
 .financeHeading h2 {
-  font-size: 20px;
+  font-size: var(--text-xl);
   font-weight: 600;
 }
 .financeHeading p {
-  font-size: 12px;
+  font-size: var(--text-sm);
   line-height: 1.8;
   color: var(--muted);
   margin-top: 9px;
   max-width: 65ch;
 }
 .financeDetailLink {
-  font-size: 11px;
+  display: inline-flex;
+  align-items: center;
+  min-height: var(--tap);
+  font-size: var(--text-sm);
 }
 .financeEmpty,
 .financeFootnote {
   padding: 20px 22px;
-  font-size: 12px;
+  font-size: var(--text-sm);
   color: var(--muted);
   line-height: 1.8;
 }
 .financeFootnote {
-  font-size: 11px;
+  font-size: var(--text-sm);
   border-top: 1px solid var(--rule);
 }
 @media (max-width: 760px) {
@@ -283,7 +282,7 @@
     padding: 18px;
   }
   .financeHeading h2 {
-    font-size: 19px;
+    font-size: var(--text-lg);
   }
   .financeEmpty,
   .financeFootnote {

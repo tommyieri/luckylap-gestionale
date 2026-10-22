@@ -1,73 +1,5 @@
-.page {
-  min-height: 100dvh;
-  background: var(--tint);
-}
-.header {
-  display: flex;
-  align-items: center;
-  gap: 25px;
-  background: var(--green-dark);
-  color: #ecf2e5;
-  padding: 22px max(24px, calc((100vw - 1280px) / 2));
-  min-height: 84px;
-}
-.brand {
-  font-family: BarlowCondensed, Barlow, sans-serif;
-  font-size: 34px;
-  font-style: italic;
-  font-weight: 700;
-  letter-spacing: -0.03em;
-  line-height: 1;
-  text-decoration: none;
-  color: #fff;
-}
-.brand:hover {
-  color: #e4ecdb;
-}
-.area {
-  display: flex;
-  gap: 7px;
-  align-items: center;
-  border-left: 1px solid #ffffff3b;
-  padding-left: 25px;
-  font-size: 12px;
-}
-.account {
-  margin-left: auto;
-  color: #fff;
-  text-decoration: none;
-  font-size: 12px;
-  text-align: right;
-  max-width: 220px;
-  overflow-wrap: anywhere;
-}
-.account:hover {
-  text-decoration: underline;
-}
-.account span {
-  display: block;
-  color: #bed0ae;
-  font-size: 10px;
-}
 .main {
-  padding: 25px 24px 0;
-  max-width: 1328px;
-  margin: auto;
   min-width: 0;
-}
-.main:focus {
-  outline: none;
-}
-.back {
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
-  font-size: 11px;
-  text-decoration: none;
-  margin-bottom: 28px;
-}
-.back:hover {
-  text-decoration: underline;
 }
 .heading {
   display: flex;
@@ -77,12 +9,14 @@
   margin-bottom: 24px;
 }
 .heading h1 {
-  font-size: 30px;
-  letter-spacing: -0.025em;
-  line-height: 1.2;
+  font-family: var(--f-cond);
+  font-size: var(--text-title);
+  font-weight: 700;
+  line-height: 1.05;
+  letter-spacing: -0.005em;
 }
 .heading p {
-  font-size: 13px;
+  font-size: var(--text-md);
   color: var(--muted);
   margin-top: 8px;
   line-height: 1.6;
@@ -96,7 +30,10 @@
   margin-bottom: 12px;
 }
 .navigation a {
-  font-size: 12px;
+  display: inline-flex;
+  align-items: center;
+  min-height: var(--tap);
+  font-size: var(--text-sm);
   font-weight: 500;
   text-decoration: none;
   padding: 5px 0;
@@ -105,7 +42,7 @@
   text-decoration: underline;
 }
 .sharedNotice {
-  font-size: 11px;
+  font-size: var(--text-md);
   color: var(--muted);
   line-height: 1.7;
   max-width: 100ch;
@@ -113,7 +50,7 @@
 }
 .section {
   border: 1px solid var(--rule);
-  border-radius: 8px;
+  border-radius: 0;
   background: var(--paper);
   margin-top: 22px;
   overflow: hidden;
@@ -128,25 +65,26 @@
   border-bottom: 1px solid var(--rule);
 }
 .sectionHeading h2 {
-  font-size: 18px;
+  font-size: var(--text-lg);
   font-weight: 600;
   letter-spacing: -0.01em;
 }
 .sectionHeading h2 span {
   font-weight: 400;
-  font-size: 12px;
+  font-size: var(--text-sm);
   color: var(--muted);
   margin-left: 8px;
 }
 .sectionHeading > span {
-  font-size: 11px;
+  font-size: var(--text-sm);
   color: var(--muted);
 }
 .filter {
   display: flex;
   align-items: center;
   gap: 7px;
-  font-size: 11px;
+  min-height: var(--tap);
+  font-size: var(--text-sm);
   color: var(--muted);
 }
 .filter input,
@@ -182,7 +120,7 @@
   border-top: 1px solid var(--rule);
 }
 .items h3 {
-  font-size: 17px;
+  font-size: var(--text-lg);
   line-height: 1.35;
   font-weight: 600;
   overflow-wrap: anywhere;
@@ -193,7 +131,7 @@
   justify-content: space-between;
   gap: 15px;
   align-items: flex-start;
-  font-size: 10px;
+  font-size: var(--text-xs);
   color: var(--muted);
   line-height: 1.6;
 }
@@ -206,7 +144,7 @@
 }
 .timeEnd,
 .participantNames {
-  font-size: 11px;
+  font-size: var(--text-sm);
   color: var(--muted);
   line-height: 1.6;
   margin-top: 6px;
@@ -218,7 +156,7 @@
   font-variant-numeric: tabular-nums;
 }
 .bodyText {
-  font-size: 13px;
+  font-size: var(--text-sm);
   line-height: 1.75;
   white-space: pre-wrap;
   overflow-wrap: anywhere;
@@ -229,7 +167,8 @@
   display: inline-flex;
   align-items: center;
   gap: 6px;
-  font-size: 12px;
+  min-height: var(--tap);
+  font-size: var(--text-sm);
   margin-top: 13px;
   overflow-wrap: anywhere;
 }
@@ -237,7 +176,7 @@
   padding: 30px 0 35px;
 }
 .empty h3 {
-  font-size: 18px;
+  font-size: var(--text-lg);
   font-weight: 500;
   line-height: 1.4;
   letter-spacing: -0.01em;
@@ -245,7 +184,7 @@
 }
 .empty p {
   color: var(--muted);
-  font-size: 12px;
+  font-size: var(--text-sm);
   line-height: 1.7;
   max-width: 45ch;
 }
@@ -256,14 +195,14 @@
   min-width: 0;
 }
 .form > fieldset > legend {
-  font-size: 14px;
+  font-size: var(--text-md);
   font-weight: 600;
   margin-bottom: 18px;
   padding: 0;
 }
 .form label {
   display: block;
-  font-size: 11px;
+  font-size: var(--text-sm);
   font-weight: 500;
   color: var(--ink);
   min-width: 0;
@@ -282,14 +221,14 @@
   width: 100%;
   min-width: 0;
   margin-top: 6px;
-  min-height: 40px;
+  min-height: var(--tap);
   border: 1px solid var(--rule);
-  border-radius: 5px;
+  border-radius: var(--radius-control);
   padding: 9px 10px;
   background: var(--paper);
   color: var(--ink);
   font-family: inherit;
-  font-size: 13px;
+  font-size: var(--text-md);
   caret-color: var(--green);
 }
 .form textarea {
@@ -316,7 +255,7 @@
   gap: 12px;
 }
 .help {
-  font-size: 10px;
+  font-size: var(--text-xs);
   color: var(--muted);
   line-height: 1.6;
   margin: -6px 0 14px;
@@ -327,19 +266,21 @@
   margin: 0 0 16px;
 }
 .dst summary {
-  font-size: 10px;
+  min-height: var(--tap);
+  padding: 11px 0;
+  font-size: var(--text-xs);
   color: var(--green);
   cursor: pointer;
   width: fit-content;
 }
 .dst p {
-  font-size: 11px;
+  font-size: var(--text-sm);
   line-height: 1.6;
   color: var(--muted);
   margin: 12px 0;
 }
 .dst .fieldPair label {
-  font-size: 10px;
+  font-size: var(--text-xs);
   margin-bottom: 0;
 }
 .participants {
@@ -351,7 +292,7 @@
   margin: 0 0 17px;
 }
 .participants legend {
-  font-size: 11px;
+  font-size: var(--text-sm);
   font-weight: 500;
   margin-bottom: 10px;
   padding: 0;
@@ -360,8 +301,9 @@
   display: flex;
   align-items: center;
   gap: 7px;
+  min-height: var(--tap);
   margin-bottom: 0;
-  font-size: 12px;
+  font-size: var(--text-sm);
   font-weight: 400;
   overflow-wrap: anywhere;
 }
@@ -369,7 +311,7 @@
   display: none;
 }
 .feedback p {
-  font-size: 11px;
+  font-size: var(--text-sm);
   line-height: 1.7;
   margin: 12px 0 0;
   max-width: 65ch;
@@ -388,12 +330,12 @@
   display: flex;
   gap: 6px;
   align-items: center;
-  font-size: 10px;
+  font-size: var(--text-xs);
   color: var(--muted);
   cursor: pointer;
   list-style: none;
   width: fit-content;
-  min-height: 28px;
+  min-height: var(--tap);
 }
 .delete summary::-webkit-details-marker {
   display: none;
@@ -405,17 +347,17 @@
   margin-top: 8px;
   padding: 13px;
   border: 1px solid var(--rule);
-  border-radius: 5px;
+  border-radius: 0;
   background: var(--tint);
 }
 .delete form p {
-  font-size: 11px;
+  font-size: var(--text-sm);
   line-height: 1.6;
   overflow-wrap: anywhere;
   margin-bottom: 10px;
 }
 .delete form button {
-  font-size: 11px;
+  font-size: var(--text-sm);
   color: var(--red);
 }
 .itemActions {
@@ -434,15 +376,14 @@
   max-width: 100%;
 }
 .toggleWrap button {
-  font-size: 11px;
-  min-height: 32px;
+  font-size: var(--text-sm);
 }
 .done {
   color: var(--muted);
   text-decoration: line-through;
 }
 .related {
-  font-size: 11px;
+  font-size: var(--text-sm);
   color: var(--muted);
   line-height: 1.6;
   margin-top: 12px;
@@ -452,16 +393,9 @@
   display: flex;
   justify-content: space-between;
   gap: 15px;
-  font-size: 10px;
+  font-size: var(--text-xs);
   color: var(--muted);
   padding: 28px 0 24px;
-}
-.accessActions {
-  display: flex;
-  align-items: center;
-  gap: 12px;
-  flex-wrap: wrap;
-  margin-top: 22px;
 }
 @media (max-width: 1000px) {
   .columns {
@@ -477,57 +411,22 @@
   }
 }
 @media (max-width: 760px) {
-  .header {
-    gap: 14px;
-    padding: 19px 16px;
-    min-height: 77px;
-  }
-  .brand {
-    font-size: 29px;
-  }
-  .area {
-    border-left: 0;
-    padding-left: 0;
-    font-size: 10px;
-    gap: 5px;
-  }
-  .account {
-    font-size: 10px;
-    max-width: 110px;
-  }
-  .account span {
-    font-size: 9px;
-  }
-  .main {
-    padding: 22px 15px 0;
-  }
-  .back {
-    margin-bottom: 24px;
-  }
   .heading {
     align-items: flex-start;
     gap: 15px;
   }
-  .heading h1 {
-    font-size: 26px;
-  }
   .heading p {
-    font-size: 12px;
     max-width: 35ch;
   }
   .heading > button {
-    font-size: 10px;
+    font-size: var(--text-xs);
     padding: 8px 10px;
     flex-shrink: 0;
   }
   .navigation {
     gap: 5px 20px;
   }
-  .navigation a {
-    font-size: 11px;
-  }
   .sharedNotice {
-    font-size: 10px;
     margin-bottom: 20px;
   }
   .sectionHeading {
@@ -535,11 +434,11 @@
     align-items: flex-start;
   }
   .sectionHeading h2 {
-    font-size: 17px;
+    font-size: var(--text-lg);
   }
   .sectionHeading > span,
   .filter {
-    font-size: 10px;
+    font-size: var(--text-xs);
   }
   .columns {
     grid-template-columns: minmax(0, 1fr);
@@ -560,10 +459,10 @@
     padding: 21px 0;
   }
   .items h3 {
-    font-size: 16px;
+    font-size: var(--text-md);
   }
   .bodyText {
-    font-size: 12px;
+    font-size: var(--text-sm);
   }
   .fieldPair {
     grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
@@ -573,21 +472,16 @@
     padding: 25px 0;
   }
   .footer {
-    font-size: 9px;
+    font-size: var(--text-xs);
     flex-wrap: wrap;
     gap: 7px;
-  }
-  .form input:not([type="checkbox"]),
-  .form textarea,
-  .form select {
-    font-size: 16px;
   }
   .form input[type="datetime-local"] {
     padding-left: 7px;
     padding-right: 7px;
   }
   .form .button {
-    font-size: 11px;
+    font-size: var(--text-sm);
   }
   .participants {
     gap: 11px 18px;
