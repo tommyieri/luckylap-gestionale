@@ -1,4 +1,5 @@
 import {
+  shopLocationsFrom,
   shopPageFromRows,
   shopsFromRows,
   type ShopList,
@@ -608,6 +609,9 @@ export function previewShopPage(code: unknown): ShopPage | null {
   if (wanted !== "NEG01" && wanted !== "NEG02" && wanted !== "NEG03") return null;
   return shopPageFromRows(shopPageRows(wanted), new Date().toISOString());
 }
+/** Anteprima locale: magazzini attivi per il modulo del nuovo negozio. */
+export const previewWarehouses = () =>
+  shopLocationsFrom(locations()).filter((l) => l.type === "Magazzino" && l.active);
 
 // ---------------------------------------------------------------------------
 // Comandi sintetici, uno per tipo, già validi.

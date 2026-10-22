@@ -7,6 +7,7 @@ import {
   executeShopCommand,
   readConsignmentShop,
   readConsignmentShops,
+  readNewShopForm,
   SHOP_MESSAGES,
 } from "./shop-server";
 import { parseShopCommand } from "./shop-model";
@@ -417,5 +418,14 @@ describe("letture del conto vendita", () => {
     ]);
     expect(read.list.closed.map((s) => s.code)).toEqual(["NEG03"]);
     expect(calls).not.toContain("consignment_report_payments");
+  });
+  it("modulo del nuovo negozio: Finance e soli magazzini attivi", async () => {
+    const { db, calls } = fakeDb(fixtureTables());
+    const read = await readNewShopForm(db as never, member);
+    expect(read.canFinance).toBe(true);
+    expect(read.warehouses.map((w) => w.code)).toEqual(["MAG01"]);
+    expect(calls).toEqual(["stock_locations"]);
+    mocks.sensitive.mockRejectedValue(Error("rete"));
+    expect((await readNewShopForm(db as never, member)).canFinance).toBe(false);
   });
 });

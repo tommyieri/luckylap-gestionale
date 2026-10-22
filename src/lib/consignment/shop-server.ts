@@ -21,7 +21,9 @@ import {
   shopPageFromRows,
   shopsFromRows,
   SHOP_TYPE,
+  WAREHOUSE_TYPE,
   type ShopList,
+  type ShopLocation,
   type ShopPage,
 } from "./shop-read";
 
@@ -108,6 +110,22 @@ export async function readConsignmentShops(
     status: "ready",
     canFinance,
     list: shopsFromRows({ settings, shops, locations, availability, reports, openOrders }, now),
+  };
+}
+
+export type NewShopRead = { canFinance: boolean; warehouses: ShopLocation[] };
+/** Modulo del nuovo negozio: Finance aperta e magazzini attivi da cui partono le consegne. */
+export async function readNewShopForm(
+  supabase: SupabaseClient,
+  member: VerifiedMember,
+): Promise<NewShopRead> {
+  const [canFinance, locations] = await Promise.all([
+    financeOpen(supabase, member),
+    pages(supabase, "stock_locations", "id,code,name,active,location_type"),
+  ]);
+  return {
+    canFinance,
+    warehouses: shopLocationsFrom(locations).filter((l) => l.type === WAREHOUSE_TYPE && l.active),
   };
 }
 
