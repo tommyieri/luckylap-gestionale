@@ -18,7 +18,9 @@ export async function loadAuditMetadata(
 ): Promise<AuditPage> {
   // Defense in depth: no audit or actor lookup query for other roles or locked sessions.
   if (!canReadSensitiveArea(member, "audit", unlocked))
-    throw new Error("Registro riservato al founder con password CEO per questa sessione.");
+    throw new Error(
+      "Per leggere il registro servono un account del team attivo e la password CEO aperta in questa sessione.",
+    );
   if (cursor && (!isAuditTimestamp(cursor.occurredAt) || !isTeamId(cursor.id)))
     throw new Error("Pagina del registro non valida.");
   let query = supabase

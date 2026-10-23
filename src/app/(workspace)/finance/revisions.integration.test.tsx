@@ -158,16 +158,62 @@ describe("callsite e gate Finance con revisioni", () => {
     expect(mocks.context).not.toHaveBeenCalled();
     expect(mocks.history).not.toHaveBeenCalled();
   });
-  it("nega l’editor incasso ai membri senza accesso Finance prima di leggere la fonte", async () => {
-    mocks.member.mockResolvedValue({
-      status: "member",
-      member: { ...member, role: "consultant", financeAccess: false },
-    });
-    const html = renderToStaticMarkup(await ShopPaymentPage({ params: Promise.resolve({ id }) }));
-    expect(html).toContain("Accesso non disponibile");
-    expect(html).not.toContain("data-area-bar");
-    expect(mocks.history).not.toHaveBeenCalled();
-  });
+  it.each(["founder", "production", "finance", "logistics", "consultant"])(
+    "non carica dashboard o storico incassi per %s finché Finance è chiusa",
+    async (role) => {
+      const current = { ...member, role, financeAccess: false };
+      mocks.member.mockResolvedValue({ status: "member", member: current });
+      mocks.gate.mockResolvedValue(false);
+      await expect(FinancePage()).rejects.toThrow("redirect:/auth/area/finance");
+      await expect(ShopPaymentPage({ params: Promise.resolve({ id }) })).rejects.toThrow(
+        "redirect:/auth/area/finance",
+      );
+      expect(mocks.gate).toHaveBeenCalledTimes(2);
+      expect(mocks.gate).toHaveBeenCalledWith({}, current, "finance");
+      expect(mocks.imports).not.toHaveBeenCalled();
+      expect(mocks.context).not.toHaveBeenCalled();
+      expect(mocks.history).not.toHaveBeenCalled();
+    },
+  );
+  it.each(["founder", "production", "finance", "logistics", "consultant"])(
+    "apre dashboard ed editor incasso per %s solo con grant Finance verificato",
+    async (role) => {
+      const current = { ...member, role, financeAccess: false },
+        history = { paymentId: id, version: 0, current: { synthetic: true }, revisions: [] };
+      mocks.member.mockResolvedValue({ status: "member", member: current });
+      mocks.history.mockResolvedValue(history);
+      expect(opened(await FinancePage()).props.revisionHeads).toBe(context.heads);
+      const editor = opened(await ShopPaymentPage({ params: Promise.resolve({ id }) }));
+      expect(editor.props.history).toBe(history);
+      expect(editor.props.actorId).toBe(id);
+      expect(mocks.gate).toHaveBeenCalledTimes(2);
+      expect(mocks.gate).toHaveBeenCalledWith({}, current, "finance");
+      expect(mocks.gate.mock.invocationCallOrder[1]).toBeLessThan(
+        mocks.history.mock.invocationCallOrder[0],
+      );
+    },
+  );
+  it.each(["signed-out", "denied", "unavailable"])(
+    "non usa un grant precedentemente valido quando la membership ora è %s",
+    async (status) => {
+      mocks.member.mockResolvedValue({ status });
+      if (status === "signed-out") {
+        await expect(FinancePage()).rejects.toThrow("redirect:/auth/login");
+        await expect(ShopPaymentPage({ params: Promise.resolve({ id }) })).rejects.toThrow(
+          "redirect:/auth/login",
+        );
+      } else {
+        expect(renderToStaticMarkup(await FinancePage())).not.toContain("Finance completa");
+        expect(
+          renderToStaticMarkup(await ShopPaymentPage({ params: Promise.resolve({ id }) })),
+        ).not.toContain("Editor pagamento");
+      }
+      expect(mocks.gate).not.toHaveBeenCalled();
+      expect(mocks.imports).not.toHaveBeenCalled();
+      expect(mocks.context).not.toHaveBeenCalled();
+      expect(mocks.history).not.toHaveBeenCalled();
+    },
+  );
   it("conserva la preview sintetica senza leggere database o revisioni", async () => {
     mocks.preview.mockReturnValue(true);
     const html = renderToStaticMarkup(await FinancePage());

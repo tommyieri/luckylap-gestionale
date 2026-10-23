@@ -51,13 +51,14 @@ describe("barra laterale", () => {
     expect(bottomBar(founder)).toContain("Sezione attuale: Finance");
   });
 
-  it("consultant su /sales: nessuna voce verso Finance o Controllo CEO", () => {
+  it("consultant su /sales: vede Finance e Controllo CEO protette da password", () => {
     pathname = "/sales";
     for (const html of [sidebar(consultant), bottomBar(consultant)]) {
-      expect(html).not.toContain('href="/finance"');
-      expect(html).not.toContain('href="/audit"');
+      const links = [...html.matchAll(/<a\b[^>]*>[\s\S]*?<\/a>/g)].map((match) => match[0]);
+      for (const href of ["/finance", "/audit"])
+        expect(links.find((link) => link.includes(`href="${href}"`))).toContain("(con password)");
     }
-    expect(count(navPart(sidebar(consultant)), /<a /g)).toBe(5);
+    expect(count(navPart(sidebar(consultant)), /<a /g)).toBe(7);
     expect(linkTo(sidebar(consultant), "/sales")).toContain('aria-current="true"');
   });
 
@@ -155,7 +156,7 @@ describe("la guida sul telefono", () => {
     expect(html).toMatch(/<button[^>]*data-active=""[^>]*aria-haspopup="dialog"/);
     expect(html).toContain("Sezione attuale: Come si usa");
     const sheet = html.slice(html.indexOf("<dialog"));
-    expect(hrefs(sheet)).toEqual(["/team", "/guida", "/auth/account"]);
+    expect(hrefs(sheet)).toEqual(["/team", "/finance", "/audit", "/guida", "/auth/account"]);
     expect(linkTo(sheet, "/guida")).toContain('aria-current="page"');
     expect(count(html, /aria-current="page"/g)).toBe(1);
   });
@@ -181,11 +182,11 @@ describe("schede della sezione", () => {
     expect(tabs()).not.toContain("aria-current");
   });
 
-  it("seguono l'accesso: nessuna scheda di un'area chiusa", () => {
-    // Un consultant sulla password di Finance (link «Sblocca Finance») o su /finance stesso.
+  it("tutti i membri vedono le schede, anche prima di aprire l’area", () => {
+    // Anche un consulente vede i collegamenti: ogni pagina verifica la password sul server.
     for (pathname of ["/auth/area/finance", "/finance", "/finance/work"]) {
-      expect(tabs(consultant)).toBe("");
-      expect(tabs(consultant)).not.toContain('href="/finance/work"');
+      expect(count(tabs(consultant), /<a /g)).toBe(3);
+      expect(tabs(consultant)).toContain('href="/finance/work"');
     }
     // Prima della verifica: niente schede di Finance, sì quelle delle sezioni aperte a tutti.
     pathname = "/finance/work";

@@ -1,5 +1,11 @@
 import { describe, expect, it } from "vitest";
-import { memberFromDatabase, parseCredentials, canReadSensitiveArea } from "./model";
+import {
+  memberFromDatabase,
+  parseCredentials,
+  canReadSensitiveArea,
+  MEMBER_ROLES,
+  type SensitiveArea,
+} from "./model";
 
 describe("trusted membership", () => {
   const row = { user_id: "verified-user", role: "production", active: true, finance_access: true };
@@ -14,15 +20,19 @@ describe("trusted membership", () => {
       memberFromDatabase("verified-user", row, { ...profile, user_id: "another-user" }),
     ).toBeNull();
   });
-  it("requires an explicit area grant and the current role, never an assurance string", () => {
+  it("requires an explicit area grant for every active role, never an assurance string", () => {
     const member = memberFromDatabase("verified-user", row, profile)!;
-    expect(canReadSensitiveArea(member, "finance", false)).toBe(false);
-    expect(canReadSensitiveArea(member, "finance", true)).toBe(true);
-    expect(canReadSensitiveArea(member, "finance", "aal2" as unknown as boolean)).toBe(false);
-    expect(canReadSensitiveArea({ ...member, financeAccess: false }, "finance", true)).toBe(false);
-    expect(canReadSensitiveArea({ ...member, role: "logistics" }, "finance", true)).toBe(false);
-    expect(canReadSensitiveArea(member, "audit", true)).toBe(false);
-    expect(canReadSensitiveArea({ ...member, role: "founder" }, "audit", true)).toBe(true);
+    for (const role of MEMBER_ROLES) {
+      for (const area of ["finance", "audit"] as const) {
+        for (const financeAccess of [true, false]) {
+          const current = { ...member, role, financeAccess };
+          expect(canReadSensitiveArea(current, area, false)).toBe(false);
+          expect(canReadSensitiveArea(current, area, true)).toBe(true);
+          expect(canReadSensitiveArea(current, area, "aal2" as unknown as boolean)).toBe(false);
+        }
+      }
+    }
+    expect(canReadSensitiveArea(member, "other" as SensitiveArea, true)).toBe(false);
   });
 });
 

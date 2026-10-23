@@ -12,7 +12,7 @@ La pagina legge `commercial_facts`, `order_payments` e gli stessi `sales_orders`
 
 I collegamenti portano a `/sales#order-<ID>` e conservano l’identità dell’ordine. Queste tabelle non vengono sommate tra loro o con BudgetFlow. Vendita, pagamento cliente, regolamento su conto e movimento importato sono fatti differenti, non importi da aggiungere per ottenere ricavi. Non sono calcolati saldo bancario, utile, IVA o contabilizzazione fiscale. Anche i contatori della pagina contano righe, senza presentare somme finanziarie aggregate.
 
-La lettura richiede `getUser()`, membership corrente, permesso Finance e apertura dell’area con la password aggiuntiva nella sessione corrente; le politiche DB `private.can_finance()` rimangono l’autorità per ogni riga. L’accesso è riservato a founder, produzione con flag Finance e Finance con flag, quindi Tommi, Gabriele e Gherardo. Il gate attuale non richiede app di autenticazione e AAL non lo sostituisce. Ruoli contenuti in metadata modificabili dal browser non sono utilizzati. Errori o risultati troncati bloccano l’intera schermata; non viene mostrata una fonte senza le sue righe collegate.
+La lettura richiede `getUser()`, membership corrente, permesso Finance e apertura dell’area con la password aggiuntiva nella sessione corrente; le politiche DB `private.can_finance()` rimangono l’autorità per ogni riga. Ogni membro attivo può aprire Finance con la password corretta, indipendentemente dal ruolo e dal flag Finance. Il gate attuale non richiede app di autenticazione e AAL non lo sostituisce. Ruoli contenuti in metadata modificabili dal browser non sono utilizzati. Errori o risultati troncati bloccano l’intera schermata; non viene mostrata una fonte senza le sue righe collegate.
 
 ## Registro manuale
 

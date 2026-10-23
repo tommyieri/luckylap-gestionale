@@ -43,16 +43,48 @@ describe("Finance revision server authorization and frozen receipts", () => {
       expect(client.rpc).not.toHaveBeenCalled();
     },
   );
-  it.each(["logistics", "consultant"])(
-    "rejects %s even with a client claim or mocked unlocked area",
+  it.each(["founder", "production", "finance", "logistics", "consultant"])(
+    "does not read or mutate for %s without its current Finance grant",
     async (role) => {
       mocks.member.mockResolvedValue({
         status: "member",
-        member: { userId: id(4), displayName: "Synthetic", role, financeAccess: true },
+        member: { userId: id(4), displayName: "Synthetic", role, financeAccess: false },
       });
-      const client = { rpc: vi.fn() };
+      mocks.grant.mockResolvedValue(false);
+      const client = { from: vi.fn(), rpc: vi.fn() };
       expect((await executeFinanceRevision(client as never, command)).status).toBe("rejected");
+      await expect(loadFinanceRevisions(client as never)).rejects.toThrow();
+      await expect(
+        loadFinanceRevisionHistory(client as never, { sourceKind: "manual", sourceId: id(2) }),
+      ).rejects.toThrow();
+      expect(mocks.grant).toHaveBeenCalledTimes(3);
+      expect(client.from).not.toHaveBeenCalled();
       expect(client.rpc).not.toHaveBeenCalled();
+    },
+  );
+  it.each(["founder", "production", "finance", "logistics", "consultant"])(
+    "reads revision heads and sends the validated mutation for %s with a current grant",
+    async (role) => {
+      const member = { userId: id(4), displayName: "Synthetic", role, financeAccess: false };
+      mocks.member.mockResolvedValue({ status: "member", member });
+      const q = {
+        select: vi.fn().mockReturnThis(),
+        order: vi.fn().mockReturnThis(),
+        range: vi.fn().mockResolvedValue({ data: [], count: 0, error: null }),
+      };
+      const client = {
+        from: vi.fn(() => q),
+        rpc: vi.fn().mockResolvedValue({ data: receipt, error: null }),
+      };
+      expect(await loadFinanceRevisions(client as never)).toEqual([]);
+      expect((await executeFinanceRevision(client as never, command)).status).toBe("success");
+      expect(mocks.grant).toHaveBeenCalledTimes(2);
+      expect(mocks.grant).toHaveBeenCalledWith(client, member, "finance");
+      expect(client.from).toHaveBeenCalledWith("finance_revision_current");
+      expect(client.rpc).toHaveBeenCalledWith("revise_finance_movement", {
+        p_operation_id: id(1),
+        p_payload: command.payload,
+      });
     },
   );
   it("rechecks the password grant, retaining uncertainty on a frozen retry", async () => {

@@ -286,7 +286,7 @@ I filetti sono da 1 px; 1,5 px d'inchiostro aprono le liste roadbook e la testat
 
 ### Navigation (barra laterale)
 
-`<nav aria-label="Sezioni del gestionale">` su fondo verde. Marchio «LuckyLap» e «Gestionale» in Condensed, link a `/`. Al massimo sette voci (icona Lucide 20 px e testo Condensed 600 18 px), alte 48 px, quadrate, filtrate per permesso. Inattive in `on-green-2`; al passaggio del mouse fondo bianco all'8%. La voce attiva è in inversione: carta e inchiostro. Finance e Controllo CEO hanno il lucchetto da 14 px. Nel piede: nome del membro, «Come si usa», «Account e sicurezza», «Esci» (pulsante da 44 px con bordo `on-green-2`). Sul telefono la barra diventa la fascia verde con marchio e sezione attiva.
+`<nav aria-label="Sezioni del gestionale">` su fondo verde. Marchio «LuckyLap» e «Gestionale» in Condensed, link a `/`. Al massimo sette voci (icona Lucide 20 px e testo Condensed 600 18 px), alte 48 px, quadrate, visibili a tutti i membri. Inattive in `on-green-2`; al passaggio del mouse fondo bianco all'8%. La voce attiva è in inversione: carta e inchiostro. Finance e Controllo CEO hanno il lucchetto da 14 px. Nel piede: nome del membro, «Come si usa», «Account e sicurezza», «Esci» (pulsante da 44 px con bordo `on-green-2`). Sul telefono la barra diventa la fascia verde con marchio e sezione attiva.
 
 ### Tabs
 
@@ -298,7 +298,7 @@ Solo sul telefono, dopo `main` nel DOM. Fondo carta, filetto d'inchiostro sopra,
 
 ### Sheet («Altro»)
 
-`dialog` nativo aperto con `showModal()`, ancorato in basso, largo quanto lo schermo, alto al massimo 80dvh, quadrato. Titolo «Altro» e «Chiudi»; righe da 52 px per Team, Finance e Controllo CEO se visibili, poi «Come si usa», «Account e sicurezza» ed «Esci». La riga attiva è in inversione d'inchiostro. Si chiude con Esc, tocco sullo sfondo, «Chiudi» e a ogni cambio di pagina; il focus torna su «Altro».
+`dialog` nativo aperto con `showModal()`, ancorato in basso, largo quanto lo schermo, alto al massimo 80dvh, quadrato. Titolo «Altro» e «Chiudi»; righe da 52 px per Team, Finance e Controllo CEO per tutti i membri, poi «Come si usa», «Account e sicurezza» ed «Esci». La riga attiva è in inversione d'inchiostro. Si chiude con Esc, tocco sullo sfondo, «Chiudi» e a ogni cambio di pagina; il focus torna su «Altro».
 
 ### Panel (`WorkspacePanel`)
 

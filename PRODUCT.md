@@ -17,9 +17,9 @@ Il progetto GitHub `tommyieri/luckylap-partner` è la fonte per identità e sist
 ## Regole del prodotto
 
 - Fonte scorte: apertura dall'Excel inventario autorizzato su Drive, poi registro movimenti del gestionale; mai Shopify.
-- Vendite attive dal 21 ottobre 2026, manuali e da Shopify; nessuno storico importato. Finance conserva lo storico importato da BudgetFlow e i movimenti del gestionale, visibili solo ai tre autorizzati.
+- Vendite attive dal 21 ottobre 2026, manuali e da Shopify; nessuno storico importato. Finance conserva lo storico importato da BudgetFlow e i movimenti del gestionale, leggibili dai membri che aprono l’area con la password Finance.
 - Costi/margini e operazioni di sconto/rettifica accessibili a tutti i membri.
-- Finance soltanto founder, Gabriele, Gherardo; Controllo soltanto founder.
+- Finance e Controllo CEO compaiono nel menu di tutti i membri. Ogni membro attivo può aprire ciascuna area con la relativa password corretta, senza un ulteriore filtro di ruolo.
 - Finance: ogni movimento si corregge, si elimina e si ripristina, con motivazione e storico. Le fonti restano immutabili; le modifiche sono revisioni append-only con storico.
 - Controllo CEO: solo un feed leggibile di cosa fa il team; il registro tecnico resta nel database.
 - Packaging separato: scatole per T-shirt e adesivi per scatole, diversi dagli sticker Shopify.
@@ -32,7 +32,7 @@ Il progetto GitHub `tommyieri/luckylap-partner` è la fonte per identità e sist
 
 ## Stato della consegna
 
-App pubblicata su Vercel con dati in Supabase: cinque account personali, permessi nel database (RLS), password separate per Finance e Controllo CEO. Moduli collegati: Oggi (`/`), magazzino (`/stock`), rettifiche (`/stock/rettifiche`), vendite e ordini Shopify (`/sales`), conto vendita (`/consignment`), packaging (`/packaging`), Partner (`/partner`), calendario, attività e note (`/team`), Partner nel Team (`/team/partner`), Finance (`/finance`), grafiche (`/assets`), nuovi prodotti (`/development`), Controllo CEO (`/audit`). Ogni pagina ha lo stesso menu: al massimo sette sezioni, senza le aree in cui la persona non può entrare. La guida «Come si usa» (`/guida`) spiega l'app in nove parti brevi, con i nomi veri di sezioni e pulsanti; sta nel piede del menu e in «Altro».
+App pubblicata su Vercel con dati in Supabase: cinque account personali, permessi nel database (RLS), password separate per Finance e Controllo CEO. Moduli collegati: Oggi (`/`), magazzino (`/stock`), rettifiche (`/stock/rettifiche`), vendite e ordini Shopify (`/sales`), conto vendita (`/consignment`), packaging (`/packaging`), Partner (`/partner`), calendario, attività e note (`/team`), Partner nel Team (`/team/partner`), Finance (`/finance`), grafiche (`/assets`), nuovi prodotti (`/development`), Controllo CEO (`/audit`). Ogni pagina ha lo stesso menu: sette sezioni visibili a tutti i membri; Finance e Controllo CEO chiedono la propria password per entrare. La guida «Come si usa» (`/guida`) spiega l'app in nove parti brevi, con i nomi veri di sezioni e pulsanti; sta nel piede del menu e in «Altro».
 
 - **Partner** è dentro il gestionale: i 207 contatti della ricerca, importati il 22 ottobre 2026, con periodi, sezioni, messaggi modificabili con storico, stati, registro e lookbook.
 - **Conto vendita** è semplice: negozi, conta in negozio, resoconto del mese da fatturare, pagamenti in Finance, ordini del negozio.
