@@ -7,7 +7,14 @@ vi.mock("../app/consignment/actions", () => ({
   runConsignmentCommand: vi.fn(),
 }));
 
-import { ConsignmentShop, monthAbbrev, ShopFrame } from "./consignment-shop";
+import {
+  ConsignmentShopSales,
+  ConsignmentShopStock,
+  monthAbbrev,
+  SHOP_SIDE_TITLE,
+  ShopFrame,
+  ShopStockSummary,
+} from "./consignment-shop";
 import {
   countEntries,
   countSummary,
@@ -20,53 +27,178 @@ import { countDraft, shopPageFromRows } from "../lib/consignment/shop-read";
 const NOW = "2026-10-22T10:00:00.000Z";
 const page = (code = "NEG01", finance = true) => shopPageFromRows(shopPageRows(code, finance), NOW);
 const text = (html: string) => html.replace(/<[^>]+>/g, " ").replace(/\s+/g, " ");
-const render = (code = "NEG01", canFinance = true) =>
+const renderStock = (code = "NEG01") =>
   renderToStaticMarkup(
-    <ShopFrame page={page(code, canFinance)} userId="u" preview={false} title="Negozio">
-      <ConsignmentShop page={page(code, canFinance)} canFinance={canFinance} now={NOW} />
+    <ShopFrame
+      page={page(code)}
+      side="stock"
+      userId="u"
+      preview={false}
+      title={SHOP_SIDE_TITLE.stock}
+    >
+      <ConsignmentShopStock page={page(code)} now={NOW} />
+    </ShopFrame>,
+  );
+const renderSales = (code = "NEG01", canFinance = true) =>
+  renderToStaticMarkup(
+    <ShopFrame
+      page={page(code, canFinance)}
+      side="sales"
+      userId="u"
+      preview={false}
+      title={SHOP_SIDE_TITLE.sales}
+    >
+      <ConsignmentShopSales page={page(code, canFinance)} canFinance={canFinance} now={NOW} />
     </ShopFrame>,
   );
 
-describe("pagina del negozio", () => {
-  it("negozio contato: giacenza, mesi con «ora», ordini con mancanze, storico, impostazioni", () => {
-    const html = render();
+describe("magazzino del negozio (Magazzino › Conto vendita)", () => {
+  it("negozio contato: tutta la griglia S–XL, conta, ordini con mancanze, storico delle magliette", () => {
+    const html = renderStock();
     const t = text(html);
-    expect(t).toContain("In negozio ora");
+    expect(html).toContain(">Magazzino del negozio</h1>");
+    expect(t).toContain(
+      "Negozio sintetico · NEG01 · Taglie S–XL · Consegne dal Magazzino sintetico",
+    );
+    expect(t).toContain("In negozio");
     expect(t).toContain("8 magliette");
     expect(t).toContain("Correggi la conta");
+    expect(html).toContain('href="/stock/conto-vendita/NEG01/conta"');
     expect(t).toContain("+2 in arrivo");
-    expect(t).toContain("Ottobre 2026");
-    expect(t).toContain("ora");
-    expect(t).toContain("Settembre 2026");
-    expect(t).toContain("4 pezzi · Incasso negozio 224,99 € · Da fatturare 134,99 €");
+    // Ogni T-shirt attiva nelle taglie del negozio: S, M, L, XL, niente XS e XXL.
+    expect(html).toContain('aria-label="Magliette in negozio da Negozio sintetico"');
+    expect(t).not.toMatch(/\bXXL\b/);
     expect(t).toContain("Ordine n. 2");
     expect(t).toContain("Da preparare: 5 · In magazzino: 1 · Mancano: 4");
     expect(t).toContain("1 ordine da consegnare.");
+    expect(html).toContain('href="/stock/conto-vendita/NEG01/ordini/nuovo"');
+    expect(html).toContain('href="/stock/conto-vendita/NEG01/ordini/2"');
     expect(t).toContain("Storico");
     expect(t).toContain("Conta in negozio: 20 magliette");
-    expect(html).toContain('href="/consignment/NEG01/impostazioni"');
-    expect(html).toContain('href="/consignment/NEG01/resoconto/2026-09"');
-    expect(html).toContain('href="/consignment/NEG01/ordini/nuovo"');
+    expect(t).toContain("Riportate in magazzino: 2 magliette");
+    expect(t).not.toContain("fattura n. 12 segnata");
+    expect(html).toContain('href="/stock/conto-vendita/NEG01/impostazioni"');
+    expect(html).toContain('href="/consignment/NEG01"');
+    // Il resoconto mensile non sta qui.
+    expect(t).not.toContain("Resoconto mensile");
+    expect(t).not.toContain("Registra le vendite di");
+    expect(t).not.toContain("Da fatturare");
   });
 
-  it("negozio da contare: «—», avviso ambra e «Conta in negozio»; resoconto spiegato", () => {
-    const t = text(render("NEG02"));
+  it("negozio da contare: ogni casella «—», «Conta in negozio» principale, avviso ambra", () => {
+    const html = renderStock("NEG02");
+    const t = text(html);
     expect(t).toContain("Il negozio non è ancora stato contato.");
     expect(t).toContain("Da contare");
+    expect(html).toMatch(
+      /class="button button-primary" href="\/stock\/conto-vendita\/NEG02\/conta"/,
+    );
     expect(t).toContain("Conta in negozio");
-    expect(t).toContain("—");
-    expect(t).toContain("Il resoconto si registra dopo la prima conta");
-    expect(t).not.toContain("Registra il resoconto di");
+    expect(t).toContain("Finché non conti il negozio ogni casella mostra «—»");
+    // Nessuna cella a «0» prima della conta: tutte «—» da contare.
+    const cells = html.match(/<span class="[^"]*cellValue[^"]*">[^<]*/g) ?? [];
+    expect(cells.length).toBeGreaterThan(20);
+    expect(cells.every((cell) => cell.endsWith("—"))).toBe(true);
+    expect(t).not.toContain("Resoconto di");
   });
 
   it("modifiche al magazzino sospese: l'avviso e la conta spenta", () => {
     const p = page();
     p.settings = { ...p.settings, stockEnabled: false };
-    const html = renderToStaticMarkup(<ConsignmentShop page={p} canFinance now={NOW} />);
+    const html = renderToStaticMarkup(<ConsignmentShopStock page={p} now={NOW} />);
     expect(text(html)).toContain("Le modifiche al magazzino sono sospese.");
     expect(html).toMatch(
       /<button type="button" class="button button-secondary" disabled="">Correggi la conta/,
     );
+  });
+});
+
+describe("vendite del negozio (Vendite › Conto vendita)", () => {
+  it("negozio contato: riepilogo breve delle magliette, mesi con «ora», fattura e pagamento", () => {
+    const html = renderSales();
+    const t = text(html);
+    expect(html).toContain(">Vendite del negozio</h1>");
+    expect(t).toContain("Negozio sintetico · NEG01 · Prezzo sito + 10 € · LuckyLap 60%");
+    expect(t).toContain("Resoconto mensile");
+    expect(t).toContain("A inizio mese il negozio manda su WhatsApp i pezzi venduti: scrivili qui");
+    expect(t).toContain("8 magliette in negozio");
+    expect(t).toContain("Vedi magazzino del negozio");
+    expect(html).toContain('href="/stock/conto-vendita/NEG01"');
+    expect(t).toContain("Ottobre 2026");
+    expect(t).toContain("ora");
+    expect(t).toContain("Settembre 2026");
+    expect(t).toContain("4 pezzi · Incasso negozio 224,99 € · Da fatturare 134,99 €");
+    expect(t).toContain("Fattura n. 12");
+    expect(t).toContain("Pagata in parte");
+    expect(html).toContain('href="/consignment/NEG01/resoconto/2026-09"');
+    expect(t).toContain("fattura n. 12 segnata");
+    // Mai la griglia delle magliette, la conta o gli ordini.
+    expect(html).not.toContain("Magliette in negozio da Negozio sintetico");
+    expect(t).not.toContain("Correggi la conta");
+    expect(t).not.toContain("Nuovo ordine");
+    expect(t).not.toContain("Ordine n. 2");
+    expect(t).not.toContain("1 ordine da consegnare.");
+    expect(t).not.toContain("Conta in negozio: 20 magliette");
+    expect(html).toContain('href="/stock/conto-vendita/NEG01/impostazioni"');
+  });
+
+  it("mese precedente da registrare: «Registra le vendite di <mese>» grande e in cima", () => {
+    const p = page();
+    const later = "2026-11-05T10:00:00.000Z";
+    const html = renderToStaticMarkup(<ConsignmentShopSales page={p} canFinance now={later} />);
+    expect(html).toMatch(
+      /class="button button-primary [^"]*entryButton[^"]*" href="\/consignment\/NEG01\/resoconto\/2026-10"/,
+    );
+    expect(text(html)).toContain("Registra le vendite di ottobre");
+    expect(text(html)).toContain("Resoconto di ottobre da registrare.");
+    expect(html.indexOf("Registra le vendite di")).toBeLessThan(html.indexOf("Mesi del negozio"));
+  });
+
+  it("mese precedente già registrato: il mese in corso resta a portata, in secondo piano", () => {
+    const html = renderSales();
+    expect(text(html)).toContain("Il mese scorso è registrato");
+    expect(html).toMatch(
+      /class="button button-secondary [^"]*entryButton[^"]*" href="\/consignment\/NEG01\/resoconto\/2026-10"/,
+    );
+    expect(text(html)).toContain("Registra le vendite di ottobre");
+  });
+
+  it("anche il mese in corso registrato: nessun pulsante, si sceglie il mese dall'elenco", () => {
+    const p = page();
+    p.reports = [{ ...p.reports[0], month: "2026-10" }, ...p.reports];
+    const t = text(renderToStaticMarkup(<ConsignmentShopSales page={p} canFinance now={NOW} />));
+    expect(t).not.toContain("Registra le vendite di");
+    expect(t).toContain("Nessun mese da registrare adesso. Per un altro mese tocca la sua riga");
+  });
+
+  it("negozio da contare: spiega che si conta prima, in Magazzino › Conto vendita", () => {
+    const html = renderSales("NEG02");
+    const t = text(html);
+    expect(t).toContain("Prima conta le magliette in negozio.");
+    expect(t).toContain("La conta si fa in Magazzino › Conto vendita.");
+    expect(html).toContain('href="/stock/conto-vendita/NEG02/conta"');
+    expect(t).not.toContain("In negozio: da contare");
+    expect(t).not.toContain("Registra le vendite di");
+    // L'avviso della conta sta solo nel magazzino del negozio.
+    expect(t).not.toContain("Il negozio non è ancora stato contato.");
+  });
+
+  it("senza Finance: stato visibile, fattura e pagamenti con Finance sbloccata", () => {
+    const html = renderSales("NEG01", false);
+    const t = text(html);
+    expect(t).toContain("Fattura e pagamenti si registrano con Finance sbloccata");
+    expect(html).toContain('href="/auth/area/finance"');
+    expect(t).toContain("Pagata in parte");
+  });
+
+  it("riepilogo delle magliette: una riga in sola lettura, mai «0» prima della conta", () => {
+    const counted = renderToStaticMarkup(<ShopStockSummary page={page()} />);
+    expect(text(counted)).toContain("8 magliette in negozio");
+    expect(counted).toContain('href="/stock/conto-vendita/NEG01"');
+    expect(counted).not.toContain("<input");
+    const uncounted = text(renderToStaticMarkup(<ShopStockSummary page={page("NEG02")} />));
+    expect(uncounted).toContain("In negozio: da contare");
+    expect(uncounted).not.toMatch(/\b0 magliette/);
   });
 
   it("mese del resoconto in breve per la colonna di controllo", () => {

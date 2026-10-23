@@ -7,6 +7,19 @@ Stato del 23 ottobre 2026, dal branch `claude/revisione-pre-invio` (P7, revision
 
 Prove applicative, SQL sintetico, PostgreSQL concorrente e Auth cloud sono conteggiati separatamente. Le sezioni «Avvio del 21 ottobre 2026» restano come verbale dell'avvio: i numeri di allora non sono quelli di oggi.
 
+## Conto vendita diviso, 23 ottobre 2026
+
+Dal branch `claude/conto-vendita-diviso` (base `origin/main` a `79ffbff`, con la pull request #20), con dati sintetici e senza accessi al cloud. Nessuna migrazione: cambiano solo pagine, indirizzi e link. Dettagli in [consignment.md](consignment.md), «Pagine».
+
+| Comando | Esito |
+| --- | --- |
+| `npm test` | 2.248 test in 196 file, tutti superati |
+| `npm run test:db` senza `LUCKYLAP_PG_BIN` | 21 harness PGlite superati, 3.720 controlli; i 16 harness su PostgreSQL 17 risultano saltati (nessun file SQL toccato) |
+
+File di test nuovo: `src/lib/consignment/redirects.test.ts` (17 test, indirizzi vecchi con lo strumento di test di Next). `npm run typecheck`, `npm run build` e `npm run format:check` passano.
+
+Prova visiva sull'anteprima sintetica, a 1280 × 800 e 390 × 844: Magazzino › Conto vendita (elenco, negozio contato e da contare, conta e correzione, ordine, nuovo ordine, impostazioni, nuovo negozio), Vendite › Conto vendita (elenco, negozio contato e da contare, resoconto come modulo e come riepilogo) e gli indirizzi vecchi, che arrivano con un 307 alla pagina nuova con la scheda giusta accesa. In ogni pagina nessuno scorrimento orizzontale, nessun testo sotto 12 px, campi a 16 px, sul telefono bersagli da almeno 44 px, nessun errore nella console o nel server.
+
 ## Foto dei nuovi prodotti, 23 ottobre 2026
 
 Dal branch `claude/foto-nuovi-prodotti` (base `origin/main` a `1687d20`), con dati sintetici e senza accessi al cloud. Dettagli in [assets-development.md](assets-development.md), «Foto dei nuovi prodotti».

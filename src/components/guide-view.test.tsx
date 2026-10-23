@@ -171,7 +171,8 @@ describe("le operazioni più comuni", () => {
       "Correggere una quantità in magazzino",
       "Aggiornare scatole e adesivi",
       "Riordinare le magliette",
-      "Conto vendita: resoconto del mese e nuovo ordine",
+      "Conto vendita: registrare le vendite del mese",
+      "Conto vendita: contare il negozio e consegnare",
       "Aggiungere una call o un’attività",
       "Caricare una foto",
       "Vedere quante magliette puoi vendere",
@@ -329,6 +330,7 @@ describe("telefono, conto vendita e aiuto", () => {
     );
     for (const label of [
       "Conta in negozio",
+      "«Registra le vendite di …»",
       "«Salva resoconto»",
       "«Segna fattura emessa»",
       "«Registra pagamento»",
@@ -336,6 +338,20 @@ describe("telefono, conto vendita e aiuto", () => {
     ])
       expect(part).toContain(label);
     expect(part).toContain("non dalle Rettifiche");
+  });
+
+  it("dice dove sta ogni metà del conto vendita, con un link per lato", () => {
+    const markup = html(everyone);
+    const slice = markup.slice(
+      markup.indexOf('id="guida-conto-vendita"'),
+      markup.indexOf('id="guida-finance"'),
+    );
+    expect(text(slice)).toContain("in Magazzino, «Conto vendita» per le magliette in negozio");
+    expect(text(slice)).toContain("in Vendite, «Conto vendita» per il resoconto del mese");
+    expect(text(slice)).toContain("In Magazzino, Conto vendita: la prima volta conta");
+    expect(text(slice)).toContain("escono dal Magadzino ed entrano in negozio");
+    expect(hrefs(slice)).toEqual(["/consignment", "/stock/conto-vendita"]);
+    expect(TAB_TEXT["/stock/conto-vendita"]).toContain("Magadzino");
   });
 
   it("dice cosa fare con un invio da verificare e a chi chiedere", () => {
@@ -381,6 +397,11 @@ describe("i nomi citati esistono davvero", () => {
     ["src/components/restock-grid.tsx", ["Modifica quantità", "Proponi quantità"]],
     ["src/components/restock-detail.tsx", ["In mano nostra", "Prepara la consegna a"]],
     ["src/components/consignment-order.tsx", ["Consegnato"]],
+    [
+      "src/components/consignment-shop.tsx",
+      ["Registra le vendite di", "Conta in negozio", "Correggi la conta", "Nuovo ordine"],
+    ],
+    ["src/components/consignment-report.tsx", ["Salva resoconto"]],
     ["src/components/tshirt-availability.tsx", [">Magliette disponibili</h2>"]],
     ["src/components/partner-work-links.tsx", ["<h1>Partner nel Team</h1>"]],
   ];

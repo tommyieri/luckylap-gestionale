@@ -174,7 +174,19 @@
   font-weight: 700;
   line-height: 1.1;
 }
-.footLink a,
+.leadName {
+  color: var(--ink);
+  font-weight: 600;
+}
+.footLinks {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0 24px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+.footLinks a,
 .inlineLink {
   display: inline-flex;
   align-items: center;
@@ -186,6 +198,69 @@
 .footnote {
   color: var(--muted);
   font-size: var(--text-sm);
+}
+
+/*
+ * Vendite del negozio: il riquadro «Registra le vendite di <mese>» apre il resoconto
+ * mensile. Filetto d'inchiostro sopra come le liste roadbook; ambra solo prima della conta.
+ */
+.entry {
+  display: grid;
+  justify-items: start;
+  gap: 14px;
+  padding: 18px 20px 20px;
+  border: 1px solid var(--rule);
+  border-top: 1.5px solid var(--ink);
+}
+.entryWarning {
+  border-color: var(--amber);
+  background: var(--amber-wash);
+}
+.entryTitle {
+  font-family: var(--f-cond);
+  font-size: var(--text-xl);
+  font-weight: 700;
+  line-height: 1.1;
+}
+.entryText {
+  max-width: 72ch;
+  color: var(--ink-2);
+  font-size: var(--text-md);
+}
+.entryActions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+}
+.entry .entryButton {
+  min-height: 52px;
+  padding-inline: 20px;
+  font-size: var(--text-md);
+  font-weight: 600;
+}
+/* «8 magliette in negozio · Vedi magazzino del negozio»: una riga, mai la griglia. */
+.stockSummary {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0 8px;
+  color: var(--ink-2);
+  font-size: var(--text-md);
+}
+.stockSummary svg {
+  color: var(--muted);
+}
+.stockSummaryNumber {
+  color: var(--ink);
+  font-family: var(--f-cond);
+  font-size: var(--text-lg);
+  font-weight: 700;
+}
+.stockSummary a {
+  display: inline-flex;
+  align-items: center;
+  min-height: var(--tap);
+  font-weight: 600;
 }
 
 /* Elenco dei negozi: righe roadbook un po' più alte, giacenza nella colonna di controllo. */
@@ -917,6 +992,17 @@ details[open] > summary > .foldIcon {
 @media (max-width: 760px) {
   .page {
     gap: 24px;
+  }
+  .entry {
+    padding: 16px;
+  }
+  .entryActions,
+  .entry .entryButton {
+    width: 100%;
+  }
+  /* Il link va a capo da solo: niente «·» in fondo alla riga. */
+  .stockSummarySep {
+    display: none;
   }
   /* Più specifico della riga roadbook: la colonna di controllo resta da 76 px. */
   li.shopRow,

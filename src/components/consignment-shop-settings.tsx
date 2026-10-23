@@ -12,7 +12,7 @@ import {
   shopTermsLabel,
 } from "../lib/consignment/shop-model";
 import type { ShopConfig, ShopLocation } from "../lib/consignment/shop-read";
-import { consignmentShopHref } from "../lib/consignment/links";
+import { shopStockHref } from "../lib/consignment/links";
 import { FormMessage, useShopCommands, type FormNotice } from "./consignment-pending";
 import styles from "./consignment-shop.module.css";
 
@@ -124,7 +124,7 @@ export function ConsignmentShopSettings({
     if (!result) return;
     if (result.status === "success") {
       commands.flash(result.message);
-      router.push(consignmentShopHref(result.target.code ?? shop?.code ?? ""));
+      router.push(shopStockHref(result.target.code ?? shop?.code ?? ""));
       return;
     }
     setMessage({ tone: "error", text: result.message });

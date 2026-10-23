@@ -10,6 +10,7 @@ import type { ShopResult } from "../../lib/consignment/shop-model";
 /** Pagine che mostrano dati del conto vendita: si rileggono dopo un invio confermato. */
 const SHOP_PATHS: [string, "layout" | undefined][] = [
   ["/consignment", "layout"],
+  ["/stock/conto-vendita", "layout"],
   ["/", undefined],
   ["/stock", undefined],
   ["/packaging", undefined],

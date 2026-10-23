@@ -1,6 +1,13 @@
 # Conto vendita
 
-Il modulo `/consignment` (scheda «Conto vendita» della sezione Vendite) segue le magliette che LuckyLap lascia nei negozi in conto vendita: quante ce ne sono in ogni negozio, quante ne ha vendute il negozio ogni mese, quanto gli va fatturato e quanto ha pagato, e gli ordini di magliette nuove. Sostituisce il modulo precedente (affidi, vendite singole, regolamenti), le cui funzioni restano nel database: vedi «Comandi precedenti» in fondo.
+Il conto vendita segue le magliette che LuckyLap lascia nei negozi in conto vendita: quante ce ne sono in ogni negozio, quante ne ha vendute il negozio ogni mese, quanto gli va fatturato e quanto ha pagato, e gli ordini di magliette nuove. Sostituisce il modulo precedente (affidi, vendite singole, regolamenti), le cui funzioni restano nel database: vedi «Comandi precedenti» in fondo.
+
+Dal 23 ottobre 2026 sta in due schede, una per lato (vedi «Pagine»):
+
+- **Magazzino › Conto vendita** (`/stock/conto-vendita`), «Magazzino del negozio»: le magliette in negozio (tutte le T-shirt attive nelle taglie del negozio, «—» finché non è contato), la conta e la correzione, gli ordini e le consegne dal magazzino di partenza (il Magadzino), le magliette riportate, le impostazioni e il nuovo negozio.
+- **Vendite › Conto vendita** (`/consignment`), «Vendite del negozio»: il resoconto mensile (le magliette vendute che il negozio manda su WhatsApp, che scendono dal negozio e vanno in Finance da incassare), la fattura e i pagamenti. Delle magliette in negozio mostra solo una riga («8 magliette in negozio · Vedi magazzino del negozio»), mai la griglia.
+
+Le regole, i comandi e i dati sono gli stessi per i due lati: cambia solo dove stanno le pagine.
 
 Migrazione: `supabase/migrations/20261022215046_consignment_monthly.sql`, solo aggiunte. Il codice legge le tabelle nuove anche fuori dal modulo (colonna «In negozio» delle Giacenze, Finance): la migrazione va applicata in produzione prima del merge, come in «Produzione».
 
@@ -49,37 +56,65 @@ Giacenza: per ogni variante scendono dal negozio i venduti meno quelli «prima d
 
 ## Pagine
 
-Tutte dentro il guscio del workspace (`src/app/(workspace)/consignment/`), con `dynamic = "force-dynamic"`. `params` è una `Promise`. Un codice negozio fuori da `^[A-Z0-9]{2,12}$` (confrontato in maiuscolo), un mese che non è `AAAA-MM` o un ordine inesistente danno «Pagina non trovata», anche nel titolo.
+Tutte dentro il guscio del workspace, con `dynamic = "force-dynamic"`: le vendite in `src/app/(workspace)/consignment/`, il magazzino del negozio in `src/app/(workspace)/stock/conto-vendita/`. Le due pagine del negozio leggono gli stessi dati con `loadShop` (`src/lib/consignment/shop-page-load.ts`, una lettura per richiesta). `params` è una `Promise`. Un codice negozio fuori da `^[A-Z0-9]{2,12}$` (confrontato in maiuscolo), un mese che non è `AAAA-MM` o un ordine inesistente danno «Pagina non trovata», anche nel titolo.
 
-| Indirizzo | Contenuto |
+| Indirizzo | Scheda | Contenuto |
+| --- | --- | --- |
+| `/stock/conto-vendita` | Magazzino › Conto vendita | Elenco dei negozi: magliette in negozio o «da contare», ordini da consegnare. |
+| `/stock/conto-vendita/NEG01` | Magazzino › Conto vendita | Magazzino del negozio. |
+| `/stock/conto-vendita/NEG01/conta` | Magazzino › Conto vendita | Conta in negozio. |
+| `/stock/conto-vendita/NEG01/ordini/nuovo` | Magazzino › Conto vendita | Nuovo ordine; con `?da=2026-10` parte dalle magliette vendute in quel mese, con `?riordine=<id>` da un riordine. |
+| `/stock/conto-vendita/NEG01/ordini/3` | Magazzino › Conto vendita | Ordine n. 3; con `?consegna=1` apre «Consegnato». |
+| `/stock/conto-vendita/NEG01/impostazioni` | Magazzino › Conto vendita | Nome, condizioni, magazzino di partenza, nota, attivo (Finance). |
+| `/stock/conto-vendita/nuovo` | Magazzino › Conto vendita | Nuovo negozio (Finance). Il segmento statico vince su `[code]`. |
+| `/consignment` | Vendite › Conto vendita | Elenco dei negozi: mese da registrare o ultimo resoconto. |
+| `/consignment/NEG01` | Vendite › Conto vendita | Vendite del negozio. |
+| `/consignment/NEG01/resoconto/2026-10` | Vendite › Conto vendita | Resoconto del mese: modulo se manca, riepilogo se c'è. |
+
+Gli indirizzi si costruiscono solo con `src/lib/consignment/links.ts`: `consignmentShopHref(code, month?)` per le vendite e il resoconto (forme della decisione 17, che il feed del Controllo CEO costruisce in SQL: non cambiano), `shopStockHref`, `consignmentCountHref`, `consignmentOrderHref`, `consignmentSettingsHref` e `NEW_SHOP_HREF` per il magazzino del negozio. Un codice non valido riporta all'elenco del suo lato. Li usano Oggi, Finance, il Riassortimento («Prepara la consegna a LCM»), le Giacenze (la nota di «In negozio») e le pagine stesse.
+
+### Indirizzi vecchi
+
+Prima del 23 ottobre conta, ordini, impostazioni e nuovo negozio stavano sotto `/consignment`. Restano validi per segnalibri e link già scritti con i redirect di `next.config.ts` (`CONSIGNMENT_REDIRECTS`), temporanei (307: un 308 resterebbe nella cache del browser), che passano prima del proxy e portano la query con sé:
+
+| Vecchio | Nuovo |
 | --- | --- |
-| `/consignment` | Elenco dei negozi. |
-| `/consignment/nuovo` | Nuovo negozio (Finance). Il segmento statico vince su `[code]`. Accetta già `?nome=`, `?citta=`, `?paese=` come valori iniziali per il collegamento da Partner. |
-| `/consignment/NEG01` | Pagina del negozio. |
-| `/consignment/NEG01/conta` | Conta in negozio. |
-| `/consignment/NEG01/resoconto/2026-10` | Resoconto del mese: modulo se manca, riepilogo se c'è. |
-| `/consignment/NEG01/ordini/nuovo` | Nuovo ordine; con `?da=2026-10` parte dalle magliette vendute in quel mese. |
-| `/consignment/NEG01/ordini/3` | Ordine n. 3. |
-| `/consignment/NEG01/impostazioni` | Nome, condizioni, magazzino di partenza, nota, attivo (Finance). |
+| `/consignment/NEG01/conta` | `/stock/conto-vendita/NEG01/conta` |
+| `/consignment/NEG01/ordini/3`, `/consignment/NEG01/ordini/nuovo?riordine=<id>` | `/stock/conto-vendita/NEG01/ordini/3`, `/stock/conto-vendita/NEG01/ordini/nuovo?riordine=<id>` |
+| `/consignment/NEG01/impostazioni` | `/stock/conto-vendita/NEG01/impostazioni` |
+| `/consignment/nuovo` | `/stock/conto-vendita/nuovo` |
 
-Gli indirizzi si costruiscono solo con `src/lib/consignment/links.ts` (`consignmentShopHref(code, month?)` e gli altri), usati anche da Finance e, più avanti, da Oggi e dal Controllo CEO.
+`/consignment`, `/consignment/NEG01` e `/consignment/NEG01/resoconto/2026-10` restano dove sono: il feed del Controllo CEO porta lì i resoconti e, per conte, ordini e consegne, la pagina del negozio, cioè le vendite del negozio, che ha il link al magazzino del negozio. Le regole sono provate dallo strumento di test di Next (`unstable_getResponseFromNextConfig`) in `src/lib/consignment/redirects.test.ts`.
 
-Stati comuni: `loading.tsx` con righe scheletro ad altezza fissa e «Caricamento del conto vendita…»; `error.tsx` con «Non riesco a leggere il conto vendita. Non mostro dati parziali.» e «Riprova» (`retry()`); `[code]/not-found.tsx` con «Negozio non trovato.» e il link all'elenco. Sessione mancante: login. Database non configurato, account non abilitato o verifica non riuscita: `AccessPanel`. Flag spenti: «Le modifiche al magazzino sono sospese.», pulsanti disattivati, letture normali.
+Stati comuni, uguali nei due lati: `loading.tsx` con righe scheletro ad altezza fissa e «Caricamento del conto vendita…»; `error.tsx` con «Non riesco a leggere il conto vendita. Non mostro dati parziali.» e «Riprova» (`retry()`); `[code]/not-found.tsx` con «Negozio non trovato.» e il link all'elenco del lato. In `stock/conto-vendita` `loading.tsx` ed `error.tsx` riesportano quelli di `consignment`. Sessione mancante: login. Database non configurato, account non abilitato o verifica non riuscita: `AccessPanel`. Flag spenti: «Le modifiche al magazzino sono sospese.», pulsanti disattivati, letture normali.
 
-### Elenco
+Titoli: le schede e gli elenchi si chiamano «Conto vendita» in tutte e due le sezioni; l'`h1` delle pagine del negozio è «Magazzino del negozio» o «Vendite del negozio», con sotto nome, codice e, nel magazzino, taglie e magazzino di partenza («Taglie S–XL · Consegne dal Magadzino»), nelle vendite le condizioni («Prezzo sito + 10 € · LuckyLap 60%»). Titolo del documento: «Magazzino del negozio · <nome>», «Vendite del negozio · <nome>». Nelle pagine figlie il nome del negozio porta alla pagina del negozio dello stesso lato.
 
-Una riga quadrata per negozio, tutta cliccabile: nome; condizioni in piccolo («Prezzo sito + 10 € · LuckyLap 60%»); magliette in negozio in Barlow Condensed oppure «Da contare» in ambra; ultimo resoconto («Ottobre · 12 pezzi · Pagata») oppure il mese da registrare in ambra; ordini da consegnare. Sotto, «Negozi chiusi» comprimibile se ce ne sono. «Nuovo negozio» solo con Finance aperta; altrimenti «Per aggiungere un negozio apri Finance».
+### Elenchi
 
-### Pagina del negozio
+Una riga quadrata per negozio, tutta cliccabile. Sotto, «Negozi chiusi» comprimibile se ce ne sono. «Nuovo negozio» (verso `/stock/conto-vendita/nuovo`) solo con Finance aperta, in tutti e due gli elenchi; altrimenti «Per aggiungere un negozio apri Finance».
 
-Dall'alto:
+- Magazzino: magliette in negozio in Barlow Condensed oppure «—» e «da contare» in ambra; codice e «8 magliette in negozio» (o «Da contare in negozio»); ordini da consegnare. Porta al magazzino del negozio.
+- Vendite: nella colonna di controllo il mese da registrare con «da fare» in ambra, oppure il mese dell'ultimo resoconto (con «fatto» se è pagato o non c'era niente da incassare); prima della conta «—» e «da contare». Condizioni in piccolo; ultimo resoconto («Settembre · 4 pezzi · Pagata in parte») o il mese da registrare in ambra; prima della conta «Prima la conta in Magazzino › Conto vendita». Porta alle vendite del negozio.
 
-1. **Avvisi**, solo se servono, calcolati alla lettura senza job pianificati (`shopReminders`): negozio da contare; resoconti dei mesi finiti da registrare; fatture da emettere; resoconto modificato dopo la fattura («controlla se serve una nota di credito»); pagato più del dovuto; ordini da consegnare. Un tentativo da verificare sta sopra tutto e blocca le scritture.
-2. **In negozio ora**: la griglia, con il totale e «Conta in negozio» (prima conta) o «Correggi la conta». Le celle con ordini aperti mostrano «+2 in arrivo».
-3. **Resoconto mensile**: «Registra il resoconto di <mese precedente>» se manca; i mesi registrati dal più recente, con pezzi, incasso del negozio, da fatturare, fattura e pagamento. Il mese in corso ha la casella verde «ora», il mese pagato (o senza niente da incassare) il segno «fatto», il mese finito senza resoconto «da fare» in ambra. Finché il negozio non è contato il resoconto è disattivato, con la spiegazione; ordini e consegne restano possibili.
-4. **Ordini**: «Nuovo ordine», gli ordini aperti con «Da preparare · In magazzino · Mancano», quelli chiusi comprimibili.
-5. **Storico**, comprimibile: conte, consegne, magliette riportate, versioni dei resoconti, con autore e ora. Qui c'è l'azione secondaria «Riporta in magazzino».
-6. Link «Impostazioni del negozio».
+### Pagine del negozio
+
+Avvisi in cima, solo se servono, calcolati alla lettura senza job pianificati (`shopReminders(page, now, side)`), ognuno nel suo lato. Un tentativo da verificare sta sopra tutto, in tutti e due i lati, e blocca le scritture.
+
+**Magazzino del negozio** (`ConsignmentShopStock`), dall'alto:
+
+1. Avvisi: negozio da contare, ordini da consegnare; negozio chiuso, modifiche al magazzino sospese.
+2. **In negozio**: la griglia con tutte le T-shirt attive nelle taglie del negozio, il totale e «Conta in negozio» (prima conta, pulsante principale) o «Correggi la conta». Prima della conta ogni casella è «—» e la frase lo spiega. Le celle con ordini aperti mostrano «+2 in arrivo».
+3. **Ordini**: «Nuovo ordine», gli ordini aperti con «Da preparare · In magazzino · Mancano», quelli chiusi comprimibili.
+4. **Storico**, comprimibile: conte, consegne, magliette riportate e versioni dei resoconti che hanno tolto magliette dal negozio, con autore e ora (le fatture no). Qui c'è l'azione secondaria «Riporta in magazzino».
+5. Link «Vendite del negozio» e «Impostazioni del negozio».
+
+**Vendite del negozio** (`ConsignmentShopSales`), dall'alto:
+
+1. Avvisi: resoconti dei mesi finiti da registrare; fatture da emettere; resoconto modificato dopo la fattura («controlla se serve una nota di credito»); pagato più del dovuto; negozio chiuso, modifiche al magazzino sospese, vendite non attive. La conta mancante non è un avviso: la spiega il riquadro del resoconto.
+2. **Resoconto mensile**, con un riquadro in cima: una frase su cosa fare («A inizio mese il negozio manda su WhatsApp i pezzi venduti: scrivili qui…») e il pulsante grande «Registra le vendite di <mese>»: principale per il mese scorso ancora da registrare, secondario per il mese in corso quando il mese scorso è registrato («Il mese scorso è registrato: quello in corso si chiude a fine mese.»). Finché il negozio non è contato il riquadro è ambra: «Prima conta le magliette in negozio.», la conta si fa in Magazzino › Conto vendita, e «Conta in negozio» porta lì. Poi, dopo la prima conta, la riga «8 magliette in negozio · Vedi magazzino del negozio». Poi i mesi dal più recente, con pezzi, incasso del negozio, da fatturare, fattura e pagamento: il mese in corso ha la casella verde «ora», il mese pagato (o senza niente da incassare) il segno «fatto», il mese finito senza resoconto «da fare» in ambra. Ogni mese porta al suo resoconto: così si sceglie un altro mese. Senza Finance: «Fattura e pagamenti si registrano con Finance sbloccata».
+3. **Storico**, comprimibile: versioni dei resoconti e fatture segnate o tolte.
+4. Link «Magazzino del negozio» e «Impostazioni del negozio».
 
 ### Griglia
 
@@ -97,21 +132,21 @@ Riepilogo: quattro numeri grandi (pezzi venduti, incasso del negozio, quota del 
 
 ### Ordini
 
-Nuovo ordine: data della richiesta (predefinita oggi), nota, griglia dei pezzi. Da un riordine arrivato (Magazzino › Riassortimento, «Prepara la consegna») l'indirizzo è `/consignment/NEG01/ordini/nuovo?riordine=<id>`: l'ordine parte già compilato con i pezzi per il negozio ancora da consegnare e la nota «Riordine «<titolo>»», resta legato al riordine (`restock_order_id`) e, salvato, apre l'ordine con «Consegnato» già aperto (`?consegna=1`, solo se non è stato consegnato niente). La consegna si conferma come sempre. Vedi [Riassortimento](riassortimento.md). Il numero è progressivo per negozio. Ordine aperto: per riga «Richieste · Consegnate · Da consegnare · In magazzino · Mancano», in ambra le righe con mancanze. «Consegnato» apre il modulo già compilato con tutto il residuo, modificabile per una consegna parziale, con data e ora. Se i numeri scritti superano quelli in magazzino, prima dell'invio un avviso ambra dice quante ne mancano («GT3RS Blu M (1 su 2)») e propone «Consegna solo quelle in magazzino», che abbassa solo quelle righe. Se al momento dell'invio in magazzino manca una maglietta non si registra nulla e la riga viene indicata. «Modifica ordine» finché è aperto, senza scendere sotto il consegnato. «Chiudi ordine» annulla il residuo, con motivo. Tutto consegnato: segno «fatto».
+Nuovo ordine: data della richiesta (predefinita oggi), nota, griglia dei pezzi. Da un riordine arrivato (Magazzino › Riassortimento, «Prepara la consegna») l'indirizzo è `/stock/conto-vendita/NEG01/ordini/nuovo?riordine=<id>`: l'ordine parte già compilato con i pezzi per il negozio ancora da consegnare e la nota «Riordine «<titolo>»», resta legato al riordine (`restock_order_id`) e, salvato, apre l'ordine con «Consegnato» già aperto (`?consegna=1`, solo se non è stato consegnato niente). La consegna si conferma come sempre. Vedi [Riassortimento](riassortimento.md). Il numero è progressivo per negozio. Ordine aperto: per riga «Richieste · Consegnate · Da consegnare · In magazzino · Mancano», in ambra le righe con mancanze. «Consegnato» apre il modulo già compilato con tutto il residuo, modificabile per una consegna parziale, con data e ora. Se i numeri scritti superano quelli in magazzino, prima dell'invio un avviso ambra dice quante ne mancano («GT3RS Blu M (1 su 2)») e propone «Consegna solo quelle in magazzino», che abbassa solo quelle righe. Se al momento dell'invio in magazzino manca una maglietta non si registra nulla e la riga viene indicata. «Modifica ordine» finché è aperto, senza scendere sotto il consegnato. «Chiudi ordine» annulla il residuo, con motivo. Tutto consegnato: segno «fatto».
 
 ### Negozi
 
-`/consignment/nuovo` e `/consignment/NEG01/impostazioni`, solo con Finance aperta: nome (3–120 caratteri), quota LuckyLap in percento, maggiorazione in euro, magazzino di partenza (un «Magazzino» attivo), nota, attivo. Un negozio si chiude solo se non ha magliette, ordini aperti o resoconti da pagare (`shop_not_empty`). Nome e stato attivo restano in `stock_locations`, una sola fonte.
+`/stock/conto-vendita/nuovo` e `/stock/conto-vendita/NEG01/impostazioni`, solo con Finance aperta, raggiungibili da tutti e due i lati: nome (3–120 caratteri), quota LuckyLap in percento, maggiorazione in euro, magazzino di partenza (un «Magazzino» attivo), nota, attivo. Un negozio si chiude solo se non ha magliette, ordini aperti o resoconti da pagare (`shop_not_empty`). Nome e stato attivo restano in `stock_locations`, una sola fonte.
 
 ### Invii incerti
 
 Ogni comando passa da `runShopCommand` (`src/app/consignment/actions.ts`, fuori dal gruppo di route). UUID e payload si congelano in `sessionStorage` prima dell'invio, con chiave `luckylap.consignment.shop.pending:<userId>`, e un blocco sincrono ferma il doppio clic. Se lo spazio non è scrivibile l'invio non parte. Un esito incerto resta in cima alla pagina con la scheda di `pending-attempt.tsx` (data italiana all'ora di Roma, righe leggibili, codice tecnico solo in «Codice per l'assistenza») e blocca le altre scritture finché «Verifica lo stesso invio» non lo chiarisce con lo stesso UUID. In una verifica, un rifiuto che può arrivare prima della ricevuta (accesso, Finance, dati, mese, flag) non prova che l'invio non sia avvenuto: il tentativo resta incerto. La pagina controlla anche la chiave del modulo precedente, `luckylap.consignment.pending:<userId>`, e la verifica con `runConsignmentCommand`.
 
-Dopo un successo si rileggono `/consignment` (con le pagine figlie), `/`, `/stock`, `/packaging`, `/finance` e `/finance/work`; un errore della cache non annulla una ricevuta confermata.
+Dopo un successo si rileggono `/consignment` e `/stock/conto-vendita` (con le pagine figlie), `/`, `/stock`, `/packaging`, `/finance`, `/finance/work`, `/audit` e `/sales`; un errore della cache non annulla una ricevuta confermata. Dopo una conta e dopo un negozio nuovo o modificato si apre il magazzino del negozio.
 
 ### Anteprima locale
 
-Con `npm run dev` (`isLocalPreviewEnabled()`, sempre spento su Vercel e con `NODE_ENV=production`) le pagine del conto vendita e `/finance` leggono solo i dati sintetici di `src/lib/consignment/shop-fixtures.ts` («Negozio sintetico», `synthetic.myshopify.com`), mostrano «Anteprima locale: dati sintetici, salvataggio disattivato.» e non chiamano Supabase. `runShopCommand` rifiuta ogni invio. Indirizzi utili: `NEG01` contato, con resoconti, pagamenti e ordini; `NEG02` da contare; `NEG03` chiuso.
+Con `npm run dev` (`isLocalPreviewEnabled()`, sempre spento su Vercel e con `NODE_ENV=production`) le pagine del conto vendita, in tutti e due i lati, e `/finance` leggono solo i dati sintetici di `src/lib/consignment/shop-fixtures.ts` («Negozio sintetico», `synthetic.myshopify.com`), mostrano «Anteprima locale: dati sintetici, salvataggio disattivato.» e non chiamano Supabase. `runShopCommand` rifiuta ogni invio. Indirizzi utili: `NEG01` contato, con resoconti, pagamenti e ordini; `NEG02` da contare; `NEG03` chiuso.
 
 ## Database
 
@@ -203,7 +238,7 @@ Per Oggi (pacchetto successivo) `src/lib/consignment/shop-finance.ts` esporta `l
 ## Magazzino
 
 - Le quantità del negozio cambiano solo con i comandi di questo modulo. `/stock/rettifiche` sceglie solo i magazzini e la sua Server Action rifiuta le altre sedi con `shop_location`; nel database il trigger `adjustment_not_on_shop` (`private.reject_shop_adjustment()`, `before insert` su `stock_movements`) rifiuta ogni movimento `adjustment` su una sede «Negozio Conto Vendita». I movimenti `opening` e `transfer_in` sul negozio restano ammessi. Vedi [Rettifiche del magazzino](stock-interface.md).
-- La colonna «In negozio» delle Giacenze (`/stock`) somma i negozi attivi già contati; «—» finché nessun negozio è contato.
+- La colonna «In negozio» delle Giacenze (`/stock`) somma i negozi attivi già contati; «—» finché nessun negozio è contato. La nota sotto le Giacenze porta a Magazzino › Conto vendita.
 - Ordini e consegne non creano riserve: la consegna controlla la disponibilità vera del magazzino di partenza al momento dell'invio.
 
 ## Packaging
@@ -227,15 +262,17 @@ Vitest (tutti con dati sintetici, albero React senza DOM per i componenti):
 | File | Test | Cosa verifica |
 | --- | --- | --- |
 | `src/lib/consignment/shop-model.test.ts` | 63 | `shopSplit` uguale a `consignmentSplit` con 6000/1000, mezzi centesimi, limite 9e15, altre quote; parser dei 10 comandi (chiavi, UUID, quantità, mesi, date al cambio dell'ora, righe doppie, 201 righe, `price` obbligatorio e vietato). |
-| `src/lib/consignment/shop-read.test.ts` | 54 | Sconosciuto e zero, «in arrivo», promemoria, colonna «Prima della conta», mesi ammessi all'ora di Roma, totali, mancanze degli ordini, letture troncate o orfane. |
+| `src/lib/consignment/shop-read.test.ts` | 58 | Sconosciuto e zero, «in arrivo», promemoria e storico per lato (magazzino o vendite), «Taglie S–XL», colonna «Prima della conta», mesi ammessi all'ora di Roma, totali, mancanze degli ordini, letture troncate o orfane. |
 | `src/lib/consignment/shop-server.test.ts` | 42 | Membership e Finance prima della RPC, un messaggio per codice, verifiche incerte, forma del risultato, SKU solo se noto. |
 | `src/lib/consignment/shop-finance.test.ts` | 8 | Pannello mensile, accesso negato prima delle query, pagamenti come movimenti, `loadConsignmentToSettle`. |
-| `src/lib/consignment/links.test.ts` | 5 | Indirizzi validi o ritorno all'elenco. |
-| `src/app/consignment/actions.test.ts` | 4 | Anteprima senza invii, pagine rilette dopo un successo. |
-| `src/app/(workspace)/consignment/consignment-pages.test.tsx` | 6 | Anteprima sintetica (spenta con `VERCEL=1` e `NODE_ENV=production`), «Pagina non trovata», titolo della conta uguale all'h1, parole vietate. |
-| Componenti `consignment-*.test.tsx` | 54 | Elenco 6, negozio 9, griglia 5, resoconto 9, ordine 6, invii incerti 11, pannello Finance 8: stati vuoti e da contare, «—» e «0», riepilogo della correzione, totali dal vivo, doppio invio, recupero anche dalla chiave vecchia, mancanze in ambra, avviso di consegna oltre il magazzino, pulsanti Finance nascosti. |
+| `src/lib/consignment/links.test.ts` | 6 | Vendite e resoconto sotto `/consignment` (decisione 17), conta, ordini, impostazioni e nuovo negozio sotto `/stock/conto-vendita`, ritorno all'elenco del lato. |
+| `src/lib/consignment/redirects.test.ts` | 17 | Ogni indirizzo vecchio (conta, ordini con `?riordine=`, `?da=`, `?consegna=1`, impostazioni, nuovo negozio) porta con un 307 al nuovo; vendite, resoconto e pagine nuove non si spostano. |
+| `src/app/consignment/actions.test.ts` | 5 | Anteprima senza invii, pagine rilette dopo un successo (anche `/stock/conto-vendita`). |
+| `src/app/(workspace)/consignment/consignment-pages.test.tsx` | 7 | Anteprima sintetica nei due lati (elenchi, negozio, conta, ordine, impostazioni, nuovo negozio; spenta con `VERCEL=1` e `NODE_ENV=production`), «Pagina non trovata», titoli, titolo della conta uguale all'h1, parole vietate anche in `stock/conto-vendita`. |
+| Componenti `consignment-*.test.tsx` | 67 | Elenchi 9 (i due lati), negozio 16 (magazzino: griglia S–XL tutta «—» prima della conta, conta, ordini, storico; vendite: «Registra le vendite di <mese>» principale o secondario, mesi, fattura e pagamento, riepilogo delle magliette, «Prima conta» con il link al magazzino), griglia 6, resoconto 9, ordine 8, invii incerti 11, pannello Finance 8 + 1: stati vuoti e da contare, «—» e «0», riepilogo della correzione, totali dal vivo, doppio invio, recupero anche dalla chiave vecchia, mancanze in ambra, avviso di consegna oltre il magazzino, pulsanti Finance nascosti. |
+| `src/lib/navigation.test.ts`, `src/components/workspace-nav.test.tsx` | 90 + 20 | Scheda «Conto vendita» in Magazzino (Giacenze, Rettifiche, Conto vendita, Riassortimento, Packaging) e in Vendite; ogni pagina accende la sezione e la scheda giuste. |
 | `src/lib/finance/dashboard.test.ts`, `src/app/(workspace)/finance/finance-preview.test.tsx` | 16 + 3 | Pagamenti del negozio nei conti, nessun doppio conteggio, resoconti fuori dai saldi; anteprima di `/finance`. |
-| `src/lib/auth/inventory-model.test.ts`, `src/components/inventory-workspace.test.tsx` | 6 + 2 | Colonna «In negozio». |
+| `src/lib/auth/inventory-model.test.ts`, `src/components/inventory-workspace.test.tsx` | 6 + 6 | Colonna «In negozio» e link della nota a Magazzino › Conto vendita. |
 | `src/lib/stock/model.test.ts`, `src/lib/stock/server.test.ts` | 29 + 27 | Sedi del negozio escluse e rifiutate (`shop_location`). |
 
 Harness SQL (`npm run test:db`):
@@ -244,6 +281,8 @@ Harness SQL (`npm run test:db`):
 - `supabase/tests/consignment-concurrency.mjs`, PostgreSQL 17 reale, **16 controlli** (`// test-db: postgres minimo 16`), cluster usa e getta: due creazioni dello stesso mese, due modifiche dalla stessa versione, ultima maglietta fra consegna e vendita diretta, conta contro consegna, due pagamenti che insieme superano il dovuto.
 - `consignment.mjs` (145), `packaging-automation.mjs` (73) e `packaging-concurrency.mjs` (6) applicano anche questa migrazione: le RPC precedenti e la funzione packaging sostituita passano con gli stessi controlli.
 - Taglie del negozio e ordine legato al riordine: `supabase/tests/riassortimento.mjs` (PGlite) e `riassortimento-concurrency.mjs` (PostgreSQL 17), vedi [Riassortimento](riassortimento.md). Nei Vitest il negozio sintetico `NEG01` tiene S–XL come Milano: `shop-read.test.ts` e `consignment-stock-grid.test.tsx` provano le due varianti (tutte le taglie e S–XL), `consignment-order.test.tsx` l'ordine nato da un riordine.
+
+Prova visiva del 23 ottobre 2026, dopo la divisione in due schede, sull'anteprima sintetica (`npm run dev`), a 1280 × 800 e 390 × 844: Magazzino › Conto vendita (elenco, `NEG01` contato, `NEG02` da contare, conta e correzione, ordine n. 2, nuovo ordine, impostazioni, nuovo negozio) e Vendite › Conto vendita (elenco, `NEG01`, `NEG02` con «Prima conta», resoconto di ottobre come modulo e di settembre come riepilogo); gli indirizzi vecchi `/consignment/NEG01/conta`, `/consignment/neg01/ordini/2?consegna=1`, `/consignment/nuovo` e `/consignment/NEG01/impostazioni` arrivano alla pagina nuova (307 con la query), con la scheda giusta accesa. In ogni pagina nessuno scorrimento orizzontale, nessun testo sotto 12 px, campi a 16 px, sul telefono nessun bersaglio sotto 44 px, nessun errore nella console o nel server.
 
 Prova visiva del 22 ottobre 2026 sull'anteprima sintetica (`npm run dev`), a 1280 × 800 e 390 × 844: elenco; `NEG02` da contare («—» e avviso ambra); `NEG01` contato; conta; resoconto di ottobre (modulo, con la barra sopra la barra di navigazione del telefono) e di settembre (riepilogo con i quattro numeri, fattura e pagamento); nuovo ordine; ordine n. 2 con le mancanze in ambra; nuovo negozio; impostazioni; `/finance` con il pannello «Conto vendita · da incassare»; `/stock` con la colonna «In negozio». In ogni pagina nessuno scorrimento orizzontale (anche a 360 px per negozio, conta e riepilogo), nessun testo sotto 12 px, campi a 16 px; sul telefono nessun bersaglio sotto 44 px nelle pagine del conto vendita (nel pannello Finance la riga intera è il link); nessun errore nella console o nel server. In anteprima `/stock/rettifiche` resta «da collegare»: l'esclusione del negozio dalle sedi è provata da `src/lib/stock/server.test.ts`.
 

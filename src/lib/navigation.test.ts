@@ -231,8 +231,13 @@ describe("locate", () => {
     ["/sales", "vendite", "Ordini"],
     ["/consignment", "vendite", "Conto vendita"],
     ["/consignment/NEG01", "vendite", "Conto vendita"],
-    ["/consignment/NEG01/conta", "vendite", "Conto vendita"],
+    ["/consignment/NEG01/resoconto/2026-10", "vendite", "Conto vendita"],
     ["/stock", "magazzino", "Giacenze"],
+    ["/stock/conto-vendita", "magazzino", "Conto vendita"],
+    ["/stock/conto-vendita/NEG01", "magazzino", "Conto vendita"],
+    ["/stock/conto-vendita/NEG01/conta", "magazzino", "Conto vendita"],
+    ["/stock/conto-vendita/NEG01/ordini/2", "magazzino", "Conto vendita"],
+    ["/stock/conto-vendita/nuovo", "magazzino", "Conto vendita"],
     ["/stock/rettifiche", "magazzino", "Rettifiche"],
     ["/packaging", "magazzino", "Packaging"],
     ["/stock/riassortimento", "magazzino", "Riassortimento"],
@@ -274,6 +279,22 @@ describe("locate", () => {
   it("dà la stessa scheda della mappa, così il confronto per identità funziona", () => {
     const magazzino = SECTIONS.find((section) => section.id === "magazzino")!;
     expect(locate("/stock/rettifiche").tab).toBe(magazzino.tabs[1]);
+    expect(locate("/stock/conto-vendita/NEG01").tab).toBe(magazzino.tabs[2]);
+  });
+
+  it("Conto vendita in due sezioni: vendite in Vendite, magazzino del negozio in Magazzino", () => {
+    const tabs = (id: string) =>
+      SECTIONS.find((section) => section.id === id)!.tabs.map((tab) => `${tab.label} ${tab.href}`);
+    expect(tabs("vendite")).toEqual(["Ordini /sales", "Conto vendita /consignment"]);
+    expect(tabs("magazzino")).toEqual([
+      "Giacenze /stock",
+      "Rettifiche /stock/rettifiche",
+      "Conto vendita /stock/conto-vendita",
+      "Riassortimento /stock/riassortimento",
+      "Packaging /packaging",
+    ]);
+    expect(locate("/consignment/NEG01").section).toBe("vendite");
+    expect(locate("/stock/conto-vendita/NEG01").section).toBe("magazzino");
   });
 
   it("confronta i prefissi solo a confine di segmento", () => {

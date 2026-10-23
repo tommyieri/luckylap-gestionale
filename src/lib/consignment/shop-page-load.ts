@@ -1,10 +1,10 @@
 import "server-only";
 import { cache } from "react";
-import { requireMember } from "../../../lib/auth/current-member";
-import { readConsignmentShop } from "../../../lib/consignment/shop-server";
-import { previewShopPage } from "../../../lib/consignment/shop-fixtures";
-import { shopCode } from "../../../lib/consignment/links";
-import type { ShopPage } from "../../../lib/consignment/shop-read";
+import { requireMember } from "../auth/current-member";
+import { readConsignmentShop } from "./shop-server";
+import { previewShopPage } from "./shop-fixtures";
+import { shopCode } from "./links";
+import type { ShopPage } from "./shop-read";
 
 /** Chiave del tentativo in sospeso nell'anteprima locale: nessun membro vero. */
 export const PREVIEW_USER = "anteprima-locale";
@@ -22,7 +22,8 @@ export type ShopLoad =
 
 /**
  * Pagina di un negozio, letta una volta per richiesta e condivisa da
- * `generateMetadata` e dalla pagina. Senza sessione porta al login; un errore di
+ * `generateMetadata` e dalla pagina, nei due lati: Vendite › Conto vendita
+ * (`/consignment/…`) e Magazzino › Conto vendita (`/stock/conto-vendita/…`). Senza sessione porta al login; un errore di
  * lettura arriva a `error.tsx`, che non mostra dati parziali. In anteprima
  * locale legge solo i dati sintetici, mai Supabase.
  */

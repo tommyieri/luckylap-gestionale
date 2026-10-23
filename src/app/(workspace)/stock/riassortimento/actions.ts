@@ -13,6 +13,7 @@ const RESTOCK_PATHS: [string, "layout" | undefined][] = [
   ["/", undefined],
   ["/sales", undefined],
   ["/consignment", "layout"],
+  ["/stock/conto-vendita", "layout"],
   ["/audit", undefined],
 ];
 

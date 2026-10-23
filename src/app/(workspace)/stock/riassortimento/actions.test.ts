@@ -35,6 +35,7 @@ describe("runRestockCommand", () => {
       ["/", undefined],
       ["/sales", undefined],
       ["/consignment", "layout"],
+      ["/stock/conto-vendita", "layout"],
       ["/audit", undefined],
     ]);
   });
@@ -45,7 +46,7 @@ describe("runRestockCommand", () => {
       throw Error("cache");
     });
     expect((await runRestockCommand({})).status).toBe("success");
-    expect(mocks.revalidate).toHaveBeenCalledTimes(7);
+    expect(mocks.revalidate).toHaveBeenCalledTimes(8);
     mocks.revalidate.mockReset();
     mocks.execute.mockResolvedValue({ status: "rejected", code: "stale_version", message: "x" });
     expect((await runRestockCommand({})).status).toBe("rejected");

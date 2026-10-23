@@ -84,9 +84,12 @@ describe("modulo del mese", () => {
     );
   });
 
-  it("negozio da contare: niente modulo, si conta prima", () => {
-    const t = text(render("2026-10", true, page("NEG02")));
+  it("negozio da contare: niente modulo, si conta prima in Magazzino › Conto vendita", () => {
+    const html = render("2026-10", true, page("NEG02"));
+    const t = text(html);
     expect(t).toContain("Prima conta le magliette in negozio.");
+    expect(t).toContain("La conta si fa in Magazzino › Conto vendita.");
+    expect(html).toContain('href="/stock/conto-vendita/NEG02/conta"');
     expect(t).not.toContain("Salva resoconto");
   });
 
@@ -115,7 +118,9 @@ describe("riepilogo del mese", () => {
     expect(t).toContain("Versione 2 · Collega sintetica");
     expect(t).toContain("Il negozio ha corretto una taglia");
     expect(t).toContain("Importi commerciali. Il trattamento IVA va verificato a parte.");
-    expect(render("2026-09")).toContain('href="/consignment/NEG01/ordini/nuovo?da=2026-09"');
+    expect(render("2026-09")).toContain(
+      'href="/stock/conto-vendita/NEG01/ordini/nuovo?da=2026-09"',
+    );
   });
 
   it("con Finance aperta: fattura, pagamenti con storico e link al movimento Finance", () => {

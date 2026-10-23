@@ -37,7 +37,7 @@ export const SECTION_TEXT: Partial<Record<SectionId, string>> = {
   oggi: "Il lavoro del giorno: agenda, contatti e solleciti, ordini da preparare e magazzino.",
   vendite: "Le vendite di LuckyLap, dirette e nei negozi.",
   magazzino:
-    "Le magliette che abbiamo, quelle da correggere, il materiale per spedire e i riordini.",
+    "Le magliette che abbiamo, quelle nei negozi, quelle da correggere, i riordini e il materiale per spedire.",
   partner: "Negozi, eventi, club, media e brand da contattare, con i messaggi già scritti.",
   team: "Il lavoro di tutti i giorni del team.",
   finance: "Conti, movimenti e documenti del brand.",
@@ -46,9 +46,12 @@ export const SECTION_TEXT: Partial<Record<SectionId, string>> = {
 /** Una frase per scheda: il test vuole tutte le schede della mappa. */
 export const TAB_TEXT: Record<string, string> = {
   "/sales": "Vendite dirette ed Etsy, consegne e incassi. Gli ordini Shopify arrivano da soli.",
-  "/consignment": "I negozi che vendono le nostre magliette e il loro resoconto del mese.",
+  "/consignment":
+    "Le vendite dei negozi in conto vendita: il resoconto del mese, la fattura e il pagamento.",
   "/stock": "Ogni variante con le quantità del Magadzino e dei negozi, costi e prezzi.",
   "/stock/rettifiche": "Correggi una quantità in magazzino, sempre con la causale.",
+  "/stock/conto-vendita":
+    "Le magliette in ogni negozio: la conta, gli ordini e le consegne dal Magadzino.",
   "/packaging": "Scatole e adesivi: una scatola e un adesivo per ogni T-shirt consegnata.",
   "/stock/riassortimento":
     "I riordini di magliette, dalla discussione su cosa riordinare all’arrivo in mano nostra, che le carica nel Magadzino.",
@@ -125,9 +128,15 @@ export const OPERATIONS: { title: string; href: string; text: string; who?: stri
     who: "Tommi",
   },
   {
-    title: "Conto vendita: resoconto del mese e nuovo ordine",
+    title: "Conto vendita: registrare le vendite del mese",
     href: "/consignment",
-    text: "In Vendite, Conto vendita: apri il negozio. Tutti i passi sono più sotto, in «Conto vendita e resoconto del mese».",
+    text: "In Vendite, Conto vendita: apri il negozio e premi «Registra le vendite di …» con il mese. Tutti i passi sono più sotto, in «Conto vendita e resoconto del mese».",
+    who: "Tommi",
+  },
+  {
+    title: "Conto vendita: contare il negozio e consegnare",
+    href: "/stock/conto-vendita",
+    text: "In Magazzino, Conto vendita: apri il negozio. «Conta in negozio» (o «Correggi la conta») per le magliette che ci sono; «Nuovo ordine» per quelle da portare.",
     who: "Tommi",
   },
   {
@@ -207,11 +216,11 @@ const WORDS: [string, string][] = [
 const SHOP_STEPS: [string, string][] = [
   [
     "Conta in negozio",
-    "La prima volta conta le magliette, taglia per taglia. Finché il negozio non è contato, il resoconto resta chiuso.",
+    "In Magazzino, Conto vendita: la prima volta conta le magliette, taglia per taglia. Finché il negozio non è contato, il resoconto resta chiuso.",
   ],
   [
-    "Registra il resoconto del mese",
-    "A inizio mese scrivi quante magliette ha venduto il negozio nel mese prima, taglia per taglia, e premi «Salva resoconto». Nessuna vendita? Salva con zero.",
+    "Registra le vendite del mese",
+    "In Vendite, Conto vendita: a inizio mese il negozio manda su WhatsApp le magliette vendute nel mese prima. Premi «Registra le vendite di …», scrivile taglia per taglia e premi «Salva resoconto»: escono da sole dal negozio. Nessuna vendita? Salva con zero.",
   ],
   [
     "Da fatturare",
@@ -223,7 +232,7 @@ const SHOP_STEPS: [string, string][] = [
   ],
   [
     "Nuovo ordine",
-    "Il negozio chiede magliette nuove: scrivi l’ordine. Quando le porti, premi «Consegnato».",
+    "In Magazzino, Conto vendita: il negozio chiede magliette nuove, scrivi l’ordine. Quando le porti, premi «Consegnato»: escono dal Magadzino ed entrano in negozio.",
   ],
 ];
 
@@ -449,8 +458,10 @@ export function GuideView({ access, preview = false }: { access: GuideAccess; pr
 
           <Part id="guida-conto-vendita">
             <p className={styles.lead}>
-              I negozi tengono le nostre magliette e ci pagano quelle che vendono. Da Vendite apri
-              «Conto vendita», poi il negozio.
+              I negozi tengono le nostre magliette e ci pagano quelle che vendono. Il conto vendita
+              ha due pagine: in Magazzino, «Conto vendita» per le magliette in negozio (conta,
+              ordini e consegne); in Vendite, «Conto vendita» per il resoconto del mese, la fattura
+              e il pagamento.
             </p>
             <ol className={roadbook.list}>
               {SHOP_STEPS.map(([title, text], index) => (
@@ -467,11 +478,18 @@ export function GuideView({ access, preview = false }: { access: GuideAccess; pr
             </ol>
             <p className={styles.after}>
               Hai sbagliato un numero? Si corregge tutto e resta lo storico. Le magliette del
-              negozio si cambiano solo da qui, non dalle Rettifiche.
+              negozio si cambiano solo dal conto vendita, non dalle Rettifiche.
             </p>
             <p className={styles.actions}>
               <Link href="/consignment" prefetch={false} className="button button-secondary">
-                Apri Conto vendita
+                Apri le vendite del negozio
+              </Link>
+              <Link
+                href="/stock/conto-vendita"
+                prefetch={false}
+                className="button button-secondary"
+              >
+                Apri il magazzino del negozio
               </Link>
             </p>
           </Part>

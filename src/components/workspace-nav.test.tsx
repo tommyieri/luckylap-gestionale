@@ -163,16 +163,17 @@ describe("la guida sul telefono", () => {
 });
 
 describe("schede della sezione", () => {
-  it("su /stock/rettifiche: quattro schede di Magazzino, Rettifiche corrente", () => {
+  it("su /stock/rettifiche: cinque schede di Magazzino, Rettifiche corrente", () => {
     pathname = "/stock/rettifiche";
     const html = tabs();
     expect(html).toContain('aria-label="Pagine di Magazzino"');
-    expect(count(html, /<a /g)).toBe(4);
+    expect(count(html, /<a /g)).toBe(5);
     expect(hrefs(html)).toEqual([
       "/stock",
       "/stock/rettifiche",
-      "/packaging",
+      "/stock/conto-vendita",
       "/stock/riassortimento",
+      "/packaging",
     ]);
     expect(linkTo(html, "/stock/rettifiche")).toContain('aria-current="page"');
     expect(count(html, /aria-current/g)).toBe(1);
@@ -206,8 +207,8 @@ describe("schede della sezione", () => {
     expect(tabs({ status: "unavailable" })).toBe("");
     expect(tabs({ status: "outside" })).toBe("");
     pathname = "/stock/rettifiche";
-    expect(count(tabs({ status: "pending" }), /<a /g)).toBe(4);
-    expect(count(tabs(consultant), /<a /g)).toBe(4);
+    expect(count(tabs({ status: "pending" }), /<a /g)).toBe(5);
+    expect(count(tabs(consultant), /<a /g)).toBe(5);
     expect(tabs({ status: "outside" })).toBe("");
   });
 
@@ -215,6 +216,25 @@ describe("schede della sezione", () => {
     pathname = "/consignment/NEG01";
     expect(linkTo(tabs(), "/consignment")).toContain('aria-current="page"');
     expect(linkTo(sidebar(founder), "/sales")).toContain('aria-current="true"');
+    expect(linkTo(sidebar(founder), "/stock")).not.toContain("aria-current");
+    expect(count(tabs(), /aria-current/g)).toBe(1);
+  });
+
+  it("su /stock/conto-vendita/NEG01/conta accende Magazzino e la sua scheda Conto vendita", () => {
+    for (pathname of [
+      "/stock/conto-vendita",
+      "/stock/conto-vendita/NEG01",
+      "/stock/conto-vendita/NEG01/conta",
+      "/stock/conto-vendita/NEG01/ordini/2",
+    ]) {
+      const html = tabs();
+      expect(html).toContain('aria-label="Pagine di Magazzino"');
+      expect(linkTo(html, "/stock/conto-vendita")).toContain('aria-current="page"');
+      expect(linkTo(html, "/stock")).not.toContain("aria-current");
+      expect(count(html, /aria-current/g)).toBe(1);
+      expect(linkTo(sidebar(founder), "/stock")).toContain('aria-current="true"');
+      expect(linkTo(sidebar(founder), "/sales")).not.toContain("aria-current");
+    }
   });
 });
 

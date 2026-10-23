@@ -19,7 +19,7 @@ import {
   type RestockState,
 } from "../lib/restock/model";
 import { shopPart, type RestockOrder, type RestockPage } from "../lib/restock/read";
-import { consignmentOrderHref, consignmentShopHref } from "../lib/consignment/links";
+import { consignmentOrderHref, shopStockHref } from "../lib/consignment/links";
 import { piecesBySize, RestockLinesEditor, RestockLinesView } from "./restock-grid";
 import {
   FormMessage,
@@ -520,8 +520,8 @@ export function ShopSection({ page }: { page: RestockPage }) {
       )}
       <FormMessage message={message} />
       <p className={styles.muted}>
-        <Link href={consignmentShopHref(shop.code)} prefetch={false} className={styles.inlineLink}>
-          Apri {shop.name} nel Conto vendita
+        <Link href={shopStockHref(shop.code)} prefetch={false} className={styles.inlineLink}>
+          Apri il magazzino del negozio {shop.name}
         </Link>
       </p>
     </section>

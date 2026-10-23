@@ -20,6 +20,7 @@ import {
 } from "lucide-react";
 import type { InventoryItem, InventorySourceMeta } from "../lib/types";
 import { orderInventoryItems } from "../lib/inventory-order";
+import { SHOP_STOCK_HREF } from "../lib/consignment/links";
 import {
   MODEL_PARAM,
   filterInventoryItems,
@@ -340,8 +341,12 @@ function InventoryView({
         <AlertCircle size={16} />
         <p>
           Le quantità mancanti sono indicate con <strong>n.d.</strong> e non vengono considerate
-          zero. «In negozio» somma i negozi già contati in Conto vendita: <strong>—</strong> finché
-          nessun negozio è stato contato. Le scorte Shopify non sono incluse.
+          zero. «In negozio» somma i negozi già contati in{" "}
+          <Link href={SHOP_STOCK_HREF} prefetch={false}>
+            Conto vendita
+          </Link>
+          : <strong>—</strong> finché nessun negozio è stato contato. Le scorte Shopify non sono
+          incluse.
         </p>
       </div>
       <section className="inventory-panel" aria-label="Inventario prodotti" ref={panelRef}>

@@ -1,9 +1,9 @@
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
-import { AccessPanel } from "../../../../../components/access-panel";
-import { ShopFrame } from "../../../../../components/consignment-shop";
-import { ConsignmentShopSettings } from "../../../../../components/consignment-shop-settings";
-import { loadShop, shopTitle, SHOP_SETUP } from "../../load";
+import { AccessPanel } from "../../../../../../components/access-panel";
+import { ShopFrame } from "../../../../../../components/consignment-shop";
+import { ConsignmentShopSettings } from "../../../../../../components/consignment-shop-settings";
+import { loadShop, shopTitle, SHOP_SETUP } from "../../../../../../lib/consignment/shop-page-load";
 
 export const dynamic = "force-dynamic";
 
@@ -23,6 +23,7 @@ export default async function ShopSettingsPage({ params }: Props) {
   return (
     <ShopFrame
       page={load.page}
+      side="stock"
       userId={load.userId}
       preview={load.preview}
       title="Impostazioni del negozio"

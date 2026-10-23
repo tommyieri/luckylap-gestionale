@@ -1,16 +1,24 @@
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
-import { AccessPanel } from "../../../../../../components/access-panel";
-import { ConsignmentOrder } from "../../../../../../components/consignment-order";
-import { ShopFrame } from "../../../../../../components/consignment-shop";
-import { shopOrderParam } from "../../../../../../lib/consignment/links";
-import { periodMonth } from "../../../../../../lib/consignment/shop-model";
-import { orderLinesFromReport } from "../../../../../../lib/consignment/shop-read";
-import { requireMember } from "../../../../../../lib/auth/current-member";
-import { previewRestockPage } from "../../../../../../lib/restock/fixtures";
-import { shopOrderPrefill, shopPart, type RestockOrder } from "../../../../../../lib/restock/read";
-import { readRestockOrder } from "../../../../../../lib/restock/server";
-import { loadShop, shopTitle, SHOP_SETUP } from "../../../load";
+import { AccessPanel } from "../../../../../../../components/access-panel";
+import { ConsignmentOrder } from "../../../../../../../components/consignment-order";
+import { ShopFrame } from "../../../../../../../components/consignment-shop";
+import { shopOrderParam } from "../../../../../../../lib/consignment/links";
+import { periodMonth } from "../../../../../../../lib/consignment/shop-model";
+import { orderLinesFromReport } from "../../../../../../../lib/consignment/shop-read";
+import { requireMember } from "../../../../../../../lib/auth/current-member";
+import { previewRestockPage } from "../../../../../../../lib/restock/fixtures";
+import {
+  shopOrderPrefill,
+  shopPart,
+  type RestockOrder,
+} from "../../../../../../../lib/restock/read";
+import { readRestockOrder } from "../../../../../../../lib/restock/server";
+import {
+  loadShop,
+  shopTitle,
+  SHOP_SETUP,
+} from "../../../../../../../lib/consignment/shop-page-load";
 
 export const dynamic = "force-dynamic";
 
@@ -49,7 +57,11 @@ async function restockFor(value: unknown, shopLocationId: string): Promise<Resto
   return part.status === "todo" && shopOrderPrefill(order).length ? order : null;
 }
 
-/** Ordine del negozio: nuovo (dalle magliette vendute in un mese o da un riordine) o esistente. */
+/**
+ * Ordine del negozio (Magazzino › Conto vendita): nuovo (dalle magliette vendute in un mese o da
+ * un riordine) o esistente, con la consegna. I vecchi indirizzi `/consignment/<CODICE>/ordini/…`
+ * arrivano qui con la loro query (next.config.ts).
+ */
 export default async function OrderPage({ params, searchParams }: Props) {
   const { code, order } = await params;
   const wanted = shopOrderParam(order);
@@ -68,6 +80,7 @@ export default async function OrderPage({ params, searchParams }: Props) {
     return (
       <ShopFrame
         page={page}
+        side="stock"
         userId={load.userId}
         preview={load.preview}
         title="Nuovo ordine"
@@ -90,6 +103,7 @@ export default async function OrderPage({ params, searchParams }: Props) {
   return (
     <ShopFrame
       page={page}
+      side="stock"
       userId={load.userId}
       preview={load.preview}
       title={`Ordine n. ${found.number}`}
