@@ -30,11 +30,12 @@ alter table public.consignment_shops add column sizes text[]
     and array_to_string(sizes, ',') ~ '^[A-Z0-9]{1,10}(,[A-Z0-9]{1,10}){0,19}$'));
 comment on column public.consignment_shops.sizes is
   'Taglie che il negozio tiene: conta, resoconto, ordini e consegne al negozio accettano solo queste. NULL = tutte le taglie.';
--- La libreria di Milano (NEG01) tiene solo S, M, L, XL. Una riga, solo se è ancora «tutte le taglie».
+-- LCM, la libreria di Milano (sede NEG01), tiene solo S, M, L, XL. Si riconosce dal codice della sede,
+-- non dal nome (in produzione si chiama «LCM»). Una riga, solo se è ancora «tutte le taglie».
 update public.consignment_shops s set sizes = array['S', 'M', 'L', 'XL']
 from public.stock_locations l
 where l.id = s.location_id and l.code = 'NEG01' and l.location_type = 'Negozio Conto Vendita'
-  and l.name ilike '%milano%' and s.sizes is null;
+  and s.sizes is null;
 
 -- Una riga di conta, resoconto, ordine o consegna al negozio vale solo per le taglie del negozio.
 -- Le magliette riportate in magazzino (to_warehouse) restano possibili in ogni taglia.

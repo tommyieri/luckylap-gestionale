@@ -26,8 +26,8 @@ begin
   select id into v_warehouse from public.stock_locations where code = 'MAG01' and location_type = 'Magazzino' and active;
   if v_warehouse is null then raise exception 'Magadzino (MAG01) non trovato.'; end if;
   select s.location_id, s.sizes into v_shop, v_sizes from public.consignment_shops s join public.stock_locations l on l.id = s.location_id
-    where l.code = 'NEG01' and l.location_type = 'Negozio Conto Vendita' and l.active and l.name ilike '%milano%';
-  if v_shop is null then raise exception 'Negozio di Milano (NEG01) non trovato.'; end if;
+    where l.code = 'NEG01' and l.location_type = 'Negozio Conto Vendita' and l.active;
+  if v_shop is null then raise exception 'Negozio LCM (NEG01) non trovato.'; end if;
 
   -- Righe: titolo, destinazione, modello, colore, taglia, pezzi.
   -- Riordine di settembre, per noi = prodotti − per il negozio − per il cliente (le 4 XXXL).

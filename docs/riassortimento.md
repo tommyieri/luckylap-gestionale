@@ -82,7 +82,7 @@ La migrazione va applicata **prima** del merge: il codice legge `consignment_sho
 
 1. Quattro tabelle nuove, `private.restock_receipts`, sei comandi con i wrapper, funzioni di supporto e un trigger `consignment_size_allowed` su conta, resoconto, ordini e consegne al negozio.
 2. Due colonne nuove: `consignment_shops.sizes` (NULL = tutte le taglie) e `consignment_orders.restock_order_id` (NULL per tutti gli ordini esistenti). Un indice su `stock_movements` per i movimenti di un arrivo.
-3. Una sola riga aggiornata: `consignment_shops.sizes = {S,M,L,XL}` per il negozio `NEG01` di tipo «Negozio Conto Vendita» con «milano» nel nome, solo se era ancora NULL. Passa dal trigger di audit (una riga di `audit_logs` dal sistema). Se il nome non contiene «milano» non cambia niente: va controllato dopo l'applicazione.
+3. Una sola riga aggiornata: `consignment_shops.sizes = {S,M,L,XL}` per il negozio `NEG01` di tipo «Negozio Conto Vendita» (in produzione «LCM»), solo se era ancora NULL. Il negozio si riconosce dal codice della sede, non dal nome. Passa dal trigger di audit (una riga di `audit_logs` dal sistema). Se il nome non contiene «milano» non cambia niente: va controllato dopo l'applicazione.
 4. `create or replace` di `private.count_consignment_stock`, `private.save_consignment_order` e delle quattro funzioni del feed.
 5. Nessun saldo, movimento o riga esistente cambia (lo provano gli harness).
 
