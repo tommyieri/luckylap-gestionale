@@ -10,7 +10,11 @@ import {
   type StockAdjustment,
   type StockSnapshot,
 } from "@/lib/stock/model";
+import { PendingAttempt } from "./pending-attempt";
 import styles from "./stock-workspace.module.css";
+
+const UNREADABLE_LINE =
+  "La rettifica conservata in questa scheda non si può leggere. Controlla nei movimenti se c’è già, poi scartala.";
 
 export function StockAdjustmentForm({
   snapshot,
@@ -36,7 +40,10 @@ export function StockAdjustmentForm({
     [success, setSuccess] = useState(false),
     [loaded, setLoaded] = useState(false),
     [blocked, setBlocked] = useState(false),
-    [epoch, setEpoch] = useState(0);
+    [epoch, setEpoch] = useState(0),
+    // Tentativi che non potranno mai riuscire (06 R11): illeggibile o in conflitto.
+    [unreadable, setUnreadable] = useState(false),
+    [conflict, setConflict] = useState(false);
   const [pending, startTransition] = useTransition();
   const sending = useRef(false);
   const item = snapshot.items.find((row) => row.id === itemId),
@@ -52,19 +59,19 @@ export function StockAdjustmentForm({
     try {
       const saved = sessionStorage.getItem(storageKey);
       if (saved) {
-        const previous = parseStockAdjustment(JSON.parse(saved));
+        let previous: StockAdjustment | null = null;
+        try {
+          previous = parseStockAdjustment(JSON.parse(saved));
+        } catch {
+          previous = null;
+        }
         if (!previous) {
           setBlocked(true);
-          setNotice(
-            "Il tentativo conservato non è leggibile. Verifica i movimenti con Tommi prima di continuare.",
-          );
+          setUnreadable(true);
         } else {
           setCommand(previous);
           setItemId(previous.itemId);
           setLocationId(previous.locationId);
-          setNotice(
-            "C’è una rettifica senza esito confermato. Verifica lo stesso tentativo prima di registrarne un’altra.",
-          );
         }
       }
     } catch {
@@ -114,7 +121,7 @@ export function StockAdjustmentForm({
           } catch {
             /* Preserve the command when storage cannot be changed. */
           }
-        }
+        } else if (result.status === "rejected") setConflict(true);
       } catch {
         setNotice(
           "La connessione si è interrotta: il movimento potrebbe essere già registrato. Verifica lo stesso tentativo, senza creare una seconda rettifica.",
@@ -123,6 +130,23 @@ export function StockAdjustmentForm({
         sending.current = false;
       }
     });
+  }
+  /** Libera il modulo da una rettifica che non potrà riuscire. Non cancella movimenti. */
+  function discard() {
+    try {
+      sessionStorage.removeItem(storageKey);
+    } catch {
+      setNotice(
+        "Non riesco a liberare il tentativo conservato in questa scheda. Chiudi la scheda e riaprila.",
+      );
+      return;
+    }
+    setCommand(null);
+    setConflict(false);
+    setUnreadable(false);
+    setBlocked(false);
+    setNotice("");
+    setEpoch((value) => value + 1);
   }
   function submit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -232,34 +256,34 @@ export function StockAdjustmentForm({
           )}
         </div>
       )}
+      {unreadable && (
+        <div className={styles.pending}>
+          <PendingAttempt
+            title="Rettifica da verificare non leggibile"
+            lines={[UNREADABLE_LINE]}
+            operationId="non leggibile"
+            pending={false}
+            blocked
+            onRetry={() => {}}
+            onReread={() => router.refresh()}
+            rereadLabel="Rileggi le quantità"
+            onDiscard={discard}
+          />
+        </div>
+      )}
       {command && (
         <div className={styles.pending}>
-          <h3>Rettifica da verificare</h3>
-          <p>
-            {snapshot.items.find((row) => row.id === command.itemId)?.sku ?? command.itemId} ·{" "}
-            {snapshot.locations.find((row) => row.id === command.locationId)?.name ??
-              "Sede non più tra i magazzini"}
-          </p>
-          <p>
-            <strong>
-              {command.delta > 0 ? "+" : ""}
-              {stockQuantity(command.delta)} unità
-            </strong>{" "}
-            · {command.reason}
-          </p>
-          <p>
-            I dati sono congelati. Il pulsante conserva lo stesso riferimento e controlla se il
-            movimento è già nel registro.
-          </p>
-          <button
-            type="button"
-            className="button button-primary"
-            disabled={pending || blocked}
-            onClick={() => send({ ...command, retry: true })}
-          >
-            {pending ? "Verifica in corso…" : "Verifica lo stesso invio"}
-          </button>
-          <small>Riferimento: {command.operationId}</small>
+          <PendingAttempt
+            title="Rettifica da verificare"
+            lines={stockAttemptLines(command, snapshot)}
+            operationId={command.operationId}
+            pending={pending}
+            blocked={conflict}
+            onRetry={() => send({ ...command, retry: true })}
+            onReread={() => router.refresh()}
+            rereadLabel="Rileggi le quantità"
+            onDiscard={conflict ? discard : undefined}
+          />
         </div>
       )}
       {notice && (
@@ -323,4 +347,16 @@ export function StockAdjustmentForm({
       </fieldset>
     </form>
   );
+}
+
+/** Riepilogo della rettifica da verificare: articolo, sede, variazione e causale. Mai gli id. */
+export function stockAttemptLines(command: StockAdjustment, snapshot: StockSnapshot): string[] {
+  const item = snapshot.items.find((row) => row.id === command.itemId);
+  const location = snapshot.locations.find((row) => row.id === command.locationId);
+  return [
+    item ? `${item.sku} · ${item.name}` : "Articolo non più nell’elenco",
+    location ? `Sede: ${location.name}` : "Sede non più tra i magazzini",
+    `Variazione: ${command.delta > 0 ? "+" : ""}${stockQuantity(command.delta)} unità`,
+    `Causale: ${command.reason}`,
+  ];
 }

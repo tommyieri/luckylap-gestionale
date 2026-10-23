@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { redirect } from "next/navigation";
 import { WorkspacePanel } from "@/components/workspace-panel";
+import { SensitiveAreaSessionBar } from "@/components/auth-sensitive-area-form";
 import { FinanceWorkView } from "@/components/finance-work-view";
 import { ConsignmentMonthlyFinance } from "@/components/consignment-monthly-finance";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
@@ -73,15 +74,18 @@ export default async function FinanceWorkPage() {
       />
     );
   return (
-    <FinanceWorkView
-      snapshot={access.snapshot}
-      consignment={
-        <ConsignmentMonthlyFinance snapshot={monthly.snapshot} legacy={legacy.snapshot} />
-      }
-      userId={access.member.userId}
-      displayName={access.member.displayName}
-      today={today}
-      revisionHeads={revisions.heads}
-    />
+    <>
+      <SensitiveAreaSessionBar area="finance" />
+      <FinanceWorkView
+        snapshot={access.snapshot}
+        consignment={
+          <ConsignmentMonthlyFinance snapshot={monthly.snapshot} legacy={legacy.snapshot} />
+        }
+        userId={access.member.userId}
+        displayName={access.member.displayName}
+        today={today}
+        revisionHeads={revisions.heads}
+      />
+    </>
   );
 }

@@ -21,6 +21,7 @@ import {
 import { SalesCommandForm } from "./sales-command-form";
 import { NewSaleFields, PaymentMethodField, SaleTimeField } from "./sales-new-sale";
 import { SalesPendingRecovery } from "./sales-pending-recovery";
+import { salesAttemptNames, type SalesAttemptNames } from "../lib/sales/attempt";
 import {
   listenForSalesOrderLinks,
   salesOrderDestination,
@@ -128,6 +129,8 @@ export function SalesWorkspace({
   const reserved = activeAvailability.reduce((sum, row) => sum + row.reserved, 0),
     toProduce = waiting.reduce((sum, row) => sum + row.required - row.completed - row.cancelled, 0);
   const canProduce = member.role === "founder" || member.role === "production";
+  // Un invio da verificare mostra articoli e ordini con i nomi della pagina (06 R4).
+  const names = salesAttemptNames(snapshot);
   const activeScopes = [
     "new-sale",
     ...waiting.filter(() => canProduce).map((row) => `production:${row.id}`),
@@ -170,7 +173,7 @@ export function SalesWorkspace({
           </p>
         </div>
       )}
-      <SalesPendingRecovery userId={member.userId} activeScopes={activeScopes} />
+      <SalesPendingRecovery userId={member.userId} activeScopes={activeScopes} names={names} />
       <div className={styles.metrics}>
         <div>
           <span>Capi fisici pronti</span>
@@ -207,6 +210,7 @@ export function SalesWorkspace({
             enabled={snapshot.enabled}
             label="Registra vendita"
             build={(form) => newSalePayload(form, snapshot)}
+            names={names}
           >
             <NewSaleFields snapshot={snapshot} now={now} />
           </SalesCommandForm>
@@ -269,6 +273,7 @@ export function SalesWorkspace({
                   snapshot={snapshot}
                   member={member}
                   now={now}
+                  names={names}
                   opened={linkedOrder?.id === order.id}
                 />
               ))}
@@ -304,16 +309,13 @@ export function SalesWorkspace({
         <div className={styles.sectionTitle}>
           <h2 id="sales-production">Produzione da completare</h2>
           <span>
-            {toProduce} capi · {waiting.length} fabbisogni
+            {toProduce} {toProduce === 1 ? "capo" : "capi"} da produrre
           </span>
         </div>
         {!waiting.length ? (
           <div className={styles.empty}>
-            <h3>Nessun fabbisogno aperto.</h3>
-            <p>
-              Gli ordini da preparare aprono un fabbisogno soltanto per i capi che non sono già
-              pronti.
-            </p>
+            <h3>Nessun capo da produrre.</h3>
+            <p>Un ordine chiede di produrre solo i capi che non sono già pronti in magazzino.</p>
           </div>
         ) : (
           waiting.map((requirement) => {
@@ -336,9 +338,9 @@ export function SalesWorkspace({
                 </summary>
                 <div className={styles.orderBody}>
                   <p className={styles.help}>
-                    Fabbisogno iniziale {requirement.required} · Completati {requirement.completed}{" "}
-                    · Annullati {requirement.cancelled}. Registrare soltanto capi prodotti e
-                    verificati: ricevimento e riserva sull’ordine avvengono insieme.
+                    Richiesti {requirement.required} · Completati {requirement.completed} ·
+                    Annullati {requirement.cancelled}. Registra solo i capi già pronti e
+                    controllati: entrano in magazzino e restano riservati per questo ordine.
                   </p>
                   {canProduce ? (
                     <SalesCommandForm
@@ -348,6 +350,7 @@ export function SalesWorkspace({
                       enabled={snapshot.enabled || isExternalSalesOrder(order)}
                       label="Registra capi pronti"
                       build={(form) => productionPayload(form, requirement.id)}
+                      names={names}
                     >
                       <div className={styles.grid}>
                         <label>
@@ -413,7 +416,7 @@ export function SalesWorkspace({
       </details>
       <footer className={styles.footer}>
         <span>LuckyLap · Vendite in EUR · Orari Europe/Rome</span>
-        <span>I fatti osservati non equivalgono a contabilità approvata o saldo bancario.</span>
+        <span>Questi numeri non sono il saldo della banca.</span>
       </footer>
     </div>
   );
@@ -424,12 +427,14 @@ function OrderCard({
   snapshot,
   member,
   now,
+  names,
   opened = false,
 }: {
   order: SalesOrder;
   snapshot: SalesSnapshot;
   member: VerifiedMember;
   now: string;
+  names: SalesAttemptNames;
   opened?: boolean;
 }) {
   const pendingLines = order.lines.filter(
@@ -463,9 +468,9 @@ function OrderCard({
           <div className={styles.info}>
             <strong>Fonte: {salesChannelLabel[order.channel]} · Importazione automatica</strong>
             <p>
-              Origine tecnica: sincronizzazione Shopify con account tecnico. Pagamenti, consegne e
-              annulli seguono Shopify. Il team può completare la produzione secondo i propri ruoli.
-              L’incasso osservato non conferma l’accredito bancario.
+              Arriva da Shopify: consegne, annulli e pagamenti si aggiornano da soli. Qui si
+              registrano solo i capi prodotti. Un incasso su Shopify non vuol dire che i soldi sono
+              già in banca.
             </p>
             <p>Il totale ordine può includere spedizione e imposte oltre al valore dei capi.</p>
           </div>
@@ -505,7 +510,7 @@ function OrderCard({
                 <th>Da produrre</th>
                 <th>Consegnate</th>
                 <th>Annullate</th>
-                <th>Valore / costo / margine iniziali</th>
+                <th>Prezzo, costo e margine</th>
               </tr>
             </thead>
             <tbody>
@@ -547,8 +552,8 @@ function OrderCard({
           </table>
         </div>
         <p className={styles.help}>
-          Costi fotografati al momento della vendita. Il margine iniziale sui capi precede IVA,
-          spedizioni e commissioni; non rappresenta l’utile.
+          Il costo è quello del giorno della vendita. Il margine è prima di IVA, spedizioni e
+          commissioni: non è l’utile.
         </p>
         {!external && pendingLines.length > 0 && (
           <div className={styles.lifecycle}>
@@ -560,6 +565,7 @@ function OrderCard({
                 kind="fulfill_order_lines"
                 enabled={snapshot.enabled}
                 label="Conferma uscita fisica"
+                names={names}
                 build={(form) =>
                   quantityCommandPayload(
                     form,
@@ -602,6 +608,7 @@ function OrderCard({
                 kind="cancel_unfulfilled_lines"
                 enabled={snapshot.enabled}
                 label="Conferma annullo"
+                names={names}
                 build={(form) =>
                   quantityCommandPayload(
                     form,
@@ -612,8 +619,8 @@ function OrderCard({
                 }
               >
                 <p className={styles.help}>
-                  L’annullo libera le riserve e riduce il fabbisogno ancora aperto. Un eventuale
-                  rimborso rimane da eseguire separatamente.
+                  L’annullo libera i capi riservati e toglie quelli ancora da produrre. Un eventuale
+                  rimborso va fatto a parte.
                 </p>
                 <div className={styles.grid}>
                   {pendingLines.map((line) => (
@@ -648,6 +655,7 @@ function OrderCard({
               enabled={snapshot.enabled}
               label="Dichiara incasso ricevuto"
               build={(form) => paymentPayload(form, order.id)}
+              names={names}
             >
               <p className={styles.help}>
                 Registra un incasso già avvenuto per l’intero saldo residuo. Non si esegue alcun

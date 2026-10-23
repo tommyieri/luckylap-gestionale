@@ -30,6 +30,47 @@
   background: var(--tint);
   color: var(--ink-2);
 }
+/* «Prima volta qui?»: avviso neutro su fondo chiaro, azioni a destra finché c'è spazio. */
+.guide {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 16px 24px;
+  margin-bottom: 28px;
+  padding: 16px 20px;
+  border: 1px solid var(--rule);
+  background: var(--tint);
+}
+.guideBody {
+  display: flex;
+  flex: 1 1 320px;
+  gap: 12px;
+  min-width: 0;
+}
+.guideIcon {
+  flex-shrink: 0;
+  margin-top: 1px;
+  color: var(--green);
+}
+.guideTitle {
+  font-family: var(--f-cond);
+  font-size: var(--text-lg);
+  font-weight: 700;
+  line-height: 1.2;
+}
+.guideText {
+  max-width: 72ch;
+  margin-top: 4px;
+  color: var(--ink-2);
+  font-size: var(--text-md);
+  line-height: 1.5;
+}
+.guideActions {
+  display: flex;
+  flex: 0 1 auto;
+  flex-wrap: wrap;
+  gap: 8px 12px;
+}
 .grid {
   display: grid;
   grid-template-columns: minmax(0, 1.25fr) minmax(0, 1fr);
@@ -81,6 +122,18 @@
   .grid {
     grid-template-columns: minmax(0, 1fr);
     gap: 28px;
+  }
+}
+@media (max-width: 760px) {
+  .guide {
+    padding: 16px;
+  }
+  /* Sul telefono i due pulsanti vanno sotto il testo, a tutta larghezza. */
+  .guideActions {
+    flex: 1 1 100%;
+  }
+  .guideActions > * {
+    flex: 1 1 0;
   }
 }
 

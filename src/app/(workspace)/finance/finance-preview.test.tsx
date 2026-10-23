@@ -41,6 +41,11 @@ vi.mock(
   () => import("../../../components/consignment-monthly-finance"),
 );
 vi.mock("@/components/workspace-panel", () => import("../../../components/workspace-panel"));
+vi.mock(
+  "@/components/auth-sensitive-area-form",
+  () => import("../../../components/auth-sensitive-area-form"),
+);
+vi.mock("@/app/auth/area/[area]/actions", () => ({ lockArea: vi.fn(), unlockArea: vi.fn() }));
 
 import FinancePage from "./page";
 
@@ -63,6 +68,10 @@ describe("anteprima locale di Finance (00-sequenza §1.5)", () => {
     expect(t).toContain("Conto vendita · da incassare");
     expect(t).toContain("Negozio sintetico");
     expect(t).toContain("Pagamento del negozio");
+    expect(t).toContain("Anteprima locale: la chiusura di Finance è disattivata.");
+    expect(t).not.toContain("aperta su questo dispositivo");
+    const html = renderToStaticMarkup((await FinancePage()) as ReactElement);
+    expect(html).toMatch(/<button[^>]*disabled=""[^>]*>Chiudi Finance<\/button>/);
     expect(mocks.config).not.toHaveBeenCalled();
     expect(mocks.client).not.toHaveBeenCalled();
   });
@@ -75,6 +84,7 @@ describe("anteprima locale di Finance (00-sequenza §1.5)", () => {
     const t = await text();
     expect(t).toContain("Finance in attesa del collegamento.");
     expect(t).not.toContain("Negozio sintetico");
+    expect(t).not.toContain("Chiudi Finance");
     expect(mocks.config).toHaveBeenCalled();
   });
 });

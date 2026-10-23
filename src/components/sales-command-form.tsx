@@ -3,15 +3,14 @@
 import { useEffect, useRef, useState, useTransition, type ReactNode, type FormEvent } from "react";
 import { useRouter } from "next/navigation";
 import { runSalesCommand } from "@/app/sales/actions";
-import {
-  money,
-  parseSalesCommand,
-  record,
-  type CommandKind,
-  type SalesCommand,
-} from "@/lib/sales/model";
+import { parseSalesCommand, type CommandKind, type SalesCommand } from "@/lib/sales/model";
+import { salesAttemptSummary, type SalesAttemptNames } from "@/lib/sales/attempt";
 import { PENDING_SALES_EVENT, pendingSalesPrefix } from "@/lib/sales/pending";
+import { PendingAttempt } from "./pending-attempt";
 import styles from "./sales-workspace.module.css";
+
+const UNREADABLE_LINE =
+  "Il tentativo conservato in questa scheda non si può leggere. Controlla negli ordini se l’operazione c’è già, poi scartalo.";
 
 export function SalesCommandForm({
   userId,
@@ -20,6 +19,7 @@ export function SalesCommandForm({
   enabled,
   build,
   label,
+  names,
   children,
 }: {
   userId: string;
@@ -28,6 +28,8 @@ export function SalesCommandForm({
   enabled: boolean;
   build: (form: FormData) => Record<string, unknown>;
   label: string;
+  /** Nomi di articoli, ordini e righe per il riepilogo dell’invio da verificare. */
+  names?: SalesAttemptNames;
   children: ReactNode;
 }) {
   const key = `${pendingSalesPrefix(userId)}${scope}`;
@@ -37,25 +39,26 @@ export function SalesCommandForm({
     [success, setSuccess] = useState(false),
     [blocked, setBlocked] = useState(false),
     [loaded, setLoaded] = useState(false),
-    [epoch, setEpoch] = useState(0);
+    [epoch, setEpoch] = useState(0),
+    // Tentativi che non potranno mai riuscire (06 R11): illeggibile o in conflitto.
+    [unreadable, setUnreadable] = useState(false),
+    [conflict, setConflict] = useState(false);
   const [pending, startTransition] = useTransition();
   const sending = useRef(false);
   useEffect(() => {
     try {
       const saved = sessionStorage.getItem(key);
       if (saved) {
-        const parsed = parseSalesCommand(JSON.parse(saved));
+        let parsed: SalesCommand | null = null;
+        try {
+          parsed = parseSalesCommand(JSON.parse(saved));
+        } catch {
+          parsed = null;
+        }
         if (!parsed || parsed.kind !== kind) {
           setBlocked(true);
-          setNotice(
-            "Il tentativo salvato non è leggibile. Verifica gli ordini con Tommi prima di continuare.",
-          );
-        } else {
-          setCommand(parsed);
-          setNotice(
-            "C’è un invio senza esito confermato. Verifica lo stesso tentativo prima di iniziare un’altra operazione.",
-          );
-        }
+          setUnreadable(true);
+        } else setCommand(parsed);
       }
     } catch {
       setBlocked(true);
@@ -103,7 +106,7 @@ export function SalesCommandForm({
           } catch {
             /* Keep the frozen attempt if storage cannot be changed. */
           }
-        }
+        } else if (result.status === "rejected") setConflict(true);
       } catch {
         setNotice(
           "Connessione interrotta: l’esito potrebbe essere già registrato. Riprova lo stesso invio, senza creare una nuova operazione.",
@@ -112,6 +115,24 @@ export function SalesCommandForm({
         sending.current = false;
       }
     });
+  }
+  /** Libera il modulo da un tentativo che non potrà riuscire. Non cancella niente negli ordini. */
+  function discard() {
+    try {
+      sessionStorage.removeItem(key);
+      window.dispatchEvent(new Event(PENDING_SALES_EVENT));
+    } catch {
+      setNotice(
+        "Non riesco a liberare il tentativo conservato in questa scheda. Chiudi la scheda e riaprila.",
+      );
+      return;
+    }
+    setCommand(null);
+    setConflict(false);
+    setUnreadable(false);
+    setBlocked(false);
+    setNotice("");
+    setEpoch((value) => value + 1);
   }
   function submit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -141,72 +162,33 @@ export function SalesCommandForm({
           {notice}
         </p>
       )}
+      {unreadable && (
+        <div className={styles.pending}>
+          <PendingAttempt
+            title="Invio da verificare non leggibile"
+            lines={[UNREADABLE_LINE]}
+            operationId="non leggibile"
+            pending={false}
+            blocked
+            onRetry={() => {}}
+            onReread={() => router.refresh()}
+            rereadLabel="Rileggi gli ordini"
+            onDiscard={discard}
+          />
+        </div>
+      )}
       {command && (
         <div className={styles.pending}>
-          <strong>Invio da verificare</strong>
-          <p>
-            I dati sono congelati fino all’esito. Il pulsante ripete lo stesso tentativo e non crea
-            un secondo ordine.
-          </p>
-          <details>
-            <summary>Dati conservati nell’invio</summary>
-            <p>
-              Data: {String(command.payload.occurred_at)}
-              {typeof command.payload.channel === "string" && (
-                <> · Canale: {command.payload.channel}</>
-              )}
-              {typeof command.payload.order_id === "string" && (
-                <> · Ordine: {command.payload.order_id.slice(0, 8)}</>
-              )}
-            </p>
-            {Array.isArray(command.payload.lines) && (
-              <ul>
-                {command.payload.lines.map((raw, index) => {
-                  const line = record(raw);
-                  return (
-                    <li key={index}>
-                      Riga {index + 1}: {String(line?.quantity)} capi
-                      {typeof line?.unit_price_cents === "number" && (
-                        <>
-                          {" "}
-                          · Prezzo {money(line.unit_price_cents)} · Sconto riga{" "}
-                          {money(
-                            typeof line.discount_cents === "number" ? line.discount_cents : null,
-                          )}
-                        </>
-                      )}
-                    </li>
-                  );
-                })}
-              </ul>
-            )}
-            {typeof command.payload.quantity === "number" && (
-              <p>Quantità: {command.payload.quantity}</p>
-            )}
-            {typeof command.payload.amount_cents === "number" && (
-              <p>Incasso dichiarato: {money(command.payload.amount_cents)}</p>
-            )}
-            {typeof command.payload.reason === "string" && (
-              <p>Motivazione: {command.payload.reason}</p>
-            )}
-          </details>
-          <button
-            type="button"
-            className="button button-primary"
-            disabled={pending || blocked}
-            onClick={() => send({ ...command, retry: true })}
-          >
-            {pending ? "Verifica in corso…" : "Verifica lo stesso invio"}
-          </button>
-          <button
-            type="button"
-            className="button button-secondary"
-            disabled={pending}
-            onClick={() => router.refresh()}
-          >
-            Rileggi gli ordini
-          </button>
-          <small>Riferimento: {command.operationId}</small>
+          <PendingAttempt
+            {...salesAttemptSummary(command, names)}
+            operationId={command.operationId}
+            pending={pending}
+            blocked={conflict}
+            onRetry={() => send({ ...command, retry: true })}
+            onReread={() => router.refresh()}
+            rereadLabel="Rileggi gli ordini"
+            onDiscard={conflict ? discard : undefined}
+          />
         </div>
       )}
       <fieldset key={epoch} disabled={!loaded || pending || blocked || command !== null}>

@@ -229,25 +229,22 @@
   border-color: var(--green);
   background: var(--green-wash);
 }
+/* Invio da verificare (pending-attempt.tsx): nel modulo e nel recupero degli invii sospesi. */
 .pending {
-  font-size: var(--text-sm);
-  padding: 15px;
-  border: 1px solid var(--rule);
-  border-radius: 0;
-  background: var(--amber-wash);
-  margin: 12px 0 18px;
-  overflow-wrap: anywhere;
+  margin-bottom: 18px;
 }
-.pending p {
-  margin: 7px 0 12px;
+.recovery {
+  display: grid;
+  gap: 12px;
+  margin: 15px 0;
+}
+.recovery > strong {
+  font-size: var(--text-md);
+}
+.recovery > p {
+  font-size: var(--text-md);
   line-height: 1.7;
-  white-space: pre-wrap;
-}
-.pending small {
-  display: block;
-  font-size: var(--text-xs);
-  color: var(--muted);
-  margin-top: 9px;
+  color: var(--ink-2);
 }
 .toolbar {
   display: flex;

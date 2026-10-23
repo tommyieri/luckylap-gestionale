@@ -18,7 +18,7 @@ Catalogo e location usano paginazione per UUID con conteggio esatto tramite `rea
 
 ## Retry senza doppio movimento
 
-Prima dell'invio, la scheda conserva in `sessionStorage` UUID operazione e payload esatto, con chiave separata per utente. Gli input rimangono congelati mentre un esito è incerto, anche dopo ricaricamento. «Verifica lo stesso invio» conserva UUID, SKU, location, delta e causale.
+Prima dell'invio, la scheda conserva in `sessionStorage` UUID operazione e payload esatto, con chiave separata per utente. Gli input rimangono congelati mentre un esito è incerto, anche dopo ricaricamento. «Verifica lo stesso invio» conserva UUID, SKU, location, delta e causale. Il riquadro (`src/components/pending-attempt.tsx`) mostra SKU e nome, sede, variazione e causale, mai gli id; il codice tecnico sta in «Codice per l’assistenza». Una rettifica illeggibile o in conflitto si può scartare con «Scarta questo tentativo», dopo una conferma: libera il modulo, non cancella movimenti.
 
 La Server Action cerca prima il movimento append-only per operation ID, sotto RLS. Solo una corrispondenza esatta di autore attuale, tipo adjustment, SKU, location, delta e causale conferma il retry. Questo consente di recuperare una risposta persa anche se il flag è stato disattivato nel frattempo. Una corrispondenza diversa è conflitto e mantiene il riferimento da verificare.
 

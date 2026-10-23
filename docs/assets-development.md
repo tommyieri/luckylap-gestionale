@@ -42,6 +42,26 @@ I file importati dal coordinatore possono usare un percorso amministrativo come 
 
 Le anteprime di PNG/JPEG/WebP usano la route privata, su fondo bianco; i loghi trasparenti rimangono leggibili. I video hanno controlli nativi e non vengono riprodotti automaticamente. I collegamenti esterni HTTPS si aprono nel servizio originale e non sono recuperati dal server.
 
+## Archivio dei contenuti
+
+Un contenuto caricato per sbaglio si toglie dalla libreria con «Archivia», in fondo alla scheda. Il riquadro spiega: «Il contenuto sparisce dalla libreria per tutti. Puoi ripristinarlo da “Mostra archiviati”.» L’interruttore «Mostra archiviati» elenca solo i contenuti archiviati, con la data e il pulsante «Ripristina». Non si cancella niente: nome, descrizione, percorso, file nel bucket e metadati restano come sono, e il file resta scaricabile dai membri.
+
+Migrazione `20261023115001_archivio_contenuti.sql`, solo aggiunte:
+
+- `public.assets` ha due colonne nuove, `archived_at` e `archived_by`, nulle per tutte le righe esistenti. Il vincolo `assets_archive_pair` le vuole sempre insieme.
+- I client non hanno permessi di scrittura su `assets`: le due colonne cambiano solo con `public.set_brand_asset_archived(operation_id, payload)`, wrapper `security invoker` di una funzione privata `security definer`. Payload: `{"schema_version": 1, "asset_id": "<uuid>", "archived": true | false}`.
+- La funzione ricontrolla la membership attiva (`42501 asset_access_required`), il payload e il contenuto (`22023 invalid_asset_payload`, `asset_not_found`). Archiviare un contenuto già archiviato, o ripristinarne uno attivo, non cambia niente e restituisce lo stato attuale.
+- Ricevuta per operation ID in `private.asset_command_receipts` (append-only): lo stesso invio ripetuto restituisce l’esito di allora con `replayed: true`; lo stesso ID con un altro payload o da un altro membro dà `23505 asset_idempotency_conflict`. Dopo un errore, lo stesso pulsante («Archivia il contenuto» o «Ripristina») ripete lo stesso ID finché la pagina resta aperta. Se invece si ricarica la pagina, come chiede il messaggio d'errore, l'ID è nuovo: il comando non cambia niente se il contenuto è già nello stato chiesto.
+- Il trigger `audit_change` già presente su `assets` registra autore, prima e dopo di ogni cambio. Un comando senza effetto non scrive audit. Oggi l'archiviazione compare solo nel registro tecnico di `/audit`. Il feed di Controllo CEO della pull request #3 la leggerebbe come «… ha aggiornato un contenuto»: la frase dedicata («… ha archiviato un contenuto») si aggiunge al catalogo del feed nella parte B di P7, dopo il rebase su `main`.
+
+La Server Action `setBrandAssetArchived` ricontrolla il membro, invia il comando e traduce gli errori in italiano, senza dettagli tecnici. Un esito che non corrisponde alla richiesta non viene confermato.
+
+In anteprima locale (`npm run dev`) la pagina mostra cinque contenuti sintetici, uno archiviato, con le scritture spente. Il ramo non si attiva su Vercel né con `NODE_ENV=production`.
+
+Per tornare indietro su un contenuto basta «Ripristina». Un ripristino in blocco, dal proprietario del database: `update public.assets set archived_at = null, archived_by = null where archived_at is not null;` (resta nell’audit).
+
+Produzione: applicata il 23 ottobre 2026 come versione cloud `20261023115001`, con il testo salvato uguale al file (md5 `249f4b462c330c8e2f6f7cf3ac42882f`). Prima e dopo: 6 contenuti, impronta delle colonne esistenti identica (md5 `24b6a3fe4394d1da6b2bc7321b116fe9`), `archived_at` e `archived_by` nulli su tutte le righe; il comando è `security definer` con `search_path` vuoto, eseguibile da `authenticated` e non da `anon`. L’harness la cerca per suffisso.
+
 ## Sviluppo prodotti
 
 `product_development_projects` contiene nome, brief, fase, data obiettivo, referente attivo, autore e versione. Fasi: idea, design, campionatura, produzione, pronto e archiviato. Tutti i membri attivi possono creare, leggere, aggiornare e archiviare. Non è esposta eliminazione permanente.
@@ -50,8 +70,10 @@ Le anteprime di PNG/JPEG/WebP usano la route privata, su fondo bianco; i loghi t
 
 ## Verifica e limiti
 
+La suite `supabase/tests/review-handoff.mjs` (PGlite, minimo 51 controlli) prova l’archivio: migrazione sopra contenuti esistenti senza toccarli, archivio e ripristino per ogni ruolo attivo, rifiuto di esterni, account non attivi e anonimi, payload non validi, ricevute e replay, scritture dirette rifiutate, audit con autore.
+
 La suite `supabase/tests/assets-development.mjs` esegue PostgreSQL locale con Auth e metadata Storage simulati: ruoli, RLS, percorsi, no-upsert/no-delete, replay, autore, referente attivo, aggiornamenti concorrenti e audit. I test Vitest coprono estensioni/MIME/firme, hash/dimensioni, azioni e download privati. Il test di download sopra 4,5 MB conferma una risposta di redirect senza corpo binario.
 
-I test locali non sostituiscono una prova reale delle signed-upload capability e delle policy Storage dopo creazione del bucket. Il coordinatore applica la migrazione, crea il bucket e importa i soli asset autorizzati. Le route devono entrare nel matcher del Proxy per cookie aggiornati e intestazioni `no-store`. I metadati usano paginazione a cursore e rifiutano letture troncate; il limite attuale è 10.000 elementi per tabella.
+I test locali non sostituiscono una prova reale delle signed-upload capability e delle policy Storage dopo creazione del bucket. Il coordinatore applica la migrazione, crea il bucket e importa i soli asset autorizzati. `/assets` e `/development` sono nel matcher del Proxy, per cookie aggiornati e intestazioni `no-store`: lo controlla `src/proxy.test.ts`. I metadati usano paginazione a cursore e rifiutano letture troncate; il limite attuale è 10.000 elementi per tabella.
 
 QA visiva completata dal coordinatore su desktop 1280 px e mobile 390 px: libreria vuota e schede/modifica sviluppo leggibili, nessun overflow orizzontale, scala 1 e console senza errori. Le fixture temporanee `/qa-assets` e `/qa-development` sono state eliminate e rispondono 404; server QA chiuso.

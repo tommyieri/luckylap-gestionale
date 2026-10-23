@@ -66,6 +66,7 @@ describe("barra laterale", () => {
     expect(count(navPart(side), /<a /g)).toBe(5);
     expect(side).not.toContain("Esci");
     expect(side).not.toContain("/auth/account");
+    expect(side).not.toContain("/guida");
     expect(side).not.toContain("Anteprima locale");
   });
 
@@ -88,11 +89,30 @@ describe("barra laterale", () => {
     expect(side + sheet).not.toContain("Esci");
   });
 
-  it("membro: nome, «Account e sicurezza» e il modulo «Esci»", () => {
+  it("membro: nome, «Come si usa», «Account e sicurezza» e il modulo «Esci»", () => {
     const side = sidebar(founder);
     expect(side).toContain("Tommi");
+    expect(side).toMatch(/<a[^>]*href="\/guida"[^>]*>Come si usa<\/a>/);
     expect(side).toMatch(/<a[^>]*href="\/auth\/account"[^>]*>Account e sicurezza<\/a>/);
     expect(side).toMatch(/<form[^>]*>.*<button[^>]*>Esci<\/button><\/form>/);
+    const foot = side.slice(side.indexOf("Come si usa"));
+    expect(foot.indexOf("Come si usa")).toBeLessThan(foot.indexOf("Account e sicurezza"));
+    expect(foot.indexOf("Account e sicurezza")).toBeLessThan(foot.indexOf("Esci"));
+  });
+
+  it("anche chi non entra in Finance e Controllo CEO ha la guida nel piede", () => {
+    expect(linkTo(sidebar(consultant), "/guida")).not.toBe("");
+    expect(linkTo(sidebar({ status: "unavailable" }), "/guida")).not.toBe("");
+  });
+
+  it("su /guida accende la guida nel piede, non le sezioni, e la fascia dice «Come si usa»", () => {
+    pathname = "/guida";
+    const side = sidebar(founder);
+    expect(linkTo(side, "/guida")).toContain('aria-current="page"');
+    expect(linkTo(side, "/auth/account")).not.toContain("aria-current");
+    expect(navPart(side)).not.toContain("aria-current");
+    expect(side).toMatch(/aria-hidden="true">· <\/span>Come si usa/);
+    expect(tabs()).toBe("");
   });
 
   it("segna le aree con password e accende l'account sulle sue pagine", () => {
@@ -118,13 +138,26 @@ describe("barra in basso e foglio «Altro»", () => {
     expect(nav).not.toContain("data-active");
   });
 
-  it("mette Team, Finance, Controllo CEO, account ed «Esci» nel foglio", () => {
+  it("mette Team, Finance, Controllo CEO, la guida, l'account ed «Esci» nel foglio", () => {
     const html = bottomBar(founder);
     const sheet = html.slice(html.indexOf("<dialog"));
     expect(sheet).toContain('id="altro"');
-    expect(hrefs(sheet)).toEqual(["/team", "/finance", "/audit", "/auth/account"]);
+    expect(hrefs(sheet)).toEqual(["/team", "/finance", "/audit", "/guida", "/auth/account"]);
     expect(sheet).toMatch(/<button[^>]*>Esci<\/button>/);
     expect(sheet).toContain("Chiudi");
+  });
+});
+
+describe("la guida sul telefono", () => {
+  it("su /guida «Altro» è acceso e la guida è la pagina corrente del foglio", () => {
+    pathname = "/guida";
+    const html = bottomBar(consultant);
+    expect(html).toMatch(/<button[^>]*data-active=""[^>]*aria-haspopup="dialog"/);
+    expect(html).toContain("Sezione attuale: Come si usa");
+    const sheet = html.slice(html.indexOf("<dialog"));
+    expect(hrefs(sheet)).toEqual(["/team", "/guida", "/auth/account"]);
+    expect(linkTo(sheet, "/guida")).toContain('aria-current="page"');
+    expect(count(html, /aria-current="page"/g)).toBe(1);
   });
 });
 

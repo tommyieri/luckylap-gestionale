@@ -6,6 +6,7 @@ import { AgendaTile, PreviewTile, StockTile, TileFallback } from "./today-tiles"
 import { PartnerWorkTile, PreparationTile } from "./work-tiles";
 import { isSensitiveAreaEligible } from "../../lib/auth/model";
 import { ConsignmentTile } from "./consignment-tile";
+import { GuideIntro } from "./guide-intro";
 import styles from "./today.module.css";
 
 export type TodayAccess =
@@ -14,7 +15,8 @@ export type TodayAccess =
 /**
  * Il foglio del giorno (docs: 01-layout §9). L'intestazione arriva subito; ogni
  * riquadro è un componente server dentro il suo `<Suspense>`. Desktop: Agenda a
- * sinistra. Telefono: una colonna.
+ * sinistra. Telefono: una colonna. Sopra i riquadri, finché la persona non preme
+ * «Ho capito», l'invito a «Come si usa» (anche in anteprima locale).
  */
 export function TodaySheet({ access, now }: { access: TodayAccess; now: Date }) {
   return (
@@ -31,6 +33,7 @@ export function TodaySheet({ access, now }: { access: TodayAccess; now: Date }) 
           Anteprima locale: Oggi legge solo dal database.
         </p>
       )}
+      <GuideIntro userId={access.status === "member" ? access.member.userId : "anteprima"} />
       <div className={styles.grid}>
         {access.status === "preview" ? (
           <>

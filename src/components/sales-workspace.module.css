@@ -210,26 +210,22 @@ summary.sectionTitle {
   border-color: var(--green);
   background: var(--green-wash);
 }
+/* Invio da verificare (pending-attempt.tsx): nel modulo e nel recupero degli invii sospesi. */
 .pending {
-  padding: 17px;
-  background: var(--amber-wash);
-  border: 1px solid var(--rule);
-  border-radius: 0;
   margin-bottom: 18px;
-  font-size: var(--text-sm);
 }
-.pending p {
-  margin: 7px 0 13px;
+.recovery {
+  display: grid;
+  gap: 12px;
+  margin: 15px 0;
+}
+.recovery > strong {
+  font-size: var(--text-md);
+}
+.recovery > p {
+  font-size: var(--text-md);
   line-height: 1.7;
-}
-.pending button {
-  margin: 0 9px 8px 0;
-}
-.pending small {
-  display: block;
-  color: var(--muted);
-  overflow-wrap: anywhere;
-  font-size: var(--text-xs);
+  color: var(--ink-2);
 }
 .toolbar {
   display: flex;

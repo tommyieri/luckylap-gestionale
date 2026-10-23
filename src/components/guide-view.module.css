@@ -1,0 +1,306 @@
+/*
+ * «Come si usa» (docs: workspace-layout.md, «La guida»): una pagina da leggere.
+ * Testo a 16 px, righe al massimo di 72 caratteri, indice fermo a destra sul computer
+ * e in cima sul telefono. Righe roadbook per il menu e per i passi del conto vendita.
+ */
+.page {
+  min-width: 0;
+}
+.notice {
+  max-width: 72ch;
+  margin-bottom: 24px;
+  padding: 12px 16px;
+  border: 1px solid var(--rule);
+  background: var(--tint);
+  color: var(--ink-2);
+}
+.layout {
+  display: grid;
+  grid-template-areas: "text index";
+  grid-template-columns: minmax(0, 72ch) 220px;
+  justify-content: start;
+  align-items: start;
+  gap: 56px;
+}
+.index {
+  grid-area: index;
+  position: sticky;
+  top: calc(var(--ws-sticky-top) + 24px);
+}
+.indexList {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  border-top: 1.5px solid var(--ink);
+}
+.indexList li {
+  border-bottom: 1px solid var(--rule);
+}
+.indexLink {
+  display: flex;
+  align-items: center;
+  min-height: var(--tap);
+  padding: 6px 0;
+  color: var(--ink);
+  font-family: var(--f-cond);
+  font-size: var(--text-md);
+  font-weight: 600;
+  line-height: 1.2;
+  text-decoration: none;
+}
+.indexLink:hover {
+  color: var(--green);
+  text-decoration: underline;
+  text-decoration-thickness: 1px;
+}
+.text {
+  grid-area: text;
+  display: grid;
+  gap: 48px;
+  min-width: 0;
+}
+.part {
+  min-width: 0;
+  scroll-margin-top: calc(var(--ws-sticky-top) + 16px);
+}
+.partTitle {
+  margin-bottom: 12px;
+  font-family: var(--f-cond);
+  font-size: var(--text-xl);
+  font-weight: 700;
+  line-height: 1.1;
+}
+.subTitle {
+  margin: 28px 0 8px;
+  font-family: var(--f-cond);
+  font-size: var(--text-lg);
+  font-weight: 700;
+  line-height: 1.2;
+}
+.lead,
+.after,
+.points,
+.box p {
+  max-width: 72ch;
+  font-size: var(--text-md);
+  line-height: 1.55;
+}
+.lead {
+  margin-bottom: 16px;
+}
+.after {
+  margin-top: 12px;
+  color: var(--ink-2);
+}
+.points {
+  display: grid;
+  gap: 10px;
+  margin: 0;
+  padding-left: 20px;
+}
+.points li::marker {
+  color: var(--green);
+}
+
+/* Il menu: una riga per sezione, l'icona della barra laterale nella colonna di controllo. */
+.menu {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  border-top: 1.5px solid var(--ink);
+}
+.menuRow {
+  display: grid;
+  grid-template-columns: 76px minmax(0, 1fr);
+  border-bottom: 1px solid var(--rule);
+}
+.menuSpine {
+  display: grid;
+  justify-items: center;
+  align-content: start;
+  padding: 16px 4px;
+  border-right: 1px solid var(--ink);
+  color: var(--ink);
+}
+.menuBody {
+  display: grid;
+  gap: 2px;
+  min-width: 0;
+  padding: 4px 16px 10px;
+}
+.rowHead {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0 12px;
+}
+.rowLink {
+  display: inline-flex;
+  align-items: center;
+  min-height: var(--tap);
+  color: var(--ink);
+  font-family: var(--f-cond);
+  font-size: 20px;
+  font-weight: 700;
+  line-height: 1.15;
+  text-decoration: none;
+}
+.rowLink:hover {
+  text-decoration: underline;
+  text-decoration-thickness: 1px;
+  text-underline-offset: 3px;
+}
+.locked {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  color: var(--muted);
+  font-size: var(--text-sm);
+}
+.rowText {
+  color: var(--ink-2);
+  font-size: var(--text-md);
+  line-height: 1.5;
+  overflow-wrap: anywhere;
+}
+.tabs {
+  margin: 8px 0 0;
+  padding: 0;
+  list-style: none;
+}
+.tabs li {
+  display: grid;
+  grid-template-columns: 10em minmax(0, 1fr);
+  align-items: baseline;
+  gap: 0 12px;
+  border-top: 1px solid var(--rule-soft);
+}
+.tabLink {
+  display: inline-flex;
+  align-items: center;
+  min-height: var(--tap);
+  font-family: var(--f-cond);
+  font-size: var(--text-md);
+  font-weight: 600;
+  line-height: 1.2;
+}
+.tabText {
+  padding: 4px 0;
+  color: var(--ink-2);
+  font-size: var(--text-md);
+  line-height: 1.5;
+}
+
+/* Operazioni comuni: una riga per operazione, link alla pagina e pulsanti veri. */
+.ops {
+  max-width: 72ch;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  border-top: 1.5px solid var(--ink);
+}
+.ops li {
+  display: grid;
+  gap: 2px;
+  padding: 2px 0 12px;
+  border-bottom: 1px solid var(--rule);
+}
+.opLink {
+  display: inline-flex;
+  align-items: center;
+  min-height: var(--tap);
+  font-family: var(--f-cond);
+  font-size: var(--text-lg);
+  font-weight: 600;
+  line-height: 1.2;
+}
+.who {
+  color: var(--muted);
+  font-size: var(--text-sm);
+}
+
+/* Elenchi di parole e di persone: termine in Condensed, spiegazione accanto. */
+.terms {
+  max-width: 72ch;
+  margin: 0;
+  border-top: 1px solid var(--rule);
+}
+.terms > div {
+  display: grid;
+  grid-template-columns: 9em minmax(0, 1fr);
+  gap: 4px 16px;
+  padding: 10px 0;
+  border-bottom: 1px solid var(--rule);
+}
+.terms dt {
+  font-family: var(--f-cond);
+  font-size: var(--text-lg);
+  font-weight: 600;
+  line-height: 1.3;
+}
+.terms dd {
+  margin: 0;
+  font-size: var(--text-md);
+  line-height: 1.5;
+}
+
+.box {
+  display: grid;
+  gap: 8px;
+  max-width: 72ch;
+  margin-top: 20px;
+  padding: 16px 20px;
+  border: 1px solid var(--rule);
+  background: var(--tint);
+}
+.box .subTitle {
+  margin-top: 0;
+}
+.actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px 12px;
+  margin-top: 16px;
+}
+.box .actions {
+  margin-top: 8px;
+}
+
+@media (max-width: 1100px) {
+  .layout {
+    grid-template-areas:
+      "index"
+      "text";
+    grid-template-columns: minmax(0, 72ch);
+    gap: 32px;
+  }
+  .index {
+    position: static;
+  }
+  .indexList {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    column-gap: 16px;
+  }
+}
+@media (max-width: 760px) {
+  .text {
+    gap: 40px;
+  }
+  .menuRow {
+    grid-template-columns: 56px minmax(0, 1fr);
+  }
+  .menuBody {
+    padding: 4px 12px 10px;
+  }
+  .tabs li,
+  .terms > div {
+    grid-template-columns: minmax(0, 1fr);
+  }
+  .tabText {
+    padding: 0 0 8px;
+  }
+  .box {
+    padding: 16px;
+  }
+}

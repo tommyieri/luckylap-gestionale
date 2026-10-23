@@ -37,7 +37,7 @@ describe("colonna «In negozio» del Magazzino", () => {
     expect(t).toContain("In negozio — da contare");
     expect(t).toContain("In negozio");
     expect(t).not.toContain("LCM");
-    expect(t).toContain("Magazzino e negozi restano separati.");
+    expect(t).toContain("Magadzino e negozi restano separati.");
   });
   it("dopo la conta mostra i pezzi dei negozi contati, anche 0", () => {
     const t = text([item("M", 3), item("L", 0)]);

@@ -14,15 +14,28 @@ Il progetto GitHub `tommyieri/luckylap-partner` è la fonte per identità e sist
 - Vendite attive dal 21 ottobre 2026, manuali e da Shopify; nessuno storico importato. Finance: 144 righe BudgetFlow importate, tutte da verificare, visibili solo ai tre autorizzati.
 - Costi/margini e operazioni di sconto/rettifica accessibili a tutti i membri.
 - Finance soltanto founder, Gabriele, Gherardo; Controllo soltanto founder.
+- Finance: ogni movimento si corregge, si elimina e si ripristina, con motivazione e storico. Le fonti restano immutabili; le modifiche sono revisioni append-only con storico.
+- Controllo CEO: solo un feed leggibile di cosa fa il team; il registro tecnico resta nel database.
 - Packaging separato: scatole per T-shirt e adesivi per scatole, diversi dagli sticker Shopify.
-- Conto vendita 60/40 a favore LuckyLap, prezzo in negozio +10 EUR sul web.
+- Conto vendita 60/40 a favore LuckyLap, prezzo in negozio +10 EUR sul web. La merce del negozio si conta e si cambia solo da Conto vendita; il resoconto del mese dice quanto fatturare, e in Finance entra solo il pagamento del negozio. Nuovo negozio, fattura e pagamenti solo con Finance aperta; il resto per tutti.
+- Partner: tutti e cinque vedono e fanno tutto, Luca compreso.
+- Il magazzino centrale si chiama «Magadzino»; «Magazzino» è la sezione del menu.
 - Calendario interno, senza sincronizzazione Google Calendar o inviti esterni automatici.
 - Drive sola lettura: inventario, grafiche, alcune foto ed eventuali informazioni professionali su Luca; nessun altro documento importato.
 - Nessun abbonamento. L'app è oggi su Vercel Hobby, piano che Vercel riserva all'uso non commerciale: l'hosting resta così finché Tommi non decide (vedi `AGENTS.md`).
 
 ## Stato della consegna
 
-App pubblicata su Vercel con dati in Supabase: cinque account personali, permessi nel database (RLS), password separate per Finance e Controllo CEO. Moduli collegati: Oggi (`/`), magazzino (`/stock`), rettifiche (`/stock/rettifiche`), vendite e ordini Shopify (`/sales`), conto vendita (`/consignment`), packaging (`/packaging`), Partner (`/partner`), calendario, attività e note (`/team`), Finance (`/finance`), grafiche (`/assets`), nuovi prodotti (`/development`), Controllo CEO (`/audit`). Ogni pagina ha lo stesso menu: al massimo sette sezioni, senza le aree in cui la persona non può entrare. Partner dentro il gestionale: ha già la sua sezione, e fino alla tappa Partner la pagina rimanda al roadbook online. L'anteprima locale, con snapshot inventario e note sul browser, resta solo per lo sviluppo.
+App pubblicata su Vercel con dati in Supabase: cinque account personali, permessi nel database (RLS), password separate per Finance e Controllo CEO. Moduli collegati: Oggi (`/`), magazzino (`/stock`), rettifiche (`/stock/rettifiche`), vendite e ordini Shopify (`/sales`), conto vendita (`/consignment`), packaging (`/packaging`), Partner (`/partner`), calendario, attività e note (`/team`), Partner nel Team (`/team/partner`), Finance (`/finance`), grafiche (`/assets`), nuovi prodotti (`/development`), Controllo CEO (`/audit`). Ogni pagina ha lo stesso menu: al massimo sette sezioni, senza le aree in cui la persona non può entrare. La guida «Come si usa» (`/guida`) spiega l'app in nove parti brevi, con i nomi veri di sezioni e pulsanti; sta nel piede del menu e in «Altro».
+
+- **Partner** è dentro il gestionale: i 207 contatti della ricerca, importati il 22 ottobre 2026, con periodi, sezioni, messaggi modificabili con storico, stati, registro e lookbook.
+- **Conto vendita** è semplice: negozi, conta in negozio, resoconto del mese da fatturare, pagamenti in Finance, ordini del negozio.
+- **Oggi** è il primo schermo: agenda, contatti e solleciti Partner, ordini da preparare, magazzino e, per chi può aprire Finance, il conto vendita da regolare. La prima volta «Prima volta qui?» porta alla guida.
+- **Finance modificabile** (dal 23 ottobre 2026, pull request #3): «Modifica / storico» su ogni movimento, eliminati recuperabili, «Chiudi Finance» in cima alle pagine.
+- **Collegamenti**: «Segna inviato» crea un sollecito a 7 giorni per chi ha inviato; le date Partner entrano nel calendario; «Partner nel Team» (`/team/partner`) porta un contatto in calendario, produzione o conto vendita.
+- **Controllo CEO** (dal 23 ottobre 2026) è il feed di cosa fa il team, per giorno, con filtri per persona e area e «Chiudi Controllo CEO». Problemi noti da decidere con Tommi in `docs/verification.md`.
+
+L'anteprima locale, con lo snapshot dell'inventario, le note sul browser e dati sintetici per le altre pagine, resta solo per lo sviluppo.
 
 ## Esiti attesi
 

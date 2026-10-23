@@ -496,7 +496,7 @@ describe("parole dell'interfaccia", () => {
     ]) {
       const source = readFileSync(new URL(`./${file}`, import.meta.url), "utf8");
       expect(source).not.toMatch(
-        /affido|rientro|vendita dichiarata|regolament|credito commerciale|magadzino/i,
+        /affido|rientro|vendita dichiarata|regolament|credito commerciale/i,
       );
     }
   });

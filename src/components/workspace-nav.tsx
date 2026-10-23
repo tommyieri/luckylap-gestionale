@@ -62,8 +62,12 @@ function sectionCurrent(section: NavSection, location: NavLocation) {
   return section.tabs.length > 1 ? ("true" as const) : ("page" as const);
 }
 
-function currentLabel(location: NavLocation): string | null {
-  if (location.section === "account") return "Account";
+function currentLabel(location: NavLocation, pathname: string): string | null {
+  if (location.section === "account")
+    return (
+      ACCOUNT_LINKS.find((link) => link.match.some((href) => matchesPath(href, pathname)))?.band ??
+      null
+    );
   return SECTIONS.find((section) => section.id === location.section)?.label ?? null;
 }
 
@@ -94,7 +98,7 @@ function SectionLabel({ section }: { section: NavSection }) {
 export function WorkspaceSidebar({ access, signOut }: NavProps) {
   const { pathname, location } = useLocation();
   const sections = visibleSections(access);
-  const label = access.status === "outside" ? null : currentLabel(location);
+  const label = access.status === "outside" ? null : currentLabel(location, pathname);
   const accountLinks = accountLinksFor(access);
   return (
     <header className={styles.sidebar}>
@@ -189,7 +193,7 @@ export function WorkspaceBottomBar({ access, signOut }: NavProps) {
   const accountLinks = accountLinksFor(access);
   const altroActive =
     location.section === "account" || altro.some((section) => section.id === location.section);
-  const activeLabel = currentLabel(location);
+  const activeLabel = currentLabel(location, pathname);
   const close = () => dialogRef.current?.close();
   return (
     <div className={styles.bottom}>

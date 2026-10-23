@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { redirect } from "next/navigation";
 import { AuditView } from "@/components/audit-view";
+import { SensitiveAreaSessionBar } from "@/components/auth-sensitive-area-form";
 import { PanelActions, WorkspacePanel } from "@/components/workspace-panel";
 import { isSensitiveAreaEligible } from "@/lib/auth/model";
 import { verifiedSensitiveAccess } from "@/lib/auth/sensitive-access";
@@ -112,5 +113,10 @@ export default async function AuditPage({
         restart
       />
     );
-  return <AuditView snapshot={snapshot} query={query} />;
+  return (
+    <>
+      <SensitiveAreaSessionBar area="audit" />
+      <AuditView snapshot={snapshot} query={query} />
+    </>
+  );
 }

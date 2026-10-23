@@ -3,6 +3,7 @@ import Link from "next/link";
 import { redirect } from "next/navigation";
 import { WorkspacePanel, PanelActions } from "@/components/workspace-panel";
 import { FinanceShopPaymentEditor } from "@/components/finance-shop-payment-editor";
+import { SensitiveAreaSessionBar } from "@/components/auth-sensitive-area-form";
 import { verifiedMember } from "@/lib/auth/server";
 import { isSensitiveAreaEligible } from "@/lib/auth/model";
 import { verifiedSensitiveAccess } from "@/lib/auth/sensitive-access";
@@ -82,12 +83,15 @@ export default async function ShopPaymentPage({ params }: { params: Promise<{ id
       names[row.user_id] = row.display_name;
     }
     return (
-      <FinanceShopPaymentEditor
-        key={`${access.member.userId}:${id}`}
-        history={history}
-        actorId={access.member.userId}
-        names={names}
-      />
+      <>
+        <SensitiveAreaSessionBar area="finance" />
+        <FinanceShopPaymentEditor
+          key={`${access.member.userId}:${id}`}
+          history={history}
+          actorId={access.member.userId}
+          names={names}
+        />
+      </>
     );
   } catch {
     return panel(

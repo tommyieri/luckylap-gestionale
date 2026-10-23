@@ -5,9 +5,12 @@ import {
   assetStoragePath,
   isBrandStoragePath,
   MAX_ASSET_BYTES,
+  parseAssetArchiveInput,
   parseBrandLink,
   parseUploadDescriptor,
   uploadContentType,
+  visibleBrandAssets,
+  type BrandAsset,
   type UploadDescriptor,
 } from "./model";
 import { verifyAssetBytes } from "./file-validation";
@@ -76,5 +79,52 @@ describe("brand asset upload boundary", () => {
     expect(() =>
       verifyAssetBytes(entity, descriptor("logo.svg", "image/svg+xml", entity)),
     ).toThrow();
+  });
+});
+
+describe("archivio dei contenuti", () => {
+  const asset = (n: number, overrides: Partial<BrandAsset> = {}): BrandAsset => ({
+    id: `00000000-0000-4000-8000-00000000010${n}`,
+    name: `Contenuto sintetico ${n}`,
+    assetType: "photo",
+    description: "",
+    externalUrl: "https://example.test/sintetico",
+    storagePath: null,
+    originalName: null,
+    contentType: null,
+    size: null,
+    createdAt: "2026-10-22T08:00:00Z",
+    archivedAt: null,
+    ...overrides,
+  });
+  it("accetta solo un invio con UUID e stato espliciti", () => {
+    const input = { operationId: op, assetId: uid, archived: true };
+    expect(parseAssetArchiveInput(input)).toEqual(input);
+    expect(parseAssetArchiveInput({ ...input, archived: false }).archived).toBe(false);
+    for (const invalid of [
+      null,
+      { ...input, operationId: "non-un-uuid" },
+      { ...input, assetId: "" },
+      { ...input, archived: "true" },
+      { operationId: op, assetId: uid },
+    ])
+      expect(() => parseAssetArchiveInput(invalid)).toThrow(/Ricarica la pagina/);
+  });
+  it("mostra i contenuti attivi, oppure solo gli archiviati", () => {
+    const assets = [
+      asset(1),
+      asset(2, { archivedAt: "2026-10-22T09:00:00Z", assetType: "logo" }),
+      asset(3, { name: "Logo pista", assetType: "logo" }),
+    ];
+    const ids = (list: BrandAsset[]) => list.map((item) => item.id.slice(-1));
+    expect(ids(visibleBrandAssets(assets, { type: "", query: "", archived: false }))).toEqual([
+      "1",
+      "3",
+    ]);
+    expect(ids(visibleBrandAssets(assets, { type: "", query: "", archived: true }))).toEqual(["2"]);
+    expect(
+      ids(visibleBrandAssets(assets, { type: "logo", query: " PISTA ", archived: false })),
+    ).toEqual(["3"]);
+    expect(visibleBrandAssets(assets, { type: "photo", query: "", archived: true })).toEqual([]);
   });
 });

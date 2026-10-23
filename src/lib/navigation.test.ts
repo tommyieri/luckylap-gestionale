@@ -97,14 +97,24 @@ describe("mappa delle sezioni", () => {
     });
   });
 
-  it("mette «Account e sicurezza» fuori dalle sezioni", () => {
+  it("mette «Come si usa» e «Account e sicurezza» fuori dalle sezioni, la guida prima", () => {
     expect(ACCOUNT_LINKS).toEqual([
+      { href: "/guida", label: "Come si usa", band: "Come si usa", match: ["/guida"] },
       {
         href: "/auth/account",
         label: "Account e sicurezza",
+        band: "Account",
         match: ["/auth/account", "/auth/password", "/auth/verify"],
       },
     ]);
+  });
+
+  it("non fa della guida un'ottava sezione né una scheda", () => {
+    expect(SECTIONS).toHaveLength(7);
+    for (const section of SECTIONS) {
+      expect(section.href).not.toBe("/guida");
+      expect(section.tabs.map((tab) => tab.href)).not.toContain("/guida");
+    }
   });
 
   it("non si può modificare per sbaglio", () => {
@@ -228,6 +238,7 @@ describe("locate", () => {
     ["/auth/account", "account", null],
     ["/auth/password", "account", null],
     ["/auth/verify", "account", null],
+    ["/guida", "account", null],
     ["/stock/", "magazzino", "Giacenze"],
   ])("%s → %s, scheda %s", (pathname, section, tab) => {
     const location = locate(pathname);
@@ -235,12 +246,17 @@ describe("locate", () => {
     expect(location.tab?.label ?? null).toBe(tab);
   });
 
-  it.each(["/sales-old", "/auth/login", "/auth/confirm", "/auth/area/xyz", "/sconosciuto", ""])(
-    "%s non accende nessuna sezione",
-    (pathname) => {
-      expect(locate(pathname)).toEqual({ section: null, tab: null });
-    },
-  );
+  it.each([
+    "/sales-old",
+    "/auth/login",
+    "/auth/confirm",
+    "/auth/area/xyz",
+    "/sconosciuto",
+    "/guidare",
+    "",
+  ])("%s non accende nessuna sezione", (pathname) => {
+    expect(locate(pathname)).toEqual({ section: null, tab: null });
+  });
 
   it("dà la stessa scheda della mappa, così il confronto per identità funziona", () => {
     const magazzino = SECTIONS.find((section) => section.id === "magazzino")!;

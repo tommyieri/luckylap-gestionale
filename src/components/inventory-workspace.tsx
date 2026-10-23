@@ -188,7 +188,7 @@ function InventoryView({
       "Categoria",
       "Colore",
       "Taglia",
-      "Magazzino",
+      "Magadzino",
       "In negozio",
       "Costo unitario EUR",
       "Prezzo web EUR",
@@ -246,7 +246,7 @@ function InventoryView({
           </strong>
         </div>
         <div className="summary-cell">
-          <span>Magazzino</span>
+          <span>Magadzino</span>
           <strong className={central === null ? "value-unavailable" : ""}>
             {qty(central)}
             <small>{central === null ? "dato incompleto" : "pezzi"}</small>
@@ -305,7 +305,7 @@ function InventoryView({
               <ChevronDown size={14} />
             </label>
             <label className="select-wrap">
-              <span className="sr-only">Disponibilità in magazzino</span>
+              <span className="sr-only">Disponibilità Magadzino</span>
               <select value={stock} onChange={(event) => setStock(event.target.value)}>
                 <option value="all">Tutte le disponibilità</option>
                 <option value="available">Disponibili</option>
@@ -343,7 +343,7 @@ function InventoryView({
                   Taglia
                 </th>
                 <th scope="col" className="numeric">
-                  Magazzino
+                  Magadzino
                 </th>
                 <th scope="col" className="numeric">
                   In negozio
@@ -439,7 +439,7 @@ function InventoryView({
           </EmptyState>
         )}
         <div className="table-footer">
-          <span>Magazzino e negozi restano separati.</span>
+          <span>Magadzino e negozi restano separati.</span>
           <span>
             {filtered.length} / {items.length} varianti
           </span>
@@ -524,7 +524,7 @@ function ProductDetail({
           <h3>{shared ? "Giacenze attuali" : "Giacenze dalla fonte Excel"}</h3>
           <div className="detail-quantities">
             <div>
-              <span>Magazzino</span>
+              <span>Magadzino</span>
               <strong>
                 {qty(item.centralQuantity)}
                 <small>{item.centralQuantity === null ? "da verificare" : "pezzi"}</small>

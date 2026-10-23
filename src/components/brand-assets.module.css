@@ -143,6 +143,59 @@
   margin-top: 12px;
   min-height: var(--tap);
 }
+.previewNotice {
+  max-width: 72ch;
+  margin-bottom: 18px;
+  padding: 12px 16px;
+  border: 1px solid var(--rule);
+  background: var(--tint);
+  color: var(--ink-2);
+  font-size: var(--text-sm);
+}
+/* «Mostra archiviati» e «Archivia» sulla scheda (docs/assets-development.md). */
+.archiveToggle {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  min-height: var(--tap);
+  margin-top: 12px;
+  font-size: var(--text-sm);
+  color: var(--muted);
+  cursor: pointer;
+}
+.archiveToggle input {
+  width: 18px;
+  height: 18px;
+  flex-shrink: 0;
+  accent-color: var(--green);
+}
+.archiveToggle span {
+  font-variant-numeric: tabular-nums;
+}
+.archive {
+  margin-top: 12px;
+  padding-top: 4px;
+  border-top: 1px solid var(--rule);
+}
+.archive summary {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  min-height: var(--tap);
+  font-size: var(--text-sm);
+  color: var(--muted);
+  cursor: pointer;
+}
+.archive > p {
+  font-size: var(--text-sm);
+  line-height: 1.6;
+  margin-bottom: 10px;
+  max-width: 60ch;
+}
+.archive .archivedNote {
+  margin-top: 8px;
+  color: var(--muted);
+}
 .uploadPanel {
   background: var(--paper);
   border: 1px solid var(--rule);

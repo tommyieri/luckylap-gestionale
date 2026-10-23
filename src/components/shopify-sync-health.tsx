@@ -47,33 +47,19 @@ export function ShopifySyncHealth({
             : "La sincronizzazione degli ordini è in pausa. Le nuove notifiche restano in attesa della riattivazione."}{" "}
         L’inventario commerciale Shopify resta distinto dal pronto fisico di Magadzino.
       </p>
-      <dl className={styles.counts}>
-        {[
-          ["In attesa", s.counters.pending],
-          ["In elaborazione", s.counters.processing],
-          ["Da riprovare", s.counters.retry],
-          ["Da verificare", s.counters.review],
-          ["Notifiche gestite", s.counters.applied],
-          ["Notifiche escluse", s.counters.ignored],
-        ].map(([label, count]) => (
-          <div key={label}>
-            <dt>{label}</dt>
-            <dd>{count}</dd>
-          </div>
-        ))}
-      </dl>
-      <p className={styles.caption}>
-        I conteggi riguardano gli aggiornamenti ricevuti, non il numero di vendite. Ultima
-        sincronizzazione confermata:{" "}
-        {s.counters.lastAppliedAt ? date(s.counters.lastAppliedAt) : "Non ancora disponibile"} ·
-        Europe/Rome.
+      <p className={styles.updated}>
+        Ultimo aggiornamento:{" "}
+        <strong>
+          {s.counters.lastAppliedAt
+            ? `${date(s.counters.lastAppliedAt)} (ora di Roma)`
+            : "non ancora disponibile"}
+        </strong>
       </p>
       {s.counters.review > 0 && (
-        <details className={styles.reviews}>
-          <summary>Casi da verificare · {s.counters.review}</summary>
-          <p>
-            Le operazioni di questi aggiornamenti attendono una verifica. Sono mostrati al massimo i
-            20 casi più recenti.
+        <div className={styles.reviews} role="group" aria-labelledby="shopify-review-title">
+          <h3 id="shopify-review-title">Casi da verificare · {s.counters.review}</h3>
+          <p className={styles.reviewHelp}>
+            Se compare un caso, avvisa Tommi. Non registrare a mano lo stesso ordine.
           </p>
           <ul>
             {s.reviews.map((r, index) => {
@@ -82,7 +68,7 @@ export function ShopifySyncHealth({
                 <li key={`${r.orderGid}:${r.observedAt}:${index}`}>
                   <div>
                     <strong>{shopifyReviewLabel(r.reason)}</strong>
-                    <span>{date(r.observedAt)} · Europe/Rome</span>
+                    <span>{date(r.observedAt)} (ora di Roma)</span>
                   </div>
                   {href && (
                     <a href={href} target="_blank" rel="noopener noreferrer">
@@ -94,8 +80,32 @@ export function ShopifySyncHealth({
               );
             })}
           </ul>
-        </details>
+          {s.counters.review > s.reviews.length && (
+            <p className={styles.reviewHelp}>Qui sono mostrati i {s.reviews.length} più recenti.</p>
+          )}
+        </div>
       )}
+      <details className={styles.technical}>
+        <summary>Dettagli tecnici</summary>
+        <dl className={styles.counts}>
+          {[
+            ["In attesa", s.counters.pending],
+            ["In elaborazione", s.counters.processing],
+            ["Da riprovare", s.counters.retry],
+            ["Da verificare", s.counters.review],
+            ["Notifiche gestite", s.counters.applied],
+            ["Notifiche escluse", s.counters.ignored],
+          ].map(([label, count]) => (
+            <div key={label}>
+              <dt>{label}</dt>
+              <dd>{count}</dd>
+            </div>
+          ))}
+        </dl>
+        <p className={styles.caption}>
+          I conteggi riguardano gli aggiornamenti ricevuti da Shopify, non il numero di vendite.
+        </p>
+      </details>
     </section>
   );
 }

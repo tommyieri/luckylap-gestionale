@@ -11,17 +11,21 @@ import {
 import { useRouter } from "next/navigation";
 import { runFinanceWork } from "@/app/finance/work/actions";
 import {
-  centsLabel,
   parseFinanceWorkCommand,
   type FinanceWorkCommand,
   type FinanceWorkKind,
 } from "@/lib/finance-work/model";
+import { financeWorkAttemptSummary } from "../lib/finance-work/attempt";
 import {
   FINANCE_WORK_EVENT,
   financeWorkPrefix,
   readFinanceWorkPending,
 } from "@/lib/finance-work/pending";
+import { PendingAttempt } from "./pending-attempt";
 import styles from "./finance-work.module.css";
+
+const DISCARD_FAILED =
+  "Non riesco a liberare il tentativo conservato in questa scheda. Chiudi la scheda e riaprila.";
 import { FINANCE_ACCOUNT_SUGGESTIONS, FINANCE_CATEGORY_GROUPS } from "@/lib/finance/categories";
 
 export function FinanceWorkForm({
@@ -49,24 +53,25 @@ export function FinanceWorkForm({
     [success, setSuccess] = useState(false),
     [blocked, setBlocked] = useState(false),
     [loaded, setLoaded] = useState(false),
-    [epoch, setEpoch] = useState(0);
+    [epoch, setEpoch] = useState(0),
+    // Tentativi che non potranno mai riuscire (06 R11): illeggibile o in conflitto.
+    [unreadable, setUnreadable] = useState(false),
+    [conflict, setConflict] = useState(false);
   const [pending, startTransition] = useTransition();
   useEffect(() => {
     try {
       const saved = sessionStorage.getItem(key);
       if (saved) {
-        const parsed = parseFinanceWorkCommand(JSON.parse(saved));
+        let parsed: FinanceWorkCommand | null = null;
+        try {
+          parsed = parseFinanceWorkCommand(JSON.parse(saved));
+        } catch {
+          parsed = null;
+        }
         if (!parsed || parsed.kind !== kind) {
           setBlocked(true);
-          setNotice(
-            "Il tentativo salvato non è leggibile. Verifica il registro prima di aggiungere la stessa voce.",
-          );
-        } else {
-          setCommand(parsed);
-          setNotice(
-            "C’è un invio senza esito certo. Verifica lo stesso tentativo prima di continuare.",
-          );
-        }
+          setUnreadable(true);
+        } else setCommand(parsed);
       }
     } catch {
       setBlocked(true);
@@ -114,7 +119,7 @@ export function FinanceWorkForm({
           } catch {
             /* Frozen payload remains available. */
           }
-        }
+        } else if (result.status === "rejected") setConflict(true);
       } catch {
         setNotice(
           "Connessione interrotta: la voce potrebbe essere già registrata. Riprova lo stesso invio senza crearne uno nuovo.",
@@ -123,6 +128,22 @@ export function FinanceWorkForm({
         sending.current = false;
       }
     });
+  }
+  /** Libera il modulo da un tentativo che non potrà riuscire. Non cancella niente nel registro. */
+  function discard() {
+    try {
+      sessionStorage.removeItem(key);
+      window.dispatchEvent(new Event(FINANCE_WORK_EVENT));
+    } catch {
+      setNotice(DISCARD_FAILED);
+      return;
+    }
+    setCommand(null);
+    setConflict(false);
+    setUnreadable(false);
+    setBlocked(false);
+    setNotice("");
+    setEpoch((value) => value + 1);
   }
   function submit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -152,27 +173,35 @@ export function FinanceWorkForm({
           {notice}
         </p>
       )}
+      {unreadable && (
+        <div className={styles.pending}>
+          <PendingAttempt
+            title="Invio Finance non leggibile"
+            lines={[
+              "Il tentativo conservato in questa scheda non si può leggere. Controlla nel registro se la voce c’è già, poi scartalo.",
+            ]}
+            operationId="non leggibile"
+            pending={false}
+            blocked
+            onRetry={() => {}}
+            onReread={() => router.refresh()}
+            rereadLabel="Rileggi il registro"
+            onDiscard={discard}
+          />
+        </div>
+      )}
       {command && (
         <div className={styles.pending}>
-          <strong>Invio conservato, da verificare</strong>
-          <p>
-            {typeof command.payload.entry_date === "string" && (
-              <>Data {command.payload.entry_date} · </>
-            )}
-            {typeof command.payload.amount_cents === "number" && (
-              <>Importo {centsLabel(command.payload.amount_cents)} · </>
-            )}
-            {String(command.payload.description ?? command.payload.reason ?? "")}
-          </p>
-          <button
-            type="button"
-            className="button button-primary"
-            disabled={pending}
-            onClick={() => send({ ...command, retry: true })}
-          >
-            {pending ? "Verifica in corso…" : "Verifica lo stesso invio"}
-          </button>
-          <small>Riferimento {command.operationId}</small>
+          <PendingAttempt
+            {...financeWorkAttemptSummary(command)}
+            operationId={command.operationId}
+            pending={pending}
+            blocked={conflict}
+            onRetry={() => send({ ...command, retry: true })}
+            onReread={() => router.refresh()}
+            rereadLabel="Rileggi il registro"
+            onDiscard={conflict ? discard : undefined}
+          />
         </div>
       )}
       <fieldset
@@ -204,8 +233,10 @@ export function FinanceWorkRecovery({
   const [saved, setSaved] = useState<ReturnType<typeof readFinanceWorkPending>>({
       entries: [],
       unreadable: false,
+      unreadableKeys: [],
     }),
-    [message, setMessage] = useState("");
+    [message, setMessage] = useState(""),
+    [conflicts, setConflicts] = useState<string[]>([]);
   const [pending, startTransition] = useTransition(),
     router = useRouter(),
     sending = useRef(false),
@@ -215,7 +246,7 @@ export function FinanceWorkRecovery({
       try {
         setSaved(readFinanceWorkPending(sessionStorage, userId, scopesKey.split("|")));
       } catch {
-        setSaved({ entries: [], unreadable: true });
+        setSaved({ entries: [], unreadable: true, unreadableKeys: [] });
       }
     };
     read();
@@ -226,32 +257,52 @@ export function FinanceWorkRecovery({
       window.removeEventListener("storage", read);
     };
   }, [userId, scopesKey]);
+  function discard(keys: string[]) {
+    try {
+      for (const entryKey of keys) sessionStorage.removeItem(entryKey);
+      window.dispatchEvent(new Event(FINANCE_WORK_EVENT));
+      setConflicts((current) => current.filter((entryKey) => !keys.includes(entryKey)));
+      setMessage("");
+    } catch {
+      setMessage(DISCARD_FAILED);
+    }
+  }
   if (!saved.entries.length && !saved.unreadable && !message) return null;
   return (
-    <section className={styles.notice}>
+    <section className={styles.recovery} aria-label="Invii Finance da verificare">
       <strong>Invii Finance da verificare</strong>
       <p>
-        Questi tentativi restano recuperabili anche quando la voce è stata annullata o non compare
+        Questi tentativi restano recuperabili anche quando la voce è stata eliminata o non compare
         nella pagina corrente.
       </p>
-      {saved.unreadable && (
-        <p role="alert">
-          Un tentativo non è leggibile. Verifica il registro con Tommi prima di reinserire la stessa
-          voce.
-        </p>
-      )}
       {message && <p role="status">{message}</p>}
-      {saved.entries.map((entry) => (
-        <div key={entry.key} className={styles.pending}>
-          <strong>
-            {entry.command.kind === "record_finance_entry" ? "Voce manuale" : "Annullamento"}
-          </strong>
-          <p>{String(entry.command.payload.description ?? entry.command.payload.reason ?? "")}</p>
-          <button
-            type="button"
-            className="button button-primary"
-            disabled={pending}
-            onClick={() => {
+      {saved.unreadable && (
+        <PendingAttempt
+          title="Invio Finance non leggibile"
+          lines={[
+            saved.unreadableKeys.length
+              ? "Un tentativo conservato in questa scheda non si può leggere. Controlla nel registro se la voce c’è già, poi scartalo."
+              : "I tentativi conservati in questa scheda non si possono leggere. Verifica il registro con Tommi prima di reinserire la stessa voce.",
+          ]}
+          operationId="non leggibile"
+          pending={false}
+          blocked
+          onRetry={() => {}}
+          onReread={() => router.refresh()}
+          rereadLabel="Rileggi il registro"
+          onDiscard={saved.unreadableKeys.length ? () => discard(saved.unreadableKeys) : undefined}
+        />
+      )}
+      {saved.entries.map((entry) => {
+        const blocked = conflicts.includes(entry.key);
+        return (
+          <PendingAttempt
+            key={entry.key}
+            {...financeWorkAttemptSummary(entry.command)}
+            operationId={entry.command.operationId}
+            pending={pending}
+            blocked={blocked}
+            onRetry={() => {
               if (sending.current) return;
               sending.current = true;
               startTransition(async () => {
@@ -265,7 +316,8 @@ export function FinanceWorkRecovery({
                     sessionStorage.removeItem(entry.key);
                     window.dispatchEvent(new Event(FINANCE_WORK_EVENT));
                     router.refresh();
-                  }
+                  } else if (result.status === "rejected")
+                    setConflicts((current) => [...current, entry.key]);
                 } catch {
                   setMessage(
                     "Esito non confermato. Il tentativo resta conservato: verifica lo stesso invio.",
@@ -275,12 +327,12 @@ export function FinanceWorkRecovery({
                 }
               });
             }}
-          >
-            Verifica lo stesso invio
-          </button>
-          <small>Riferimento {entry.command.operationId}</small>
-        </div>
-      ))}
+            onReread={() => router.refresh()}
+            rereadLabel="Rileggi il registro"
+            onDiscard={blocked ? () => discard([entry.key]) : undefined}
+          />
+        );
+      })}
     </section>
   );
 }

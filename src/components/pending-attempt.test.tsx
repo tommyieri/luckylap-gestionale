@@ -87,7 +87,7 @@ describe("invio da verificare", () => {
     expect(onDiscard).toHaveBeenCalledTimes(1);
   });
 
-  it("ripete lo stesso invio, rilegge e si ferma durante la verifica o se bloccato", () => {
+  it("ripete lo stesso invio, rilegge e si ferma durante la verifica", () => {
     const onRetry = vi.fn(),
       onReread = vi.fn();
     button({ onRetry, onReread }, "Verifica lo stesso invio")!.props.onClick!();
@@ -98,7 +98,36 @@ describe("invio da verificare", () => {
     const pending = button({ pending: true, onReread }, "Verifica in corso…")!;
     expect(pending.props.disabled).toBe(true);
     expect(button({ pending: true, onReread }, "Rileggi")!.props.disabled).toBe(true);
-    expect(button({ blocked: true }, "Verifica lo stesso invio")!.props.disabled).toBe(true);
     expect(button({}, "Verifica lo stesso invio")!.props.disabled).toBe(false);
+  });
+
+  it("un tentativo bloccato non offre la verifica: dice che non si ripete e «Scarta» è l'azione principale", () => {
+    const onDiscard = vi.fn(),
+      onReread = vi.fn();
+    const html = render({ blocked: true, onDiscard, onReread });
+    expect(text(html)).toContain(
+      "Questo tentativo non può più andare a buon fine, quindi non si ripete.",
+    );
+    expect(html).not.toContain("Verifica lo stesso invio");
+    expect(
+      button({ blocked: true, onDiscard, onReread }, "Verifica lo stesso invio"),
+    ).toBeUndefined();
+    expect(
+      button({ blocked: true, onDiscard, onReread }, "Scarta questo tentativo")!.props,
+    ).toMatchObject({ className: "button button-primary" });
+    expect(button({ blocked: true, onDiscard, onReread }, "Rileggi")!.props).toMatchObject({
+      className: "button button-secondary",
+    });
+    expect(button({ onDiscard }, "Scarta questo tentativo")!.props).toMatchObject({
+      className: "button button-secondary",
+    });
+    expect(text(render())).toContain("«Verifica lo stesso invio» ripete lo stesso tentativo");
+  });
+
+  it("bloccato e senza «Scarta» lascia solo la rilettura", () => {
+    const labels = buttons(PendingAttempt(props({ blocked: true, onReread: vi.fn() }))).map(
+      (candidate) => candidate.label,
+    );
+    expect(labels).toEqual(["Rileggi"]);
   });
 });

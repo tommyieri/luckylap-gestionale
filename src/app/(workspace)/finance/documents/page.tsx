@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { redirect } from "next/navigation";
 import styles from "@/components/finance.module.css";
+import { SensitiveAreaSessionBar } from "@/components/auth-sensitive-area-form";
 import { PanelActions, WorkspacePanel } from "@/components/workspace-panel";
 import { financeDocumentAccess } from "@/lib/finance/document-access";
 import { financeDocumentFromDatabase } from "@/lib/finance/documents";
@@ -41,6 +42,7 @@ export default async function FinanceDocumentsPage() {
     );
   return (
     <div className={styles.main}>
+      <SensitiveAreaSessionBar area="finance" />
       <div className={styles.heading}>
         <div>
           <h1>Documenti</h1>

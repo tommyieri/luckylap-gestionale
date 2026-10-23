@@ -29,10 +29,13 @@ export function BrandAssetUpload({
   config,
   userId,
   initialOperationId,
+  disabled = false,
 }: {
   config: SupabasePublicConfig;
   userId: string;
   initialOperationId: string;
+  /** Anteprima locale: il modulo si vede, ma non invia niente. */
+  disabled?: boolean;
 }) {
   const router = useRouter();
   const [mode, setMode] = useState<"file" | "link">("file");
@@ -98,7 +101,7 @@ export function BrandAssetUpload({
   }
   async function submit(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
-    if (busyRef.current) return;
+    if (busyRef.current || disabled) return;
     busyRef.current = true;
     const form = event.currentTarget;
     setBusy(true);
@@ -155,7 +158,7 @@ export function BrandAssetUpload({
         });
       if (upload.error) {
         setError(
-          "Trasferimento non confermato. Il file può essere già nel contenitore privato: usa Verifica e completa prima di riprovare.",
+          "Trasferimento non confermato. Il file può essere già nell’archivio privato del team: usa Verifica e completa prima di riprovare.",
         );
         return;
       }
@@ -192,14 +195,14 @@ export function BrandAssetUpload({
       {pending ? (
         <div className={styles.pending}>
           <strong>
-            {pending.kind === "file" ? "Caricamento da verificare" : "Collegamento da verificare"}
+            {pending.kind === "file" ? "Caricamento da verificare" : "Link da verificare"}
           </strong>
           <p>{pending.kind === "file" ? pending.descriptor.originalName : pending.fields.name}</p>
           {pending.kind === "link" && <p className={styles.help}>{pending.url}</p>}
           <p>
             {pending.kind === "file"
-              ? "Il file può essere presente nel contenitore privato. La voce compare in libreria solo dopo la verifica e il salvataggio confermati."
-              : "Il collegamento può essere già salvato. Verifica e completa ripete lo stesso tentativo con gli stessi dati, anche dopo aver ricaricato la pagina."}
+              ? "Il file può essere già nell’archivio privato del team. La voce compare in libreria solo dopo la verifica e il salvataggio confermati."
+              : "Il link può essere già salvato. Verifica e completa ripete lo stesso tentativo con gli stessi dati, anche dopo aver ricaricato la pagina."}
           </p>
           <div className={styles.actions}>
             <button className="button button-primary" onClick={retry} disabled={busy}>
@@ -214,7 +217,7 @@ export function BrandAssetUpload({
                   reset();
                   setError("");
                   setMessage(
-                    "Puoi iniziare un nuovo caricamento. Un eventuale file incompleto precedente resta privato e richiede pulizia amministrativa.",
+                    "Puoi iniziare un nuovo caricamento. Un eventuale file incompleto precedente resta nell’archivio privato. Avvisa Tommi se va tolto.",
                   );
                 }}
               >
@@ -225,7 +228,7 @@ export function BrandAssetUpload({
         </div>
       ) : (
         <form key={operationId} onSubmit={submit} className={styles.form}>
-          <fieldset disabled={busy}>
+          <fieldset disabled={busy || disabled}>
             <legend className="sr-only">Nuovo contenuto</legend>
             <div className={styles.fieldPair}>
               <label>
@@ -235,7 +238,7 @@ export function BrandAssetUpload({
                   onChange={(event) => setMode(event.target.value as "file" | "link")}
                 >
                   <option value="file">Carica file</option>
-                  <option value="link">Collegamento HTTPS</option>
+                  <option value="link">Link</option>
                 </select>
               </label>
               <label>
@@ -281,7 +284,7 @@ export function BrandAssetUpload({
               </label>
             ) : (
               <label>
-                Collegamento HTTPS
+                Link
                 <input
                   type="url"
                   value={url}
@@ -303,11 +306,7 @@ export function BrandAssetUpload({
             </label>
             <button type="submit" className="button button-primary">
               <Upload size={15} aria-hidden="true" />
-              {busy
-                ? "Caricamento…"
-                : mode === "file"
-                  ? "Carica originale"
-                  : "Aggiungi collegamento"}
+              {busy ? "Caricamento…" : mode === "file" ? "Carica originale" : "Aggiungi link"}
             </button>
           </fieldset>
         </form>

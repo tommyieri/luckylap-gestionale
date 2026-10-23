@@ -13,6 +13,7 @@ import {
   type SimplePackagingItem,
   type SimplePackagingSnapshot,
 } from "@/lib/packaging/simple";
+import { PendingAttempt } from "./pending-attempt";
 import stock from "./stock-workspace.module.css";
 import styles from "./packaging-workspace.module.css";
 
@@ -30,7 +31,10 @@ export function PackagingWorkspace({
   const [loaded, setLoaded] = useState(false),
     [blocked, setBlocked] = useState(false),
     [notice, setNotice] = useState(""),
-    [success, setSuccess] = useState(false);
+    [success, setSuccess] = useState(false),
+    // Tentativi che non potranno mai riuscire (06 R11): illeggibile o in conflitto.
+    [unreadable, setUnreadable] = useState(false),
+    [conflict, setConflict] = useState(false);
   const [pending, startTransition] = useTransition(),
     [refreshing, refreshTransition] = useTransition();
   const sending = useRef(false);
@@ -42,11 +46,16 @@ export function PackagingWorkspace({
     try {
       const raw = sessionStorage.getItem(storageKey);
       if (raw) {
-        const saved = parseSimplePackagingCommand(JSON.parse(raw));
+        let saved: SimplePackagingCommand | null = null;
+        try {
+          saved = parseSimplePackagingCommand(JSON.parse(raw));
+        } catch {
+          saved = null;
+        }
         if (saved) setCommand(saved);
         else {
           setBlocked(true);
-          setNotice("L’invio conservato non è leggibile. Verifica il registro con Tommi.");
+          setUnreadable(true);
         }
       }
     } catch {
@@ -92,7 +101,7 @@ export function PackagingWorkspace({
             /* Preserve the unresolved reference. */
           }
           if (result.code === "packaging_quantity_changed") router.refresh();
-        }
+        } else if (result.status === "rejected") setConflict(true);
       } catch {
         setNotice(
           "Connessione interrotta. Verifica lo stesso invio: l’operazione potrebbe essere già registrata.",
@@ -101,6 +110,23 @@ export function PackagingWorkspace({
         sending.current = false;
       }
     });
+  }
+  /** Libera la pagina da un invio che non potrà riuscire. Non cancella niente nel registro. */
+  function discard() {
+    try {
+      sessionStorage.removeItem(storageKey);
+    } catch {
+      setSuccess(false);
+      setNotice(
+        "Non riesco a liberare il tentativo conservato in questa scheda. Chiudi la scheda e riaprila.",
+      );
+      return;
+    }
+    setCommand(null);
+    setConflict(false);
+    setUnreadable(false);
+    setBlocked(false);
+    setNotice("");
   }
   function adjust(event: FormEvent<HTMLFormElement>, item: SimplePackagingItem) {
     event.preventDefault();
@@ -155,24 +181,48 @@ export function PackagingWorkspace({
           Le rettifiche manuali sono sospese. Puoi consultare le quantità.
         </p>
       )}
+      {unreadable && (
+        <div className={stock.pending}>
+          <PendingAttempt
+            title="Invio da verificare non leggibile"
+            lines={[
+              "L’invio conservato in questa scheda non si può leggere. Controlla le quantità qui sotto, poi scartalo.",
+            ]}
+            operationId="non leggibile"
+            pending={false}
+            blocked
+            onRetry={() => {}}
+            onReread={() => refreshTransition(() => router.refresh())}
+            rereadLabel="Rileggi quantità"
+            onDiscard={discard}
+          />
+        </div>
+      )}
       {command && (
-        <section className={stock.pending} aria-labelledby="packaging-pending">
-          <h2 id="packaging-pending">Invio da verificare</h2>
-          <p>
-            {command.kind === "adjust"
-              ? `${snapshot.items.find((item) => item.id === command.payload.stock_item_id)?.name ?? "Materiale"} · Nuova quantità ${command.payload.quantity} · ${command.payload.reason}`
-              : "Registrazione dei consumi mancanti"}
-          </p>
-          <button
-            type="button"
-            className="button button-primary"
-            disabled={pending || blocked}
-            onClick={() => send({ ...command, retry: true })}
-          >
-            {pending ? "Verifica in corso…" : "Verifica lo stesso invio"}
-          </button>
-          <small>Riferimento: {command.operationId}</small>
-        </section>
+        <div className={stock.pending}>
+          <PendingAttempt
+            title={
+              command.kind === "adjust" ? "Quantità da verificare" : "Registrazione da verificare"
+            }
+            lines={
+              command.kind === "adjust"
+                ? [
+                    snapshot.items.find((item) => item.id === command.payload.stock_item_id)
+                      ?.name ?? "Materiale non più nell’elenco",
+                    `Nuova quantità: ${stockQuantity(command.payload.quantity)}`,
+                    `Causale: ${command.payload.reason}`,
+                  ]
+                : ["Scatole e adesivi da scalare per le consegne già registrate"]
+            }
+            operationId={command.operationId}
+            pending={pending}
+            blocked={conflict}
+            onRetry={() => send({ ...command, retry: true })}
+            onReread={() => refreshTransition(() => router.refresh())}
+            rereadLabel="Rileggi quantità"
+            onDiscard={conflict ? discard : undefined}
+          />
+        </div>
       )}
       {notice && (
         <p role={success ? "status" : "alert"} className={success ? stock.success : stock.feedback}>
@@ -181,10 +231,10 @@ export function PackagingWorkspace({
       )}
       {(deficit > 0 || snapshot.failures > 0) && (
         <section className={styles.review} aria-labelledby="packaging-review">
-          <h2 id="packaging-review">Consumi da riconciliare: {stockQuantity(deficit)}</h2>
+          <h2 id="packaging-review">Scatole e adesivi da scalare: {stockQuantity(deficit)}</h2>
           <p>
-            Le quantità registrate sono provvisorie finché i consumi mancanti non sono verificati.
-            Aggiorna la conta se necessario, poi registra i consumi ancora da scalare.
+            Le quantità registrate sono provvisorie finché queste scatole e questi adesivi non sono
+            scalati. Se serve, aggiorna prima la conta, poi registrali.
           </p>
           {historical > 0 && (
             <p>
@@ -226,9 +276,7 @@ export function PackagingWorkspace({
                 <h3 id={`material-${item.id}`}>{item.name}</h3>
                 {item.specifications && <p>{item.specifications}</p>}
                 {item.deficit > 0 && (
-                  <p className={styles.attention}>
-                    {stockQuantity(item.deficit)} unità da riconciliare
-                  </p>
+                  <p className={styles.attention}>{stockQuantity(item.deficit)} da scalare</p>
                 )}
               </div>
               <dl className={styles.quantities}>

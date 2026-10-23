@@ -7,7 +7,9 @@ export function readFinanceWorkPending(
   activeScopes: string[],
 ) {
   const prefix = financeWorkPrefix(userId),
-    entries: { key: string; scope: string; command: FinanceWorkCommand }[] = [];
+    entries: { key: string; scope: string; command: FinanceWorkCommand }[] = [],
+    // Chiavi dei tentativi illeggibili: si possono solo scartare (06 R11).
+    unreadableKeys: string[] = [];
   let unreadable = false;
   for (let i = 0; i < storage.length; i++) {
     const key = storage.key(i);
@@ -18,10 +20,14 @@ export function readFinanceWorkPending(
       const raw = storage.getItem(key),
         command = raw && raw.length <= 16000 ? parseFinanceWorkCommand(JSON.parse(raw)) : null;
       if (command) entries.push({ key, scope, command });
-      else unreadable = true;
+      else {
+        unreadable = true;
+        unreadableKeys.push(key);
+      }
     } catch {
       unreadable = true;
+      unreadableKeys.push(key);
     }
   }
-  return { entries, unreadable };
+  return { entries, unreadable, unreadableKeys };
 }

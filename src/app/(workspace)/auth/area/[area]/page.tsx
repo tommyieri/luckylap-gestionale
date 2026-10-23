@@ -1,13 +1,16 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound, redirect } from "next/navigation";
-import { SensitiveAreaForm, SensitiveAreaLockForm } from "@/components/auth-sensitive-area-form";
-import { PanelActions, WorkspacePanel } from "@/components/workspace-panel";
-import { isSensitiveAreaEligible, sensitiveAreaFrom } from "@/lib/auth/model";
-import { verifiedMember } from "@/lib/auth/server";
-import { verifiedSensitiveAccess } from "@/lib/auth/sensitive-access";
-import { createSupabaseServerClient } from "@/lib/supabase/server";
-import { getSupabasePublicConfig } from "@/lib/supabase/config";
+import {
+  SensitiveAreaForm,
+  SensitiveAreaLockForm,
+} from "../../../../../components/auth-sensitive-area-form";
+import { PanelActions, WorkspacePanel } from "../../../../../components/workspace-panel";
+import { isSensitiveAreaEligible, sensitiveAreaFrom } from "../../../../../lib/auth/model";
+import { verifiedMember } from "../../../../../lib/auth/server";
+import { verifiedSensitiveAccess } from "../../../../../lib/auth/sensitive-access";
+import { createSupabaseServerClient } from "../../../../../lib/supabase/server";
+import { getSupabasePublicConfig } from "../../../../../lib/supabase/config";
 
 export const dynamic = "force-dynamic";
 export async function generateMetadata({
@@ -68,7 +71,7 @@ export default async function SensitiveAreaPage({ params }: { params: Promise<{ 
         unlocked
           ? "L’area è aperta per questa sessione. Puoi chiuderla prima di lasciare il dispositivo."
           : area === "finance"
-            ? ""
+            ? "Inserisci la password Finance. Resta aperta su questo dispositivo fino a 8 ore."
             : "Inserisci la password aggiuntiva dell’area. Il tuo accesso resta personale, con l’email del team."
       }
     >

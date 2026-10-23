@@ -43,6 +43,7 @@ describe("uncertain lifecycle recovery", () => {
     expect(recoverPendingSales(storage, syntheticId(10), [])).toEqual({
       entries: [],
       unreadable: true,
+      unreadableKeys: [key],
     });
   });
 });

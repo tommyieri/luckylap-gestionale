@@ -30,4 +30,24 @@ describe("private pending Finance requests", () => {
     );
     expect(data.has(key)).toBe(true);
   });
+  it("tiene le chiavi dei tentativi illeggibili, senza cancellarli", () => {
+    const user = workId(10),
+      broken = `${financeWorkPrefix(user)}record`,
+      odd = `${financeWorkPrefix(user)}void:${workId(1)}`;
+    const data = new Map([
+      [broken, "{non json"],
+      [odd, JSON.stringify({ operationId: "x", kind: "void_finance_entry", payload: {} })],
+    ]);
+    const storage = {
+      length: data.size,
+      key: (n: number) => [...data.keys()][n],
+      getItem: (k: string) => data.get(k) ?? null,
+    };
+    expect(readFinanceWorkPending(storage, user, [])).toEqual({
+      entries: [],
+      unreadable: true,
+      unreadableKeys: [broken, odd],
+    });
+    expect(data.size).toBe(2);
+  });
 });

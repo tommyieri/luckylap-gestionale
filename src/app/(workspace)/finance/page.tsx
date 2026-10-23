@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { redirect } from "next/navigation";
+import { SensitiveAreaSessionBar } from "@/components/auth-sensitive-area-form";
 import { FinanceImportsView } from "@/components/finance-imports-view";
 import {
   ConsignmentMonthlyFinance,
@@ -61,6 +62,7 @@ function FinancePreview() {
   return (
     <>
       <FinancePreviewNotice />
+      <SensitiveAreaSessionBar area="finance" preview />
       <FinanceImportsView
         snapshot={{ batches: [], transactions: [] }}
         shopPayments={dashboardShopPaymentsFromRows(payments, reports, locations)}
@@ -157,17 +159,20 @@ export default async function FinancePage() {
       />
     );
   return (
-    <FinanceImportsView
-      snapshot={snapshot}
-      workSnapshot={work.snapshot}
-      settlements={settlements}
-      shopPayments={consignment.shopPayments}
-      deletedShopPayments={consignment.deletedShopPayments}
-      consignment={<ConsignmentMonthlyFinance snapshot={consignment.snapshot} />}
-      reportDate={reportDate}
-      displayName={access.member.displayName}
-      revisionHeads={revisions.heads}
-      revisionOriginals={revisions.originals}
-    />
+    <>
+      <SensitiveAreaSessionBar area="finance" />
+      <FinanceImportsView
+        snapshot={snapshot}
+        workSnapshot={work.snapshot}
+        settlements={settlements}
+        shopPayments={consignment.shopPayments}
+        deletedShopPayments={consignment.deletedShopPayments}
+        consignment={<ConsignmentMonthlyFinance snapshot={consignment.snapshot} />}
+        reportDate={reportDate}
+        displayName={access.member.displayName}
+        revisionHeads={revisions.heads}
+        revisionOriginals={revisions.originals}
+      />
+    </>
   );
 }

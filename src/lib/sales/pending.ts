@@ -7,7 +7,9 @@ export function recoverPendingSales(
   activeScopes: string[],
 ) {
   const prefix = pendingSalesPrefix(userId),
-    entries: { key: string; scope: string; command: SalesCommand }[] = [];
+    entries: { key: string; scope: string; command: SalesCommand }[] = [],
+    // Chiavi dei tentativi illeggibili: si possono solo scartare (06 R11).
+    unreadableKeys: string[] = [];
   let unreadable = false;
   for (let i = 0; i < storage.length; i += 1) {
     const key = storage.key(i);
@@ -18,10 +20,14 @@ export function recoverPendingSales(
       const raw = storage.getItem(key);
       const command = raw && raw.length <= 64000 ? parseSalesCommand(JSON.parse(raw)) : null;
       if (command) entries.push({ key, scope, command });
-      else unreadable = true;
+      else {
+        unreadable = true;
+        unreadableKeys.push(key);
+      }
     } catch {
       unreadable = true;
+      unreadableKeys.push(key);
     }
   }
-  return { entries, unreadable };
+  return { entries, unreadable, unreadableKeys };
 }

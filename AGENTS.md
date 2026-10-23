@@ -35,7 +35,7 @@ Devono passare questi comandi, con le eccezioni scritte sotto. Riporta l'esito n
 
 Se la build modifica `next-env.d.ts`, ripristinalo con `git checkout -- next-env.d.ts`.
 
-In locale `npm run test:db` salta i cinque harness su PostgreSQL 17 reale (password delle aree, concorrenza, Shopify) se manca `LUCKYLAP_PG_BIN`. In CI li esegue il job «Concorrenza (PostgreSQL 17)». Se tocchi queste parti, imposta `LUCKYLAP_PG_BIN` verso la cartella `bin` di un PostgreSQL 17 già presente. Se non c'è, non installarlo: scrivi nella pull request quali harness sono stati saltati e controlla l'esito del job in CI.
+In locale `npm run test:db` salta gli harness su PostgreSQL 17 reale (password delle aree, concorrenza, Shopify) se manca `LUCKYLAP_PG_BIN`. In CI li esegue il job «Concorrenza (PostgreSQL 17)». Se tocchi queste parti, imposta `LUCKYLAP_PG_BIN` verso la cartella `bin` di un PostgreSQL 17 già presente. Se non c'è, non installarlo: scrivi nella pull request quali harness sono stati saltati e controlla l'esito del job in CI.
 
 Il merge resta comunque di Tommi.
 
@@ -82,12 +82,10 @@ Valgono già:
 
 - La password condivisa dai cinque account è voluta: non è un difetto da correggere.
 - Hosting e backup restano come sono finché Tommi non decide.
-- Nel prossimo modulo Partner tutti vedranno e faranno tutto.
-
-Da fare, ognuna in un lavoro dedicato e solo con l'OK di Tommi. Oggi il codice fa ancora diversamente: non correggerlo di passaggio in altri lavori.
-
-- Finance: ogni operazione dovrà essere modificabile, conservando lo storico. Oggi il registro è immutabile e si corregge con `void_finance_entry` (vedi `docs/finance-work.md`). `npm run test:db` verifica che resti immutabile.
-- «Controllo CEO» dovrà mostrare solo un feed leggibile di cosa fanno i colleghi (per esempio «Luca ha aggiunto una call»). Oggi `/audit` mostra il registro tecnico dei trigger (vedi `docs/audit-workspace.md`).
+- Nel modulo Partner (`/partner`) tutti vedono e fanno tutto, Luca compreso.
+- Il magazzino centrale (`MAG01`) si chiama «Magadzino»: è il nome voluto, non un refuso, e non si rinomina. «Magazzino» resta la parola generica: sezione del menu, tipo di sede, «il nostro magazzino».
+- Finance: ogni movimento si corregge, si elimina e si ripristina, con lo storico (fatto con la pull request #3, 23 ottobre 2026). Le fonti restano immutabili; le modifiche sono revisioni append-only con storico (vedi `docs/finance-revisions.md`). `npm run test:db` verifica che le fonti restino immutabili. `void_finance_entry` resta solo per compatibilità.
+- «Controllo CEO» (`/audit`) è il feed leggibile di cosa fanno i colleghi (per esempio «Luca ha aggiunto una call»), fatto con la pull request #3. Il registro tecnico dei trigger resta nel database e non si mostra nella pagina (vedi `docs/audit-workspace.md`).
 
 ## Lingua e documenti
 

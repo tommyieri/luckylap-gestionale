@@ -1,17 +1,43 @@
-# Controllo riservato al founder
+# Controllo CEO: il feed di cosa fa il team
 
-La route `/audit` offre una vista in sola lettura delle modifiche registrate dai trigger del database. L’accesso richiede un utente verificato con membership attiva `founder` e sessione `aal2`.
+`/audit` («Controllo CEO») mostra un feed in sola lettura: una frase per ogni azione sui dati condivisi, con chi l'ha fatta, dalla più recente. Per esempio «Luca ha aggiunto una call: …» o «Il sistema ha ricevuto un ordine (2 unità · Shopify online).». Il registro tecnico dei trigger (`audit_logs`, con prima e dopo) resta nel database e non si mostra nella pagina. Il feed è arrivato con la pull request #3 di Codex (P6), in produzione dal 23 ottobre 2026.
 
-La pagina controlla identità e ruolo prima di richiedere l’assurance della sessione e prima di leggere il registro. Il loader ripete il controllo founder/aal2: per gli altri ruoli non esegue query su audit o nomi degli operatori. Le RLS `private.can_audit()` già applicate al database restano l’autorità finale. Il Proxy deve includere `/audit/:path*` per cookie aggiornati e intestazioni `no-store`.
+## Chi lo vede
 
-La query legge esclusivamente `id`, `occurred_at`, `actor_id`, `table_name`, `operation` e `record_key`. Non richiede `old_data` o `new_data`. Dal `record_key` vengono mantenuti soltanto UUID delle chiavi `id`, `user_id`, `stock_item_id` e `location_id`; nessun contenuto arbitrario del JSON passa alla vista. Degli operatori sono letti soltanto ID e nome, limitando la ricerca agli attori dei record mostrati. Un `actor_id` nullo viene indicato come “Operazione di sistema”, senza attribuirlo a un dipendente.
+- Solo il founder, con la password CEO aperta in questa sessione (fino a 8 ore dall'apertura). La pagina (`src/app/(workspace)/audit/page.tsx`) verifica utente, membership attiva, ruolo (`isSensitiveAreaEligible(member, "audit")`) e area aperta (`verifiedSensitiveAccess`); se l'area è chiusa porta a `/auth/area/audit`.
+- Il loader (`loadActivityFeed` in `src/lib/audit/feed-server.ts`) rifiuta prima della query chi non può leggere l'area. La funzione `private.ceo_activity_feed` ripete il controllo nel database (`private.can_audit()`): resta lei l'autorità.
+- In cima alla pagina, dopo la verifica, la striscia «Controllo CEO aperto su questo dispositivo, fino a 8 ore dall’apertura.» con «Chiudi Controllo CEO» (06 R12). La pagina non ha un ramo dell'anteprima locale: senza Supabase mostra lo stato «da collegare».
+- Il proxy copre `/audit/:path*` (cookie aggiornati e `no-store`).
 
-Il registro mostra 50 elementi per pagina, con ordinamento decrescente per coppia `occurred_at, id` e cursore verso le modifiche precedenti. Il timestamp del cursore conserva la precisione PostgreSQL fino ai microsecondi: non viene normalizzato con `Date.toISOString`, che potrebbe saltare elementi nello stesso millisecondo. I parametri sono validati prima di costruire il filtro PostgREST; nessuna interpolazione di testo libero raggiunge il filtro. Conteggio e limite effettivo sono verificati per rifiutare pagine troncate.
+## Cosa mostra
 
-I pulsanti “Più recenti” e “Modifiche precedenti” rileggono il database nella sessione corrente; questa versione non applica modifiche o cancellazioni dal registro. Gli orari sono mostrati in `Europe/Rome`.
+- `h1` «Controllo CEO», sotto «Le attività del team e delle automazioni, dalla più recente.».
+- Filtri in un modulo GET: «Persona» (collaboratori, automazioni o una persona) e «Area» (Team, Vendite, Magazzino, Packaging, Finance, Partner, Sviluppo, Contenuti, Impostazioni). All'inizio le azioni di chi guarda sono escluse: si vedono scegliendo il proprio nome.
+- Attività divise per giorno (orari di Roma), 50 per pagina, con «Più recenti» e «Attività precedenti». Il cursore è la coppia `occurred_at, id` con i microsecondi.
+- Ogni riga: ora, frase, area e, se c'è, «Apri elemento». I link sono solo percorsi interni controllati da `safeActivityHref` (`src/lib/audit/feed-model.ts`): `/team#evento-…`, `/sales#order-…`, `/partner?co=N#lead-N`, `/finance`, `/development#progetto-…` e le pagine di sezione.
+- Le azioni della stessa operazione sono raggruppate in una frase (per esempio vendita, righe e riserve); le operazioni indipendenti restano distinte. I solleciti chiusi da un invio o da una risposta Partner non danno una frase in più.
+- Il feed non registra letture, pagine visitate o accessi.
 
-Il registro traccia creazioni, modifiche ed eliminazioni dei dati condivisi, comprese le operazioni di sistema/importazione. Non traccia automaticamente letture di pagine, presenze o login. Il dettaglio dei contenuti modificati non è esposto; potrà richiedere una vista dedicata e una verifica separata.
+Nota in fondo alla pagina: «Ogni riga riassume un’azione. Il feed non registra le pagine visitate o le letture dei dati.».
 
-I test sintetici coprono esclusione delle query per ruoli non founder/aal1, colonne selezionate, rimozione dei payload non ammessi, lookup ristretto dei nomi, attore di sistema, cursori con microsecondi, input non valido e pagine incomplete. Le prove con sessioni/JWT reali e i cinque ruoli sono documentate separatamente in `docs/verifica-auth-cloud.md`, incluso il blocco audit per ruoli diversi dal founder o senza aal2 e la revoca della membership.
+## Come è fatto
 
-Il coordinatore ha verificato la resa visiva con soli metadati sintetici a 1280 px e 390 px: scala mobile 1 e nessun overflow. La prova mobile riservata è `.private/deployment-proof/audit-mobile.png`. La fixture `/qa-audit`, presente soltanto nella copia temporanea, è stata rimossa e risponde 404.
+- Migrazione `20261023091605_ceo_activity_feed.sql`: solo funzioni di lettura, nessuna tabella, nessun trigger nuovo. `private.activity_feed_actions()` legge `audit_logs`, estrae solo chiavi e pochi campi (titolo, categoria, importi, quantità, canale, stato), toglie recapiti, link e codici dal testo, risale all'elemento principale e sceglie la frase. `public.ceo_activity_feed(p_actor, p_area, p_before_at, p_before_id, p_limit)` è il wrapper `security invoker`; `EXECUTE` solo a `authenticated`.
+- Ogni richiesta ricalcola le frasi su tutto `audit_logs`, poi filtra e pagina (vedi «Limiti noti»).
+- `src/lib/audit/feed-model.ts` valida filtri, cursori, righe e link; una riga non valida fa fallire tutta la lettura, senza contenuti parziali. `src/components/audit-view.tsx` disegna la pagina.
+- Il vecchio lettore dei metadati (`src/lib/audit/server.ts`, `loadAuditMetadata`) resta nel codice con il suo test, ma la pagina non lo usa più.
+
+## Limiti noti
+
+Trovati in revisione il 23 ottobre 2026, da decidere con Tommi; l'elenco completo è in [verifiche](verification.md), «Problemi noti dopo P4-P6».
+
+- Le frasi Finance mostrano categoria e importi, anche degli incassi, contro la decisione 16 del piano.
+- Il ricalcolo completo a ogni richiesta rallenta con la crescita del registro: su una copia locale PostgreSQL 17 circa 7.500 righe di audit richiedono 6 s e 9.500 circa 11 s, oltre il limite di 8 s di Supabase. Oggi la produzione ha circa 2.200 righe.
+- Un import (Partner, inventario) dà una riga per record, non una frase per operazione.
+- Link e aree diversi dalla decisione 17 (conto vendita sotto «Vendite» verso `/sales`, Finance senza l'ancora del movimento); il sottotitolo non è quello della decisione 5; le azioni del founder sono nascoste all'inizio.
+- Archiviare o ripristinare un contenuto in «Grafica e foto» si legge «ha aggiornato un contenuto».
+
+## Verifiche
+
+- Vitest: `src/lib/audit/feed-model.test.ts`, `src/lib/audit/feed-server.test.ts`, `src/components/audit-view.test.tsx`, `src/app/(workspace)/audit/page.test.tsx` (accesso, area chiusa, filtri non validi, «Chiudi Controllo CEO» solo dopo la verifica).
+- PostgreSQL 17: `supabase/tests/ceo-activity-feed.mjs` (riga `// test-db: postgres minimo 121`), con Auth e dati sintetici; `area-passwords.mjs` per il gate. Numeri in [verifiche](verification.md).
