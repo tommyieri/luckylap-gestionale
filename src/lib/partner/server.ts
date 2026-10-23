@@ -10,12 +10,14 @@ import {
   partnerCommandRejection,
   type PartnerCommandKind,
   type PartnerCommandResult,
+  type PartnerCommandSuccess,
 } from "./commands";
 import {
   parsePartnerDevicePreview,
   validatePartnerDevicePayload,
   type PartnerDevicePreview,
 } from "./device-file";
+import { followUpConfirmation, readSentFollowUp } from "./follow-up";
 import { isPartnerCo, isPartnerId, type PartnerDetail, type PartnerWorkspace } from "./model";
 import {
   partnerDataFromRows,
@@ -379,9 +381,33 @@ export async function executePartnerCommand(
       p_payload: command.payload,
     });
     if (error) return partnerCommandRejection(error, command.retry) ?? uncertain();
-    return partnerCommandOutcome(command, data) ?? uncertain();
+    const outcome = partnerCommandOutcome(command, data);
+    if (!outcome) return uncertain();
+    return command.kind === "record_partner_activity" && command.payload.kind === "inviato"
+      ? withFollowUpDate(supabase, outcome, access.member.userId)
+      : outcome;
   } catch {
     return uncertain();
+  }
+}
+
+/**
+ * «Segna inviato» e «Segna sollecito inviato»: la conferma dice quando scade il sollecito che
+ * il database ha appena creato. Se la lettura non riesce, l'invio resta confermato senza data.
+ */
+async function withFollowUpDate(
+  supabase: SupabaseClient,
+  outcome: PartnerCommandSuccess,
+  userId: string,
+): Promise<PartnerCommandSuccess> {
+  if (!outcome.activityId) return outcome;
+  try {
+    const followUp = await readSentFollowUp(supabase, outcome.activityId);
+    return followUp
+      ? { ...outcome, message: `${outcome.message} ${followUpConfirmation(followUp, userId)}` }
+      : outcome;
+  } catch {
+    return outcome;
   }
 }
 

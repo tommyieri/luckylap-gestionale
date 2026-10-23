@@ -15,6 +15,11 @@ export function partnerHref({ co }: { co: number }): string {
   return `${PARTNER_PATH}?co=${co}#${partnerLeadAnchor(co)}`;
 }
 
+/** «Partner nel Team» con il contatto già scelto: `/team/partner?co=12`. CO non valido: senza. */
+export function partnerTeamWorkHref({ co }: { co: number }): string {
+  return isPartnerCo(co) ? `/team/partner?co=${co}` : "/team/partner";
+}
+
 /** CO dall'ancora `#lead-12` (link del Controllo CEO senza `co`); `null` se non è un'ancora valida. */
 export function coFromLeadHash(hash: string): number | null {
   const match = /^#?lead-([1-9][0-9]{0,4})$/.exec(hash);

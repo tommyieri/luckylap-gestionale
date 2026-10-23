@@ -142,3 +142,36 @@
   color: var(--ink-2);
   font-size: var(--text-sm);
 }
+
+/* «Ha risposto» a destra della riga del sollecito; sul telefono sotto, a tutta larghezza. */
+.reply {
+  display: grid;
+  justify-items: end;
+  gap: 4px;
+  max-width: 260px;
+}
+.replyProblem {
+  color: var(--red);
+  font-size: var(--text-sm);
+  text-align: right;
+}
+.replyDone {
+  max-width: 260px;
+  padding: 8px 12px;
+  border: 1px solid var(--green);
+  background: var(--green-wash);
+  color: var(--green);
+  font-size: var(--text-sm);
+  font-weight: 600;
+}
+@media (max-width: 760px) {
+  .reply,
+  .replyDone {
+    width: 100%;
+    max-width: none;
+    justify-items: stretch;
+  }
+  .replyProblem {
+    text-align: left;
+  }
+}

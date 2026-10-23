@@ -76,6 +76,29 @@ export function partnerPeriod(
   return periodForOffset(monthsAhead(plannedMonth(partner), today));
 }
 
+/**
+ * «Contatti da fare» di Oggi (decisione 33, correzione 05-10): il periodo «Adesso» (mese
+ * pianificato entro il mese prossimo) con lo stato «Da contattare», più i contatti non chiusi e
+ * non «Non interessato» con la prossima azione di oggi o già passata. Fuori i contatti da non
+ * contattare e quelli tolti dalla ricerca. È la regola di `private.partner_today`:
+ * `supabase/tests/partner-oggi-fixes.mjs` e `periods.test.ts` la provano sugli stessi dati.
+ */
+export function partnerDueToday(
+  partner: {
+    stage: string;
+    contactMonth: string;
+    nextActionOn: string | null;
+    researchRemovedAt: string | null;
+  },
+  today: string,
+  blocked: boolean,
+): boolean {
+  if (blocked || partner.researchRemovedAt !== null) return false;
+  if (partner.stage === "chiuso" || partner.stage === "no") return false;
+  if (partner.nextActionOn !== null && partner.nextActionOn <= today) return true;
+  return partner.stage === "da_contattare" && partnerPeriod(partner, today) === 1;
+}
+
 const capital = (text: string) => text.charAt(0).toUpperCase() + text.slice(1);
 const month = (day: string) => monthIndex(day) % 12;
 const year = (day: string) => Math.floor(monthIndex(day) / 12);

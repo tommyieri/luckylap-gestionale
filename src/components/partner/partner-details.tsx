@@ -27,6 +27,7 @@ import { CommandFeedback, usePartnerCommand } from "./partner-command";
 import { PartnerContacts } from "./partner-contacts";
 import { usePartnerContext } from "./partner-context";
 import { PartnerMessages } from "./partner-messages";
+import { PartnerOutcomePanel } from "./partner-outcome-panel";
 import styles from "./partner.module.css";
 
 /** Valore di una differenza in parole: etichette, mesi e giorni in italiano. */
@@ -406,7 +407,7 @@ function Research({ detail }: { detail: PartnerDetail }) {
 
 /**
  * Dettagli di un contatto (spec 02 §5.5): differenze, fuori dalla ricerca, responsabile e
- * prossima azione, messaggi, registro, ricerca, recapiti, attenzione e fonti, scheda, blocco.
+ * prossima azione, «Esito» con l'accordo fatto, messaggi, registro, ricerca, recapiti, attenzione e fonti, scheda, blocco.
  */
 export function PartnerDetails({
   detail,
@@ -440,6 +441,7 @@ export function PartnerDetails({
         </p>
       )}
       <OwnerStrip key={`${summary.id}-${summary.version}`} partner={summary} />
+      <PartnerOutcomePanel partner={summary} />
       <PartnerMessages detail={detail} blocked={blocked} />
       <PartnerActivityLog detail={detail} blocked={blocked} />
       <Research detail={detail} />

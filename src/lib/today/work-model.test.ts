@@ -69,4 +69,24 @@ describe("Oggi lavoro operativo", () => {
       }),
     ).toThrow();
   });
+  it("reads the reminder's partner for «Ha risposto», and tolerates its absence", () => {
+    const reminder = {
+      id,
+      co: 42,
+      title: "Sollecito · Synthetic partner",
+      due_at: "2026-10-20T22:00:00+00:00",
+    };
+    const parse = (extra: Record<string, unknown>) =>
+      parsePartnerWork({
+        contact_count: 0,
+        contacts: [],
+        reminder_count: 1,
+        reminders: [{ ...reminder, ...extra }],
+      }).reminders[0].partnerId;
+    expect(parse({ partner_id: "00000000-0000-4000-8000-000000000042" })).toBe(
+      "00000000-0000-4000-8000-000000000042",
+    );
+    expect(parse({})).toBeNull();
+    expect(() => parse({ partner_id: "not-a-uuid" })).toThrow();
+  });
 });

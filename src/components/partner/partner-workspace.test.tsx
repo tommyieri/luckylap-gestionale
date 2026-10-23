@@ -218,6 +218,17 @@ describe("PartnerWorkspace", () => {
     expect(html).not.toContain('aria-label="Copia: A"');
   });
 
+  it("«Esito» con l'accordo fatto: porta a «Partner nel Team» con il contatto già scelto", () => {
+    const agreed = render({ co: "6" });
+    expect(text(agreed)).toContain("Esito");
+    expect(text(agreed)).toContain("Accordo fatto. Portalo nel lavoro del team");
+    expect(agreed).toContain('href="/team/partner?co=6"');
+    expect(agreed).toContain(">Apri in Partner nel Team</a>");
+    const open = render({ co: "3" });
+    expect(open).not.toContain("/team/partner?co=");
+    expect(text(open)).not.toContain("Accordo fatto. Portalo");
+  });
+
   it("Indietro dopo i dettagli: nessun avviso «Questo contatto non c'è più»", () => {
     // Indietro: l'indirizzo non chiede più il contatto aperto, il server risponde senza dettaglio.
     expect(partnerDetailGone({ navigating: false, viewCo: 1, queryCo: null, detailCo: null })).toBe(

@@ -91,9 +91,9 @@ const messages: Record<string, string> = {
     "Il riferimento è già associato a un altro invio. Conserva il tentativo e verifica l’elenco prima di scartarlo.",
   partner_work_source_missing:
     "Il Partner o il collegamento non è più disponibile. Rileggi l’elenco.",
-  partner_work_date_required: "Inserisci prima le date dell’evento nella scheda Partner.",
+  partner_work_date_required: "Mancano le date dell’evento: aggiungile nella scheda Partner.",
   partner_work_not_agreed:
-    "In calendario vanno solo gli eventi a cui partecipiamo: segna prima «Accordo fatto» nella scheda Partner.",
+    "Prima segna l’accordo fatto nella scheda Partner: in calendario vanno solo gli eventi a cui partecipiamo.",
   partner_work_event_required: "Collega prima l’appuntamento dell’evento a questa scheda Partner.",
   partner_work_event_has_sales:
     "L’appuntamento conserva vendite collegate. Mantieni le modifiche manuali oppure verifica l’appuntamento nel calendario prima di rimuoverlo.",

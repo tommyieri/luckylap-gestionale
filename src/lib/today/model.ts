@@ -98,12 +98,15 @@ const byStartThenTitle = (a: TeamEvent, b: TeamEvent) =>
  * - eventi che toccano il giorno (anche iniziati ieri e ancora in corso), per inizio;
  * - le attività assegnate a `userId`, non concluse, con scadenza oggi o prima.
  *   Prima le scadute, poi quelle di oggi. Senza scadenza o di altri: escluse.
+ * - Fuori i solleciti Partner (`followUpTaskIds`): stanno in «Contatti e solleciti», così
+ *   nessun sollecito compare due volte (decisione 9, correzione 05-11).
  */
 export function agendaFor(
   events: readonly TeamEvent[],
   tasks: readonly TeamTask[],
   userId: string,
   now: Date,
+  followUpTaskIds: ReadonlySet<string> = new Set(),
 ): Agenda {
   const { day, start, end } = romeDayBounds(romeDay(now));
   const dayStart = time(start),
@@ -129,6 +132,7 @@ export function agendaFor(
     .filter(
       (task) =>
         task.assignedTo === userId &&
+        !followUpTaskIds.has(task.id) &&
         task.status !== "done" &&
         task.dueAt !== null &&
         time(task.dueAt) < dayEnd,

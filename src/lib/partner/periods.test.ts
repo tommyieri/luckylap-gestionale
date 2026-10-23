@@ -1,8 +1,19 @@
+import { readFileSync } from "node:fs";
+import { resolve } from "node:path";
 import { describe, expect, it } from "vitest";
 import { addDays, daysBetween, longDay, monthLong, romeDay, shortDay } from "./dates";
+import {
+  DEFAULT_PARTNER_VIEW,
+  buildPartnerIndex,
+  filterPartners,
+  periodCounts,
+  type PartnerFilterContext,
+} from "./filters";
 import { partnerSummaryFixture } from "./fixtures";
+import type { PartnerSummary } from "./model";
 import {
   eventTiming,
+  partnerDueToday,
   formatEventRange,
   monthBox,
   nextActionTiming,
@@ -193,5 +204,110 @@ describe("date dell'evento e prossima azione", () => {
     expect(romeDay(new Date("2026-03-29T00:30:00Z"))).toBe("2026-03-29");
     expect(() => romeDay(new Date("non una data"))).toThrow(RangeError);
     expect(() => daysBetween("2026-02-30", TODAY)).toThrow(RangeError);
+  });
+});
+
+describe("«contatti da fare» di Oggi e il periodo «Adesso»", () => {
+  // Gli stessi contatti di supabase/tests/partner-oggi-fixes.mjs: lì read_partner_today deve dare
+  // lo stesso numero sugli stessi dati.
+  const fixture = JSON.parse(
+    readFileSync(
+      resolve(process.cwd(), "supabase/tests/fixtures/partner-today/adesso.json"),
+      "utf8",
+    ),
+  ) as {
+    today: string;
+    expected_today: number;
+    expected_adesso_da_fare: number;
+    partners: {
+      co: number;
+      stage: PartnerSummary["stage"];
+      contact_month: string;
+      next_action_on: string | null;
+      blocked?: boolean;
+      removed?: boolean;
+      today: boolean;
+    }[];
+  };
+  const partners = fixture.partners.map((row) =>
+    partnerSummaryFixture({
+      co: row.co,
+      stage: row.stage,
+      contactMonth: row.contact_month,
+      nextAction: row.next_action_on ? "Richiamare" : null,
+      nextActionOn: row.next_action_on,
+      researchRemovedAt: row.removed ? "2026-10-01T10:00:00.000Z" : null,
+    }),
+  );
+  const blocked = new Set(fixture.partners.filter((row) => row.blocked).map((row) => row.co));
+  const due = partners.filter((p) => partnerDueToday(p, fixture.today, blocked.has(p.co)));
+  const index = buildPartnerIndex({
+    contacts: [],
+    variants: [],
+    differences: [],
+    blocks: partners
+      .filter((p) => blocked.has(p.co))
+      .map((p) => ({
+        id: p.id,
+        partnerId: p.id,
+        domain: null,
+        reason: "Blocco sintetico",
+        createdAt: "2026-10-01T10:00:00.000Z",
+      })),
+  });
+  const context: PartnerFilterContext = { index, today: fixture.today, memberId: null };
+  const adesso = filterPartners(partners, DEFAULT_PARTNER_VIEW, context);
+
+  it("conta come read_partner_today sugli stessi dati", () => {
+    expect(due).toHaveLength(fixture.expected_today);
+    expect(due.map((p) => p.co)).toEqual(
+      fixture.partners.filter((row) => row.today).map((row) => row.co),
+    );
+  });
+
+  it("ogni contatto da fare di Oggi è nel periodo «Adesso» della pagina Partner", () => {
+    expect(adesso).toHaveLength(fixture.expected_adesso_da_fare);
+    expect(periodCounts(partners, DEFAULT_PARTNER_VIEW, context)[1]).toBe(adesso.length);
+    const listed = new Set(adesso.map((p) => p.co));
+    expect(due.every((p) => listed.has(p.co))).toBe(true);
+  });
+
+  it("dentro «Adesso»: «Da contattare», più le prossime azioni scadute degli altri stati aperti", () => {
+    const daContattare = filterPartners(
+      partners,
+      { ...DEFAULT_PARTNER_VIEW, stato: "da_contattare" },
+      context,
+    ).filter((p) => !blocked.has(p.co) && p.researchRemovedAt === null);
+    const scadute = adesso.filter(
+      (p) =>
+        p.stage !== "da_contattare" &&
+        p.nextActionOn !== null &&
+        p.nextActionOn <= fixture.today &&
+        !blocked.has(p.co) &&
+        p.researchRemovedAt === null,
+    );
+    expect(daContattare.length + scadute.length).toBe(fixture.expected_today);
+    expect(new Set([...daContattare, ...scadute].map((p) => p.co))).toEqual(
+      new Set(due.map((p) => p.co)),
+    );
+  });
+
+  it("mese prossimo dentro, quello dopo fuori; la prossima azione decide il mese", () => {
+    const one = (overrides: Partial<PartnerSummary>) =>
+      partnerDueToday(partnerSummaryFixture(overrides), "2026-10-23", false);
+    expect(one({ contactMonth: "2026-11-01" })).toBe(true);
+    expect(one({ contactMonth: "2026-12-01" })).toBe(false);
+    expect(
+      one({ contactMonth: "2026-10-01", nextAction: "Richiamare", nextActionOn: "2027-01-15" }),
+    ).toBe(false);
+    expect(one({ stage: "contattato", nextAction: "Richiamare", nextActionOn: "2026-10-23" })).toBe(
+      true,
+    );
+    expect(one({ stage: "chiuso", nextAction: "Richiamare", nextActionOn: "2026-10-01" })).toBe(
+      false,
+    );
+    expect(
+      partnerDueToday(partnerSummaryFixture({ contactMonth: "2026-10-01" }), "2026-10-23", true),
+    ).toBe(false);
   });
 });

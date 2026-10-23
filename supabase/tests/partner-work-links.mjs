@@ -1,5 +1,7 @@
-// test-db: pglite minimo 42
+// test-db: pglite minimo 44
 // Synthetic Auth contract. Uses actual P2 migration after integration, minimal contract otherwise.
+// Applies every later Partner work migration too (dates only with «Accordo fatto», device-file
+// reminders): the assertions describe the rules in production after 20261023140100.
 import assert from "node:assert/strict";
 import { randomUUID } from "node:crypto";
 import { readFileSync, readdirSync, existsSync } from "node:fs";
@@ -83,10 +85,15 @@ try {
       "utf8",
     ),
   );
-  for (const name of readdirSync(new URL("../migrations", import.meta.url)).filter((n) =>
-    n.endsWith("_partner_work_links.sql"),
-  ))
-    await db.exec(migration(name));
+  for (const suffix of [
+    "_partner_work_links.sql",
+    "_partner_dates_only_agreed.sql",
+    "_partner_oggi_fixes.sql",
+  ])
+    for (const name of readdirSync(new URL("../migrations", import.meta.url)).filter((n) =>
+      n.endsWith(suffix),
+    ))
+      await db.exec(migration(name));
   for (const [id, role] of [
     [u, "founder"],
     [production, "production"],
@@ -112,25 +119,38 @@ try {
     () => as(() => db.query("select public.read_partner_today(current_date)"), outsider),
     "42501",
   );
-  await activity("inviato", "file");
-  eq(await count("public.tasks"), 0, "Historic device export is inert");
+  const exported = new Date(Date.now() - 10 * 86400000).toISOString();
+  await activity("inviato", "file", exported);
+  eq(await count("public.tasks"), 1, "Device export opens a reminder for the uploader");
+  const fromFile = (await db.query("select * from public.tasks")).rows[0];
+  eq(fromFile.assigned_to, u);
+  eq(
+    (
+      await db.query(
+        "select (due_at at time zone'Europe/Rome')::date=(( $1::timestamptz at time zone'Europe/Rome')::date+7) v from public.tasks",
+        [exported],
+      )
+    ).rows[0].v,
+    true,
+    "Due seven days after the export, possibly already late",
+  );
   const now = new Date(Date.now() + 1000).toISOString();
   await activity("inviato", "team", now);
-  eq(await count("public.tasks"), 1);
-  const first = (await db.query("select * from public.tasks")).rows[0];
+  eq(await count("public.tasks"), 2);
+  const first = (await db.query("select * from public.tasks where status='todo'")).rows[0];
   eq(first.assigned_to, u);
   eq(first.status, "todo");
   eq(
     (
       await db.query(
-        "select (due_at at time zone'Europe/Rome')::date=(( $1::timestamptz at time zone'Europe/Rome')::date+7) v from public.tasks",
+        "select (due_at at time zone'Europe/Rome')::date=(( $1::timestamptz at time zone'Europe/Rome')::date+7) v from public.tasks where status='todo'",
         [now],
       )
     ).rows[0].v,
     true,
   );
   await activity("inviato", "team", new Date(Date.now() + 2000).toISOString());
-  eq(await count("public.tasks"), 2);
+  eq(await count("public.tasks"), 3);
   eq(
     (await db.query("select count(*)::int n from public.tasks where status='todo'")).rows[0].n,
     1,
@@ -147,13 +167,15 @@ try {
   );
   eq((await today()).contact_count, 0, "Blocked contacts never appear in Today");
   await activity("inviato", "team", new Date(Date.now() + 4000).toISOString());
-  eq(await count("public.tasks"), 2, "Do-not-contact never opens a reminder");
+  eq(await count("public.tasks"), 3, "Do-not-contact never opens a reminder");
   await db.query("delete from public.partner_do_not_contact where partner_id=$1", [partner]);
   const day = (
     await db.query(
       "select (make_date(extract(year from current_date)::int+2,3,31)-extract(dow from make_date(extract(year from current_date)::int+2,3,31))::int)::text as calendar_day",
     )
   ).rows[0].calendar_day;
+  // Dates enter the team calendar only with «Accordo fatto» (20261023113212).
+  await db.query("update public.partners set stage='chiuso' where id=$1", [partner]);
   await db.query(
     "update public.partners set event_starts_on=$1,application_deadline=$1 where id=$2",
     [day, partner],

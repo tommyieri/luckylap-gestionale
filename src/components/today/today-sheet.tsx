@@ -48,7 +48,7 @@ export function TodaySheet({ access, now }: { access: TodayAccess; now: Date }) 
               <AgendaTile supabase={access.supabase} member={access.member} now={now} />
             </Suspense>
             <Suspense fallback={<TileFallback tile="partner" />}>
-              <PartnerWorkTile supabase={access.supabase} now={now} />
+              <PartnerWorkTile supabase={access.supabase} now={now} userId={access.member.userId} />
             </Suspense>
             <Suspense fallback={<TileFallback tile="preparation" />}>
               <PreparationTile supabase={access.supabase} />

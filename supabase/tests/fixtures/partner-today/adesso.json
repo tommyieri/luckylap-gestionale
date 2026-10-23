@@ -1,0 +1,116 @@
+{
+  "about": "Contatti sintetici per «contatti da fare» di Oggi e il periodo «Adesso» di Partner. Li leggono supabase/tests/partner-oggi-fixes.mjs (read_partner_today) e src/lib/partner/periods.test.ts (regola di Partner): i due conteggi devono essere uguali a expected_today.",
+  "today": "2026-10-23",
+  "expected_today": 7,
+  "expected_old_rule": 5,
+  "expected_adesso_da_fare": 11,
+  "partners": [
+    {
+      "co": 801,
+      "stage": "da_contattare",
+      "contact_month": "2026-09-01",
+      "next_action_on": null,
+      "today": true
+    },
+    {
+      "co": 802,
+      "stage": "da_contattare",
+      "contact_month": "2026-10-01",
+      "next_action_on": null,
+      "today": true
+    },
+    {
+      "co": 803,
+      "stage": "da_contattare",
+      "contact_month": "2026-11-01",
+      "next_action_on": null,
+      "today": true
+    },
+    {
+      "co": 804,
+      "stage": "da_contattare",
+      "contact_month": "2026-12-01",
+      "next_action_on": null,
+      "today": false
+    },
+    {
+      "co": 805,
+      "stage": "da_contattare",
+      "contact_month": "2026-10-01",
+      "next_action_on": "2027-01-15",
+      "today": false
+    },
+    {
+      "co": 806,
+      "stage": "da_contattare",
+      "contact_month": "2027-03-01",
+      "next_action_on": "2026-11-20",
+      "today": true
+    },
+    {
+      "co": 807,
+      "stage": "contattato",
+      "contact_month": "2026-10-01",
+      "next_action_on": null,
+      "today": false
+    },
+    {
+      "co": 808,
+      "stage": "contattato",
+      "contact_month": "2026-12-01",
+      "next_action_on": "2026-10-20",
+      "today": true
+    },
+    {
+      "co": 809,
+      "stage": "risposto",
+      "contact_month": "2026-10-01",
+      "next_action_on": "2026-10-23",
+      "today": true
+    },
+    {
+      "co": 810,
+      "stage": "trattativa",
+      "contact_month": "2026-10-01",
+      "next_action_on": "2026-10-30",
+      "today": false
+    },
+    {
+      "co": 811,
+      "stage": "chiuso",
+      "contact_month": "2026-10-01",
+      "next_action_on": "2026-10-01",
+      "today": false
+    },
+    {
+      "co": 812,
+      "stage": "no",
+      "contact_month": "2026-10-01",
+      "next_action_on": null,
+      "today": false
+    },
+    {
+      "co": 813,
+      "stage": "da_contattare",
+      "contact_month": "2026-10-01",
+      "next_action_on": null,
+      "blocked": true,
+      "today": false
+    },
+    {
+      "co": 814,
+      "stage": "da_contattare",
+      "contact_month": "2026-10-01",
+      "next_action_on": null,
+      "removed": true,
+      "today": false
+    },
+    {
+      "co": 815,
+      "stage": "da_contattare",
+      "contact_month": "2026-10-01",
+      "next_action_on": "2026-10-10",
+      "today": true
+    }
+  ]
+}

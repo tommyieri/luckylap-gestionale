@@ -18,6 +18,14 @@ export const PARTNER_PREVIEW_REJECTION: PartnerCommandResult = {
   refresh: false,
 };
 
+/** Comandi che aprono o chiudono solleciti: si rileggono anche Oggi e il Team. */
+const FOLLOW_UP_KINDS: readonly PartnerCommandKind[] = [
+  "record_partner_activity",
+  "set_partner_state",
+  "set_partner_do_not_contact",
+  "import_partner_device_file",
+];
+
 /**
  * Corpo comune delle Server Action di Partner: anteprima mai verso Supabase, client con i
  * cookie scrivibili, membro verificato prima di tutto (executePartnerCommand), solo il comando
@@ -35,6 +43,7 @@ export async function runPartnerCommandAction(
     if (result.status === "success" || (result.status === "rejected" && result.refresh)) {
       revalidatePath(PARTNER_PATH);
       if (kind === "import_partner_device_file") revalidatePath(PARTNER_DATA_PATH);
+      if (FOLLOW_UP_KINDS.includes(kind)) for (const path of ["/", "/team"]) revalidatePath(path);
     }
     return result;
   } catch {

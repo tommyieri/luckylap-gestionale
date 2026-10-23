@@ -69,11 +69,24 @@ describe("Server Action dei comandi Partner", () => {
   });
 
   it("dopo un salvataggio rilegge /partner; l'import del file anche /partner/dati", async () => {
-    await setPartnerState(command);
+    await savePartnerMessage(command);
     expect(mocks.revalidatePath.mock.calls).toEqual([["/partner"]]);
     mocks.revalidatePath.mockClear();
     await importPartnerDeviceFile(command);
-    expect(mocks.revalidatePath.mock.calls).toEqual([["/partner"], ["/partner/dati"]]);
+    expect(mocks.revalidatePath.mock.calls).toEqual([
+      ["/partner"],
+      ["/partner/dati"],
+      ["/"],
+      ["/team"],
+    ]);
+  });
+
+  it("i comandi che aprono o chiudono solleciti rileggono anche Oggi e il Team", async () => {
+    for (const action of [setPartnerState, recordPartnerActivity, setPartnerDoNotContact]) {
+      mocks.revalidatePath.mockClear();
+      await action(command);
+      expect(mocks.revalidatePath.mock.calls).toEqual([["/partner"], ["/"], ["/team"]]);
+    }
   });
 
   it("40001 rilegge la pagina; gli altri rifiuti e gli esiti incerti no", async () => {

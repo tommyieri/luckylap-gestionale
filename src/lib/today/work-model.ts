@@ -8,7 +8,14 @@ export type ContactWork = {
   dueOn: string | null;
   owner: string | null;
 };
-export type ReminderWork = { id: string; co: number; title: string; dueAt: string };
+export type ReminderWork = {
+  id: string;
+  co: number;
+  title: string;
+  dueAt: string;
+  /** Contatto del sollecito, per «Ha risposto»; `null` se il database non lo dice ancora. */
+  partnerId: string | null;
+};
 export type PartnerWork = {
   contactCount: number;
   contacts: ContactWork[];
@@ -61,7 +68,8 @@ export function parsePartnerWork(value: unknown): PartnerWork {
   const reminders = parseRows(row.reminders, (r) => {
     const dueAt = text(r.due_at, 80);
     if (!Number.isFinite(Date.parse(dueAt))) fail();
-    return { id: id(r.id), co: co(r.co), title: text(r.title, 240), dueAt };
+    const partnerId = r.partner_id === undefined || r.partner_id === null ? null : id(r.partner_id);
+    return { id: id(r.id), co: co(r.co), title: text(r.title, 240), dueAt, partnerId };
   });
   const contactCount = count(row.contact_count),
     reminderCount = count(row.reminder_count);
