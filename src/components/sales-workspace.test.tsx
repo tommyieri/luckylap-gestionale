@@ -40,6 +40,10 @@ vi.mock("./sales-pending-recovery", () => ({
     return <aside data-active-scopes={activeScopes.join(",")} />;
   },
 }));
+vi.mock("./sale-registration-cancellation", () => ({
+  SaleRegistrationCancellation: () => <button>Annulla registrazione</button>,
+}));
+vi.mock("./sale-return-form", () => ({ SaleReturnForm: () => <button>Registra reso</button> }));
 import { SalesWorkspace } from "./sales-workspace";
 import { salesSnapshotFromRows } from "../lib/sales/read";
 import { externalSyntheticRows, syntheticId, syntheticRows } from "../lib/sales/fixtures";

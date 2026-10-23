@@ -20,6 +20,8 @@ function fixture({
     { manual_sales_enabled: enabled, sales_started_at: enabled ? "2026-10-21T00:00:00Z" : null },
   ];
   const tables: Record<string, unknown[]> = {
+    sales_registration_cancellations: [],
+    manual_sale_returns: [],
     app_settings: rows.settings,
     stock_items: rows.items,
     product_variants: rows.variants,

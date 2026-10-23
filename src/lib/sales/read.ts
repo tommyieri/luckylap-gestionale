@@ -164,8 +164,16 @@ export function salesSnapshotFromRows(rows: SalesRows): SalesSnapshot {
         "partial",
         "fulfilled",
         "cancelled",
+        "partially_returned",
+        "returned",
       ]),
-      orderState: choice(r.order_state, ["confirmed", "partially_cancelled", "cancelled"]),
+      orderState: choice(r.order_state, [
+        "confirmed",
+        "partially_cancelled",
+        "cancelled",
+        "partially_returned",
+        "returned",
+      ]),
       lines: [],
     };
   });

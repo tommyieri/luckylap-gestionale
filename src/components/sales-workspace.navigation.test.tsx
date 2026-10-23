@@ -33,6 +33,10 @@ vi.mock("./sales-new-sale", () => ({
   PaymentMethodField: () => null,
   SaleTimeField: () => null,
 }));
+vi.mock("./sale-registration-cancellation", () => ({
+  SaleRegistrationCancellation: () => <button>Annulla registrazione</button>,
+}));
+vi.mock("./sale-return-form", () => ({ SaleReturnForm: () => <button>Registra reso</button> }));
 import { SalesWorkspace } from "./sales-workspace";
 import { salesSnapshotFromRows } from "../lib/sales/read";
 import { syntheticRows, syntheticId } from "../lib/sales/fixtures";

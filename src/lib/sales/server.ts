@@ -4,6 +4,7 @@ import {
   readEffectiveSalesPayments,
   applyEffectiveSalesPayments,
 } from "../finance-revisions/sales-projection";
+import { databaseInteger } from "../sales-cancellation/model";
 import { verifiedMember } from "../auth/server";
 import { parseSalesCommand, record, isUuid, type CommandResult } from "./model";
 import { readSalesPages, salesSnapshotFromRows, type SalesRows } from "./read";
@@ -25,6 +26,8 @@ const selections = {
     "sales_order_lines",
     "id,order_id,source_kind,stock_item_id,location_id,sku_snapshot,quantity,fulfilled_quantity,cancelled_quantity,unit_price_cents,discount_cents,line_total_cents,cancelled_amount_cents,unit_cost_cents",
   ],
+  cancellations: ["sales_registration_cancellations", "id,order_id"],
+  returns: ["manual_sale_returns", "id,order_id,product_quantity,refund_cents"],
   reservations: ["stock_reservations", "order_line_id,stock_item_id,location_id,reserved_quantity"],
   requirements: [
     "production_requirements",
@@ -57,6 +60,58 @@ export async function readSalesWorkspace(supabase: SupabaseClient) {
     }),
   );
   const snapshot = salesSnapshotFromRows(Object.fromEntries(entries) as SalesRows);
+  const cancelledRegistrationIds = (
+    entries.find(([key]) => key === "cancellations")?.[1] as unknown[]
+  ).map((value) => {
+    const row = record(value);
+    const orderId = row?.order_id;
+    if (
+      !isUuid(orderId) ||
+      !snapshot.orders.some(
+        (order) =>
+          order.id === orderId &&
+          order.source === "manual_declaration" &&
+          order.orderState === "cancelled",
+      )
+    )
+      throw new Error("Storico annullamenti non completo.");
+    return orderId;
+  });
+  if (new Set(cancelledRegistrationIds).size !== cancelledRegistrationIds.length)
+    throw new Error("Storico annullamenti non completo.");
+  const returnSummaries: { orderId: string; productQuantity: number; refundCents: number }[] = [];
+  for (const value of entries.find(([key]) => key === "returns")?.[1] as unknown[]) {
+    const row = record(value),
+      orderId = row?.order_id;
+    const order = snapshot.orders.find((o) => o.id === orderId);
+    if (!isUuid(orderId) || !order || order.source !== "manual_declaration")
+      throw new Error("Storico resi non completo.");
+    const quantity = databaseInteger(row?.product_quantity, 5_000_000);
+    const refund = databaseInteger(row?.refund_cents);
+    if (quantity === null || quantity < 1 || refund === null || refund < 1)
+      throw new Error("Storico resi non completo.");
+    let summary = returnSummaries.find((r) => r.orderId === orderId);
+    if (!summary) {
+      summary = { orderId, productQuantity: 0, refundCents: 0 };
+      returnSummaries.push(summary);
+    }
+    const totalQuantity = BigInt(summary.productQuantity) + BigInt(quantity);
+    const totalRefund = BigInt(summary.refundCents) + BigInt(refund);
+    if (
+      totalQuantity > BigInt(order.lines.reduce((sum, line) => sum + line.fulfilled, 0)) ||
+      totalRefund > BigInt(order.totalCents - order.cancelledCents)
+    )
+      throw new Error("Storico resi non coerente con la vendita.");
+    summary.productQuantity = Number(totalQuantity);
+    summary.refundCents = Number(totalRefund);
+  }
+  for (const order of snapshot.orders) {
+    if (
+      ["partially_returned", "returned"].includes(order.orderState) !==
+      returnSummaries.some((row) => row.orderId === order.id)
+    )
+      throw new Error("Stato dei resi non coerente con lo storico.");
+  }
   if (snapshot.orders.length) {
     const summaries = await readEffectiveSalesPayments(
       supabase,
@@ -68,6 +123,8 @@ export async function readSalesWorkspace(supabase: SupabaseClient) {
     status: "ready" as const,
     member: access.member,
     snapshot,
+    cancelledRegistrationIds,
+    returnSummaries,
   };
 }
 
