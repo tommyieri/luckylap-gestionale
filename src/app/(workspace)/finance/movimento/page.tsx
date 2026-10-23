@@ -3,6 +3,7 @@ import Link from "next/link";
 import { redirect } from "next/navigation";
 import { WorkspacePanel, PanelActions } from "@/components/workspace-panel";
 import { FinanceRevisionEditor } from "@/components/finance-revision-editor";
+import { SensitiveAreaSessionBar } from "@/components/auth-sensitive-area-form";
 import { verifiedMember } from "@/lib/auth/server";
 import { isSensitiveAreaEligible } from "@/lib/auth/model";
 import { verifiedSensitiveAccess } from "@/lib/auth/sensitive-access";
@@ -96,12 +97,15 @@ export default async function FinanceMovementPage({
       names[row.user_id] = row.display_name;
     }
     return (
-      <FinanceRevisionEditor
-        key={`${access.member.userId}:${kind}:${id}`}
-        history={history}
-        actorId={access.member.userId}
-        names={names}
-      />
+      <>
+        <SensitiveAreaSessionBar area="finance" />
+        <FinanceRevisionEditor
+          key={`${access.member.userId}:${kind}:${id}`}
+          history={history}
+          actorId={access.member.userId}
+          names={names}
+        />
+      </>
     );
   } catch {
     return panel(

@@ -420,10 +420,15 @@ export function GuideView({ access, preview = false }: { access: GuideAccess; pr
                 <h3 className={styles.subTitle}>Aprire e chiudere Finance</h3>
                 <p>
                   Tocca Finance nel menu e inserisci la password Finance. Resta aperta in questa
-                  sessione fino a 8 ore. Prima di lasciare un dispositivo condiviso, chiudila da
-                  «Account e sicurezza».
+                  sessione fino a 8 ore. Prima di lasciare un dispositivo condiviso, premi «Chiudi
+                  Finance» in cima alle pagine Finance, oppure chiudila da «Account e sicurezza».
                 </p>
-                {access.ceo && <p>Controllo CEO funziona allo stesso modo, con la password CEO.</p>}
+                {access.ceo && (
+                  <p>
+                    Controllo CEO funziona allo stesso modo, con la password CEO e «Chiudi Controllo
+                    CEO».
+                  </p>
+                )}
                 <p className={styles.actions}>
                   <Link
                     href="/auth/area/finance"

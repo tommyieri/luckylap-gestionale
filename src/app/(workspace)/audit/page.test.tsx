@@ -15,6 +15,9 @@ vi.mock("server-only", () => ({}));
 vi.mock("next/navigation", () => ({ redirect: mocks.redirect }));
 vi.mock("@/components/audit-view", () => import("../../../components/audit-view"));
 vi.mock("@/components/workspace-panel", () => import("../../../components/workspace-panel"));
+vi.mock("@/components/auth-sensitive-area-form", () => ({
+  SensitiveAreaSessionBar: ({ area }: { area: string }) => <p data-area-bar={area}>Chiudi</p>,
+}));
 vi.mock("@/lib/auth/model", () => import("../../../lib/auth/model"));
 vi.mock("@/lib/auth/sensitive-access", () => import("../../../lib/auth/sensitive-access"));
 vi.mock("@/lib/auth/server", () => ({ verifiedMember: mocks.member }));
@@ -52,6 +55,7 @@ describe("accesso e caricamento del feed CEO", () => {
       mocks.member.mockResolvedValue({ status: "member", member: { ...founder, role } });
       const html = renderToStaticMarkup(await AuditPage({ searchParams: Promise.resolve({}) }));
       expect(html).toContain("Controllo riservato al founder.");
+      expect(html).not.toContain("data-area-bar");
       expect(rpc).not.toHaveBeenCalled();
       expect(mocks.feed).not.toHaveBeenCalled();
     },
@@ -81,6 +85,9 @@ describe("accesso e caricamento del feed CEO", () => {
     });
     expect(rpc.mock.invocationCallOrder[0]).toBeLessThan(mocks.feed.mock.invocationCallOrder[0]);
     expect(html).toContain("Nessuna attività per questi filtri.");
+    // «Chiudi Controllo CEO» in cima, prima del titolo, solo con l'area aperta (06 R12).
+    expect(html.indexOf('<p data-area-bar="audit">Chiudi</p>')).toBe(0);
+    expect(html.indexOf("<h1>Controllo CEO</h1>")).toBeGreaterThan(0);
   });
 
   it("mostra uno stato di errore sicuro se il gate DB del loader rifiuta la lettura", async () => {
@@ -88,6 +95,7 @@ describe("accesso e caricamento del feed CEO", () => {
     const html = renderToStaticMarkup(await AuditPage({ searchParams: Promise.resolve({}) }));
     expect(html).toContain("Attività non disponibili.");
     expect(html).not.toMatch(/audit_logs|old_data|can_audit|denied|Nessuna attività/);
+    expect(html).not.toContain("data-area-bar");
   });
 
   it("rifiuta i parametri non validi senza leggere il feed", async () => {

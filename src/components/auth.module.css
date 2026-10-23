@@ -82,3 +82,35 @@
 .mfaSection p {
   font-size: var(--text-sm);
 }
+/* «Chiudi Finance» e «Chiudi Controllo CEO» in cima alle pagine dell'area (06 R12). */
+.sessionBar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px 16px;
+  margin-bottom: 20px;
+  padding-bottom: 12px;
+  border-bottom: 1px solid var(--rule-soft);
+}
+.sessionText {
+  display: flex;
+  flex: 1 1 280px;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+  color: var(--ink-2);
+  font-size: var(--text-sm);
+  line-height: 1.5;
+}
+.sessionText svg {
+  flex-shrink: 0;
+  color: var(--green);
+}
+/* A destra anche quando va a capo, come «Nuova voce» sotto. */
+.sessionBar > button {
+  margin-left: auto;
+}
+.sessionBar .error {
+  flex-basis: 100%;
+}

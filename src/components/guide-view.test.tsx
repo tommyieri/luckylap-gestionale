@@ -212,7 +212,10 @@ describe("Finance e Controllo CEO", () => {
       expect(financeBox(markup)).toBe(true);
       expect(hrefs(markup)).toContain("/auth/area/finance");
       expect(text(markup)).toContain("fino a 8 ore");
+      expect(text(markup)).toContain("premi «Chiudi Finance» in cima alle pagine Finance");
     }
+    expect(text(html(finance))).not.toContain("«Chiudi Controllo CEO»");
+    expect(text(html(founder))).toContain("con la password CEO e «Chiudi Controllo CEO».");
     expect(hrefs(html(finance))).not.toContain("/auth/area/audit");
     expect(hrefs(html(founder))).toContain("/auth/area/audit");
   });

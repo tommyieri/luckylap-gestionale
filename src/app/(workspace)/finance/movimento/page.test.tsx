@@ -30,6 +30,9 @@ vi.mock("@/components/workspace-panel", () => ({
   ),
   PanelActions: ({ children }: { children: ReactNode }) => <div>{children}</div>,
 }));
+vi.mock("@/components/auth-sensitive-area-form", () => ({
+  SensitiveAreaSessionBar: ({ area }: { area: string }) => <p data-area-bar={area}>Chiudi</p>,
+}));
 vi.mock("@/components/finance-revision-editor", () => ({
   FinanceRevisionEditor: () => <div data-protected-history="true">Synthetic editor</div>,
 }));
@@ -100,13 +103,19 @@ describe("Finance editor server page gate", () => {
     expect(mocks.history).not.toHaveBeenCalled();
   });
   it("loads a complete history only after authorization and hides partial reader failures", async () => {
-    const editor = await Page({ searchParams: params() });
-    expect((editor as ReactElement).key).toBe(`${actor}:manual:${source}`);
-    expect(renderToStaticMarkup(editor)).toContain("data-protected-history");
+    const page = (await Page({ searchParams: params() })) as ReactElement<{
+      children: ReactElement[];
+    }>;
+    const [bar, editor] = page.props.children;
+    expect(bar!.props).toEqual({ area: "finance" });
+    expect(editor!.key).toBe(`${actor}:manual:${source}`);
+    expect(renderToStaticMarkup(page)).toContain("data-protected-history");
+    expect(renderToStaticMarkup(page)).toContain('<p data-area-bar="finance">Chiudi</p>');
     expect(mocks.history).toHaveBeenCalledWith({}, { sourceKind: "manual", sourceId: source });
     mocks.history.mockRejectedValue(new Error("Private raw source"));
     const html = renderToStaticMarkup(await Page({ searchParams: params() }));
     expect(html).not.toContain("data-protected-history");
     expect(html).not.toContain("Private raw source");
+    expect(html).not.toContain("data-area-bar");
   });
 });
