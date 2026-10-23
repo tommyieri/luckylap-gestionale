@@ -16,6 +16,7 @@ const row = (overrides: Record<string, unknown> = {}) => ({
   sha256: "a".repeat(64),
   created_at: "2026-10-22T08:00:00Z",
   archived_at: null,
+  source_kind: null,
   ...overrides,
 });
 
@@ -26,6 +27,21 @@ describe("lettura della libreria", () => {
     expect(
       brandAssetFromDatabase(row({ archived_at: "2026-10-22T09:30:00.123456+00:00" })).archivedAt,
     ).toBe("2026-10-22T09:30:00.123456+00:00");
+  });
+  it("riconosce le foto dei progetti di Nuovi prodotti dal segno in source", () => {
+    expect(ASSET_COLUMNS.split(",")).toContain("source_kind:source->>kind");
+    expect(brandAssetFromDatabase(row()).developmentPhoto).toBeUndefined();
+    expect(
+      brandAssetFromDatabase(row({ source_kind: "drive_admin_import" })).developmentPhoto,
+    ).toBeUndefined();
+    expect(
+      brandAssetFromDatabase(row({ source_kind: "development_photo", content_type: "image/heic" }))
+        .developmentPhoto,
+    ).toBe(true);
+    for (const source_kind of [undefined, 1, {}])
+      expect(() => brandAssetFromDatabase(row({ source_kind }))).toThrow(
+        "Libreria non disponibile.",
+      );
   });
   it("rifiuta la lettura se la data dell'archivio non è valida o manca la colonna", () => {
     for (const archived_at of ["ieri", 42, true, undefined])

@@ -1,10 +1,24 @@
 import "server-only";
 import { createHash } from "node:crypto";
-import { AssetInputError, parseUploadDescriptor, type UploadDescriptor } from "./model";
+import { AssetInputError, parseStoredFileDescriptor, type UploadDescriptor } from "./model";
+
+/** Marche ISO-BMFF delle foto HEIC/HEIF (iPhone, Mac): `ftyp` e una di queste. */
+const HEIF_BRANDS = new Set([
+  "heic",
+  "heix",
+  "hevc",
+  "hevx",
+  "heim",
+  "heis",
+  "hevm",
+  "hevs",
+  "mif1",
+  "msf1",
+]);
 
 /** Bytes are inspected as stored; no conversion or mutation of the original file. */
 export function verifyAssetBytes(bytes: Uint8Array, descriptor: UploadDescriptor): void {
-  const file = parseUploadDescriptor(descriptor);
+  const file = parseStoredFileDescriptor(descriptor);
   if (
     bytes.byteLength !== file.size ||
     createHash("sha256").update(bytes).digest("hex") !== file.sha256
@@ -24,6 +38,16 @@ export function verifyAssetBytes(bytes: Uint8Array, descriptor: UploadDescriptor
       bytes.length >= 16 &&
       ascii(4, 8) === "ftyp" &&
       new DataView(bytes.buffer, bytes.byteOffset, bytes.byteLength).getUint32(0) >= 16;
+  if (file.mime === "image/heic" || file.mime === "image/heif") {
+    const view = new DataView(bytes.buffer, bytes.byteOffset, bytes.byteLength);
+    const box = bytes.length >= 16 ? view.getUint32(0) : 0;
+    const brands: string[] = [];
+    if (box >= 16 && box <= bytes.length && ascii(4, 8) === "ftyp") {
+      brands.push(ascii(8, 12));
+      for (let offset = 16; offset + 4 <= box; offset += 4) brands.push(ascii(offset, offset + 4));
+    }
+    valid = brands.some((brand) => HEIF_BRANDS.has(brand));
+  }
   if (file.mime === "video/webm")
     valid =
       starts(0x1a, 0x45, 0xdf, 0xa3) &&

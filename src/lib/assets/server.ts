@@ -5,7 +5,7 @@ import { readTeamPages } from "../team/read";
 import { ASSET_TYPES, type BrandAsset } from "./model";
 
 export const ASSET_COLUMNS =
-  "id,name,asset_type,description,external_url,storage_path,original_file_name,content_type,file_size_bytes,sha256,created_at,archived_at";
+  "id,name,asset_type,description,external_url,storage_path,original_file_name,content_type,file_size_bytes,sha256,created_at,archived_at,source_kind:source->>kind";
 export function brandAssetFromDatabase(value: unknown): BrandAsset {
   const row = value as Record<string, unknown> | null;
   if (
@@ -23,7 +23,13 @@ export function brandAssetFromDatabase(value: unknown): BrandAsset {
       (typeof row.archived_at !== "string" || !Number.isFinite(Date.parse(row.archived_at))))
   )
     throw new Error("Libreria non disponibile.");
-  for (const name of ["external_url", "storage_path", "original_file_name", "content_type"])
+  for (const name of [
+    "external_url",
+    "storage_path",
+    "original_file_name",
+    "content_type",
+    "source_kind",
+  ])
     if (row[name] !== null && typeof row[name] !== "string")
       throw new Error("Libreria non disponibile.");
   if (
@@ -43,6 +49,8 @@ export function brandAssetFromDatabase(value: unknown): BrandAsset {
     size: row.file_size_bytes === null ? null : Number(row.file_size_bytes),
     createdAt: row.created_at,
     archivedAt: row.archived_at as string | null,
+    // Foto di un progetto di Nuovi prodotti: la riconosce il segno messo da add_development_photos.
+    ...(row.source_kind === "development_photo" ? { developmentPhoto: true } : {}),
   };
 }
 export async function loadBrandAssets(supabase: SupabaseClient): Promise<BrandAsset[]> {

@@ -44,5 +44,16 @@ export function previewBrandAssets(): BrandAsset[] {
       name: "Foto sintetica caricata per sbaglio",
       archivedAt: "2026-10-22T16:40:00Z",
     }),
+    // Foto di un progetto di Nuovi prodotti: compare solo con il filtro «Nuovi prodotti». HEIC,
+    // quindi senza anteprima: la pagina non chiede byte alla route privata.
+    link(7, {
+      name: "Campione sintetico dal telefono",
+      externalUrl: null,
+      storagePath: `${PREVIEW_ASSETS_USER}/${id(7)}/campione-sintetico.heic`,
+      originalName: "campione-sintetico.heic",
+      contentType: "image/heic",
+      size: 2_400_000,
+      developmentPhoto: true,
+    }),
   ];
 }

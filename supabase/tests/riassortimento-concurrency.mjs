@@ -245,7 +245,11 @@ try {
       );
     await owner.query(source);
   }
-  ok(files.at(-1).endsWith("_riassortimento.sql"), "Catena completa fino al riassortimento");
+  // Le migrazioni successive (per esempio le foto dei nuovi prodotti) restano nella catena.
+  ok(
+    files.some((name) => name.endsWith("_riassortimento.sql")),
+    "Catena completa, riassortimento compreso",
+  );
 
   for (const name of names) {
     await owner.query("insert into auth.users values($1)", [users[name]]);

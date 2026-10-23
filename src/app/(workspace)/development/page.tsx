@@ -1,20 +1,42 @@
 import { randomUUID } from "node:crypto";
 import type { Metadata } from "next";
 import { redirect } from "next/navigation";
-import { DevelopmentView } from "@/components/development-view";
-import { WorkspacePanel } from "@/components/workspace-panel";
-import { verifiedMember } from "@/lib/auth/server";
-import { getSupabasePublicConfig } from "@/lib/supabase/config";
-import { createSupabaseServerClient } from "@/lib/supabase/server";
-import { loadDevelopment } from "@/lib/development/server";
+import { DevelopmentView } from "../../../components/development-view";
+import { WorkspacePanel } from "../../../components/workspace-panel";
+import { verifiedMember } from "../../../lib/auth/server";
+import { getSupabasePublicConfig } from "../../../lib/supabase/config";
+import { createSupabaseServerClient } from "../../../lib/supabase/server";
+import { loadDevelopment } from "../../../lib/development/server";
+import {
+  PREVIEW_DEVELOPMENT_USER,
+  previewDevelopmentMembers,
+  previewDevelopmentPhotos,
+  previewDevelopmentProjects,
+} from "../../../lib/development/fixtures";
+import { isLocalPreviewEnabled } from "../../../lib/runtime";
 export const dynamic = "force-dynamic";
 export const metadata: Metadata = { title: "Nuovi prodotti" };
 function State({ title, description }: { title: string; description: string }) {
   return <WorkspacePanel title={title} description={description} />;
 }
 export default async function DevelopmentPage() {
+  // Anteprima locale (00-sequenza §1.5): dati e immagini sintetici, nessuna chiamata a Supabase.
+  if (isLocalPreviewEnabled())
+    return (
+      <DevelopmentView
+        projects={previewDevelopmentProjects()}
+        members={previewDevelopmentMembers()}
+        photos={previewDevelopmentPhotos()}
+        displayName="Anteprima"
+        userId={PREVIEW_DEVELOPMENT_USER}
+        config={{ url: "http://127.0.0.1:54321", publishableKey: "anteprima-locale" }}
+        operationId={randomUUID()}
+        preview
+      />
+    );
+  let config;
   try {
-    getSupabasePublicConfig();
+    config = getSupabasePublicConfig();
   } catch {
     return (
       <State
@@ -45,7 +67,10 @@ export default async function DevelopmentPage() {
     <DevelopmentView
       projects={snapshot.projects}
       members={snapshot.members}
+      photos={snapshot.photos}
       displayName={access.member.displayName}
+      userId={access.member.userId}
+      config={config}
       operationId={randomUUID()}
     />
   );

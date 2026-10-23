@@ -3,23 +3,70 @@ import type { SupabaseClient } from "@supabase/supabase-js";
 import { isTeamId, type TeamMember } from "../team/model";
 import { readTeamPages } from "../team/read";
 import { DEVELOPMENT_STAGES, type DevelopmentProject } from "./model";
+import { parseStoredFileDescriptor } from "../assets/model";
+import type { DevelopmentPhoto } from "./photos";
+
+/** Una riga di product_development_photos con il suo contenuto; null se il contenuto è archiviato. */
+export function developmentPhotoFromDatabase(value: unknown): DevelopmentPhoto | null {
+  const row = value as Record<string, unknown> | null;
+  const asset = row?.asset as Record<string, unknown> | null | undefined;
+  if (
+    !row ||
+    !isTeamId(row.id) ||
+    !isTeamId(row.project_id) ||
+    !isTeamId(row.asset_id) ||
+    !Number.isSafeInteger(Number(row.position)) ||
+    Number(row.position) < 1 ||
+    typeof row.created_at !== "string" ||
+    !Number.isFinite(Date.parse(row.created_at)) ||
+    (row.created_by !== null && !isTeamId(row.created_by)) ||
+    !asset ||
+    typeof asset !== "object" ||
+    (asset.archived_at !== null && typeof asset.archived_at !== "string")
+  )
+    throw new Error("Foto non disponibili.");
+  // Un collegamento non punta mai a un contenuto archiviato (guardia nel database): se succede, la
+  // foto non si mostra.
+  if (asset.archived_at !== null) return null;
+  const file = parseStoredFileDescriptor({
+    operationId: row.asset_id,
+    originalName: asset.original_file_name,
+    mime: asset.content_type,
+    size: Number(asset.file_size_bytes),
+    sha256: "0".repeat(64),
+  });
+  return {
+    id: row.asset_id,
+    projectId: row.project_id,
+    position: Number(row.position),
+    originalName: file.originalName,
+    contentType: file.mime,
+    size: file.size,
+    createdAt: row.created_at,
+    createdBy: (row.created_by as string | null) ?? null,
+  };
+}
 
 export async function loadDevelopment(
   supabase: SupabaseClient,
-): Promise<{ projects: DevelopmentProject[]; members: TeamMember[] }> {
+): Promise<{ projects: DevelopmentProject[]; members: TeamMember[]; photos: DevelopmentPhoto[] }> {
   const read = (table: string, columns: string, key = "id") =>
     readTeamPages((after, limit) => {
       let query = supabase.from(table).select(columns, { count: "exact" }).order(key).limit(limit);
       if (after) query = query.gt(key, after);
       return query;
     }, key);
-  const [rows, profiles, memberships] = await Promise.all([
+  const [rows, profiles, memberships, photoRows] = await Promise.all([
     read(
       "product_development_projects",
       "id,name,brief,stage,target_date,owner_id,version,updated_at",
     ),
     read("profiles", "user_id,display_name", "user_id"),
     read("memberships", "user_id,active", "user_id"),
+    read(
+      "product_development_photos",
+      "id,project_id,asset_id,position,created_at,created_by,asset:assets(original_file_name,content_type,file_size_bytes,archived_at)",
+    ),
   ]);
   const activeIds = new Set(
     memberships
@@ -70,5 +117,14 @@ export async function loadDevelopment(
   projects.sort(
     (a, b) => Date.parse(b.updatedAt) - Date.parse(a.updatedAt) || a.id.localeCompare(b.id),
   );
-  return { projects, members };
+  const photos = photoRows
+    .map(developmentPhotoFromDatabase)
+    .filter((photo): photo is DevelopmentPhoto => photo !== null)
+    .sort(
+      (a, b) =>
+        a.projectId.localeCompare(b.projectId) ||
+        a.position - b.position ||
+        a.id.localeCompare(b.id),
+    );
+  return { projects, members, photos };
 }
