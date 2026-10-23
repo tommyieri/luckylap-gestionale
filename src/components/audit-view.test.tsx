@@ -66,14 +66,41 @@ describe("feed leggibile Controllo CEO", () => {
     expect(html).not.toContain('name="beforeAt"');
   });
 
-  it("spiega la vista iniziale e permette di selezionare le persone e le automazioni", () => {
+  it("parte da «Tutti», founder compreso, e dice che mostra le ultime 24 ore", () => {
     const html = renderToStaticMarkup(
       <AuditView snapshot={snapshot} query={{ actor: null, area: null, before: null }} />,
     );
-    expect(text(html)).toContain("Collaboratori e automazioni");
-    expect(text(html)).toContain("Le tue attività sono escluse dalla vista iniziale.");
+    expect(text(html)).toContain(
+      "Cosa ha fatto il team nelle ultime 24 ore, dalla più recente. Orari di Roma.",
+    );
+    expect(html).toContain('<option value="" selected="">Tutti</option>');
+    expect(html).toContain('<option value="" selected="">Tutte</option>');
+    expect(text(html)).not.toMatch(/escluse|Collaboratori e automazioni/);
     expect(html).toContain('value="system"');
     expect(html).toContain(`value="${actor}"`);
+    expect(html).toContain('value="consignment"');
+    expect(text(html)).toContain("Conto vendita");
+    expect(text(html)).not.toContain("Anteprima locale");
+  });
+
+  it("in anteprima locale lo dice in cima", () => {
+    const html = renderToStaticMarkup(<AuditView snapshot={snapshot} query={query} preview />);
+    expect(text(html)).toContain("Anteprima locale: dati sintetici, salvataggio disattivato.");
+  });
+
+  it("su una pagina corta del confine spiega come continuare", () => {
+    const html = renderToStaticMarkup(
+      <AuditView
+        snapshot={{
+          ...snapshot,
+          items: [],
+          nextCursor: { ...cursor, id: "00000000-0000-0000-0000-000000000000" },
+        }}
+        query={query}
+      />,
+    );
+    expect(text(html)).toContain("Niente in questo tratto delle 24 ore.");
+    expect(text(html)).toContain("Attività precedenti");
   });
 
   it.each([
@@ -96,7 +123,7 @@ describe("feed leggibile Controllo CEO", () => {
     const filtered = renderToStaticMarkup(
       <AuditView snapshot={{ ...snapshot, items: [], nextCursor: null }} query={query} />,
     );
-    expect(text(filtered)).toContain("Nessuna attività per questi filtri.");
+    expect(text(filtered)).toContain("Nelle ultime 24 ore non ci sono altre attività.");
     expect(text(filtered)).toContain("Più recenti");
     expect(text(filtered)).not.toContain("Attività precedenti");
     const initial = renderToStaticMarkup(
@@ -105,7 +132,14 @@ describe("feed leggibile Controllo CEO", () => {
         query={{ actor: null, area: null, before: null }}
       />,
     );
-    expect(text(initial)).toContain("Nessuna attività da mostrare.");
+    expect(text(initial)).toContain("Nelle ultime 24 ore nessuna attività.");
+    const none = renderToStaticMarkup(
+      <AuditView
+        snapshot={{ ...snapshot, items: [], nextCursor: null, hasCursor: false }}
+        query={{ ...query, before: null }}
+      />,
+    );
+    expect(text(none)).toContain("Nelle ultime 24 ore nessuna attività per questi filtri.");
     expect(initial).not.toContain("Più recenti");
   });
 });

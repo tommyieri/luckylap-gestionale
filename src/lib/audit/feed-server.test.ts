@@ -2,6 +2,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 vi.mock("server-only", () => ({}));
 import { loadActivityFeed } from "./feed-server";
 const id = "10000000-0000-4000-8000-000000000001";
+const NIL = "00000000-0000-0000-0000-000000000000";
 const member = {
   userId: id,
   displayName: "Founder sintetico",
@@ -79,6 +80,41 @@ describe("confine server del feed CEO", () => {
       error: null,
     });
     await expect(loadActivityFeed(client as never, member, true, query)).rejects.toThrow();
+  });
+  it("accetta il cursore di confine solo su una pagina corta e mai dopo le sue righe", async () => {
+    const boundary = { occurred_at: "2026-10-22T09:00:00.000001Z", id: NIL };
+    rpc.mockResolvedValueOnce({ data: { ...payload, next_cursor: boundary }, error: null });
+    expect((await loadActivityFeed(client as never, member, true, query)).nextCursor).toEqual({
+      occurredAt: boundary.occurred_at,
+      id: NIL,
+    });
+    rpc.mockResolvedValueOnce({
+      data: { ...payload, items: [], next_cursor: boundary },
+      error: null,
+    });
+    expect((await loadActivityFeed(client as never, member, true, query)).items).toEqual([]);
+    for (const next_cursor of [
+      { occurred_at: "2026-10-22T11:00:00.000001Z", id: NIL },
+      { occurred_at: boundary.occurred_at, id },
+    ]) {
+      rpc.mockResolvedValueOnce({ data: { ...payload, next_cursor }, error: null });
+      await expect(loadActivityFeed(client as never, member, true, query)).rejects.toThrow();
+    }
+    const full = Array.from({ length: 50 }, (_, index) => ({
+      ...row,
+      id: `10000000-0000-4000-8000-${String(index).padStart(12, "0")}`,
+    }));
+    rpc.mockResolvedValueOnce({
+      data: {
+        ...payload,
+        items: full,
+        next_cursor: { occurred_at: row.occurred_at, id: full[49].id },
+      },
+      error: null,
+    });
+    expect((await loadActivityFeed(client as never, member, true, query)).nextCursor?.id).toBe(
+      full[49].id,
+    );
   });
   it("rifiuta duplicati, cursori incoerenti e actor menu alterato", async () => {
     for (const data of [

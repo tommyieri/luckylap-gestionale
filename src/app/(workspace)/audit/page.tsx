@@ -9,6 +9,8 @@ import { verifiedSensitiveAccess } from "@/lib/auth/sensitive-access";
 import { verifiedMember } from "@/lib/auth/server";
 import { activityQueryFromSearch } from "@/lib/audit/feed-model";
 import { loadActivityFeed } from "@/lib/audit/feed-server";
+import { previewActivityFeed } from "@/lib/audit/fixtures";
+import { isLocalPreviewEnabled } from "@/lib/runtime";
 import { getSupabasePublicConfig } from "@/lib/supabase/config";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 
@@ -51,6 +53,28 @@ export default async function AuditPage({
 }: {
   searchParams: Promise<Record<string, string | string[] | undefined>>;
 }) {
+  // Anteprima locale: frasi sintetiche delle ultime 24 ore, nessuna chiamata a Supabase.
+  if (isLocalPreviewEnabled()) {
+    let previewQuery;
+    try {
+      previewQuery = activityQueryFromSearch(await searchParams);
+    } catch {
+      return (
+        <AccessState
+          title="Il collegamento alle attività non è valido."
+          description="Apri le attività più recenti e seleziona di nuovo i filtri."
+          restart
+        />
+      );
+    }
+    return (
+      <AuditView
+        snapshot={previewActivityFeed(new Date(), previewQuery)}
+        query={previewQuery}
+        preview
+      />
+    );
+  }
   try {
     getSupabasePublicConfig();
   } catch {

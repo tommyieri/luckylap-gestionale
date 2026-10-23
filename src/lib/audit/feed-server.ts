@@ -6,6 +6,7 @@ import { isAuditTimestamp } from "./model";
 import {
   activityActorFromDatabase,
   activityItemFromDatabase,
+  BOUNDARY_CURSOR_ID,
   validActivityQuery,
   type ActivityQuery,
   type ActivityFeedPage,
@@ -55,18 +56,28 @@ export async function loadActivityFeed(
   if (data.next_cursor !== null) {
     const cursor = data.next_cursor,
       last = items.at(-1);
-    if (
-      items.length !== 50 ||
-      !cursor ||
-      typeof cursor !== "object" ||
-      Array.isArray(cursor) ||
-      Object.keys(cursor).length !== 2 ||
-      !isAuditTimestamp(cursor.occurred_at) ||
-      !isTeamId(cursor.id) ||
-      cursor.occurred_at !== last?.occurredAt ||
-      cursor.id !== last?.id
-    )
-      throw new Error("Collegamento del feed non disponibile.");
+    const shaped =
+      !!cursor &&
+      typeof cursor === "object" &&
+      !Array.isArray(cursor) &&
+      Object.keys(cursor).length === 2 &&
+      isAuditTimestamp(cursor.occurred_at) &&
+      isTeamId(cursor.id);
+    // A full page continues after its last row; a shorter page (a long stretch of the 24 hours
+    // without matching actions) continues at the block boundary, never after its own rows.
+    const afterLast =
+      shaped &&
+      items.length === 50 &&
+      cursor.occurred_at === last?.occurredAt &&
+      cursor.id === last?.id;
+    const boundary =
+      shaped &&
+      items.length < 50 &&
+      cursor.id === BOUNDARY_CURSOR_ID &&
+      (last === undefined ||
+        (cursor.occurred_at.length === last.occurredAt.length &&
+          cursor.occurred_at <= last.occurredAt));
+    if (!afterLast && !boundary) throw new Error("Collegamento del feed non disponibile.");
     nextCursor = { occurredAt: cursor.occurred_at, id: cursor.id };
   }
   return { items, actors, nextCursor, hasCursor: query.before !== null };
