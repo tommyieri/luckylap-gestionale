@@ -1,16 +1,26 @@
-import { money, record, salesChannelLabel, salesOrderLabel, type SalesCommand } from "./model";
+import {
+  money,
+  record,
+  salesChannelLabel,
+  salesOrderLabel,
+  type SalesCommand,
+  type SalesLine,
+  type SalesSnapshot,
+} from "./model";
 
 /*
  * Riepilogo leggibile di un invio delle Vendite rimasto da verificare (docs: 06 R4). Mai UUID,
  * codici di canale o centesimi: il canale con la sua etichetta, l'ordine con il suo nome, le
- * quantità in capi. I nomi di articoli, ordini e righe arrivano da chi conosce i dati della
- * pagina; senza nomi resta «Riga 1», «Riga 2».
+ * quantità in capi. I nomi di articoli, ordini, righe e capi da produrre arrivano dalla pagina
+ * (`salesAttemptNames`); senza nomi resta «Riga 1», «Riga 2».
  */
 
 export type SalesAttemptNames = {
   item?: (stockItemId: string) => string | null;
   order?: (orderId: string) => string | null;
   orderLine?: (orderLineId: string) => string | null;
+  /** Capi da produrre: articolo e ordine. */
+  requirement?: (requirementId: string) => string | null;
 };
 export type SalesAttemptSummary = { title: string; lines: string[]; occurredAt?: string };
 
@@ -64,7 +74,11 @@ export function salesAttemptSummary(
           : "";
       lines.push(`${name}: ${tshirts(line?.quantity)}${price}`);
     });
-  if (command.kind === "complete_production") lines.push(`Prodotti: ${tshirts(p.quantity)}`);
+  if (command.kind === "complete_production") {
+    const name = text(p.requirement_id) ? names.requirement?.(text(p.requirement_id)) : null;
+    if (name) lines.push(name);
+    lines.push(`Prodotti: ${tshirts(p.quantity)}`);
+  }
   const payment = record(p.payment);
   if (payment?.status === "paid")
     lines.push(
@@ -80,5 +94,40 @@ export function salesAttemptSummary(
     title: TITLES[command.kind],
     lines,
     occurredAt: typeof p.occurred_at === "string" ? p.occurred_at : undefined,
+  };
+}
+
+/**
+ * Nomi dai dati della pagina delle Vendite: l'articolo con il suo nome, l'ordine come
+ * nell'elenco (`salesOrderLabel`), la riga con il suo articolo, i capi da produrre con
+ * articolo e ordine. Un id che la pagina non conosce dà `null`: resta il nome di riserva.
+ */
+export function salesAttemptNames(
+  snapshot: Pick<SalesSnapshot, "items" | "orders" | "requirements">,
+): SalesAttemptNames {
+  const items = new Map(snapshot.items.map((item) => [item.id, item.name.trim() || item.sku]));
+  const orders = new Map(snapshot.orders.map((order) => [order.id, order]));
+  const orderLines = new Map(
+    snapshot.orders.flatMap((order) => order.lines.map((line) => [line.id, line] as const)),
+  );
+  const requirements = new Map(snapshot.requirements.map((row) => [row.id, row.lineId]));
+  const lineName = (line: SalesLine) => items.get(line.itemId) ?? line.sku;
+  const orderName = (orderId: string) => {
+    const order = orders.get(orderId);
+    return order ? salesOrderLabel(order) : null;
+  };
+  return {
+    item: (id) => items.get(id) ?? null,
+    order: orderName,
+    orderLine: (id) => {
+      const line = orderLines.get(id);
+      return line ? lineName(line) : null;
+    },
+    requirement: (id) => {
+      const line = orderLines.get(requirements.get(id) ?? "");
+      if (!line) return null;
+      const order = orderName(line.orderId);
+      return order ? `${lineName(line)}, ${order}` : lineName(line);
+    },
   };
 }

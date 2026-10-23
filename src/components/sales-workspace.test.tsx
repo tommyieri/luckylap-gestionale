@@ -3,30 +3,48 @@ import type { ReactNode } from "react";
 import { renderToStaticMarkup } from "react-dom/server";
 vi.mock("@/lib/sales/model", () => import("../lib/sales/model"));
 vi.mock("@/lib/sales/forms", () => import("../lib/sales/forms"));
+// Nomi ricevuti da ogni modulo e dal recupero degli invii (06 R4).
+const received = vi.hoisted(() => ({
+  forms: [] as { kind: string; names?: SalesAttemptNames }[],
+  recovery: [] as (SalesAttemptNames | undefined)[],
+}));
 vi.mock("./sales-command-form", () => ({
   SalesCommandForm: ({
     kind,
     enabled,
+    names,
     children,
   }: {
     kind: string;
     enabled: boolean;
+    names?: SalesAttemptNames;
     children: ReactNode;
-  }) => (
-    <form data-command-kind={kind} data-enabled={enabled}>
-      {children}
-    </form>
-  ),
+  }) => {
+    received.forms.push({ kind, names });
+    return (
+      <form data-command-kind={kind} data-enabled={enabled}>
+        {children}
+      </form>
+    );
+  },
 }));
 vi.mock("./sales-pending-recovery", () => ({
-  SalesPendingRecovery: ({ activeScopes }: { activeScopes: string[] }) => (
-    <aside data-active-scopes={activeScopes.join(",")} />
-  ),
+  SalesPendingRecovery: ({
+    activeScopes,
+    names,
+  }: {
+    activeScopes: string[];
+    names?: SalesAttemptNames;
+  }) => {
+    received.recovery.push(names);
+    return <aside data-active-scopes={activeScopes.join(",")} />;
+  },
 }));
 import { SalesWorkspace } from "./sales-workspace";
 import { salesSnapshotFromRows } from "../lib/sales/read";
-import { externalSyntheticRows, syntheticRows } from "../lib/sales/fixtures";
+import { externalSyntheticRows, syntheticId, syntheticRows } from "../lib/sales/fixtures";
 import { money } from "../lib/sales/model";
+import type { SalesAttemptNames } from "../lib/sales/attempt";
 import type { MemberRole } from "../lib/auth/model";
 const member = {
   userId: "80000000-0000-4000-8000-000000000010",
@@ -113,4 +131,31 @@ it("shows a corrected residual, permits the remaining manual collection, and pre
   );
   expect(shop).toContain("Stato osservato su Shopify: Incasso osservato su Shopify");
   expect(shop).not.toContain('data-command-kind="record_manual_payment"');
+});
+
+describe("invii da verificare con i nomi della pagina (06 R4)", () => {
+  it("i cinque moduli e il recupero ricevono articoli e ordini con il loro nome", () => {
+    received.forms.length = 0;
+    received.recovery.length = 0;
+    const rows = syntheticRows();
+    Object.assign(rows.orders[0] as Record<string, unknown>, {
+      external_reference: "VENDITA-SINTETICA-7",
+    });
+    render(rows);
+    expect(received.forms.map((form) => form.kind).sort()).toEqual([
+      "cancel_unfulfilled_lines",
+      "complete_production",
+      "fulfill_order_lines",
+      "record_manual_payment",
+      "register_manual_sale",
+    ]);
+    const article = "Synthetic tee · Synthetic · M";
+    for (const names of [...received.forms.map((form) => form.names), ...received.recovery]) {
+      expect(names?.item?.(syntheticId(1))).toBe(article);
+      expect(names?.order?.(syntheticId(3))).toBe("VENDITA-SINTETICA-7");
+      expect(names?.orderLine?.(syntheticId(5))).toBe(article);
+      expect(names?.requirement?.(syntheticId(6))).toBe(`${article}, VENDITA-SINTETICA-7`);
+    }
+    expect(received.recovery).toHaveLength(1);
+  });
 });

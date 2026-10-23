@@ -21,6 +21,7 @@ import {
 import { SalesCommandForm } from "./sales-command-form";
 import { NewSaleFields, PaymentMethodField, SaleTimeField } from "./sales-new-sale";
 import { SalesPendingRecovery } from "./sales-pending-recovery";
+import { salesAttemptNames, type SalesAttemptNames } from "../lib/sales/attempt";
 import {
   listenForSalesOrderLinks,
   salesOrderDestination,
@@ -128,6 +129,8 @@ export function SalesWorkspace({
   const reserved = activeAvailability.reduce((sum, row) => sum + row.reserved, 0),
     toProduce = waiting.reduce((sum, row) => sum + row.required - row.completed - row.cancelled, 0);
   const canProduce = member.role === "founder" || member.role === "production";
+  // Un invio da verificare mostra articoli e ordini con i nomi della pagina (06 R4).
+  const names = salesAttemptNames(snapshot);
   const activeScopes = [
     "new-sale",
     ...waiting.filter(() => canProduce).map((row) => `production:${row.id}`),
@@ -170,7 +173,7 @@ export function SalesWorkspace({
           </p>
         </div>
       )}
-      <SalesPendingRecovery userId={member.userId} activeScopes={activeScopes} />
+      <SalesPendingRecovery userId={member.userId} activeScopes={activeScopes} names={names} />
       <div className={styles.metrics}>
         <div>
           <span>Capi fisici pronti</span>
@@ -207,6 +210,7 @@ export function SalesWorkspace({
             enabled={snapshot.enabled}
             label="Registra vendita"
             build={(form) => newSalePayload(form, snapshot)}
+            names={names}
           >
             <NewSaleFields snapshot={snapshot} now={now} />
           </SalesCommandForm>
@@ -269,6 +273,7 @@ export function SalesWorkspace({
                   snapshot={snapshot}
                   member={member}
                   now={now}
+                  names={names}
                   opened={linkedOrder?.id === order.id}
                 />
               ))}
@@ -348,6 +353,7 @@ export function SalesWorkspace({
                       enabled={snapshot.enabled || isExternalSalesOrder(order)}
                       label="Registra capi pronti"
                       build={(form) => productionPayload(form, requirement.id)}
+                      names={names}
                     >
                       <div className={styles.grid}>
                         <label>
@@ -424,12 +430,14 @@ function OrderCard({
   snapshot,
   member,
   now,
+  names,
   opened = false,
 }: {
   order: SalesOrder;
   snapshot: SalesSnapshot;
   member: VerifiedMember;
   now: string;
+  names: SalesAttemptNames;
   opened?: boolean;
 }) {
   const pendingLines = order.lines.filter(
@@ -560,6 +568,7 @@ function OrderCard({
                 kind="fulfill_order_lines"
                 enabled={snapshot.enabled}
                 label="Conferma uscita fisica"
+                names={names}
                 build={(form) =>
                   quantityCommandPayload(
                     form,
@@ -602,6 +611,7 @@ function OrderCard({
                 kind="cancel_unfulfilled_lines"
                 enabled={snapshot.enabled}
                 label="Conferma annullo"
+                names={names}
                 build={(form) =>
                   quantityCommandPayload(
                     form,
@@ -648,6 +658,7 @@ function OrderCard({
               enabled={snapshot.enabled}
               label="Dichiara incasso ricevuto"
               build={(form) => paymentPayload(form, order.id)}
+              names={names}
             >
               <p className={styles.help}>
                 Registra un incasso già avvenuto per l’intero saldo residuo. Non si esegue alcun

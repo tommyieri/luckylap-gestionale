@@ -36,7 +36,9 @@ vi.mock("@/lib/sales/attempt", () => import("../lib/sales/attempt"));
 vi.mock("@/lib/sales/pending", () => import("../lib/sales/pending"));
 import { SalesCommandForm } from "./sales-command-form";
 import { PendingAttempt } from "./pending-attempt";
-import { syntheticId, syntheticSale } from "../lib/sales/fixtures";
+import { syntheticId, syntheticRows, syntheticSale } from "../lib/sales/fixtures";
+import { salesAttemptNames, type SalesAttemptNames } from "../lib/sales/attempt";
+import { salesSnapshotFromRows } from "../lib/sales/read";
 
 type Element = ReactElement<Record<string, unknown>>;
 const userId = syntheticId(10);
@@ -46,7 +48,7 @@ function descendants(node: unknown): Element[] {
   const element = node as Element;
   return [element, ...[element.props.children].flat(Infinity).flatMap(descendants)];
 }
-const attempts = () => {
+const attempts = (names?: SalesAttemptNames) => {
   mocks.stateIndex = 0;
   const tree = SalesCommandForm({
     userId,
@@ -55,6 +57,7 @@ const attempts = () => {
     enabled: true,
     build: () => ({}),
     label: "Registra vendita",
+    names,
     children: null,
   });
   return descendants(tree).filter((node) => node.type === PendingAttempt);
@@ -90,6 +93,16 @@ describe("modulo delle Vendite con un invio da verificare", () => {
     });
     (attempt.props.onRetry as () => void)();
     expect(mocks.run).toHaveBeenCalledWith({ ...syntheticSale(), retry: true });
+  });
+
+  it("con i nomi della pagina l'articolo compare al posto di «Riga 1»", () => {
+    mocks.states[0] = syntheticSale();
+    const [attempt] = attempts(salesAttemptNames(salesSnapshotFromRows(syntheticRows())));
+    expect(attempt.props.lines).toEqual([
+      "Canale: Diretta",
+      "Synthetic tee · Synthetic · M: 2 capi a 40,01\u00a0€",
+      "Da incassare",
+    ]);
   });
 
   it("un invio in conflitto si scarta, solo dopo la conferma del componente", () => {

@@ -1,7 +1,8 @@
 import { describe, expect, it } from "vitest";
-import { salesAttemptSummary } from "./attempt";
-import { syntheticId, syntheticSale } from "./fixtures";
+import { salesAttemptNames, salesAttemptSummary } from "./attempt";
+import { externalSyntheticRows, syntheticId, syntheticRows, syntheticSale } from "./fixtures";
 import type { SalesCommand } from "./model";
+import { salesSnapshotFromRows } from "./read";
 
 const sale = syntheticSale() as SalesCommand;
 const uuid = /[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}/i;
@@ -104,5 +105,110 @@ describe("riepilogo di un invio delle Vendite da verificare", () => {
       title: "Incasso da verificare",
       lines: ["Ordine 80000000", "Incasso: 12,50 € in contanti"],
     });
+  });
+
+  it("i capi prodotti dicono articolo e ordine, se la pagina li conosce", () => {
+    const production: SalesCommand = {
+      operationId: syntheticId(94),
+      kind: "complete_production",
+      payload: {
+        requirement_id: syntheticId(6),
+        quantity: 1,
+        occurred_at: "2026-10-21T08:00:00Z",
+        reason: "Lotto sintetico",
+      },
+    };
+    expect(
+      salesAttemptSummary(production, { requirement: () => "F40 Rosso L, Ordine Shopify 1001" })
+        .lines,
+    ).toEqual(["F40 Rosso L, Ordine Shopify 1001", "Prodotti: 1 capo", "Motivo: Lotto sintetico"]);
+    expect(salesAttemptSummary(production, { requirement: () => null }).lines).toEqual([
+      "Prodotti: 1 capo",
+      "Motivo: Lotto sintetico",
+    ]);
+  });
+});
+
+describe("nomi dai dati della pagina delle Vendite", () => {
+  const rows = () => {
+    const value = syntheticRows();
+    Object.assign(value.orders[0] as Record<string, unknown>, {
+      external_reference: "VENDITA-SINTETICA-7",
+    });
+    return value;
+  };
+  const article = "Synthetic tee · Synthetic · M";
+
+  it("articolo con il suo nome, ordine come nell'elenco, riga e capi da produrre", () => {
+    const names = salesAttemptNames(salesSnapshotFromRows(rows()));
+    expect(names.item?.(syntheticId(1))).toBe(article);
+    expect(names.order?.(syntheticId(3))).toBe("VENDITA-SINTETICA-7");
+    expect(names.orderLine?.(syntheticId(5))).toBe(article);
+    expect(names.requirement?.(syntheticId(6))).toBe(`${article}, VENDITA-SINTETICA-7`);
+    const shopify = salesAttemptNames(salesSnapshotFromRows(externalSyntheticRows()));
+    expect(shopify.order?.(syntheticId(3))).toBe("Ordine Shopify 100");
+    expect(shopify.requirement?.(syntheticId(6))).toBe(`${article}, Ordine Shopify 100`);
+  });
+
+  it("un id che la pagina non conosce lascia il nome di riserva", () => {
+    const names = salesAttemptNames(salesSnapshotFromRows(rows()));
+    for (const lookup of [names.item, names.order, names.orderLine, names.requirement])
+      expect(lookup?.(syntheticId(99))).toBeNull();
+    expect(
+      salesAttemptSummary(
+        {
+          operationId: syntheticId(95),
+          kind: "fulfill_order_lines",
+          payload: {
+            order_id: syntheticId(99),
+            lines: [{ order_line_id: syntheticId(98), quantity: 1 }],
+            occurred_at: "2026-10-21T08:00:00Z",
+            reason: "Consegna sintetica",
+          },
+        },
+        names,
+      ).lines,
+    ).toEqual(["Ordine 80000000", "Riga 1: 1 capo", "Motivo: Consegna sintetica"]);
+  });
+
+  it("con i nomi della pagina una vendita, una consegna e un incasso non hanno codici", () => {
+    const names = salesAttemptNames(salesSnapshotFromRows(rows()));
+    const summaries = [
+      salesAttemptSummary(sale, names),
+      salesAttemptSummary(
+        {
+          operationId: syntheticId(96),
+          kind: "cancel_unfulfilled_lines",
+          payload: {
+            order_id: syntheticId(3),
+            lines: [{ order_line_id: syntheticId(5), quantity: 1 }],
+            occurred_at: "2026-10-21T08:00:00Z",
+            reason: "Annullo sintetico",
+          },
+        },
+        names,
+      ),
+      salesAttemptSummary(
+        {
+          operationId: syntheticId(97),
+          kind: "record_manual_payment",
+          payload: {
+            order_id: syntheticId(3),
+            amount_cents: 8002,
+            method: "cash",
+            occurred_at: "2026-10-21T08:00:00Z",
+          },
+        },
+        names,
+      ),
+    ];
+    expect(summaries.map((summary) => summary.lines)).toEqual([
+      ["Canale: Diretta", `${article}: 2 capi a 40,01\u00a0€`, "Da incassare"],
+      ["VENDITA-SINTETICA-7", `${article}: 1 capo`, "Motivo: Annullo sintetico"],
+      ["VENDITA-SINTETICA-7", "Incasso: 80,02\u00a0€ in contanti"],
+    ]);
+    const text = JSON.stringify(summaries.map((summary) => summary.lines));
+    expect(text).not.toMatch(uuid);
+    expect(text).not.toMatch(/Riga \d|Ordine 8000/);
   });
 });

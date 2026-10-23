@@ -41,7 +41,9 @@ vi.mock("@/lib/sales/attempt", () => import("../lib/sales/attempt"));
 vi.mock("@/lib/sales/pending", () => import("../lib/sales/pending"));
 import { SalesPendingRecovery } from "./sales-pending-recovery";
 import { PendingAttempt } from "./pending-attempt";
-import { syntheticId, syntheticSale } from "../lib/sales/fixtures";
+import { syntheticId, syntheticRows, syntheticSale } from "../lib/sales/fixtures";
+import { salesAttemptNames, type SalesAttemptNames } from "../lib/sales/attempt";
+import { salesSnapshotFromRows } from "../lib/sales/read";
 import type { SalesCommand } from "../lib/sales/model";
 
 type Element = ReactElement<Record<string, unknown>>;
@@ -68,9 +70,9 @@ function descendants(node: unknown): Element[] {
   const element = node as Element;
   return [element, ...[element.props.children].flat(Infinity).flatMap(descendants)];
 }
-const attempts = () => {
+const attempts = (names?: SalesAttemptNames) => {
   mocks.stateIndex = 0;
-  return descendants(SalesPendingRecovery({ userId, activeScopes: ["new-sale"] })).filter(
+  return descendants(SalesPendingRecovery({ userId, activeScopes: ["new-sale"], names })).filter(
     (node) => node.type === PendingAttempt,
   );
 };
@@ -117,6 +119,34 @@ describe("«Invii da verificare» delle Vendite", () => {
     expect(mocks.run).toHaveBeenCalledWith({ ...sale(), retry: true });
     expect(sessionStorage.removeItem).not.toHaveBeenCalled();
     expect(mocks.setters[2]).not.toHaveBeenCalled();
+  });
+
+  it("con i nomi della pagina compaiono ordine e articolo, non codici", () => {
+    const rows = syntheticRows();
+    Object.assign(rows.orders[0] as Record<string, unknown>, {
+      external_reference: "VENDITA-SINTETICA-7",
+    });
+    const fulfil: SalesCommand = {
+      operationId: syntheticId(92),
+      kind: "fulfill_order_lines",
+      payload: {
+        order_id: syntheticId(3),
+        lines: [{ order_line_id: syntheticId(5), quantity: 1 }],
+        occurred_at: "2026-10-21T08:00:00Z",
+        reason: "Consegna sintetica",
+      },
+    };
+    mocks.states[0] = {
+      entries: [{ key: second, scope: `fulfill:${syntheticId(3)}`, command: fulfil }],
+      unreadable: false,
+      unreadableKeys: [],
+    };
+    const [attempt] = attempts(salesAttemptNames(salesSnapshotFromRows(rows)));
+    expect(attempt.props.lines).toEqual([
+      "VENDITA-SINTETICA-7",
+      "Synthetic tee · Synthetic · M: 1 capo",
+      "Motivo: Consegna sintetica",
+    ]);
   });
 
   it("una connessione interrotta conserva il tentativo", async () => {
