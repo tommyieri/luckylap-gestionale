@@ -24,6 +24,7 @@ vi.mock("@/lib/auth/sensitive-access", () => ({ verifiedSensitiveAccess: vi.fn()
 vi.mock("@/lib/finance/server", () => ({ loadFinanceImports: vi.fn() }));
 vi.mock("@/lib/finance-work/server", () => ({ readFinanceWork: vi.fn() }));
 vi.mock("@/lib/finance/dashboard-server", () => ({ readDashboardSettlements: vi.fn() }));
+vi.mock("@/lib/finance-revisions/context-server", () => ({ loadFinanceRevisionContext: vi.fn() }));
 vi.mock("@/lib/auth/model", () => import("../../../lib/auth/model"));
 vi.mock("@/lib/runtime", () => import("../../../lib/runtime"));
 vi.mock("@/lib/finance/model", () => import("../../../lib/finance/model"));

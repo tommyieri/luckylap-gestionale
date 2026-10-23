@@ -4,19 +4,21 @@ const mocks = vi.hoisted(() => ({
   revalidate: vi.fn(),
   client: vi.fn(),
   execute: vi.fn(),
+  legacy: vi.fn(),
   preview: vi.fn(() => false),
 }));
 vi.mock("server-only", () => ({}));
 vi.mock("next/cache", () => ({ revalidatePath: mocks.revalidate }));
 vi.mock("../../lib/supabase/server", () => ({ createSupabaseServerClient: mocks.client }));
 vi.mock("../../lib/consignment/shop-server", () => ({ executeShopCommand: mocks.execute }));
-vi.mock("../../lib/consignment/server", () => ({ executeConsignmentCommand: vi.fn() }));
+vi.mock("../../lib/consignment/server", () => ({ executeConsignmentCommand: mocks.legacy }));
 vi.mock("../../lib/runtime", () => ({ isLocalPreviewEnabled: mocks.preview }));
 
-import { runShopCommand } from "./actions";
+import { runShopCommand, runConsignmentCommand } from "./actions";
 
 beforeEach(() => {
   vi.clearAllMocks();
+  mocks.revalidate.mockReset();
   mocks.preview.mockReturnValue(false);
   mocks.client.mockResolvedValue({ db: true });
 });
@@ -35,6 +37,8 @@ describe("runShopCommand", () => {
       ["/packaging", undefined],
       ["/finance", undefined],
       ["/finance/work", undefined],
+      ["/audit", undefined],
+      ["/sales", undefined],
     ]);
   });
 
@@ -44,9 +48,20 @@ describe("runShopCommand", () => {
       throw Error("cache");
     });
     expect((await runShopCommand({})).status).toBe("success");
-    expect(mocks.revalidate).toHaveBeenCalledTimes(6);
+    expect(mocks.revalidate).toHaveBeenCalledTimes(8);
   });
 
+  it("anche il recupero precedente conserva la ricevuta e tenta le altre viste se la prima cache fallisce", async () => {
+    const receipt = { status: "success", message: "Ricevuta precedente confermata" };
+    mocks.legacy.mockResolvedValue(receipt);
+    mocks.revalidate.mockImplementationOnce(() => {
+      throw Error("cache");
+    });
+    expect(await runConsignmentCommand({ retry: true })).toBe(receipt);
+    expect(mocks.revalidate).toHaveBeenCalledWith("/audit");
+    expect(mocks.revalidate).toHaveBeenCalledWith("/finance");
+    expect(mocks.revalidate).toHaveBeenCalledWith("/sales");
+  });
   it("rifiuto: niente da rileggere; connessione interrotta: esito incerto", async () => {
     mocks.execute.mockResolvedValue({ status: "rejected", code: "stale_version", message: "x" });
     await runShopCommand({});

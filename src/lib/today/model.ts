@@ -121,7 +121,7 @@ export function agendaFor(
         endsAt = time(event.endsAt);
       return {
         event,
-        time: startsAt >= dayStart ? romeTime(event.startsAt) : null,
+        time: !event.details.allDay && startsAt >= dayStart ? romeTime(event.startsAt) : null,
         now: startsAt <= instant && instant < endsAt,
       };
     });

@@ -14,6 +14,8 @@ import { loadFinanceImports } from "@/lib/finance/server";
 import { readFinanceWork } from "@/lib/finance-work/server";
 import { readDashboardSettlements } from "@/lib/finance/dashboard-server";
 import { localReportDate } from "@/lib/finance/model";
+import { buildFinanceDashboard } from "@/lib/finance/dashboard";
+import { loadFinanceRevisionContext } from "@/lib/finance-revisions/context-server";
 import {
   dashboardShopPaymentsFromRows,
   monthlyFinanceFromRows,
@@ -69,6 +71,7 @@ function FinancePreview() {
         }
         reportDate={reportDate}
         displayName="Anteprima locale"
+        readOnly
       />
     </>
   );
@@ -139,15 +142,32 @@ export default async function FinancePage() {
         description="La lettura completa dei movimenti non è riuscita. Nessun dato parziale viene mostrato: ricarica la pagina tra poco."
       />
     );
+  const revisions = await loadFinanceRevisionContext(
+    supabase,
+    buildFinanceDashboard(snapshot, work.snapshot, reportDate, {
+      settlements,
+      shopPayments: consignment.shopPayments,
+    }).movements,
+  ).catch(() => null);
+  if (!revisions)
+    return (
+      <AccessState
+        title="Revisioni Finance non disponibili."
+        description="Non è stato possibile leggere le correzioni e le fonti complete. Riprova tra poco; nessun totale parziale viene mostrato."
+      />
+    );
   return (
     <FinanceImportsView
       snapshot={snapshot}
       workSnapshot={work.snapshot}
       settlements={settlements}
       shopPayments={consignment.shopPayments}
+      deletedShopPayments={consignment.deletedShopPayments}
       consignment={<ConsignmentMonthlyFinance snapshot={consignment.snapshot} />}
       reportDate={reportDate}
       displayName={access.member.displayName}
+      revisionHeads={revisions.heads}
+      revisionOriginals={revisions.originals}
     />
   );
 }

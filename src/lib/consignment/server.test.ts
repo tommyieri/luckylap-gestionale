@@ -171,6 +171,8 @@ describe("caller-scoped consignment actions", () => {
       "/",
       "/finance/work",
       "/finance",
+      "/audit",
+      "/sales",
     ]);
     mocks.revalidate.mockImplementationOnce(() => {
       throw Error("Rendering");

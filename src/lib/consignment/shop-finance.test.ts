@@ -35,7 +35,15 @@ function fakeDb(tables: Record<string, Row[]>) {
     };
     return q;
   });
-  return { db: { from }, calls };
+  const rpc = vi
+    .fn()
+    .mockImplementation(async (_name: string, args: { p_report_ids: string[] }) => ({
+      data: (tables.consignment_reports ?? [])
+        .filter((r) => args.p_report_ids.includes(r.id as string))
+        .map((r) => ({ report_id: r.id, payment_state: r.payment_state })),
+      error: null,
+    }));
+  return { db: { from, rpc }, calls };
 }
 const member = {
   userId: sx.user,

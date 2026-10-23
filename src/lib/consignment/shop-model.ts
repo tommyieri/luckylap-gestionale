@@ -108,6 +108,83 @@ export type PaymentPayload = {
   account_label: string | null;
   reference: string | null;
 };
+export type PaymentFinanceMetadata = {
+  direction: "income" | "expense";
+  category: string | null;
+  description: string;
+  pending: boolean;
+};
+export function paymentFinanceMetadata(value: unknown): PaymentFinanceMetadata | null {
+  const row = record(value);
+  if (
+    !row ||
+    Object.keys(row).length !== 4 ||
+    !["direction", "category", "description", "pending"].every((k) => Object.hasOwn(row, k)) ||
+    !["income", "expense"].includes(String(row.direction)) ||
+    !(
+      row.category === null ||
+      (typeof row.category === "string" &&
+        row.category.trim().length > 0 &&
+        row.category.trim().length <= 240)
+    ) ||
+    typeof row.description !== "string" ||
+    row.description.trim().length > 2000 ||
+    typeof row.pending !== "boolean"
+  )
+    return null;
+  return {
+    direction: row.direction as "income" | "expense",
+    category: typeof row.category === "string" ? row.category.trim() : null,
+    description: row.description.trim(),
+    pending: row.pending,
+  };
+}
+export function paymentFinanceFromDatabase(
+  row: Record<string, unknown>,
+): PaymentFinanceMetadata | null {
+  if (row.finance !== undefined) return paymentFinanceMetadata(row.finance);
+  const fields = [
+    "finance_direction",
+    "finance_category",
+    "finance_description",
+    "finance_pending",
+  ];
+  if (fields.every((k) => row[k] === undefined))
+    return {
+      direction: "income",
+      category: "Vendite",
+      description: "Incasso conto vendita",
+      pending: false,
+    };
+  return paymentFinanceMetadata({
+    direction: row.finance_direction,
+    category: row.finance_category,
+    description: row.finance_description,
+    pending: row.finance_pending,
+  });
+}
+export function postedShopPaymentCents(
+  payment: {
+    amountCents: number;
+    paidAt: string;
+    voided: boolean;
+    finance?: PaymentFinanceMetadata;
+  },
+  reportDate: string,
+): bigint {
+  const day = localReportDate(new Date(payment.paidAt));
+  if (
+    !day ||
+    !calendarDay(reportDate) ||
+    !Number.isSafeInteger(payment.amountCents) ||
+    payment.amountCents < 0 ||
+    payment.amountCents > MAX_CENTS
+  )
+    throw Error("Pagamento del negozio non valido.");
+  return payment.voided || payment.finance?.pending || day > reportDate
+    ? 0n
+    : BigInt(payment.amountCents) * (payment.finance?.direction === "expense" ? -1n : 1n);
+}
 export type PaymentUpdatePayload = {
   schema_version: 1;
   payment_id: string;
@@ -119,6 +196,7 @@ export type PaymentUpdatePayload = {
   reference: string | null;
   voided: boolean;
   reason: string;
+  finance?: PaymentFinanceMetadata;
 };
 export type ItemLine = { stock_item_id: string; quantity: number };
 export type OrderPayload = {
@@ -493,7 +571,11 @@ function parsePayload(kind: ShopCommandKind, p: Record<string, unknown>) {
       const account = optionalText(p.account_label, 1, 120),
         reference = optionalText(p.reference, 1, 240);
       if (
-        !integer(p.amount_cents, 1, MAX_CENTS) ||
+        !integer(
+          p.amount_cents,
+          kind === "update_consignment_payment" && Object.hasOwn(p, "finance") ? 0 : 1,
+          MAX_CENTS,
+        ) ||
         !consignmentDate(p.paid_at) ||
         !PAYMENT_METHODS.includes(p.method as PaymentMethod) ||
         account === undefined ||
@@ -515,11 +597,13 @@ function parsePayload(kind: ShopCommandKind, p: Record<string, unknown>) {
       }
       const payment = lowerUuid(p.payment_id),
         reason = cleanText(p.reason, 3, 500);
+      const finance = Object.hasOwn(p, "finance") ? paymentFinanceMetadata(p.finance) : undefined;
       if (
         !payment ||
         !integer(p.expected_version, 1, MAX_CENTS) ||
         typeof p.voided !== "boolean" ||
-        reason === null
+        reason === null ||
+        finance === null
       )
         return null;
       return {
@@ -529,6 +613,7 @@ function parsePayload(kind: ShopCommandKind, p: Record<string, unknown>) {
         ...common,
         voided: p.voided,
         reason,
+        ...(finance === undefined ? {} : { finance }),
       } satisfies PaymentUpdatePayload;
     }
     case "save_consignment_order": {
@@ -626,7 +711,16 @@ export function parseShopCommand(value: unknown): ShopCommand | null {
   )
     return null;
   const kind = row.kind as ShopCommandKind;
-  if (!exact(p, PAYLOAD_KEYS[kind]) || p.schema_version !== 1) return null;
+  if (
+    !exact(
+      p,
+      kind === "update_consignment_payment" && Object.hasOwn(p, "finance")
+        ? [...PAYLOAD_KEYS[kind], "finance"]
+        : PAYLOAD_KEYS[kind],
+    ) ||
+    p.schema_version !== 1
+  )
+    return null;
   const payload = parsePayload(kind, p);
   if (!payload) return null;
   return {
@@ -717,7 +811,7 @@ export function paymentStateFor(
 ): PaymentState {
   const paid = BigInt(paidCents),
     due = BigInt(dueCents);
-  if (paid === 0n) return due === 0n ? "nothing_due" : "unpaid";
+  if (paid <= 0n) return paid === 0n && due === 0n ? "nothing_due" : "unpaid";
   return paid < due ? "partial" : paid === due ? "paid" : "overpaid";
 }
 

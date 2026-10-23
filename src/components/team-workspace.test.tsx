@@ -78,4 +78,38 @@ describe("team workspace shared overview", () => {
     expect(text).toContain("Idea di un altro membro");
     expect(text).toContain("anche senza assegnatario");
   });
+  it.each([
+    ["2026-03-28T23:00:00Z", "2026-03-29T22:00:00Z", "29 mar 2026", null],
+    ["2026-10-24T22:00:00Z", "2026-10-25T23:00:00Z", "25 ott 2026", null],
+    ["2026-10-24T22:00:00Z", "2026-10-26T23:00:00Z", "25 ott 2026", "26 ott 2026"],
+  ])(
+    "mostra date inclusive senza mezzanotte per la giornata intera %s",
+    (startsAt, endsAt, start, end) => {
+      const snapshot: TeamSnapshot = {
+        members: [],
+        tasks: [],
+        notes: [],
+        events: [
+          {
+            id: "event",
+            title: "Evento Partner sintetico",
+            startsAt: startsAt!,
+            endsAt: endsAt!,
+            eventType: "other",
+            details: { summary: "", participantIds: [], callUrl: null, allDay: true },
+            createdBy: "member",
+          },
+        ],
+      };
+      const text = visibleText(
+        TeamWorkspace({ snapshot, displayName: "Membro", loadedAt: "2026-01-01T12:00:00Z" }),
+      ).replace(/\s+/g, " ");
+      expect(text).toContain("Giornata intera");
+      expect(text).toContain(start);
+      expect(text).not.toContain("00:00");
+      expect(text).not.toContain("Fine:");
+      if (end) expect(text).toContain(`Fino al ${end}`);
+      else expect(text).not.toContain("Fino al");
+    },
+  );
 });

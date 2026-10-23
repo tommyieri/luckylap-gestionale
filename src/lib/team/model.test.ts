@@ -190,6 +190,23 @@ describe("shared event categories", () => {
   });
 });
 
+describe("appuntamenti di giornata intera", () => {
+  it("mantiene il metadato opzionale senza cambiare i record precedenti", () => {
+    const details = { summary: "Evento Partner", participantIds: [], callUrl: null, allDay: true };
+    expect(decodeEventDetails(encodeEventDetails(details))).toEqual(details);
+    expect(decodeEventDetails(encodeEventDetails({ ...details, allDay: false })).allDay).toBe(
+      false,
+    );
+    expect(decodeEventDetails("Descrizione precedente").allDay).toBeUndefined();
+    expect(() => encodeEventDetails({ ...details, allDay: "true" } as never)).toThrow();
+    expect(
+      decodeEventDetails(
+        JSON.stringify({ format: "luckylap-team-event", version: 1, ...details, allDay: "true" }),
+      ).summary,
+    ).toContain("non leggibili");
+  });
+});
+
 it("keeps the free type label after validation errors and renders only the selected event category", () => {
   const input = form({ eventType: "other", customEventType: "Shooting" });
   expect(capturedFormValues(input).values?.customEventType).toBe("Shooting");

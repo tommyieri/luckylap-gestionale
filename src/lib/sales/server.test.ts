@@ -63,10 +63,25 @@ function fixture({
       ),
     };
   });
-  const rpc = vi.fn().mockImplementation(async (_name, args) => ({
-    error: null,
-    data: { order_id: syntheticId(3), operation_id: args.p_operation_id, replayed: false },
-  }));
+  const rpc = vi.fn().mockImplementation(async (_name, args) =>
+    _name === "read_sales_effective_payments"
+      ? {
+          error: null,
+          data: args.p_order_ids.map((id: string) => ({
+            order_id: id,
+            source_kind: "manual_declaration",
+            source_payment_state: "paid",
+            payment_state: "partially_paid",
+            amount_due_cents: "2500",
+            refund_due_cents: "0",
+            corrected: true,
+          })),
+        }
+      : {
+          error: null,
+          data: { order_id: syntheticId(3), operation_id: args.p_operation_id, replayed: false },
+        },
+  );
   return { client: { auth, from, rpc } as unknown as SupabaseClient, auth, from, rpc };
 }
 describe("caller-scoped sales reads and writes", () => {
@@ -74,7 +89,7 @@ describe("caller-scoped sales reads and writes", () => {
     const f = fixture();
     const result = await readSalesWorkspace(f.client);
     expect(result.status).toBe("ready");
-    expect(f.auth.getUser).toHaveBeenCalledOnce();
+    expect(f.auth.getUser).toHaveBeenCalledTimes(2);
     expect(
       f.from.mock.calls.every(
         (call) =>
@@ -89,7 +104,15 @@ describe("caller-scoped sales reads and writes", () => {
           ].includes(call[0]),
       ),
     ).toBe(true);
-    expect(f.rpc).not.toHaveBeenCalled();
+    expect(f.rpc).toHaveBeenCalledOnce();
+    expect(f.rpc.mock.calls[0][0]).toBe("read_sales_effective_payments");
+    if (result.status === "ready")
+      expect(result.snapshot.orders[0]).toMatchObject({
+        paymentState: "partially_paid",
+        effectiveAmountDueCents: 2500,
+        paymentCorrected: true,
+        sourcePaymentState: "paid",
+      });
   });
   it("does not run a command for a missing membership despite founder metadata", async () => {
     const f = fixture({ member: false });

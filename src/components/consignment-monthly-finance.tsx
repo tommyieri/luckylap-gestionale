@@ -137,7 +137,14 @@ function EarlierSales({ legacy }: { legacy: ConsignmentFinanceSnapshot }) {
                 <td data-label="Incasso del negozio">{money(r.grossCents)}</td>
                 <td data-label="Quota LuckyLap">{money(r.brandClaimCents)}</td>
                 <td data-label="Incassato">{money(r.settledCents)}</td>
-                <td data-label="Residuo">{money(r.remainingCents)}</td>
+                <td data-label="Residuo">
+                  {money(r.remainingCents)}
+                  {r.overpaidCents > 0 && (
+                    <span className={`${styles.financeCellNote} ${roadbook.late}`}>
+                      Da restituire {money(r.overpaidCents)}
+                    </span>
+                  )}
+                </td>
               </tr>
             ))}
           </tbody>

@@ -15,6 +15,8 @@ const SHOP_PATHS: [string, "layout" | undefined][] = [
   ["/packaging", undefined],
   ["/finance", undefined],
   ["/finance/work", undefined],
+  ["/audit", undefined],
+  ["/sales", undefined],
 ];
 
 /** Comandi del conto vendita semplice (negozi, conte, resoconti, ordini, pagamenti). */
@@ -61,11 +63,20 @@ export async function runConsignmentCommand(value: unknown): Promise<Consignment
     };
   }
   if (result.status === "success") {
-    try {
-      for (const path of ["/consignment", "/stock", "/", "/finance/work", "/finance"])
+    for (const path of [
+      "/consignment",
+      "/stock",
+      "/",
+      "/finance/work",
+      "/finance",
+      "/audit",
+      "/sales",
+    ]) {
+      try {
         revalidatePath(path);
-    } catch {
-      /* A confirmed receipt survives cache errors. */
+      } catch {
+        /* A confirmed receipt survives cache errors. */
+      }
     }
   }
   return result;

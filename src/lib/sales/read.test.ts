@@ -83,13 +83,13 @@ describe("complete sales reads", () => {
       expect(snapshot.orders[0].lines[0].totalCents).toBe(8002);
     },
   );
-  it("refuses mixed line/order provenance and Shopify payment states on manual orders", () => {
+  it("refuses mixed provenance and accepts effective partial payment states on manual orders", () => {
     const rows = externalSyntheticRows();
     (rows.lines[0] as Record<string, unknown>).source_kind = "manual_declaration";
     expect(() => salesSnapshotFromRows(rows)).toThrow();
     const manual = syntheticRows();
     (manual.orders[0] as Record<string, unknown>).payment_state = "partially_paid";
-    expect(() => salesSnapshotFromRows(manual)).toThrow();
+    expect(salesSnapshotFromRows(manual).orders[0].paymentState).toBe("partially_paid");
   });
   it("restricts the sale's physical locations and availability to warehouses and consignment shops", () => {
     const rows = syntheticRows();

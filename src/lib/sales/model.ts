@@ -67,6 +67,10 @@ export type SalesOrder = {
   cancelledCents: number;
   refundDueCents: number;
   paymentState: string;
+  /** Dichiarazione efficace dopo le correzioni Finance; osservazione Shopify conservata. */
+  effectiveAmountDueCents?: number | null;
+  sourcePaymentState?: string;
+  paymentCorrected?: boolean;
   fulfillmentState: string;
   orderState: string;
   lines: SalesLine[];
