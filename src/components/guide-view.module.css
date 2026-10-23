@@ -191,6 +191,34 @@
   line-height: 1.5;
 }
 
+/* Operazioni comuni: una riga per operazione, link alla pagina e pulsanti veri. */
+.ops {
+  max-width: 72ch;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  border-top: 1.5px solid var(--ink);
+}
+.ops li {
+  display: grid;
+  gap: 2px;
+  padding: 2px 0 12px;
+  border-bottom: 1px solid var(--rule);
+}
+.opLink {
+  display: inline-flex;
+  align-items: center;
+  min-height: var(--tap);
+  font-family: var(--f-cond);
+  font-size: var(--text-lg);
+  font-weight: 600;
+  line-height: 1.2;
+}
+.who {
+  color: var(--muted);
+  font-size: var(--text-sm);
+}
+
 /* Elenchi di parole e di persone: termine in Condensed, spiegazione accanto. */
 .terms {
   max-width: 72ch;

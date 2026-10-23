@@ -1,6 +1,13 @@
 import { describe, expect, it } from "vitest";
 import { renderToStaticMarkup } from "react-dom/server";
-import { GUIDE_PARTS, GuideView, SECTION_TEXT, TAB_TEXT, type GuideAccess } from "./guide-view";
+import {
+  GUIDE_PARTS,
+  GuideView,
+  OPERATIONS,
+  SECTION_TEXT,
+  TAB_TEXT,
+  type GuideAccess,
+} from "./guide-view";
 import { SECTIONS } from "../lib/navigation";
 
 const everyone: GuideAccess = { finance: false, ceo: false };
@@ -22,11 +29,12 @@ const hrefs = (markup: string) => [...markup.matchAll(/href="([^"]*)"/g)].map((m
 const financeBox = (markup: string) => markup.includes('data-guide="finance"');
 
 describe("«Come si usa»: struttura", () => {
-  it("ha le sette parti, nell'ordine dell'indice, ognuna con il suo titolo", () => {
+  it("ha le otto parti, nell'ordine dell'indice, ognuna con il suo titolo", () => {
     const markup = html(everyone);
     expect(GUIDE_PARTS.map((part) => part.title)).toEqual([
       "Entrare e uscire",
       "Il menu",
+      "Le operazioni più comuni",
       "Partner",
       "Conto vendita e resoconto del mese",
       "Finance e Controllo CEO",
@@ -41,7 +49,7 @@ describe("«Come si usa»: struttura", () => {
       expect(markup).toContain(`<h2 id="${part.id}-titolo"`);
       expect(markup).toContain(`aria-labelledby="${part.id}-titolo"`);
     }
-    expect(markup.match(/<section /g)).toHaveLength(7);
+    expect(markup.match(/<section /g)).toHaveLength(8);
   });
 
   it("apre con l'h1 «Come si usa» e l'indice che porta a ogni parte", () => {
@@ -64,6 +72,20 @@ describe("«Come si usa»: struttura", () => {
   it("usa solo collegamenti interni: ancore della guida o pagine del gestionale", () => {
     for (const access of [everyone, finance, founder])
       for (const href of hrefs(html(access))) expect(href).toMatch(/^(#guida-[a-z-]+|\/(?!\/))/);
+  });
+
+  it("spiega le parole con i nomi delle colonne di Giacenze e Rettifiche", () => {
+    const markup = html(everyone);
+    const words = text(
+      markup.slice(
+        markup.indexOf("Parole che trovi spesso"),
+        markup.indexOf('id="guida-operazioni"'),
+      ),
+    );
+    expect(words).toContain("Fisico I capi che ci sono davvero in magazzino.");
+    expect(words).toContain("Riservato Già promesso a un ordine.");
+    expect(words).toContain("Disponibile Fisico meno riservato");
+    expect(words).not.toContain("Pronti");
   });
 
   it("parla la lingua del team: niente parole tecniche", () => {
@@ -105,6 +127,70 @@ describe("il menu della persona", () => {
     expect(hrefs(markup)).not.toContain("/audit");
     expect(hrefs(markup)).not.toContain("/auth/area/audit");
     expect(text(markup)).toContain("Controllo CEO non è nel tuo menu: lo apre solo Tommi.");
+  });
+});
+
+describe("le operazioni più comuni", () => {
+  const part = (access: GuideAccess) => {
+    const markup = html(access);
+    return markup.slice(
+      markup.indexOf('id="guida-operazioni"'),
+      markup.indexOf('id="guida-partner"'),
+    );
+  };
+
+  it("una riga e un link per ogni operazione di 06, uguali per tutti", () => {
+    expect(OPERATIONS.map((operation) => operation.title)).toEqual([
+      "Registrare una vendita",
+      "Segnare una consegna",
+      "Segnare un incasso",
+      "Segnare i capi prodotti",
+      "Correggere una quantità in magazzino",
+      "Aggiornare scatole e adesivi",
+      "Conto vendita: resoconto del mese e nuovo ordine",
+      "Aggiungere una call o un’attività",
+      "Caricare una foto",
+      "Aprire una scheda prodotto",
+      "Seguire un prodotto nuovo",
+      "Partner: cambiare lo stato e copiare il messaggio",
+    ]);
+    const markup = part(everyone);
+    expect(markup.match(/<li>/g)).toHaveLength(OPERATIONS.length);
+    expect(hrefs(markup)).toEqual(OPERATIONS.map((operation) => operation.href));
+    for (const href of hrefs(markup)) expect(href).not.toMatch(/^\/(finance|audit|auth)/);
+    expect(part(founder)).toBe(markup);
+  });
+
+  it("usa i nomi veri delle pagine e dei pulsanti", () => {
+    const copy = text(part(everyone));
+    for (const label of [
+      "«Nuova vendita»",
+      "«Registra vendita»",
+      "«Registra una consegna»",
+      "«Conferma uscita fisica»",
+      "«Dichiara incasso ricevuto»",
+      "«Produzione da completare»",
+      "«Registra capi pronti»",
+      "«Registra rettifica»",
+      "«Modifica quantità»",
+      "«Conferma quantità»",
+      "«Aggiungi appuntamento»",
+      "«Aggiungi attività»",
+      "«Aggiungi un contenuto»",
+      "«Carica originale»",
+      "«Dettaglio prodotto»",
+      "«Crea scheda prodotto»",
+      "«Copia il testo»",
+      "«Segna inviato»",
+    ])
+      expect(copy).toContain(label);
+  });
+
+  it("dice chi le fa di solito: ognuno trova il suo lavoro", () => {
+    const copy = text(part(everyone));
+    for (const name of ["Ettore", "Gabriele", "Luca", "Tommi"])
+      expect(copy).toContain(`di solito ${name}`);
+    expect(copy).toContain("Lo possono fare Tommi e Gabriele.");
   });
 });
 

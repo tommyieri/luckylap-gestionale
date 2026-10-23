@@ -64,10 +64,11 @@ export const TAB_TEXT: Record<string, string> = {
   "/finance/documents": "I file originali ricevuti, in archivio privato.",
 };
 
-/** Le sette parti della guida, nell'ordine dell'indice. */
+/** Le otto parti della guida, nell'ordine dell'indice. */
 export const GUIDE_PARTS = [
   { id: "guida-accesso", title: "Entrare e uscire", short: "Entrare e uscire" },
   { id: "guida-menu", title: "Il menu", short: "Il menu" },
+  { id: "guida-operazioni", title: "Le operazioni più comuni", short: "Operazioni comuni" },
   { id: "guida-partner", title: "Partner", short: "Partner" },
   {
     id: "guida-conto-vendita",
@@ -80,10 +81,86 @@ export const GUIDE_PARTS = [
 ] as const;
 type PartId = (typeof GUIDE_PARTS)[number]["id"];
 
+/**
+ * Le operazioni di tutti i giorni (06, «Come si usa», punti 3 e 4): dove si fanno, con i
+ * pulsanti veri, e chi le fa di solito. Ogni riga porta alla pagina giusta.
+ */
+export const OPERATIONS: { title: string; href: string; text: string; who?: string }[] = [
+  {
+    title: "Registrare una vendita",
+    href: "/sales#new-sale",
+    text: "In Vendite apri «Nuova vendita»: canale, articoli, quantità e prezzo, poi «Registra vendita». Gli ordini Shopify arrivano da soli.",
+  },
+  {
+    title: "Segnare una consegna",
+    href: "/sales",
+    text: "In Vendite apri l’ordine, poi «Registra una consegna» e «Conferma uscita fisica».",
+    who: "Ettore",
+  },
+  {
+    title: "Segnare un incasso",
+    href: "/sales",
+    text: "In Vendite apri l’ordine e premi «Dichiara incasso ricevuto». Registra un pagamento già arrivato: non addebita niente.",
+  },
+  {
+    title: "Segnare i capi prodotti",
+    href: "/sales#sales-production",
+    text: "In Vendite, «Produzione da completare»: scrivi quanti capi sono pronti e premi «Registra capi pronti». Lo possono fare Tommi e Gabriele.",
+    who: "Gabriele",
+  },
+  {
+    title: "Correggere una quantità in magazzino",
+    href: "/stock/rettifiche",
+    text: "In Magazzino, Rettifiche: scegli SKU e magazzino, scrivi quanti capi aggiungere o togliere e la causale, poi «Registra rettifica».",
+    who: "Ettore",
+  },
+  {
+    title: "Aggiornare scatole e adesivi",
+    href: "/packaging",
+    text: "In Magazzino, Packaging: «Modifica quantità» sul materiale, scrivi quanti ne hai contati e la causale, poi «Conferma quantità».",
+    who: "Ettore",
+  },
+  {
+    title: "Conto vendita: resoconto del mese e nuovo ordine",
+    href: "/consignment",
+    text: "In Vendite, Conto vendita: apri il negozio. Tutti i passi sono più sotto, in «Conto vendita e resoconto del mese».",
+    who: "Tommi",
+  },
+  {
+    title: "Aggiungere una call o un’attività",
+    href: "/team",
+    text: "In Team, Calendario e attività: «Aggiungi appuntamento» per una call o una consegna, «Aggiungi attività» per una cosa da fare.",
+    who: "Luca",
+  },
+  {
+    title: "Caricare una foto",
+    href: "/assets",
+    text: "In Team, Grafica e foto: in «Aggiungi un contenuto» scegli il file e premi «Carica originale».",
+  },
+  {
+    title: "Aprire una scheda prodotto",
+    href: "/stock",
+    text: "In Magazzino, Giacenze: tocca una riga e si apre il «Dettaglio prodotto», con taglia, quantità, costo e prezzi.",
+  },
+  {
+    title: "Seguire un prodotto nuovo",
+    href: "/development",
+    text: "In Team, Nuovi prodotti: «Crea scheda prodotto» per un’idea nuova, «Modifica scheda» per cambiarne la fase.",
+    who: "Gabriele",
+  },
+  {
+    title: "Partner: cambiare lo stato e copiare il messaggio",
+    href: "/partner",
+    text: "Apri il contatto, premi «Copia il testo» e, dopo l’invio, «Segna inviato». I passi sono più sotto, in «Partner».",
+    who: "Luca",
+  },
+];
+
+/** Parole del gestionale, con i nomi delle colonne di Giacenze e Rettifiche. */
 const WORDS: [string, string][] = [
-  ["Pronti", "I capi che ci sono davvero in magazzino."],
-  ["Riservati", "Già promessi a un ordine."],
-  ["Disponibili", "Pronti meno riservati: quelli che puoi vendere."],
+  ["Fisico", "I capi che ci sono davvero in magazzino. In Vendite: «pronto fisico»."],
+  ["Riservato", "Già promesso a un ordine."],
+  ["Disponibile", "Fisico meno riservato: quello che puoi vendere."],
   ["Da produrre", "Capi venduti che non sono ancora pronti."],
   ["n.d.", "Quantità non nota. Non vuol dire zero."],
   ["In negozio", "Le magliette nei negozi in conto vendita; «—» finché il negozio non è contato."],
@@ -240,6 +317,25 @@ export function GuideView({ access, preview = false }: { access: GuideAccess; pr
                 </div>
               ))}
             </dl>
+          </Part>
+
+          <Part id="guida-operazioni">
+            <p className={styles.lead}>
+              Dove si fa e quale pulsante premere. Accanto c’è chi lo fa di solito.
+            </p>
+            <ul className={styles.ops}>
+              {OPERATIONS.map((operation) => (
+                <li key={operation.title}>
+                  <p className={styles.rowHead}>
+                    <Link href={operation.href} prefetch={false} className={styles.opLink}>
+                      {operation.title}
+                    </Link>
+                    {operation.who && <span className={styles.who}>di solito {operation.who}</span>}
+                  </p>
+                  <p className={styles.rowText}>{operation.text}</p>
+                </li>
+              ))}
+            </ul>
           </Part>
 
           <Part id="guida-partner">
