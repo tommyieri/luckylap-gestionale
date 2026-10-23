@@ -138,6 +138,7 @@
   display: inline-flex;
   align-items: center;
   min-height: var(--tap);
+  min-width: var(--tap);
   color: var(--ink);
   font-family: var(--f-cond);
   font-size: 20px;

@@ -11,6 +11,7 @@ import {
   formatRomeDateTime,
   type TeamSnapshot,
 } from "../lib/team/model";
+import { PartnerRefText } from "./partner-ref-text";
 import { TeamCalendar } from "./team-calendar";
 import { DeleteTeamForm, NewNoteForm, NewTaskForm, ToggleTaskForm } from "./team-workspace-forms";
 import styles from "./team-workspace.module.css";
@@ -119,7 +120,11 @@ export function TeamWorkspace({
                         Scadenza: <time dateTime={task.dueAt}>{formatRomeDate(task.dueAt)}</time>
                       </p>
                     )}
-                    {task.description && <p className={styles.bodyText}>{task.description}</p>}
+                    {task.description && (
+                      <p className={styles.bodyText}>
+                        <PartnerRefText text={task.description} />
+                      </p>
+                    )}
                     <div className={styles.itemActions}>
                       <ToggleTaskForm task={task} />
                       <DeleteTeamForm table="tasks" id={task.id} title={task.title} />
