@@ -36,7 +36,7 @@ azione delete: nessun values; non ammessa per payment e refund
 azione restore: restore_version
 ```
 
-Dal 23 ottobre 2026 (`20261023140200_finance_fixes.sql`) `delete` su `payment` o `refund` risponde `finance_movement_delete_not_allowed` (`22023`): incassi delle vendite e rimborsi Shopify si correggono e si ripristinano, ma si annullano in Vendite («Annulla registrazione» o «Registra reso»). Una ricevuta già scritta prima della regola si recupera ancora. La motivazione resta obbligatoria nel database (vincolo della tabella); nell'app è facoltativa e, se vuota, diventa «Correzione», «Eliminazione» o «Ripristino» (`financeRevisionReason`).
+Dal 23 ottobre 2026 (`20261023125727_finance_fixes.sql`) `delete` su `payment` o `refund` risponde `finance_movement_delete_not_allowed` (`22023`): incassi delle vendite e rimborsi Shopify si correggono e si ripristinano, ma si annullano in Vendite («Annulla registrazione» o «Registra reso»). Una ricevuta già scritta prima della regola si recupera ancora. La motivazione resta obbligatoria nel database (vincolo della tabella); nell'app è facoltativa e, se vuota, diventa «Correzione», «Eliminazione» o «Ripristino» (`financeRevisionReason`).
 
 I nomi esatti dei campi e i DTO si trovano in `src/lib/finance-revisions/model.ts`. Il payload viene normalizzato e associato in modo persistente a UUID, utente e hash del contenuto. Un retry con lo stesso tentativo recupera la ricevuta; UUID riusato con utente o dati diversi è un conflitto. La verifica del permesso Finance precede anche il recupero della ricevuta e viene ripetuta dopo l’attesa sui lock.
 
