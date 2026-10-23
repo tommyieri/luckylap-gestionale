@@ -131,6 +131,10 @@
   font-weight: 600;
   font-variant-numeric: tabular-nums;
 }
+.amount small {
+  white-space: normal;
+  font-weight: 400;
+}
 .badge {
   display: inline-block;
   border: 1px solid var(--rule);

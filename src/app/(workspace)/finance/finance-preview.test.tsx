@@ -25,6 +25,10 @@ vi.mock("@/lib/finance/server", () => ({ loadFinanceImports: vi.fn() }));
 vi.mock("@/lib/finance-work/server", () => ({ readFinanceWork: vi.fn() }));
 vi.mock("@/lib/finance/dashboard-server", () => ({ readDashboardSettlements: vi.fn() }));
 vi.mock("@/lib/finance-revisions/context-server", () => ({ loadFinanceRevisionContext: vi.fn() }));
+vi.mock("@/lib/finance-revisions/names-server", () => ({
+  readFinanceProfileNames: () =>
+    Promise.resolve({ ["91000000-0000-4000-8000-000000000001"]: "Membro sintetico" }),
+}));
 vi.mock("@/lib/auth/model", () => import("../../../lib/auth/model"));
 vi.mock("@/lib/runtime", () => import("../../../lib/runtime"));
 vi.mock("@/lib/finance/model", () => import("../../../lib/finance/model"));

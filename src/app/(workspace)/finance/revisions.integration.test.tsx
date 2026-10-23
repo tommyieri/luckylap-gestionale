@@ -60,6 +60,10 @@ vi.mock("@/lib/finance-revisions/shop-payment-server", () => ({
   loadShopPaymentFinanceHistory: mocks.history,
 }));
 vi.mock("@/lib/finance-revisions/model", () => import("../../../lib/finance-revisions/model"));
+vi.mock("@/lib/finance-revisions/names-server", () => ({
+  readFinanceProfileNames: () =>
+    Promise.resolve({ ["91000000-0000-4000-8000-000000000001"]: "Membro sintetico" }),
+}));
 vi.mock("@/lib/team/read", () => ({ readTeamPages: () => Promise.resolve([]) }));
 vi.mock("@/lib/runtime", () => ({ isLocalPreviewEnabled: mocks.preview }));
 vi.mock("@/lib/supabase/config", () => ({ getSupabasePublicConfig: () => ({}) }));
@@ -118,6 +122,7 @@ describe("callsite e gate Finance con revisioni", () => {
     expect(overview.props.revisionHeads).toBe(context.heads);
     expect(overview.props.revisionOriginals).toBe(context.originals);
     expect(overview.props.deletedShopPayments).toEqual([]);
+    expect(overview.props.names).toEqual({ [id]: "Membro sintetico" });
     const registry = opened(await FinanceWorkPage());
     expect(registry.props.revisionHeads).toBe(context.heads);
   });

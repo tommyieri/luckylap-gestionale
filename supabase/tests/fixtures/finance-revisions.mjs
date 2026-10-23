@@ -65,6 +65,7 @@ export async function setupRevisionDatabase(db) {
     "area_passwords",
     "shopify_sales_core",
     "finance_revisions",
+    "finance_fixes",
   ];
   // Apply chronology, including the unchanged production Finance/session helpers.
   const names = readdirSync(directory)

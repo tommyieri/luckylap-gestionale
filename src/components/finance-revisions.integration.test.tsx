@@ -91,6 +91,7 @@ describe("revisioni nei punti effettivi della UI Finance", () => {
         snapshot={snapshot}
         workSnapshot={work}
         revisionHeads={[head]}
+        names={{ [id]: "Membro sintetico" }}
         reportDate="2026-06-15"
         displayName="Sintetico"
       />,
@@ -98,7 +99,9 @@ describe("revisioni nei punti effettivi della UI Finance", () => {
     expect(html).toContain("100,00 €");
     expect(html).not.toContain("12,34 €");
     expect(html).toContain("Revolut Business");
-    expect(html).toContain("Versione 1");
+    expect(html).toContain(">Modificato<");
+    expect(html).toContain("Modificato da Membro sintetico · 12 giu 2026");
+    expect(html).not.toContain("Corretta");
     expect(html).toContain(`source_kind=budgetflow&amp;source_id=${id}`);
     expect(html).toContain("Modifica / storico");
   });
@@ -113,7 +116,7 @@ describe("revisioni nei punti effettivi della UI Finance", () => {
       />,
     );
     expect(html).toContain("Ripristina / storico");
-    expect(html).toContain("Versione 1");
+    expect(html).toContain("Eliminato da un membro del team · 12 giu 2026");
     expect(html).toContain("Revolut Business");
     flags.deleted = false;
   });

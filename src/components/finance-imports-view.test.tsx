@@ -11,7 +11,8 @@ vi.mock("react", async () => {
 vi.mock("@/lib/finance/model", () => import("../lib/finance/model"));
 vi.mock("@/lib/finance/dashboard", () => import("../lib/finance/dashboard"));
 vi.mock("@/lib/finance/categories", () => import("../lib/finance/categories"));
-import { FinanceImportsView } from "./finance-imports-view";
+import { FinanceImportsView, revisionAuthorLine } from "./finance-imports-view";
+import type { FinanceRevisionRecord } from "../lib/finance-revisions/model";
 import type { FinanceSnapshot } from "../lib/finance/model";
 import type { FinanceWorkSnapshot } from "../lib/finance-work/model";
 import styles from "./finance.module.css";
@@ -276,5 +277,79 @@ describe("Finance overview source separation", () => {
       multipleHtml.indexOf("<h2>Categorie</h2>"),
     );
     expect(chartSection).not.toContain("Export originale");
+  });
+});
+
+describe("movimenti modificati", () => {
+  const head = (sourceId: string, deleted = false): FinanceRevisionRecord => ({
+    id: "96000000-0000-4000-8000-000000000900",
+    operationId: "96000000-0000-4000-8000-000000000901",
+    sourceKind: "budgetflow",
+    sourceId,
+    version: 2,
+    previousVersion: 1,
+    action: deleted ? "delete" : "update",
+    restoredFromVersion: null,
+    values: {
+      date: "2026-06-11",
+      direction: "income",
+      amountCents: 4000,
+      account: "Conto sintetico A",
+      targetAccount: null,
+      category: "Vendite",
+      description: "Entrata sintetica corretta",
+      pending: false,
+    },
+    deleted,
+    reason: "Correzione",
+    createdBy: "96000000-0000-4000-8000-000000000777",
+    // 23:30 UTC is already the next day in Rome.
+    createdAt: "2026-06-12T23:30:00Z",
+  });
+  const render = (names: Record<string, string> = {}) =>
+    renderToStaticMarkup(
+      <FinanceImportsView
+        snapshot={{
+          batches: [],
+          transactions: [
+            transaction(1, { payee: "Entrata sintetica originale" }),
+            transaction(2, { payee: "Entrata sintetica mai toccata" }),
+          ],
+        }}
+        revisionHeads={[head(transaction(1).id)]}
+        names={names}
+        reportDate="2026-06-15"
+        displayName="Sintetico"
+      />,
+    );
+
+  it("il filtro «Modificati» sta accanto agli altri e mostra solo le righe corrette", () => {
+    const options = render().match(/<option value="(\w+)"[^>]*>([^<]+)<\/option>/g) ?? [];
+    expect(options.join("")).toContain('<option value="edited">Modificati</option>');
+    expect(options.join("")).toContain("Eliminati · recuperabili");
+    view.filter = "edited";
+    const rows = movementRows(movementTable(render()));
+    expect(rows).toHaveLength(1);
+    expect(rows[0]).toContain("Entrata sintetica corretta");
+    expect(rows[0]).not.toContain("mai toccata");
+  });
+
+  it("una riga corretta dice chi l’ha modificata e quando, con il giorno di Roma", () => {
+    view.filter = "all";
+    const rows = movementRows(
+      movementTable(render({ "96000000-0000-4000-8000-000000000777": "Gherardo sintetico" })),
+    );
+    const edited = rows.find((row) => row.includes("Entrata sintetica corretta"))!;
+    expect(edited).toContain(">Modificato<");
+    expect(edited).toContain("Modificato da Gherardo sintetico · 13 giu 2026");
+    expect(edited).not.toContain("Corretta");
+    const untouched = rows.find((row) => row.includes("mai toccata"))!;
+    expect(untouched).not.toContain("Modificato");
+    expect(
+      revisionAuthorLine(
+        { version: 2, id: "z", deleted: true, actorId: "y", occurredAt: head("x").createdAt },
+        {},
+      ),
+    ).toBe("Eliminato da un membro del team · 13 giu 2026");
   });
 });

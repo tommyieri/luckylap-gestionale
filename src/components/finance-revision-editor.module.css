@@ -75,7 +75,18 @@
   min-height: 0;
 }
 .reason {
-  margin: 20px 0;
+  margin: 20px 0 8px;
+}
+.help {
+  margin: 0 0 20px;
+  color: var(--muted);
+  font-size: var(--text-sm);
+}
+.notice p + p {
+  margin-top: 8px;
+}
+.notice .undoAction {
+  margin-top: 12px;
 }
 .actions {
   display: flex;
@@ -112,7 +123,8 @@
   .fields {
     grid-template-columns: minmax(0, 1fr);
   }
-  .actions > * {
+  .actions > *,
+  .undoAction > * {
     width: 100%;
   }
   .versionHead {

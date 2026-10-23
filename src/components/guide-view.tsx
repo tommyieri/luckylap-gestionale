@@ -513,8 +513,14 @@ export function GuideView({ access, preview = false }: { access: GuideAccess; pr
                 <p>
                   In Panoramica e in Registrazioni ogni movimento ha «Modifica / storico». Lì
                   correggi i dati con «Salva correzione», lo elimini o torni a una versione di prima
-                  dallo storico. Serve sempre una motivazione, e lo storico dice chi ha cambiato
-                  cosa e quando.
+                  dallo storico. La motivazione è facoltativa: lo storico dice comunque chi ha
+                  cambiato cosa e quando. In Panoramica lo stato «Modificati» mostra i movimenti
+                  corretti.
+                </p>
+                <p>
+                  Gli incassi delle vendite e i rimborsi Shopify non si eliminano da Finance: si
+                  correggono soltanto. Se la vendita è sbagliata, annullala in Vendite con «Annulla
+                  registrazione», oppure registra il reso con «Registra reso».
                 </p>
                 <p>
                   Un movimento eliminato esce dai saldi ma non si perde: in Panoramica scegli lo

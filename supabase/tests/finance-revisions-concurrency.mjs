@@ -245,17 +245,11 @@ try {
   );
   await a.query("commit");
   evidence.cases.push("two residual payments: one success, one rejected, exact retry");
-  // Revision and new collection share the aggregate row lock.
+  // Revision and new collection share the aggregate row lock. A sale payment
+  // cannot be deleted from Finance: a correction to zero opens the residual.
   await begin(a);
   await begin(b, "logistics");
-  await rev(a, {
-    schema_version: 1,
-    source_kind: "payment",
-    source_id: sourceIds.payment,
-    expected_version: 1,
-    action: "delete",
-    reason: "Synthetic concurrent deletion",
-  });
+  await rev(a, payload("payment", { expected_version: 1, values: values({ amount_cents: 0 }) }));
   const afterDelete = caught(payment(b, randomUUID(), 5000, occurred));
   await blocks(owner, pb, pa);
   await a.query("commit");
@@ -286,7 +280,7 @@ try {
     "10000",
     "restore exposes overpayment after further collection",
   );
-  evidence.cases.push("delete/collection serialize; restore exposes overpayment");
+  evidence.cases.push("correction/collection serialize; restore exposes overpayment");
   // Corrected old consignment residual is serialized by the original sale row.
   await begin(a);
   await rev(a, payload("consignment_settlement", { values: values({ amount_cents: 500 }) }));
