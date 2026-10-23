@@ -3,6 +3,7 @@ import type { SupabaseClient } from "@supabase/supabase-js";
 import type { VerifiedMember } from "../auth/model";
 import { verifiedMember } from "../auth/server";
 import { verifiedSensitiveAccess } from "../auth/sensitive-access";
+import { withCurrentShopPaymentStates } from "../finance-revisions/shop-payment-states";
 import { stockRecord as record, stockUuid as uuid } from "../stock/model";
 import { consignmentPages } from "./read";
 import {
@@ -109,7 +110,17 @@ export async function readConsignmentShops(
   return {
     status: "ready",
     canFinance,
-    list: shopsFromRows({ settings, shops, locations, availability, reports, openOrders }, now),
+    list: shopsFromRows(
+      {
+        settings,
+        shops,
+        locations,
+        availability,
+        reports: await withCurrentShopPaymentStates(supabase, reports),
+        openOrders,
+      },
+      now,
+    ),
   };
 }
 
@@ -256,7 +267,7 @@ export async function readConsignmentShop(
       ? pages(
           supabase,
           "consignment_report_payments",
-          "id,report_id,location_id,amount_cents,paid_at,method,account_label,reference,voided,version",
+          "id,report_id,location_id,amount_cents,paid_at,method,account_label,reference,voided,version,finance_direction,finance_category,finance_description,finance_pending",
           "id",
           own,
         )
@@ -284,7 +295,7 @@ export async function readConsignmentShop(
       catalog,
       availability: [...shopAvailability, ...supplyAvailability],
       counts,
-      reports,
+      reports: await withCurrentShopPaymentStates(supabase, reports),
       reportLines,
       reportRevisions,
       orders,
@@ -374,6 +385,9 @@ export const SHOP_MESSAGES: Record<string, Message> = {
   ),
   order_not_open: fixed("L’ordine non è più aperto. Rileggi la pagina."),
   payment_exceeds_invoice: fixed("Il pagamento supera l’importo ancora da incassare."),
+  effective_payment_limit: fixed(
+    "La correzione supera il limite degli importi gestibili. Verifica il pagamento.",
+  ),
   payment_not_found: fixed("Questo pagamento non c’è più. Rileggi la pagina."),
   shop_not_empty: fixed("Il negozio ha ancora magliette, ordini aperti o resoconti da pagare."),
 };
@@ -466,7 +480,9 @@ function receiptTarget(command: ShopCommand, r: Record<string, unknown>): ShopTa
         ? { paymentId: op, reportId: command.payload.report_id, version: 1 }
         : null;
     case "update_consignment_payment":
-      return r.payment_id === command.payload.payment_id && uuid(r.report_id) && isInt(r.version, 2)
+      return r.payment_id === command.payload.payment_id &&
+        uuid(r.report_id) &&
+        r.version === command.payload.expected_version + 1
         ? { paymentId: command.payload.payment_id, reportId: r.report_id, version: r.version }
         : null;
     case "save_consignment_order": {

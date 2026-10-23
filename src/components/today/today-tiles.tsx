@@ -26,7 +26,7 @@ const longDay = new Intl.DateTimeFormat("it-IT", {
 });
 const plural = (count: number, one: string, many: string) => (count === 1 ? one : many);
 
-function TileFrame({
+export function TileFrame({
   id,
   title,
   link,
@@ -56,7 +56,7 @@ function TileFrame({
   );
 }
 
-function TileProblem({ text }: { text: string }) {
+export function TileProblem({ text }: { text: string }) {
   return (
     <div className={styles.problem} role="alert">
       <p>{text}</p>
@@ -70,6 +70,21 @@ const TILES = {
     id: "oggi-agenda",
     title: "Agenda",
     link: { href: "/team#calendario", label: "Apri il calendario" },
+  },
+  partner: {
+    id: "oggi-partner",
+    title: "Contatti e solleciti",
+    link: { href: "/partner", label: "Apri Partner" },
+  },
+  preparation: {
+    id: "oggi-ordini",
+    title: "Ordini da preparare",
+    link: { href: "/sales", label: "Apri Vendite" },
+  },
+  consignment: {
+    id: "oggi-conto-vendita",
+    title: "Conto vendita da regolare",
+    link: { href: "/finance", label: "Apri Finance" },
   },
   stock: {
     id: "oggi-magazzino",
@@ -109,10 +124,15 @@ export function PreviewTile({ tile }: { tile: TileName }) {
 
 function EventRow({ item, day }: { item: AgendaEvent; day: string }) {
   const { event } = item;
-  const endsToday = romeDay(new Date(event.endsAt)) === day;
-  const until = endsToday
-    ? `fino alle ${romeTime(event.endsAt)}`
-    : `fino al ${longDay.format(new Date(event.endsAt))}`;
+  const inclusiveEnd = new Date(Date.parse(event.endsAt) - (event.details.allDay ? 1 : 0));
+  const endsToday = romeDay(inclusiveEnd) === day;
+  const until = event.details.allDay
+    ? endsToday
+      ? "Tutto il giorno"
+      : `Tutto il giorno · fino al ${longDay.format(inclusiveEnd)}`
+    : endsToday
+      ? `fino alle ${romeTime(event.endsAt)}`
+      : `fino al ${longDay.format(new Date(event.endsAt))}`;
   return (
     <li className={roadbook.row}>
       <div className={roadbook.spine}>
@@ -121,7 +141,9 @@ function EventRow({ item, day }: { item: AgendaEvent; day: string }) {
         ) : (
           <span className={roadbook.box}>Oggi</span>
         )}
-        {item.now && <span className={`${roadbook.box} ${roadbook.isNow}`}>Adesso</span>}
+        {item.now && !event.details.allDay && (
+          <span className={`${roadbook.box} ${roadbook.isNow}`}>Adesso</span>
+        )}
       </div>
       <div className={roadbook.body}>
         <Link href={`/team#evento-${event.id}`} prefetch={false} className={roadbook.rowLink}>
@@ -235,7 +257,7 @@ export async function StockTile({ supabase }: { supabase: SupabaseClient }) {
       key: "esaurite",
       value: esaurite,
       title: plural(esaurite, "Variante esaurita", "Varianti esaurite"),
-      meta: "Giacenza zero nel magazzino centrale, su varianti attive.",
+      meta: "Giacenza zero nel Magadzino, su varianti attive.",
     });
   if (daContare > 0)
     rows.push({

@@ -15,6 +15,8 @@ import {
   FinanceAccountCategoryFields,
 } from "./finance-work-form";
 import styles from "./finance-work.module.css";
+import type { FinanceRevisionRecord } from "../lib/finance-revisions/model";
+import { FinanceMovementActions } from "./finance-movement-actions";
 const short = (value: string) => value.slice(0, 8).toUpperCase();
 const timestamp = (value: string) =>
   new Intl.DateTimeFormat("it-IT", {
@@ -36,6 +38,7 @@ export function FinanceWorkView({
   today,
   readOnly = false,
   consignment,
+  revisionHeads = [],
 }: {
   snapshot: FinanceWorkSnapshot;
   userId: string;
@@ -45,6 +48,7 @@ export function FinanceWorkView({
   readOnly?: boolean;
   /** Pannello «Conto vendita · da incassare», reso dalla pagina sul server. */
   consignment?: ReactNode;
+  revisionHeads?: FinanceRevisionRecord[];
 }) {
   const [query, setQuery] = useState(""),
     [filter, setFilter] = useState("all"),
@@ -52,11 +56,33 @@ export function FinanceWorkView({
   const declaredPayments = snapshot.payments.filter((p) => p.source === "manual_declaration");
   const sales = snapshot.facts.filter((f) => f.kind === "sale_observed"),
     cancellations = snapshot.facts.filter((f) => f.kind === "sale_cancellation_observed");
-  const filtered = snapshot.entries.filter(
+  const entries = snapshot.entries.map((entry) => {
+    const head = revisionHeads.find(
+      (row) => row.sourceKind === "manual" && row.sourceId === entry.id,
+    );
+    const values = head?.values;
+    return {
+      ...entry,
+      ...(values
+        ? {
+            date: values.date,
+            type: values.direction,
+            cents: values.amountCents,
+            description: values.description,
+            account: values.account,
+            category: values.category,
+          }
+        : {}),
+      deleted: head?.deleted ?? entry.void !== null,
+      pending: values?.pending ?? false,
+      revisionVersion: head?.version ?? 0,
+    };
+  });
+  const filtered = entries.filter(
     (entry) =>
       (filter === "all" ||
-        (filter === "voided" && entry.void !== null) ||
-        (filter === "active" && entry.void === null)) &&
+        (filter === "voided" && entry.deleted) ||
+        (filter === "active" && !entry.deleted)) &&
       `${entry.description} ${entry.account ?? ""} ${entry.category ?? ""}`
         .toLocaleLowerCase("it")
         .includes(query.toLocaleLowerCase("it")),
@@ -82,10 +108,7 @@ export function FinanceWorkView({
           IVA o saldi bancari automatici.
         </p>
       </div>
-      <FinanceWorkRecovery
-        userId={userId}
-        activeScopes={["record", ...visible.map((entry) => `void:${entry.id}`)]}
-      />
+      <FinanceWorkRecovery userId={userId} activeScopes={["record"]} />
       <div className={styles.metrics}>
         <div>
           <span>Vendite osservate</span>
@@ -101,7 +124,7 @@ export function FinanceWorkView({
         </div>
         <div>
           <span>Voci manuali attive</span>
-          <strong>{snapshot.entries.filter((entry) => !entry.void).length}</strong>
+          <strong>{entries.filter((entry) => !entry.deleted).length}</strong>
         </div>
       </div>
       <FactSection
@@ -116,8 +139,8 @@ export function FinanceWorkView({
           <span>{declaredPayments.length} dichiarazioni</span>
         </div>
         <p className={styles.caption}>
-          Pagamenti dichiarati dai collaboratori, senza verifica del gateway o dell’accredito
-          bancario. Il fatto Finance collegato non viene mostrato come secondo incasso.
+          Valori originali dichiarati dai collaboratori. Le correzioni efficaci sono nei movimenti
+          Finance; qui la fonte resta consultabile con il suo storico.
         </p>
         {!declaredPayments.length ? (
           <p className={styles.empty}>Nessun incasso dichiarato dagli ordini.</p>
@@ -130,6 +153,7 @@ export function FinanceWorkView({
                   <th>Ordine</th>
                   <th>Metodo / riferimento</th>
                   <th>Importo dichiarato</th>
+                  <th>Correzioni</th>
                 </tr>
               </thead>
               <tbody>
@@ -144,6 +168,13 @@ export function FinanceWorkView({
                       <small>{payment.reference || "Riferimento non fornito"}</small>
                     </td>
                     <td className={styles.amount}>{centsLabel(payment.cents)}</td>
+                    <td>
+                      <FinanceMovementActions
+                        source="payment"
+                        sourceId={payment.id}
+                        readOnly={readOnly}
+                      />
+                    </td>
                   </tr>
                 ))}
               </tbody>
@@ -151,7 +182,7 @@ export function FinanceWorkView({
           </div>
         )}
       </section>
-      <ShopifyMoneySections snapshot={snapshot} />
+      <ShopifyMoneySections snapshot={snapshot} readOnly={readOnly} />
       <FactSection
         title="Annulli commerciali"
         description="Valore annullato sull’ordine. L’annullo non esegue un rimborso e non prova che sia avvenuto un reso fisico."
@@ -205,8 +236,8 @@ export function FinanceWorkView({
               </span>
             </label>
             <p className={styles.help}>
-              Le date future sono promemoria, non movimenti avvenuti. Per correggere una voce,
-              annullala con una causale e registra quella corretta: l’originale resta consultabile.
+              Le date future sono promemoria, non movimenti avvenuti. Ogni voce si corregge dal suo
+              storico, conservando la fonte e le versioni precedenti.
             </p>
           </FinanceWorkForm>
         </div>
@@ -239,8 +270,8 @@ export function FinanceWorkView({
               }}
             >
               <option value="all">Tutte le voci</option>
-              <option value="active">Non annullate</option>
-              <option value="voided">Annullate</option>
+              <option value="active">Attive</option>
+              <option value="voided">Eliminate · recuperabili</option>
             </select>
           </label>
         </div>
@@ -291,7 +322,13 @@ function OrderLink({ id, snapshot }: { id: string; snapshot: FinanceWorkSnapshot
     </Link>
   );
 }
-function ShopifyMoneySections({ snapshot }: { snapshot: FinanceWorkSnapshot }) {
+function ShopifyMoneySections({
+  snapshot,
+  readOnly,
+}: {
+  snapshot: FinanceWorkSnapshot;
+  readOnly: boolean;
+}) {
   const received = snapshot.payments.filter((p) => p.source === "shopify_observation");
   const amount = (value: number | null) => (value === null ? "Da verificare" : centsLabel(value));
   return (
@@ -315,6 +352,7 @@ function ShopifyMoneySections({ snapshot }: { snapshot: FinanceWorkSnapshot }) {
                   <th>Ordine / fonte</th>
                   <th>Riferimento tecnico</th>
                   <th>Importo osservato</th>
+                  <th>Correzioni</th>
                 </tr>
               </thead>
               <tbody>
@@ -334,6 +372,13 @@ function ShopifyMoneySections({ snapshot }: { snapshot: FinanceWorkSnapshot }) {
                     </td>
                     <td>{p.reference}</td>
                     <td className={styles.amount}>{centsLabel(p.cents)}</td>
+                    <td>
+                      <FinanceMovementActions
+                        source="payment"
+                        sourceId={p.id}
+                        readOnly={readOnly}
+                      />
+                    </td>
                   </tr>
                 ))}
               </tbody>
@@ -361,6 +406,7 @@ function ShopifyMoneySections({ snapshot }: { snapshot: FinanceWorkSnapshot }) {
                   <th>Ordine</th>
                   <th>Riferimento tecnico</th>
                   <th>Importo rimborsato</th>
+                  <th>Correzioni</th>
                 </tr>
               </thead>
               <tbody>
@@ -372,6 +418,9 @@ function ShopifyMoneySections({ snapshot }: { snapshot: FinanceWorkSnapshot }) {
                     </td>
                     <td>{r.transactionGid}</td>
                     <td className={styles.amount}>{centsLabel(r.cents)}</td>
+                    <td>
+                      <FinanceMovementActions source="refund" sourceId={r.id} readOnly={readOnly} />
+                    </td>
                   </tr>
                 ))}
               </tbody>
@@ -578,7 +627,7 @@ function ManualEntryCard({
   userId,
   readOnly,
 }: {
-  entry: ManualEntry;
+  entry: ManualEntry & { deleted: boolean; pending: boolean; revisionVersion: number };
   userId: string;
   readOnly: boolean;
 }) {
@@ -593,7 +642,12 @@ function ManualEntryCard({
           </span>
         </div>
         <div className={styles.entrySummary}>
-          <span className={styles.badge}>{entry.void ? "Annullata" : "Da classificare"}</span>
+          <span className={styles.badge}>
+            {entry.deleted ? "Eliminata" : entry.pending ? "Pending" : "Attiva"}
+            {entry.revisionVersion > 0
+              ? ` · Versione ${entry.revisionVersion}`
+              : " · Fonte originale"}
+          </span>
           <strong>{centsLabel(entry.cents)}</strong>
         </div>
       </summary>
@@ -622,28 +676,17 @@ function ManualEntryCard({
         </dl>
         {entry.void && (
           <div className={styles.notice}>
-            <strong>Annullata il {timestamp(entry.void.createdAt)}</strong>
+            <strong>Annullamento della fonte originale il {timestamp(entry.void.createdAt)}</strong>
             <p>{entry.void.reason}</p>
             <p>L’importo originale è conservato; l’annullo non esegue un movimento bancario.</p>
           </div>
         )}
-        <FinanceWorkForm
-          userId={userId}
-          scope={`void:${entry.id}`}
-          kind="void_finance_entry"
-          disabled={entry.void !== null || readOnly}
-          label="Annulla questa dichiarazione"
-          build={(form) => ({ schema_version: 1, entry_id: entry.id, reason: form.get("reason") })}
-        >
-          <label>
-            Causale di annullamento
-            <textarea name="reason" minLength={3} maxLength={500} rows={2} required />
-          </label>
-          <p className={styles.help}>
-            L’annullamento conserva questa voce. Registra poi separatamente la dichiarazione
-            corretta, dopo aver verificato le altre fonti.
-          </p>
-        </FinanceWorkForm>
+        <FinanceMovementActions
+          source="manual"
+          sourceId={entry.id}
+          readOnly={readOnly}
+          deleted={entry.deleted}
+        />
       </div>
     </details>
   );

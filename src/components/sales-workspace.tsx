@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, type ReactNode } from "react";
+import { useEffect, useState, type ReactNode } from "react";
 import type { VerifiedMember } from "@/lib/auth/model";
 import {
   money,
@@ -21,6 +21,11 @@ import {
 import { SalesCommandForm } from "./sales-command-form";
 import { NewSaleFields, PaymentMethodField, SaleTimeField } from "./sales-new-sale";
 import { SalesPendingRecovery } from "./sales-pending-recovery";
+import {
+  listenForSalesOrderLinks,
+  salesOrderDestination,
+  SALES_ORDER_PAGE_SIZE,
+} from "../lib/sales/navigation";
 import styles from "./sales-workspace.module.css";
 
 const observedPaymentLabel: Record<string, string> = {
@@ -30,6 +35,29 @@ const observedPaymentLabel: Record<string, string> = {
   partially_refunded: "Rimborso parziale Shopify",
   refunded: "Rimborsata su Shopify",
 };
+const declaredPaymentLabel: Record<string, string> = {
+  unpaid: "Da incassare",
+  partially_paid: "Incasso parziale dichiarato",
+  paid: "Incasso dichiarato",
+  partially_refunded: "Rimborso parziale dichiarato",
+  refunded: "Rimborso dichiarato",
+};
+const remainingToCollect = (order: SalesOrder): number | null =>
+  typeof order.effectiveAmountDueCents === "number"
+    ? order.effectiveAmountDueCents
+    : isExternalSalesOrder(order)
+      ? null
+      : ["paid", "refunded"].includes(order.paymentState)
+        ? 0
+        : order.totalCents - order.cancelledCents;
+function hasCollectionDue(order: SalesOrder): boolean {
+  if (order.orderState === "cancelled") return false;
+  const amount = remainingToCollect(order);
+  return amount === null
+    ? !order.paymentCorrected &&
+        ["unpaid", "partially_paid"].includes(order.sourcePaymentState ?? order.paymentState)
+    : amount > 0;
+}
 const fulfillmentLabel: Record<string, string> = {
   unfulfilled: "Da preparare",
   partial: "Consegna parziale",
@@ -58,6 +86,19 @@ export function SalesWorkspace({
   const [search, setSearch] = useState(""),
     [filter, setFilter] = useState("all"),
     [page, setPage] = useState(0);
+  const [linkedOrder, setLinkedOrder] = useState<{ id: string } | null>(null);
+  useEffect(
+    () =>
+      listenForSalesOrderLinks((hash) => {
+        const destination = salesOrderDestination(snapshot.orders, hash);
+        if (!destination) return;
+        setSearch("");
+        setFilter("all");
+        setPage(destination.page);
+        setLinkedOrder({ id: destination.orderId });
+      }),
+    [snapshot.orders],
+  );
   const waiting = snapshot.requirements.filter(
     (row) => row.required > row.completed + row.cancelled,
   );
@@ -65,14 +106,21 @@ export function SalesWorkspace({
     (order) =>
       (filter !== "open" ||
         !["fulfilled", "cancelled"].includes(order.fulfillmentState) ||
-        (["unpaid", "partially_paid"].includes(order.paymentState) &&
-          order.orderState !== "cancelled")) &&
+        hasCollectionDue(order)) &&
       `${order.id} ${order.reference ?? ""} ${order.lines.map((line) => line.sku).join(" ")}`
         .toLocaleLowerCase("it")
         .includes(search.toLocaleLowerCase("it")),
   );
-  const pageCount = Math.max(1, Math.ceil(filtered.length / 20)),
+  const pageCount = Math.max(1, Math.ceil(filtered.length / SALES_ORDER_PAGE_SIZE)),
     currentPage = Math.min(page, pageCount - 1);
+  useEffect(() => {
+    if (!linkedOrder) return;
+    const target = document.getElementById(`order-${linkedOrder.id}`);
+    if (target instanceof HTMLDetailsElement) {
+      target.open = true;
+      target.scrollIntoView({ block: "start", behavior: "instant" });
+    }
+  }, [linkedOrder, currentPage]);
   const activeAvailability = snapshot.availability;
   const ready = activeAvailability.some((row) => row.onHand === null)
     ? null
@@ -89,9 +137,7 @@ export function SalesWorkspace({
         ...(order.lines.some((line) => line.quantity > line.fulfilled + line.cancelled)
           ? [`fulfill:${order.id}`, `cancel:${order.id}`]
           : []),
-        ...(order.paymentState === "unpaid" && order.orderState !== "cancelled"
-          ? [`payment:${order.id}`]
-          : []),
+        ...(hasCollectionDue(order) ? [`payment:${order.id}`] : []),
       ]),
   ];
   return (
@@ -178,6 +224,7 @@ export function SalesWorkspace({
               type="search"
               value={search}
               onChange={(event) => {
+                setLinkedOrder(null);
                 setSearch(event.target.value);
                 setPage(0);
               }}
@@ -189,6 +236,7 @@ export function SalesWorkspace({
             <select
               value={filter}
               onChange={(event) => {
+                setLinkedOrder(null);
                 setFilter(event.target.value);
                 setPage(0);
               }}
@@ -212,15 +260,18 @@ export function SalesWorkspace({
           </div>
         ) : (
           <div>
-            {filtered.slice(currentPage * 20, currentPage * 20 + 20).map((order) => (
-              <OrderCard
-                key={order.id}
-                order={order}
-                snapshot={snapshot}
-                member={member}
-                now={now}
-              />
-            ))}
+            {filtered
+              .slice(currentPage * SALES_ORDER_PAGE_SIZE, (currentPage + 1) * SALES_ORDER_PAGE_SIZE)
+              .map((order) => (
+                <OrderCard
+                  key={order.id}
+                  order={order}
+                  snapshot={snapshot}
+                  member={member}
+                  now={now}
+                  opened={linkedOrder?.id === order.id}
+                />
+              ))}
           </div>
         )}
         <div className={styles.pagination}>
@@ -230,14 +281,20 @@ export function SalesWorkspace({
           <button
             className="button button-secondary button-small"
             disabled={currentPage === 0}
-            onClick={() => setPage(currentPage - 1)}
+            onClick={() => {
+              setLinkedOrder(null);
+              setPage(currentPage - 1);
+            }}
           >
             Precedente
           </button>
           <button
             className="button button-secondary button-small"
             disabled={currentPage + 1 >= pageCount}
-            onClick={() => setPage(currentPage + 1)}
+            onClick={() => {
+              setLinkedOrder(null);
+              setPage(currentPage + 1);
+            }}
           >
             Successiva
           </button>
@@ -367,19 +424,21 @@ function OrderCard({
   snapshot,
   member,
   now,
+  opened = false,
 }: {
   order: SalesOrder;
   snapshot: SalesSnapshot;
   member: VerifiedMember;
   now: string;
+  opened?: boolean;
 }) {
   const pendingLines = order.lines.filter(
     (line) => line.quantity > line.fulfilled + line.cancelled,
   );
   const external = isExternalSalesOrder(order);
-  const payable = !external && order.paymentState === "unpaid" && order.orderState !== "cancelled";
+  const payable = !external && hasCollectionDue(order);
   return (
-    <details id={`order-${order.id}`} className={styles.order}>
+    <details id={`order-${order.id}`} className={styles.order} open={opened || undefined}>
       <summary>
         <div>
           <strong>{salesOrderLabel(order)}</strong>
@@ -390,13 +449,11 @@ function OrderCard({
         <div className={styles.orderSummary}>
           <span className={styles.badge}>{fulfillmentLabel[order.fulfillmentState]}</span>
           <span className={styles.badge}>
-            {external
+            {external && !order.paymentCorrected
               ? observedPaymentLabel[order.paymentState]
-              : order.paymentState === "paid"
-                ? "Incasso dichiarato"
-                : order.orderState === "cancelled"
-                  ? "Annullata"
-                  : "Da incassare"}
+              : order.orderState === "cancelled"
+                ? "Annullata"
+                : declaredPaymentLabel[order.paymentState]}
           </span>
           <strong>{money(order.totalCents - order.cancelledCents)}</strong>
         </div>
@@ -413,6 +470,16 @@ function OrderCard({
             <p>Il totale ordine può includere spedizione e imposte oltre al valore dei capi.</p>
           </div>
         )}
+        {order.paymentCorrected && (
+          <div className={styles.notice}>
+            <strong>Incassi rettificati in Finance</strong>
+            <p>
+              Da incassare: {money(remainingToCollect(order))}.{" "}
+              {external &&
+                `Stato osservato su Shopify: ${observedPaymentLabel[order.sourcePaymentState ?? ""] ?? "Da verificare"}.`}
+            </p>
+          </div>
+        )}
         {order.cancelledCents > 0 && (
           <p className={styles.help}>
             Valore originario {money(order.totalCents)} · Annullato {money(order.cancelledCents)} ·
@@ -423,8 +490,8 @@ function OrderCard({
           <div className={styles.notice}>
             <strong>Da rimborsare: {money(order.refundDueCents)}</strong>
             <p>
-              È un importo dovuto dopo l’annullo. Nessun rimborso o movimento di cassa è stato
-              eseguito automaticamente.
+              Il saldo dichiarato supera il valore attuale dell’ordine. Nessun rimborso o movimento
+              di cassa è stato eseguito automaticamente.
             </p>
           </div>
         )}
@@ -573,7 +640,7 @@ function OrderCard({
         )}
         {payable && (
           <details className={styles.payment}>
-            <summary>Registra l’intero incasso</summary>
+            <summary>Registra il saldo da incassare</summary>
             <SalesCommandForm
               userId={member.userId}
               scope={`payment:${order.id}`}
@@ -583,17 +650,13 @@ function OrderCard({
               build={(form) => paymentPayload(form, order.id)}
             >
               <p className={styles.help}>
-                Registra un incasso già avvenuto. Non si esegue alcun addebito. I pagamenti parziali
-                non sono ancora disponibili.
+                Registra un incasso già avvenuto per l’intero saldo residuo. Non si esegue alcun
+                addebito.
               </p>
               <div className={styles.grid}>
                 <label>
                   Importo intero dovuto · €
-                  <input
-                    name="amount"
-                    value={moneyInput(order.totalCents - order.cancelledCents)}
-                    readOnly
-                  />
+                  <input name="amount" value={moneyInput(remainingToCollect(order))} readOnly />
                 </label>
                 <PaymentMethodField />
                 <SaleTimeField now={now} />

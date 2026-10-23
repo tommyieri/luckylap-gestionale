@@ -78,6 +78,10 @@ export type DashboardShopPayment = {
   monthLabel: string;
   /** Il resoconto del mese: lì il pagamento si modifica, con il suo storico. */
   href: string;
+  direction?: "income" | "expense";
+  category?: string | null;
+  description?: string;
+  pending?: boolean;
 };
 /** Fonti in più della dashboard (decisione 14). P4 aggiunge `revisions`. */
 export type FinanceDashboardOptions = {
@@ -243,14 +247,14 @@ export function buildFinanceDashboard(
       source: "shop_payment",
       sourceId: row.id,
       date,
-      cents: workCents(row.cents),
+      cents: workCents(row.cents) * (row.direction === "expense" ? -1n : 1n),
       account,
       targetAccount: null,
-      category: "Vendite",
-      description: [`Resoconto di ${row.monthLabel}`, row.shopName, row.reference]
-        .filter(Boolean)
-        .join(" · "),
-      pending: false,
+      category: row.category === undefined ? "Vendite" : (row.category ?? ""),
+      description:
+        row.description ??
+        [`Resoconto di ${row.monthLabel}`, row.shopName, row.reference].filter(Boolean).join(" · "),
+      pending: row.pending ?? false,
       future: date > reportDate,
       transfer: false,
       allocationNote: account ? null : "Conto dell’incasso conto vendita non attribuito.",

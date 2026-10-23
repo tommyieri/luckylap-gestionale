@@ -42,6 +42,7 @@ const legacy: ConsignmentFinanceSnapshot = {
       shopShareCents: 4400,
       settledCents: 1000,
       remainingCents: 5600,
+      overpaidCents: 0,
     },
   ],
 };

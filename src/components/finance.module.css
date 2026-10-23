@@ -237,6 +237,15 @@
   font-size: var(--text-sm);
   white-space: nowrap;
 }
+.rowActions {
+  margin-top: 8px;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+.rowActions a {
+  font-size: var(--text-sm);
+}
 .rowAccount {
   display: block;
   font-weight: 500;

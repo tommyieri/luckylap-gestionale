@@ -18,6 +18,8 @@ import {
   momentLabel,
   ordersToDeliverLabel,
   paymentStateFor,
+  paymentFinanceFromDatabase,
+  postedShopPaymentCents,
   paymentStateLabel,
   reportStatusLabel,
   romeMonth,
@@ -30,10 +32,12 @@ import {
   type OrderStatus,
   type PaymentMethod,
   type PaymentState,
+  type PaymentFinanceMetadata,
   type ReportLine,
   type ShopTotals,
 } from "./shop-model";
 import { consignmentCountHref, consignmentOrderHref, consignmentShopHref } from "./links";
+import { localReportDate } from "../finance/model";
 
 /*
  * Letture pure del conto vendita: righe del database → istantanee per le pagine.
@@ -206,6 +210,9 @@ export type ShopPaymentRevision = {
   paidAt: string;
   method: PaymentMethod;
   voided: boolean;
+  finance?: PaymentFinanceMetadata;
+  accountLabel?: string | null;
+  reference?: string | null;
 };
 export type ShopPayment = {
   id: string;
@@ -216,6 +223,7 @@ export type ShopPayment = {
   accountLabel: string | null;
   reference: string | null;
   voided: boolean;
+  finance?: PaymentFinanceMetadata;
   version: number;
   /** Dalla prima all'ultima. */
   revisions: ShopPaymentRevision[];
@@ -377,7 +385,7 @@ export function reportHeadFrom(raw: unknown): ReportHead & { raw: Record<string,
   if (
     BigInt(head.brandCents) + BigInt(head.shopCents) !== BigInt(head.grossCents) ||
     (head.invoice && head.invoice.revision > head.revision) ||
-    (head.brandCents === 0 && !["nothing_due", "overpaid"].includes(head.paymentState)) ||
+    (head.brandCents === 0 && !["nothing_due", "overpaid", "unpaid"].includes(head.paymentState)) ||
     (head.brandCents > 0 && head.paymentState === "nothing_due")
   )
     fail();
@@ -851,12 +859,16 @@ export function shopPageFromRows(
           reason: nullable(r.reason, str),
           createdAt: date(r.created_at),
           author: author(r.created_by),
-          amountCents: int(snapshot.amount_cents, 1),
+          amountCents: int(snapshot.amount_cents, 0),
           paidAt: date(snapshot.paid_at),
           method: PAYMENT_METHODS.includes(snapshot.method as PaymentMethod)
             ? (snapshot.method as PaymentMethod)
             : fail(),
           voided: bool(snapshot.voided),
+          finance: paymentFinanceFromDatabase(snapshot) ?? fail(),
+          accountLabel:
+            snapshot.account_label === undefined ? null : nullable(snapshot.account_label, str),
+          reference: snapshot.reference === undefined ? null : nullable(snapshot.reference, str),
         };
       if ((revision.version === 1) !== (revision.reason === null)) fail();
       revisionKeys.push(revision.id);
@@ -871,7 +883,7 @@ export function shopPageFromRows(
         payment: ShopPayment = {
           id: paymentId,
           reportId: id(r.report_id),
-          amountCents: int(r.amount_cents, 1),
+          amountCents: int(r.amount_cents, 0),
           paidAt: date(r.paid_at),
           method: PAYMENT_METHODS.includes(r.method as PaymentMethod)
             ? (r.method as PaymentMethod)
@@ -879,6 +891,7 @@ export function shopPageFromRows(
           accountLabel: nullable(r.account_label, str),
           reference: nullable(r.reference, str),
           voided: bool(r.voided),
+          finance: paymentFinanceFromDatabase(r) ?? fail(),
           version: int(r.version, 1),
           revisions: history,
         };
@@ -895,8 +908,18 @@ export function shopPageFromRows(
     unique(payments.map((p) => p.id));
     for (const report of reports) {
       const paid = payments
-        .filter((p) => p.reportId === report.id && !p.voided)
-        .reduce((sum, p) => sum + BigInt(p.amountCents), 0n);
+        .filter((p) => p.reportId === report.id)
+        .reduce(
+          (sum, p) =>
+            sum + postedShopPaymentCents(p, localReportDate(new Date(loadedAt)) ?? fail()),
+          0n,
+        );
+      if (
+        [paid, BigInt(report.brandCents) - paid].some(
+          (n) => n > BigInt(MAX_CENTS) || n < -BigInt(MAX_CENTS),
+        )
+      )
+        fail();
       if (paymentStateFor(paid, report.brandCents) !== report.paymentState) fail();
     }
     payments.sort(
@@ -1244,7 +1267,7 @@ export type ReportOverview = {
   history: { revision: number; label: string }[];
 };
 export function reportOverview(
-  page: Pick<ShopPage, "items" | "payments">,
+  page: Pick<ShopPage, "items" | "payments"> & { loadedAt?: string },
   report: ShopReport,
 ): ReportOverview {
   const label = (itemId: string) => page.items.find((i) => i.id === itemId)?.label ?? "Maglietta";
@@ -1252,7 +1275,15 @@ export function reportOverview(
     paid =
       payments === null
         ? null
-        : payments.filter((p) => !p.voided).reduce((sum, p) => sum + BigInt(p.amountCents), 0n),
+        : payments.reduce(
+            (sum, p) =>
+              sum +
+              postedShopPaymentCents(
+                p,
+                localReportDate(new Date(page.loadedAt ?? Date.now())) ?? fail(),
+              ),
+            0n,
+          ),
     due = BigInt(report.brandCents);
   const invoice = report.invoice
     ? {
@@ -1406,8 +1437,11 @@ export function shopReminders(page: ShopPage, now: Date | string): ShopReminder[
       });
     if (report.paymentState === "overpaid") {
       const paid = page.payments
-        ?.filter((p) => p.reportId === report.id && !p.voided)
-        .reduce((sum, p) => sum + BigInt(p.amountCents), 0n);
+        ?.filter((p) => p.reportId === report.id)
+        .reduce(
+          (sum, p) => sum + postedShopPaymentCents(p, localReportDate(new Date(now)) ?? fail()),
+          0n,
+        );
       reminders.push({
         key: `overpaid:${report.month}`,
         tone: "warning",

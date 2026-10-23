@@ -1,5 +1,9 @@
 import "server-only";
 import type { SupabaseClient } from "@supabase/supabase-js";
+import {
+  readEffectiveSalesPayments,
+  applyEffectiveSalesPayments,
+} from "../finance-revisions/sales-projection";
 import { verifiedMember } from "../auth/server";
 import { parseSalesCommand, record, isUuid, type CommandResult } from "./model";
 import { readSalesPages, salesSnapshotFromRows, type SalesRows } from "./read";
@@ -52,10 +56,18 @@ export async function readSalesWorkspace(supabase: SupabaseClient) {
       return [key, rows];
     }),
   );
+  const snapshot = salesSnapshotFromRows(Object.fromEntries(entries) as SalesRows);
+  if (snapshot.orders.length) {
+    const summaries = await readEffectiveSalesPayments(
+      supabase,
+      snapshot.orders.map((order) => order.id),
+    );
+    snapshot.orders = applyEffectiveSalesPayments(snapshot.orders, summaries);
+  }
   return {
     status: "ready" as const,
     member: access.member,
-    snapshot: salesSnapshotFromRows(Object.fromEntries(entries) as SalesRows),
+    snapshot,
   };
 }
 

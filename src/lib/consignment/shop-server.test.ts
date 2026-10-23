@@ -19,7 +19,16 @@ type Reply = { data: unknown; error: unknown };
 function fakeDb(tables: Record<string, Row[]>, rpcReply: Reply = { data: null, error: null }) {
   const calls: string[] = [];
   const db = {
-    rpc: vi.fn().mockResolvedValue(rpcReply),
+    rpc: vi.fn().mockImplementation(async (name: string, args: { p_report_ids?: string[] }) =>
+      name === "read_consignment_payment_states"
+        ? {
+            data: (tables.consignment_reports ?? [])
+              .filter((r) => args.p_report_ids?.includes(r.id as string))
+              .map((r) => ({ report_id: r.id, payment_state: r.payment_state })),
+            error: null,
+          }
+        : rpcReply,
+    ),
     from: vi.fn((table: string) => {
       calls.push(table);
       const filters: ((r: Row) => boolean)[] = [];
@@ -262,6 +271,7 @@ describe("comandi del conto vendita", () => {
       "below_delivered",
       "order_not_open",
       "payment_exceeds_invoice",
+      "effective_payment_limit",
       "payment_not_found",
       "report_not_found",
       "shop_not_empty",

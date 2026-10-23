@@ -19,12 +19,19 @@ import {
   type FinanceMovement,
 } from "@/lib/finance/dashboard";
 import { FINANCE_CATEGORY_GROUPS } from "@/lib/finance/categories";
+import { revisedFinanceDashboard } from "../lib/finance-revisions/dashboard";
+import type {
+  FinanceRevisionRecord,
+  FinanceRevisionOriginal,
+} from "../lib/finance-revisions/model";
+import type { RevisedMovement } from "../lib/finance-revisions/projection";
+import { FinanceMovementActions } from "./finance-movement-actions";
 import { CONSIGNMENT_FINANCE_ANCHOR, shopPaymentAnchor } from "../lib/consignment/links";
 import type { FinanceWorkSnapshot } from "@/lib/finance-work/model";
 import { FinanceAccountChart, FINANCE_MONTHS, financeAccountColor } from "./finance-account-chart";
 import styles from "./finance.module.css";
 
-type Filter = "all" | "pending" | "future" | "dated" | "unallocated";
+type Filter = "all" | "pending" | "future" | "dated" | "unallocated" | "deleted";
 const sourceLabels = {
   budgetflow: "BudgetFlow",
   manual: "Voce manuale",
@@ -45,7 +52,13 @@ const emptyWork: FinanceWorkSnapshot = {
   shopifyFinancials: [],
   shopifyTransactions: [],
 };
-function Timing({ row }: { row: FinanceMovement }) {
+function Timing({ row, deleted = false }: { row: FinanceMovement; deleted?: boolean }) {
+  if (deleted)
+    return (
+      <span className={styles.badges}>
+        <span className={styles.attention}>Eliminato · recuperabile</span>
+      </span>
+    );
   return (
     <span className={styles.badges}>
       {row.pending && <span className={styles.attention}>Pending</span>}
@@ -62,24 +75,73 @@ export function FinanceImportsView({
   workSnapshot = emptyWork,
   settlements = [],
   shopPayments = [],
+  deletedShopPayments = [],
   consignment,
   reportDate,
+  revisionHeads = [],
+  revisionOriginals = [],
+  readOnly = false,
 }: {
   snapshot: FinanceSnapshot;
   workSnapshot?: FinanceWorkSnapshot;
   settlements?: DashboardSettlement[];
   /** Pagamenti dei resoconti mensili del conto vendita: entrano nei saldi una volta. */
   shopPayments?: DashboardShopPayment[];
+  /** Eliminati recuperabili: esclusi da saldi, grafici e categorie. */
+  deletedShopPayments?: DashboardShopPayment[];
   /** Pannello «Conto vendita · da incassare», reso dalla pagina sul server. */
   consignment?: ReactNode;
   reportDate: string;
+  revisionHeads?: FinanceRevisionRecord[];
+  revisionOriginals?: FinanceRevisionOriginal[];
+  readOnly?: boolean;
   /** Non più mostrato qui: il nome del membro sta nel menu del guscio. */
   displayName: string;
 }) {
   const dashboard = useMemo(
-    () => buildFinanceDashboard(snapshot, workSnapshot, reportDate, { settlements, shopPayments }),
-    [snapshot, workSnapshot, reportDate, settlements, shopPayments],
+    () =>
+      revisedFinanceDashboard(
+        buildFinanceDashboard(snapshot, workSnapshot, reportDate, { settlements, shopPayments }),
+        revisionHeads,
+        revisionOriginals,
+      ),
+    [
+      snapshot,
+      workSnapshot,
+      reportDate,
+      settlements,
+      shopPayments,
+      revisionHeads,
+      revisionOriginals,
+    ],
   );
+  const deletedMovements = [
+    ...dashboard.deletedMovements,
+    ...buildFinanceDashboard({ batches: [], transactions: [] }, emptyWork, reportDate, {
+      shopPayments: deletedShopPayments,
+    }).movements,
+    ...workSnapshot.entries
+      .filter(
+        (entry) =>
+          entry.void &&
+          !revisionHeads.some((head) => head.sourceKind === "manual" && head.sourceId === entry.id),
+      )
+      .map((entry) => ({
+        id: `manual:${entry.id}`,
+        source: "manual" as const,
+        sourceId: entry.id,
+        date: entry.date,
+        cents: BigInt(entry.cents) * (entry.type === "expense" ? -1n : 1n),
+        account: entry.account,
+        targetAccount: null,
+        category: entry.category ?? "",
+        description: entry.description,
+        pending: false,
+        future: entry.date > reportDate,
+        transfer: false,
+        allocationNote: null,
+      })),
+  ] as RevisedMovement<FinanceMovement>[];
   const [year, setYear] = useState(Number(reportDate.slice(0, 4))),
     [month, setMonth] = useState("");
   const [excludedAccounts, setExcludedAccounts] = useState<string[]>([]),
@@ -89,7 +151,7 @@ export function FinanceImportsView({
     [category, setCategory] = useState(""),
     [usePeriod, setUsePeriod] = useState(true),
     [batchId, setBatchId] = useState("");
-  const [selected, setSelected] = useState<FinanceMovement | null>(null);
+  const [selected, setSelected] = useState<RevisedMovement<FinanceMovement> | null>(null);
   const dialogRef = useRef<HTMLDialogElement>(null),
     transactionsRef = useRef<HTMLElement>(null),
     dialogTitle = useId();
@@ -117,7 +179,7 @@ export function FinanceImportsView({
     () => new Map(snapshot.batches.map((batch) => [batch.id, batch])),
     [snapshot.batches],
   );
-  const filtered = dashboard.movements.filter((row) => {
+  const filtered = (filter === "deleted" ? deletedMovements : dashboard.movements).filter((row) => {
     if (
       batchId &&
       (row.source !== "budgetflow" || originalById.get(row.sourceId)?.batchId !== batchId)
@@ -134,6 +196,7 @@ export function FinanceImportsView({
       return false;
     if (
       filter !== "unallocated" &&
+      filter !== "deleted" &&
       row.account &&
       !accountNames.includes(row.account) &&
       (!row.targetAccount || !accountNames.includes(row.targetAccount))
@@ -182,9 +245,15 @@ export function FinanceImportsView({
             <h1>Finance</h1>
             <p>Conti e movimenti del brand, al {formatCalendarDate(reportDate)}.</p>
           </div>
-          <Link href="/finance/work#new-finance-entry" className="button button-primary">
-            Nuova voce
-          </Link>
+          {readOnly ? (
+            <button className="button button-primary" disabled>
+              Nuova voce
+            </button>
+          ) : (
+            <Link href="/finance/work#new-finance-entry" className="button button-primary">
+              Nuova voce
+            </Link>
+          )}
         </div>
         <nav className={styles.financeNav} aria-label="Sezioni Finance">
           {consignment && <a href={`#${CONSIGNMENT_FINANCE_ANCHOR}`}>Conto vendita</a>}
@@ -404,12 +473,23 @@ export function FinanceImportsView({
             </label>
             <label className={styles.select}>
               <span>Stato</span>
-              <select value={filter} onChange={(event) => setFilter(event.target.value as Filter)}>
+              <select
+                value={filter}
+                onChange={(event) => {
+                  const value = event.target.value as Filter;
+                  setFilter(value);
+                  if (value === "deleted") {
+                    setUsePeriod(false);
+                    setBatchId("");
+                  }
+                }}
+              >
                 <option value="dated">Registrati, non pending</option>
                 <option value="all">Tutti gli stati</option>
                 <option value="pending">Pending</option>
                 <option value="future">Data futura, non pending</option>
                 <option value="unallocated">Conto da attribuire</option>
+                <option value="deleted">Eliminati · recuperabili</option>
               </select>
             </label>
             <label className={styles.select}>
@@ -463,9 +543,10 @@ export function FinanceImportsView({
             )}
           </div>
           <p className={styles.tableCaption} role="status">
-            <strong>{filtered.length}</strong> di {dashboard.movements.length} movimenti · Le
-            vendite e i fatti collegati non duplicano gli incassi. Gli importi senza conto rimangono
-            da attribuire.
+            <strong>{filtered.length}</strong> di{" "}
+            {filter === "deleted" ? deletedMovements.length : dashboard.movements.length} movimenti
+            · Le vendite e i fatti collegati non duplicano gli incassi. Gli importi senza conto
+            rimangono da attribuire.
           </p>
           {filtered.length === 0 ? (
             <p className={styles.noResults}>
@@ -504,17 +585,31 @@ export function FinanceImportsView({
                         <span className={styles.rowCategory}>
                           {row.transfer ? "Trasferimento" : row.category || "Senza categoria"}
                         </span>
+                        {row.revision && (
+                          <span className={styles.rowCategory}>
+                            Versione {row.revision.version}
+                            {row.revision.deleted ? " · Eliminato" : " · Corretta"}
+                          </span>
+                        )}
                         {row.targetAccount && (
                           <span className={styles.rowCategory}>→ {row.targetAccount}</span>
                         )}
                         <span className={styles.mobileTiming}>
                           {sourceLabels[row.source]}
-                          <Timing row={row} />
+                          <Timing row={row} deleted={filter === "deleted"} />
                         </span>
+                        <div className={styles.rowActions}>
+                          <FinanceMovementActions
+                            source={row.source}
+                            sourceId={row.sourceId}
+                            readOnly={readOnly}
+                            deleted={filter === "deleted"}
+                          />
+                        </div>
                       </td>
                       <td className={styles.statusColumn}>
                         <span className={styles.rowSource}>{sourceLabels[row.source]}</span>
-                        <Timing row={row} />
+                        <Timing row={row} deleted={filter === "deleted"} />
                       </td>
                       <td className={`${styles.numeric} ${styles.amount}`}>
                         {financeCentsLabel(row.cents)}
@@ -603,14 +698,26 @@ export function FinanceImportsView({
                 <X size={20} aria-hidden="true" />
               </button>
             </div>
-            <h2 id={dialogTitle}>{original ? "Movimento originale" : "Movimento collegato"}</h2>
+            <h2 id={dialogTitle}>
+              Movimento{" "}
+              {selected.revision ? `· versione ${selected.revision.version}` : "collegato"}
+            </h2>
             <p className={styles.detailAmount}>{financeCentsLabel(selected.cents)}</p>
-            <Timing row={selected} />
+            <Timing row={selected} deleted={filter === "deleted" || selected.revision?.deleted} />
+            <FinanceMovementActions
+              source={selected.source}
+              sourceId={selected.sourceId}
+              readOnly={readOnly}
+              deleted={filter === "deleted" || selected.revision?.deleted}
+            />
             {original ? (
-              <OriginalDetails
-                row={original}
-                sourceFile={batchById.get(original.batchId)?.sourceFileName}
-              />
+              <div>
+                <h3>Fonte originale BudgetFlow</h3>
+                <OriginalDetails
+                  row={original}
+                  sourceFile={batchById.get(original.batchId)?.sourceFileName}
+                />
+              </div>
             ) : (
               <>
                 <dl className={styles.facts}>
@@ -640,9 +747,9 @@ export function FinanceImportsView({
                 )}
                 {selected.source === "shop_payment" && selected.href ? (
                   <p className={styles.detailNotice}>
-                    Il pagamento si corregge nel resoconto del negozio, che ne conserva lo storico.{" "}
+                    Il pagamento usa lo stesso storico del resoconto del negozio.{" "}
                     <Link href={selected.href} prefetch={false}>
-                      Modifica nel resoconto
+                      Apri il resoconto
                     </Link>
                   </p>
                 ) : (
@@ -653,8 +760,8 @@ export function FinanceImportsView({
               </>
             )}
             <p className={styles.detailNotice}>
-              La natura contabile del movimento resta da verificare. Questa vista non modifica dati
-              o saldi bancari.
+              La fonte originale e lo storico restano consultabili dopo ogni correzione. La natura
+              contabile del movimento resta da verificare.
             </p>
           </div>
         )}

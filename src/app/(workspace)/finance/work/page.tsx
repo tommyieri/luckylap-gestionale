@@ -7,11 +7,21 @@ import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { getSupabasePublicConfig } from "@/lib/supabase/config";
 import { readFinanceWork } from "@/lib/finance-work/server";
 import { localReportDate } from "@/lib/finance/model";
+import { buildFinanceDashboard } from "@/lib/finance/dashboard";
+import { loadFinanceRevisionContext } from "@/lib/finance-revisions/context-server";
 import { readConsignmentFinance } from "@/lib/consignment/finance";
 import { readConsignmentMonthlyFinance } from "@/lib/consignment/shop-finance";
+import { isLocalPreviewEnabled } from "@/lib/runtime";
 export const dynamic = "force-dynamic";
 export const metadata: Metadata = { title: "Registrazioni" };
 export default async function FinanceWorkPage() {
+  if (isLocalPreviewEnabled())
+    return (
+      <WorkspacePanel
+        title="Registrazioni non disponibili nell’anteprima."
+        description="I movimenti sintetici si consultano nella panoramica Finance. Le registrazioni richiedono il workspace condiviso."
+      />
+    );
   try {
     getSupabasePublicConfig();
   } catch {
@@ -46,6 +56,22 @@ export default async function FinanceWorkPage() {
         description="Non è stato possibile leggere tutti i resoconti e i pagamenti del conto vendita. Riprova tra poco; nessun totale parziale viene mostrato."
       />
     );
+  const today = localReportDate(new Date());
+  if (!today)
+    return (
+      <WorkspacePanel title="Data operativa non disponibile." description="Riprova tra poco." />
+    );
+  const revisions = await loadFinanceRevisionContext(
+    supabase,
+    buildFinanceDashboard({ batches: [], transactions: [] }, access.snapshot, today).movements,
+  ).catch(() => null);
+  if (!revisions)
+    return (
+      <WorkspacePanel
+        title="Revisioni Finance non disponibili."
+        description="Non è stato possibile leggere tutte le correzioni. Riprova tra poco; nessun dato parziale viene mostrato."
+      />
+    );
   return (
     <FinanceWorkView
       snapshot={access.snapshot}
@@ -54,7 +80,8 @@ export default async function FinanceWorkPage() {
       }
       userId={access.member.userId}
       displayName={access.member.displayName}
-      today={localReportDate(new Date())!}
+      today={today}
+      revisionHeads={revisions.heads}
     />
   );
 }

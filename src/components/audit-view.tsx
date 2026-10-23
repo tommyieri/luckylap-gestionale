@@ -1,140 +1,193 @@
 import Link from "next/link";
-import { ArrowLeft, ArrowRight } from "lucide-react";
+import { ArrowLeft, ArrowRight, ArrowUpRight } from "lucide-react";
 import {
-  auditCursorHref,
-  auditOperationLabel,
-  auditTableLabel,
-  type AuditEntry,
-  type AuditPage,
-} from "../lib/audit/model";
+  ACTIVITY_AREAS,
+  activityAreaLabel,
+  activityCursorHref,
+  safeActivityHref,
+  type ActivityFeedPage,
+  type ActivityItem,
+  type ActivityQuery,
+} from "../lib/audit/feed-model";
 import shared from "./team-workspace.module.css";
 import styles from "./audit.module.css";
 
-const date = (value: string) =>
-  new Intl.DateTimeFormat("it-IT", { timeZone: "Europe/Rome", dateStyle: "medium" }).format(
-    new Date(value),
-  );
-const time = (value: string) =>
-  new Intl.DateTimeFormat("it-IT", { timeZone: "Europe/Rome", timeStyle: "medium" }).format(
-    new Date(value),
-  );
+const dayFormatter = new Intl.DateTimeFormat("it-IT", {
+  timeZone: "Europe/Rome",
+  weekday: "long",
+  day: "numeric",
+  month: "long",
+  year: "numeric",
+});
+const dayKeyFormatter = new Intl.DateTimeFormat("en-CA", {
+  timeZone: "Europe/Rome",
+  year: "numeric",
+  month: "2-digit",
+  day: "2-digit",
+});
+const timeFormatter = new Intl.DateTimeFormat("it-IT", {
+  timeZone: "Europe/Rome",
+  hour: "2-digit",
+  minute: "2-digit",
+  hourCycle: "h23",
+});
 
-function References({ entry }: { entry: AuditEntry }) {
-  return entry.references.length === 0 ? (
-    <span className={styles.noReference}>Identificativo non disponibile</span>
-  ) : (
-    <details className={styles.references}>
-      <summary>Riferimenti</summary>
-      <dl>
-        {entry.references.map((reference) => (
-          <div key={reference.label}>
-            <dt>{reference.label}</dt>
-            <dd>{reference.id}</dd>
-          </div>
-        ))}
-      </dl>
-    </details>
+function activityDays(items: ActivityItem[]) {
+  const days = new Map<string, { label: string; items: ActivityItem[] }>();
+  for (const item of items) {
+    const occurredAt = new Date(item.occurredAt);
+    const parts = dayKeyFormatter.formatToParts(occurredAt);
+    const part = (name: Intl.DateTimeFormatPartTypes) =>
+      parts.find((value) => value.type === name)!.value;
+    const key = `${part("year")}-${part("month")}-${part("day")}`;
+    const day = days.get(key) ?? { label: dayFormatter.format(occurredAt), items: [] };
+    day.items.push(item);
+    days.set(key, day);
+  }
+  return [...days].map(([key, value]) => ({ key, ...value }));
+}
+
+function ActivityDetail({ item }: { item: ActivityItem }) {
+  const href = safeActivityHref(item.href);
+  if (!href) return null;
+  return (
+    <Link
+      className={styles.detail}
+      href={href}
+      prefetch={false}
+      aria-label={`Apri l’elemento collegato: ${item.message}`}
+    >
+      Apri elemento
+      <ArrowUpRight size={15} aria-hidden="true" />
+    </Link>
   );
 }
 
 export function AuditView({
   snapshot,
+  query,
 }: {
-  snapshot: AuditPage;
-  /** Non più mostrato qui: il nome del membro sta nel menu del guscio. */
-  displayName: string;
+  snapshot: ActivityFeedPage;
+  query: ActivityQuery;
 }) {
+  const filtered = query.actor !== null || query.area !== null;
   return (
     <div className={shared.main}>
       <div className={shared.heading}>
         <div>
           <h1>Controllo CEO</h1>
-          <p>Il registro delle operazioni sui dati condivisi di LuckyLap.</p>
+          <p>Le attività del team e delle automazioni, dalla più recente.</p>
         </div>
       </div>
+      <form action="/audit" method="get" className={styles.filters} aria-label="Filtra le attività">
+        <label>
+          Persona
+          <select name="actor" defaultValue={query.actor ?? ""}>
+            <option value="">Collaboratori e automazioni</option>
+            {snapshot.actors.map((actor) => (
+              <option key={actor.id} value={actor.id}>
+                {actor.name}
+              </option>
+            ))}
+            {!snapshot.actors.some((actor) => actor.id === "system") && (
+              <option value="system">Automazioni</option>
+            )}
+          </select>
+        </label>
+        <label>
+          Area
+          <select name="area" defaultValue={query.area ?? ""}>
+            <option value="">Tutte le aree</option>
+            {ACTIVITY_AREAS.map((area) => (
+              <option key={area} value={area}>
+                {activityAreaLabel(area)}
+              </option>
+            ))}
+          </select>
+        </label>
+        <button className="button button-primary" type="submit">
+          Applica filtri
+        </button>
+        {filtered && (
+          <Link className={styles.reset} href="/audit" prefetch={false}>
+            Rimuovi filtri
+          </Link>
+        )}
+      </form>
       <p className={styles.notice}>
-        Accesso personale riservato al founder con password Controllo CEO. Qui vedi data, operatore,
-        area e tipo di modifica. Le operazioni di sistema sono indicate separatamente. Orari
-        Europe/Rome.
+        Le tue attività sono escluse dalla vista iniziale. Seleziona il tuo nome per includerle.
+        Orari di Roma.
       </p>
-      <section className={shared.section} aria-labelledby="audit-title">
-        <div className={shared.sectionHeading}>
-          <h2 id="audit-title">Registro attività</h2>
-          <span>{snapshot.entries.length} modifiche in questa pagina</span>
+      <section className={styles.feed} aria-labelledby="activity-title">
+        <div className={styles.feedHeading}>
+          <h2 id="activity-title">Attività</h2>
+          <span>{snapshot.items.length} attività in questa pagina</span>
         </div>
-        {snapshot.entries.length === 0 ? (
+        {snapshot.items.length === 0 ? (
           <div className={styles.empty}>
             <h3>
-              {snapshot.hasCursor
-                ? "Non ci sono modifiche precedenti."
-                : "Nessuna modifica registrata."}
+              {filtered
+                ? "Nessuna attività per questi filtri."
+                : snapshot.hasCursor
+                  ? "Non ci sono attività precedenti."
+                  : "Nessuna attività da mostrare."}
             </h3>
-            <p>Le operazioni sui dati del workspace appariranno qui.</p>
+            <p>
+              {filtered
+                ? "Cambia persona o area, oppure rimuovi i filtri per tornare alla vista iniziale."
+                : "Le azioni del team e delle automazioni appariranno qui quando saranno registrate."}
+            </p>
           </div>
         ) : (
-          <div className={styles.tableScroll}>
-            <table className={styles.table}>
-              <thead>
-                <tr>
-                  <th scope="col">Quando</th>
-                  <th scope="col">Attività</th>
-                  <th scope="col">Operatore</th>
-                  <th scope="col" className={styles.referenceColumn}>
-                    Riferimenti
-                  </th>
-                </tr>
-              </thead>
-              <tbody>
-                {snapshot.entries.map((entry) => (
-                  <tr key={entry.id}>
-                    <td>
-                      <time dateTime={entry.occurredAt}>
-                        <span>{date(entry.occurredAt)}</span>
-                        <small>{time(entry.occurredAt)}</small>
-                      </time>
-                    </td>
-                    <td>
-                      <strong className={entry.operation === "DELETE" ? styles.removed : undefined}>
-                        {auditOperationLabel[entry.operation]}
-                      </strong>
-                      <span className={styles.areaName}>{auditTableLabel(entry.tableName)}</span>
-                      <div className={styles.mobileReferences}>
-                        <References entry={entry} />
-                      </div>
-                    </td>
-                    <td>
-                      <span className={styles.actor}>{entry.actorName}</span>
-                    </td>
-                    <td className={styles.referenceColumn}>
-                      <References entry={entry} />
-                    </td>
-                  </tr>
+          activityDays(snapshot.items).map((day) => (
+            <section className={styles.day} key={day.key} aria-labelledby={`day-${day.key}`}>
+              <h3 id={`day-${day.key}`}>
+                <time dateTime={day.key}>{day.label}</time>
+              </h3>
+              <ol className={styles.items}>
+                {day.items.map((item) => (
+                  <li key={item.id} className={styles.item}>
+                    <time className={styles.time} dateTime={item.occurredAt}>
+                      {timeFormatter.format(new Date(item.occurredAt))}
+                    </time>
+                    <div className={styles.action}>
+                      <p>{item.message}</p>
+                      <span className={styles.area}>{activityAreaLabel(item.area)}</span>
+                    </div>
+                    <ActivityDetail item={item} />
+                  </li>
                 ))}
-              </tbody>
-            </table>
-          </div>
+              </ol>
+            </section>
+          ))
         )}
-        <nav aria-label="Pagine del registro" className={styles.pagination}>
+        <nav aria-label="Pagine delle attività" className={styles.pagination}>
           {snapshot.hasCursor ? (
-            <Link className="button button-secondary" href="/audit">
-              <ArrowLeft size={14} aria-hidden="true" />
+            <Link
+              className="button button-secondary"
+              href={activityCursorHref(null, query)}
+              prefetch={false}
+            >
+              <ArrowLeft size={15} aria-hidden="true" />
               Più recenti
             </Link>
           ) : (
-            <span>Modifiche più recenti</span>
+            <span>Attività più recenti</span>
           )}
           {snapshot.nextCursor && (
-            <Link className="button button-secondary" href={auditCursorHref(snapshot.nextCursor)}>
-              Modifiche precedenti
-              <ArrowRight size={14} aria-hidden="true" />
+            <Link
+              className="button button-secondary"
+              href={activityCursorHref(snapshot.nextCursor, query)}
+              prefetch={false}
+            >
+              Attività precedenti
+              <ArrowRight size={15} aria-hidden="true" />
             </Link>
           )}
         </nav>
       </section>
       <p className={styles.scope}>
-        Questo registro traccia creazioni, modifiche ed eliminazioni dei dati. Non registra
-        automaticamente le pagine lette o gli accessi all’account. I contenuti delle modifiche e i
-        dettagli Finance restano fuori da questa vista.
+        Ogni riga riassume un’azione. Il feed non registra le pagine visitate o le letture dei dati.
       </p>
       <footer className={shared.footer}>
         <span>LuckyLap · Controllo CEO</span>

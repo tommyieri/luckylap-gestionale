@@ -17,6 +17,13 @@ import {
 } from "./shop-model";
 import { reportHeadFrom, shopLocationsFrom, SHOP_TYPE } from "./shop-read";
 import { consignmentShopHref } from "./links";
+import { localReportDate } from "../finance/model";
+import { withCurrentShopPaymentStates } from "../finance-revisions/shop-payment-states";
+import {
+  paymentFinanceFromDatabase,
+  postedShopPaymentCents,
+  type PaymentFinanceMetadata,
+} from "./shop-model";
 
 /*
  * Il conto vendita in Finance (decisioni 12 e 13). Il resoconto è un credito:
@@ -72,9 +79,16 @@ type Payment = {
   accountLabel: string | null;
   reference: string | null;
   voided: boolean;
+  finance: PaymentFinanceMetadata;
+  extended: boolean;
 };
 
-function parseMonthly(reportRows: unknown[], paymentRows: unknown[], locationRows: unknown[]) {
+function parseMonthly(
+  reportRows: unknown[],
+  paymentRows: unknown[],
+  locationRows: unknown[],
+  reportDate = localReportDate(new Date()) ?? fail(),
+) {
   const locations = shopLocationsFrom(locationRows),
     reports = reportRows.map(reportHeadFrom);
   if (new Set(reports.map((r) => r.id)).size !== reports.length) fail();
@@ -91,7 +105,7 @@ function parseMonthly(reportRows: unknown[], paymentRows: unknown[], locationRow
         id: id(r.id),
         reportId: id(r.report_id),
         locationId: id(r.location_id),
-        amountCents: int(r.amount_cents, 1),
+        amountCents: int(r.amount_cents, 0),
         paidAt: consignmentDate(r.paid_at) ? r.paid_at : fail(),
         method: PAYMENT_METHODS.includes(r.method as PaymentMethod)
           ? (r.method as PaymentMethod)
@@ -99,6 +113,8 @@ function parseMonthly(reportRows: unknown[], paymentRows: unknown[], locationRow
         accountLabel: optionalText(r.account_label),
         reference: optionalText(r.reference),
         voided: typeof r.voided === "boolean" ? r.voided : fail(),
+        finance: paymentFinanceFromDatabase(r) ?? fail(),
+        extended: r.finance_direction !== undefined || r.finance !== undefined,
       };
     const report = reports.find((rep) => rep.id === payment.reportId) ?? fail();
     if (report.locationId !== payment.locationId) fail();
@@ -107,10 +123,16 @@ function parseMonthly(reportRows: unknown[], paymentRows: unknown[], locationRow
   if (new Set(payments.map((p) => p.id)).size !== payments.length) fail();
   const paid = new Map<string, bigint>();
   for (const p of payments)
-    if (!p.voided) paid.set(p.reportId, (paid.get(p.reportId) ?? 0n) + BigInt(p.amountCents));
+    paid.set(p.reportId, (paid.get(p.reportId) ?? 0n) + postedShopPaymentCents(p, reportDate));
   // Lo stato visibile a tutti deve coincidere con i pagamenti letti: niente letture troncate.
   for (const r of reports)
-    if (paymentStateFor(paid.get(r.id) ?? 0n, r.brandCents) !== r.paymentState) fail();
+    if (
+      paymentStateFor(paid.get(r.id) ?? 0n, r.brandCents) !== r.paymentState ||
+      [paid.get(r.id) ?? 0n, BigInt(r.brandCents) - (paid.get(r.id) ?? 0n)].some(
+        (n) => n > BigInt(MAX_CENTS) || n < -BigInt(MAX_CENTS),
+      )
+    )
+      fail();
   return { reports, payments, shops, paid };
 }
 
@@ -121,7 +143,12 @@ export function monthlyFinanceFromRows(
   locationRows: unknown[],
   loadedAt = new Date().toISOString(),
 ): MonthlyFinance {
-  const { reports, shops, paid } = parseMonthly(reportRows, paymentRows, locationRows);
+  const { reports, shops, paid } = parseMonthly(
+    reportRows,
+    paymentRows,
+    locationRows,
+    localReportDate(new Date(loadedAt)) ?? fail(),
+  );
   const rows = reports.map((r): MonthlyFinanceRow => {
     const shop = shops.get(r.locationId)!,
       received = paid.get(r.id) ?? 0n,
@@ -163,9 +190,24 @@ export function dashboardShopPaymentsFromRows(
   reportRows: unknown[],
   locationRows: unknown[],
 ): DashboardShopPayment[] {
+  return projectShopPayments(paymentRows, reportRows, locationRows, false);
+}
+export function deletedShopPaymentsFromRows(
+  paymentRows: unknown[],
+  reportRows: unknown[],
+  locationRows: unknown[],
+): DashboardShopPayment[] {
+  return projectShopPayments(paymentRows, reportRows, locationRows, true);
+}
+function projectShopPayments(
+  paymentRows: unknown[],
+  reportRows: unknown[],
+  locationRows: unknown[],
+  voided: boolean,
+): DashboardShopPayment[] {
   const { reports, payments, shops } = parseMonthly(reportRows, paymentRows, locationRows);
   return payments
-    .filter((p) => !p.voided)
+    .filter((p) => p.voided === voided)
     .map((p): DashboardShopPayment => {
       const report = reports.find((r) => r.id === p.reportId)!,
         shop = shops.get(p.locationId)!,
@@ -184,6 +226,14 @@ export function dashboardShopPaymentsFromRows(
         month: report.month,
         monthLabel: monthLabel(report.month),
         href: consignmentShopHref(shop.code, report.month),
+        ...(p.extended
+          ? {
+              direction: p.finance.direction,
+              category: p.finance.category,
+              description: p.finance.description,
+              pending: p.finance.pending,
+            }
+          : {}),
       };
     })
     .sort((a, b) => Date.parse(a.paidAt) - Date.parse(b.paidAt) || a.id.localeCompare(b.id));
@@ -217,11 +267,14 @@ async function readFinanceRows(
     ),
     read(
       "consignment_report_payments",
-      "id,report_id,location_id,amount_cents,paid_at,method,account_label,reference,voided",
+      "id,report_id,location_id,amount_cents,paid_at,method,account_label,reference,voided,finance_direction,finance_category,finance_description,finance_pending",
     ),
     read("stock_locations", "id,code,name,active,location_type"),
   ]);
-  return { status: "ready", rows: { reports, payments, locations } };
+  return {
+    status: "ready",
+    rows: { reports: await withCurrentShopPaymentStates(supabase, reports), payments, locations },
+  };
 }
 
 /** Pannello Finance e pagamenti per i saldi, con una sola lettura. */
@@ -236,6 +289,7 @@ export async function readConsignmentMonthlyFinance(
     status: "ready" as const,
     snapshot: monthlyFinanceFromRows(reports, payments, locations),
     shopPayments: dashboardShopPaymentsFromRows(payments, reports, locations),
+    deletedShopPayments: deletedShopPaymentsFromRows(payments, reports, locations),
   };
 }
 
@@ -249,7 +303,8 @@ export type ConsignmentToSettle = {
   toInvoiceCents: number;
   /** Residuo ancora da incassare. */
   toCollectCents: number;
-  state: "da_fatturare" | "da_incassare";
+  toReturnCents?: number;
+  state: "da_fatturare" | "da_incassare" | "da_restituire";
   href: string;
 };
 /**
@@ -263,11 +318,13 @@ export async function loadConsignmentToSettle(supabase: SupabaseClient, member: 
   const rows = monthlyFinanceFromRows(reports, payments, locations)
     .rows.flatMap((r): ConsignmentToSettle[] => {
       const state =
-        r.invoice === null && r.brandCents > 0
-          ? "da_fatturare"
-          : r.remainingCents > 0
-            ? "da_incassare"
-            : null;
+        r.overpaidCents > 0
+          ? "da_restituire"
+          : r.invoice === null && r.brandCents > 0
+            ? "da_fatturare"
+            : r.remainingCents > 0
+              ? "da_incassare"
+              : null;
       return state
         ? [
             {
@@ -278,6 +335,7 @@ export async function loadConsignmentToSettle(supabase: SupabaseClient, member: 
               monthLabel: r.monthLabel,
               toInvoiceCents: r.brandCents,
               toCollectCents: r.remainingCents,
+              ...(r.overpaidCents > 0 ? { toReturnCents: r.overpaidCents } : {}),
               state,
               href: r.href,
             },
