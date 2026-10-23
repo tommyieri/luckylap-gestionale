@@ -1,5 +1,5 @@
 // test-db: pglite minimo 76
-// Calendario solo per gli eventi a cui partecipiamo (20261023120000_partner_dates_only_agreed).
+// Calendario solo per gli eventi a cui partecipiamo (20261023113212_partner_dates_only_agreed).
 // Prima lo stato di produzione con la regola vecchia (date di schede senza accordo già nel
 // calendario), poi la migrazione: pulizia, regola nuova sui cambi di stato, «Collega l'evento».
 // Solo dati sintetici, Auth simulato, nessuna rete.
