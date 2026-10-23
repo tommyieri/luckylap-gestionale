@@ -88,9 +88,17 @@ Dopo le quattro migrazioni:
 
 Più tardi, lo stesso giorno, la migrazione della pull request #7 (`20261023113212_partner_dates_only_agreed`) ha tolto in produzione i 54 appuntamenti automatici delle schede senza «Accordo fatto»; restano i 3 eventi inseriti a mano (esiti nel `docs/partner.md` di `main`, «Accordo fatto e calendario»). Oggi l'ultima versione in cloud è `20261023113212`.
 
+## Produzione, 23 ottobre 2026: P7
+
+| Migrazione | Versione cloud | Testo salvato |
+| --- | --- | --- |
+| `archivio_contenuti` (archivio di Grafica e foto) | `20261023115001` | uguale al file, md5 `249f4b462c330c8e2f6f7cf3ac42882f` |
+
+Prima e dopo: 6 contenuti, impronta delle colonne esistenti di `assets` identica (md5 `24b6a3fe4394d1da6b2bc7321b116fe9`), nessun contenuto archiviato. `set_brand_asset_archived` è `security definer` con `search_path` vuoto; la esegue `authenticated`, non `anon`. Avvisi di sicurezza: solo quelli informativi già noti.
+
 ## Revisione prima dell'invio (P7): fatto e da fare
 
-Parte A (prima del merge di P4–P6): guida «Come si usa» in `ACCOUNT_LINKS`, «Magadzino» rimesso dove era stato cambiato, migrazione dell'archivio dei contenuti (`20261022220100_archivio_contenuti.sql`, **non ancora applicata in produzione**), «Invio da verificare» con `pending-attempt.tsx` nei moduli manuali di Vendite, Rettifiche, Packaging e Finance, testi senza gergo, guardia `ui-copy.test.ts`. Poi il merge di `origin/main` a `b24690f` (`5af0f1a`) al posto del rebase previsto: stesso risultato, nessun commit riscritto.
+Parte A (prima del merge di P4–P6): guida «Come si usa» in `ACCOUNT_LINKS`, «Magadzino» rimesso dove era stato cambiato, migrazione dell'archivio dei contenuti (`20261023115001_archivio_contenuti.sql`, applicata in produzione il 23 ottobre), «Invio da verificare» con `pending-attempt.tsx` nei moduli manuali di Vendite, Rettifiche, Packaging e Finance, testi senza gergo, guardia `ui-copy.test.ts`. Poi il merge di `origin/main` a `b24690f` (`5af0f1a`) al posto del rebase previsto: stesso risultato, nessun commit riscritto.
 
 Parte B, fatto (ogni commit con tutti i controlli verdi):
 
@@ -106,7 +114,7 @@ Fatto il 23 ottobre: merge di `origin/main` a `3acbad3` (pull request #6 e #7). 
 Da fare prima del merge, in quest'ordine:
 
 1. Prove visive della parte B a 1280 × 800 e 390 × 844 (piano di lavoro, §1.4): `/guida`, «Prima volta qui?» su `/`, `/finance` con «Chiudi Finance», `/team` con il calendario a mese, `/assets` con «Mostra archiviati», un invio da verificare su `/sales`, `/auth/account`.
-2. Applicare in produzione `archivio_contenuti`, con l'impronta di `assets` prima e dopo. Oggi l'ultima versione in cloud è `20261023113212`, che il repository ha solo dopo il merge del punto 1: la nuova versione sarà successiva e il file prende quel nome. La tabella «Produzione» riceve la sua riga ([archivio](assets-development.md), «Archivio dei contenuti»).
+2. ~~Applicare in produzione `archivio_contenuti`~~: fatto (sezione «Produzione, 23 ottobre 2026: P7»).
 3. Pull request con gli esiti, CI verde compreso il job «Concorrenza (PostgreSQL 17)», poi merge.
 4. Messaggio di benvenuto per WhatsApp pronto per Tommi, senza password.
 

@@ -46,7 +46,7 @@ Le anteprime di PNG/JPEG/WebP usano la route privata, su fondo bianco; i loghi t
 
 Un contenuto caricato per sbaglio si toglie dalla libreria con «Archivia», in fondo alla scheda. Il riquadro spiega: «Il contenuto sparisce dalla libreria per tutti. Puoi ripristinarlo da “Mostra archiviati”.» L’interruttore «Mostra archiviati» elenca solo i contenuti archiviati, con la data e il pulsante «Ripristina». Non si cancella niente: nome, descrizione, percorso, file nel bucket e metadati restano come sono, e il file resta scaricabile dai membri.
 
-Migrazione `20261022220100_archivio_contenuti.sql`, solo aggiunte:
+Migrazione `20261023115001_archivio_contenuti.sql`, solo aggiunte:
 
 - `public.assets` ha due colonne nuove, `archived_at` e `archived_by`, nulle per tutte le righe esistenti. Il vincolo `assets_archive_pair` le vuole sempre insieme.
 - I client non hanno permessi di scrittura su `assets`: le due colonne cambiano solo con `public.set_brand_asset_archived(operation_id, payload)`, wrapper `security invoker` di una funzione privata `security definer`. Payload: `{"schema_version": 1, "asset_id": "<uuid>", "archived": true | false}`.
@@ -60,7 +60,7 @@ In anteprima locale (`npm run dev`) la pagina mostra cinque contenuti sintetici,
 
 Per tornare indietro su un contenuto basta «Ripristina». Un ripristino in blocco, dal proprietario del database: `update public.assets set archived_at = null, archived_by = null where archived_at is not null;` (resta nell’audit).
 
-Produzione: al 23 ottobre 2026 la migrazione non è ancora applicata. Si applica prima del merge e dopo il rebase su `main`, che oggi ha quattro migrazioni più recenti (fino a `20261023091633_shop_payment_finance.sql`), come le altre (piano di lavoro, §1.3): impronta di `assets` prima e dopo, `archived_at` e `archived_by` nulli su tutte le righe, impronta delle altre colonne identica; poi il file prende il nome della versione cloud. L’harness la cerca per suffisso.
+Produzione: applicata il 23 ottobre 2026 come versione cloud `20261023115001`, con il testo salvato uguale al file (md5 `249f4b462c330c8e2f6f7cf3ac42882f`). Prima e dopo: 6 contenuti, impronta delle colonne esistenti identica (md5 `24b6a3fe4394d1da6b2bc7321b116fe9`), `archived_at` e `archived_by` nulli su tutte le righe; il comando è `security definer` con `search_path` vuoto, eseguibile da `authenticated` e non da `anon`. L’harness la cerca per suffisso.
 
 ## Sviluppo prodotti
 
