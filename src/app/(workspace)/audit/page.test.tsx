@@ -23,6 +23,8 @@ vi.mock("@/lib/auth/sensitive-access", () => import("../../../lib/auth/sensitive
 vi.mock("@/lib/auth/server", () => ({ verifiedMember: mocks.member }));
 vi.mock("@/lib/audit/feed-model", () => import("../../../lib/audit/feed-model"));
 vi.mock("@/lib/audit/feed-server", () => ({ loadActivityFeed: mocks.feed }));
+vi.mock("@/lib/audit/fixtures", () => import("../../../lib/audit/fixtures"));
+vi.mock("@/lib/runtime", () => import("../../../lib/runtime"));
 vi.mock("@/lib/supabase/config", () => ({ getSupabasePublicConfig: mocks.config }));
 vi.mock("@/lib/supabase/server", () => ({ createSupabaseServerClient: mocks.client }));
 import AuditPage from "./page";
@@ -38,6 +40,8 @@ const rpc = vi.fn();
 
 beforeEach(() => {
   vi.clearAllMocks();
+  vi.unstubAllEnvs();
+  vi.stubEnv("LUCKYLAP_LOCAL_PREVIEW", "");
   vi.useFakeTimers();
   vi.setSystemTime(new Date("2026-10-22T08:00:00Z"));
   mocks.config.mockReturnValue({});
@@ -46,7 +50,44 @@ beforeEach(() => {
   mocks.member.mockResolvedValue({ status: "member", member: founder });
   mocks.feed.mockResolvedValue({ items: [], actors: [], nextCursor: null, hasCursor: false });
 });
-afterEach(() => vi.useRealTimers());
+afterEach(() => {
+  vi.useRealTimers();
+  vi.unstubAllEnvs();
+});
+
+describe("anteprima locale di /audit", () => {
+  beforeEach(() => {
+    vi.stubEnv("LUCKYLAP_LOCAL_PREVIEW", "true");
+    vi.stubEnv("VERCEL", "");
+  });
+  it("mostra frasi sintetiche delle ultime 24 ore senza Supabase", async () => {
+    const html = renderToStaticMarkup(await AuditPage({ searchParams: Promise.resolve({}) }));
+    expect(html).toContain("Anteprima locale: dati sintetici, salvataggio disattivato.");
+    expect(html).toContain("Il sistema ha importato 207 contatti in Partner.");
+    expect(html).toContain('href="/stock/rettifiche"');
+    expect(html).not.toContain("data-area-bar");
+    expect(mocks.config).not.toHaveBeenCalled();
+    expect(mocks.client).not.toHaveBeenCalled();
+    expect(mocks.member).not.toHaveBeenCalled();
+    expect(mocks.feed).not.toHaveBeenCalled();
+  });
+  it("applica i filtri anche ai dati sintetici", async () => {
+    const html = renderToStaticMarkup(
+      await AuditPage({ searchParams: Promise.resolve({ area: "consignment" }) }),
+    );
+    expect(html).toContain("da fatturare");
+    expect(html).not.toContain("ha registrato una vendita");
+  });
+  it.each([
+    ["VERCEL", "1"],
+    ["NODE_ENV", "production"],
+  ])("con %s=%s il ramo dell'anteprima non si attiva", async (name, value) => {
+    vi.stubEnv(name, value);
+    renderToStaticMarkup(await AuditPage({ searchParams: Promise.resolve({}) }));
+    expect(mocks.config).toHaveBeenCalled();
+    expect(mocks.feed).toHaveBeenCalled();
+  });
+});
 
 describe("accesso e caricamento del feed CEO", () => {
   it.each(["founder", "production", "finance", "logistics", "consultant"] as const)(
@@ -119,7 +160,7 @@ describe("accesso e caricamento del feed CEO", () => {
       before: { occurredAt: search.beforeAt, id: search.beforeId },
     });
     expect(rpc.mock.invocationCallOrder[0]).toBeLessThan(mocks.feed.mock.invocationCallOrder[0]);
-    expect(html).toContain("Nessuna attività per questi filtri.");
+    expect(html).toContain("Nelle ultime 24 ore nessuna attività per questi filtri.");
     // «Chiudi Controllo CEO» in cima, prima del titolo, solo con l'area aperta (06 R12).
     expect(html.indexOf('<p data-area-bar="audit">Chiudi</p>')).toBe(0);
     expect(html.indexOf("<h1>Controllo CEO</h1>")).toBeGreaterThan(0);

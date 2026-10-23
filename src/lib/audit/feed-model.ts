@@ -4,6 +4,7 @@ import { isAuditTimestamp, type AuditSearch } from "./model";
 export const ACTIVITY_AREAS = [
   "team",
   "sales",
+  "consignment",
   "stock",
   "packaging",
   "finance",
@@ -38,6 +39,7 @@ export type ActivityFeedPage = {
 const labels: Record<ActivityArea, string> = {
   team: "Team",
   sales: "Vendite",
+  consignment: "Conto vendita",
   stock: "Magazzino",
   packaging: "Packaging",
   finance: "Finance",
@@ -95,14 +97,31 @@ export function activityCursorHref(cursor: ActivityCursor | null, query: Activit
   }
   return params.size ? `/audit?${params}` : "/audit";
 }
-/** Only canonical local routes and typed entity anchors may cross this boundary. */
+/** Cursore di confine: la lettura si è fermata a un blocco delle 24 ore senza riempire la pagina. */
+export const BOUNDARY_CURSOR_ID = "00000000-0000-0000-0000-000000000000";
+
+const UUID = "[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}";
+/**
+ * I soli link che il feed può portare nel browser (decisione 17): sezioni e ancore tipizzate.
+ * Partner `/partner?co=N#lead-N` (partnerHref), rettifiche `/stock/rettifiche`, resoconto
+ * `/consignment/<CODICE>/resoconto/<AAAA-MM>`, movimento `/finance#movimento-<fonte>-<id>`.
+ */
+const ACTIVITY_HREFS = [
+  new RegExp(`^/team(?:#(?:evento|attivita|nota)-${UUID})?$`),
+  new RegExp(`^/sales(?:#order-${UUID})?$`),
+  /^\/consignment(?:\/[A-Z0-9]{2,12}(?:\/resoconto\/2[0-9]{3}-(?:0[1-9]|1[0-2]))?)?$/,
+  /^\/stock(?:\/rettifiche)?$/,
+  /^\/packaging$/,
+  new RegExp(
+    `^/finance(?:#movimento-(?:budgetflow|manual|payment|refund|consignment|shop_payment)-${UUID})?$`,
+  ),
+  /^\/partner(?:\?co=([1-9][0-9]{0,4})#lead-\1)?$/,
+  new RegExp(`^/development(?:#progetto-${UUID})?$`),
+  new RegExp(`^/assets(?:#contenuto-${UUID})?$`),
+  /^\/auth\/account$/,
+];
 export function safeActivityHref(value: unknown): string | null {
-  if (typeof value !== "string") return null;
-  const uuid = "[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}";
-  return new RegExp(
-    `^/(?:team|sales|stock|packaging|finance|partner|development|assets|auth/account)(?:#(?:evento|attivita|nota|order|entry|asset|progetto|item|material)-${uuid})?$`,
-    "i",
-  ).test(value) || /^\/partner\?co=([1-9][0-9]{0,4})#lead-\1$/.test(value)
+  return typeof value === "string" && ACTIVITY_HREFS.some((shape) => shape.test(value))
     ? value
     : null;
 }

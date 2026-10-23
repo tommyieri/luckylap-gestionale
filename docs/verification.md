@@ -46,7 +46,8 @@ Controlli per harness:
 | `area-passwords.mjs` | PostgreSQL 17 | 161 | password di Finance e Controllo CEO ([contratto](area-passwords-backend.md)) |
 | `shopify-scheduler-concurrency.mjs` | PostgreSQL 17 | 15 | recupero Shopify con connessioni sovrapposte |
 | `shopify-ecosystem.mjs` | PostgreSQL 17 | 702 | ordini Shopify, worker e coda |
-| `ceo-activity-feed.mjs` | PostgreSQL 17 | 121 | feed di Controllo CEO con la password CEO vera |
+| `ceo-activity-feed.mjs` | PostgreSQL 17 | 327 | feed di Controllo CEO con la password CEO vera: privacy, frasi, link, raggruppamenti, 24 ore |
+| `ceo-activity-feed-scale.mjs` | PostgreSQL 17 | 28 | feed di Controllo CEO con oltre 24.000 righe più vecchie di 24 ore: tempi e indici |
 | `consignment-concurrency.mjs` | PostgreSQL 17 | 16 | conto vendita con comandi concorrenti |
 | `finance-ecosystem-integration.mjs` | PostgreSQL 17 | 95 | catena completa delle migrazioni: Shopify, residui, conto vendita, feed, Partner |
 | `finance-revisions-concurrency.mjs` | PostgreSQL 17 | 32 | revisioni Finance concorrenti |
@@ -126,10 +127,10 @@ Nota per la pull request: in `AGENTS.md` P7 cambia anche una parola fuori da «D
 
 Trovati il 23 ottobre 2026 da revisori indipendenti e confermati da verifiche contrarie, nel lavoro di Codex della pull request #3 (già su `main` e in produzione). P7 non li corregge: sono un promemoria per Tommi, da decidere uno per uno.
 
-1. **Importi nel feed CEO.** Le frasi di Finance mostrano importi e categorie, anche degli incassi. La decisione 16 e la correzione 04-6 del piano li escludono. `/audit` chiede solo la password CEO.
-2. **Feed lento con la crescita.** A ogni apertura il feed ricalcola tutto il registro. Su una copia locale PostgreSQL 17: circa 7.500 righe di audit in 6 s, 9.500 in 11 s, oltre il limite di 8 s di Supabase. Oggi la produzione ha circa 2.200 righe.
-3. **Import in tante righe.** Un'operazione di massa dà una riga per record: l'import Partner 207 righe, quello dell'inventario 214. Dovrebbe essere una frase per operazione.
-4. **Link, aree e sottotitolo del feed.** Diversi dalla decisione 17: il conto vendita sta sotto «Vendite» e porta a `/sales`, i link Finance non hanno l'ancora del movimento. Il sottotitolo non è quello della decisione 5. Le azioni del founder sono nascoste all'inizio.
+1. **Importi nel feed CEO.** Le frasi di Finance mostrano importi e categorie, anche degli incassi. La decisione 16 e la correzione 04-6 del piano li escludono. `/audit` chiede solo la password CEO. Risolto il 23 ottobre (`20261023143400_ceo_feed_fixes`, da applicare): nessun importo, categoria o descrizione Finance e nessun importo dei pagamenti; resta solo il «da fatturare» del resoconto mensile (decisione 16).
+2. **Feed lento con la crescita.** A ogni apertura il feed ricalcola tutto il registro. Su una copia locale PostgreSQL 17: circa 7.500 righe di audit in 6 s, 9.500 in 11 s, oltre il limite di 8 s di Supabase. Oggi la produzione ha circa 2.200 righe. Risolto il 23 ottobre (`20261023143400_ceo_feed_fixes`): il feed legge solo le ultime 24 ore, a blocchi e con indici; prima pagina in circa 70 ms con 24.000 righe più vecchie (prima: 12.200 righe in 20,9 s).
+3. **Import in tante righe.** Un'operazione di massa dà una riga per record: l'import Partner 207 righe, quello dell'inventario 214. Dovrebbe essere una frase per operazione. Risolto il 23 ottobre (`20261023143400_ceo_feed_fixes`): stessa transazione e stesso tipo, una frase con il numero («Il sistema ha importato 207 contatti in Partner»).
+4. **Link, aree e sottotitolo del feed.** Diversi dalla decisione 17: il conto vendita sta sotto «Vendite» e porta a `/sales`, i link Finance non hanno l'ancora del movimento. Il sottotitolo non è quello della decisione 5. Le azioni del founder sono nascoste all'inizio. Risolto il 23 ottobre (`20261023143400_ceo_feed_fixes`): area «Conto vendita», link della decisione 17 e solo quelli nel browser, sottotitolo delle 24 ore, vista iniziale «Tutti» con il founder.
 5. **File dei dispositivi senza solleciti.** Le righe Partner caricate dai file «Esporta» (`origin = 'file'`) non creano né chiudono solleciti, contro la decisione 30. Da decidere con Tommi **prima** che carichi i file dei dispositivi. Risolto il 23 ottobre (`20261023140414_partner_oggi_fixes`, da applicare): un «Contattato» del file crea il sollecito per chi carica il file, 7 giorni dopo l'esportazione; le risposte del file lo chiudono; nessun doppione ai nuovi import.
 6. **Solleciti doppi in Oggi.** Ogni sollecito in scadenza compare due volte, in «Agenda» e in «Contatti e solleciti», contro la decisione 9 e la correzione 05-11. Risolto il 23 ottobre: l'agenda toglie le attività collegate come sollecito (`partner_work_links`, `follow_up`).
 7. **Conteggi diversi tra Oggi e Partner.** I «contatti da fare» di Oggi arrivano al mese in corso; «Adesso» in Partner arriva alla fine del mese prossimo (decisione 33). I numeri non coincidono. Risolto il 23 ottobre (`20261023140414_partner_oggi_fixes`): Oggi usa la regola di «Adesso» (decisione 33), provata sugli stessi dati sintetici in SQL e con il codice di Partner.
@@ -139,6 +140,7 @@ Trovati il 23 ottobre 2026 da revisori indipendenti e confermati da verifiche co
 11. **«Collega l'evento» con date passate.** Per un contatto con l'evento già passato fallisce, con un messaggio che non spiega il motivo. Risolto il 23 ottobre (`20261023140414_partner_oggi_fixes`): con l'accordo fatto l'evento entra in calendario anche se passato; messaggi chiari senza accordo o senza date.
 12. **Minori.** In Finance mancano il filtro «Modificati» e la riga «Modificato da X · data»; la motivazione è sempre obbligatoria; due funzioni di trigger hanno un `EXECUTE` che non serve; alcune chiavi esterne non hanno indice; il feed non ha una frase per archiviare e ripristinare un contenuto (l'archivio della parte A si legge come un aggiornamento generico).
     - `EXECUTE` dei trigger del calendario e indici delle chiavi esterne di `partner_work_links` e `partner_event_sales`: risolti il 23 ottobre (`20261023140414_partner_oggi_fixes`).
+    - Frase per archiviare e ripristinare un contenuto: risolta il 23 ottobre (`20261023143400_ceo_feed_fixes`), «… ha archiviato un contenuto: …» e «… ha ripristinato un contenuto: …» con il link `/assets#contenuto-<id>`.
     Parte Finance risolta: filtro «Modificati», riga «Modificato da X · data», motivazione facoltativa nell'app (il database la vuole ancora, l'app manda «Correzione»).
 
 ## Prove visive della parte A

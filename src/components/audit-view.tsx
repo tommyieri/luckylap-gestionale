@@ -63,12 +63,17 @@ function ActivityDetail({ item }: { item: ActivityItem }) {
   );
 }
 
+/** Anteprima locale (00-sequenza §1.5): dati sintetici, nessuna lettura da Supabase. */
+export const AUDIT_PREVIEW_NOTICE = "Anteprima locale: dati sintetici, salvataggio disattivato.";
+
 export function AuditView({
   snapshot,
   query,
+  preview = false,
 }: {
   snapshot: ActivityFeedPage;
   query: ActivityQuery;
+  preview?: boolean;
 }) {
   const filtered = query.actor !== null || query.area !== null;
   return (
@@ -76,14 +81,19 @@ export function AuditView({
       <div className={shared.heading}>
         <div>
           <h1>Controllo CEO</h1>
-          <p>Le attività del team e delle automazioni, dalla più recente.</p>
+          <p>Cosa ha fatto il team nelle ultime 24 ore, dalla più recente. Orari di Roma.</p>
         </div>
       </div>
+      {preview && (
+        <p className={shared.previewNotice} role="note">
+          {AUDIT_PREVIEW_NOTICE}
+        </p>
+      )}
       <form action="/audit" method="get" className={styles.filters} aria-label="Filtra le attività">
         <label>
           Persona
           <select name="actor" defaultValue={query.actor ?? ""}>
-            <option value="">Collaboratori e automazioni</option>
+            <option value="">Tutti</option>
             {snapshot.actors.map((actor) => (
               <option key={actor.id} value={actor.id}>
                 {actor.name}
@@ -97,7 +107,7 @@ export function AuditView({
         <label>
           Area
           <select name="area" defaultValue={query.area ?? ""}>
-            <option value="">Tutte le aree</option>
+            <option value="">Tutte</option>
             {ACTIVITY_AREAS.map((area) => (
               <option key={area} value={area}>
                 {activityAreaLabel(area)}
@@ -114,10 +124,6 @@ export function AuditView({
           </Link>
         )}
       </form>
-      <p className={styles.notice}>
-        Le tue attività sono escluse dalla vista iniziale. Seleziona il tuo nome per includerle.
-        Orari di Roma.
-      </p>
       <section className={styles.feed} aria-labelledby="activity-title">
         <div className={styles.feedHeading}>
           <h2 id="activity-title">Attività</h2>
@@ -126,16 +132,20 @@ export function AuditView({
         {snapshot.items.length === 0 ? (
           <div className={styles.empty}>
             <h3>
-              {filtered
-                ? "Nessuna attività per questi filtri."
+              {snapshot.nextCursor
+                ? "Niente in questo tratto delle 24 ore."
                 : snapshot.hasCursor
-                  ? "Non ci sono attività precedenti."
-                  : "Nessuna attività da mostrare."}
+                  ? "Nelle ultime 24 ore non ci sono altre attività."
+                  : filtered
+                    ? "Nelle ultime 24 ore nessuna attività per questi filtri."
+                    : "Nelle ultime 24 ore nessuna attività."}
             </h3>
             <p>
-              {filtered
-                ? "Cambia persona o area, oppure rimuovi i filtri per tornare alla vista iniziale."
-                : "Le azioni del team e delle automazioni appariranno qui quando saranno registrate."}
+              {snapshot.nextCursor
+                ? "Continua con «Attività precedenti» per leggere il resto della giornata."
+                : filtered
+                  ? "Cambia persona o area, oppure rimuovi i filtri."
+                  : "Le azioni del team e delle automazioni compaiono qui per 24 ore."}
             </p>
           </div>
         ) : (

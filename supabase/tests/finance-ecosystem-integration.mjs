@@ -1,4 +1,4 @@
-// test-db: postgres minimo 105
+// test-db: postgres minimo 106
 // Catena reale di tutte le migrazioni: P2/P3 prima di P4/P5/P6.
 // Solo Auth, Storage e le estensioni Supabase esterne hanno stand-in espliciti.
 // Nessuna funzione applicativa sostituita; dati sintetici, socket privata, nessun cloud.
@@ -678,9 +678,9 @@ try {
     "Gli incassi P3 entrano nel feed CEO",
   );
   eq(
-    actions.filter((entry) => entry.message.includes("da 60,00 € a 25,00 €")).length,
+    actions.filter((entry) => entry.message.includes("ha modificato un incasso")).length,
     1,
-    "Riga canonica P3 e sua revisione producono una sola correzione leggibile",
+    "Riga canonica P3 e sua revisione producono una sola correzione leggibile, senza importo",
   );
   for (const [version, voided, state] of [
     [2, true, "unpaid"],
@@ -794,8 +794,9 @@ try {
   );
   actions = (await feed(users.finance, "finance")).items;
   ok(
-    actions[0].message.includes("-25,00 €") && actions[0].message.includes("Categoria sintetica"),
-    "CEO riporta segno e categoria del movimento P3 corretto in Finance",
+    actions[0].message.includes("ha modificato un incasso") &&
+      !actions.some((entry) => /€|Categoria sintetica/.test(entry.message)),
+    "CEO dice la correzione del movimento P3 senza importo né categoria",
   );
   ok(
     !JSON.stringify(actions).includes("PRIVATE_SYNTHETIC_FINANCE"),
