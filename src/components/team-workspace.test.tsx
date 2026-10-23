@@ -6,6 +6,8 @@ import type { TeamEvent, TeamSnapshot } from "../lib/team/model";
 vi.mock("next/navigation", () => ({ useRouter: () => ({ refresh: vi.fn() }) }));
 vi.mock("./team-workspace-forms", () => ({
   DeleteTeamForm: ({ title }: { title: string }) => <button>Elimina {title}</button>,
+  EditEventForm: ({ event }: { event: TeamEvent }) => <button>Modifica {event.title}</button>,
+  EditTaskForm: ({ task }: { task: { title: string } }) => <button>Modifica {task.title}</button>,
   NewEventForm: () => <form aria-label="Nuovo appuntamento" />,
   NewNoteForm: () => null,
   NewTaskForm: () => null,
@@ -97,8 +99,10 @@ describe("calendario del team a mese", () => {
     expect(panel).toContain("Con Ada Prova, Bruno Prova");
     expect(panel).toContain("Apri il link della call");
     expect(panel).toContain("Elimina Call produzione");
+    expect(panel).toContain("Modifica Call produzione");
     expect(panel).toContain("Attività · Completata");
     expect(panel).toContain("Contare le scatole in Magadzino");
+    expect(panel).toContain("Modifica Contare le scatole in Magadzino");
     expect(panel).toContain("Completa");
     expect(panel).not.toContain("Consegna al negozio di prova");
     expect(html).toContain('id="evento-71000000-0000-4000-8000-000000000001"');

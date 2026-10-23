@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useRef, useState, type KeyboardEvent } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState, type KeyboardEvent } from "react";
 import { ChevronLeft, ChevronRight, ExternalLink } from "lucide-react";
 import {
   WEEKDAYS,
@@ -24,11 +24,18 @@ import {
   formatRomeDate,
   formatRomeDateTime,
   inclusiveEventEnd,
+  type TeamActionState,
   type TeamEvent,
   type TeamMember,
   type TeamTask,
 } from "../lib/team/model";
-import { DeleteTeamForm, NewEventForm, ToggleTaskForm } from "./team-workspace-forms";
+import {
+  DeleteTeamForm,
+  EditEventForm,
+  EditTaskForm,
+  NewEventForm,
+  ToggleTaskForm,
+} from "./team-workspace-forms";
 import { PartnerRefText } from "./partner-ref-text";
 import styles from "./team-workspace.module.css";
 
@@ -59,11 +66,15 @@ function EventItem({
   day,
   memberName,
   highlighted,
+  members,
+  onSaved,
 }: {
   event: TeamEvent;
   day: string;
   memberName: (id: string | null) => string;
   highlighted: boolean;
+  members: TeamMember[];
+  onSaved: (item: NonNullable<TeamActionState["updatedItem"]>) => void;
 }) {
   const { first, last } = eventDays(event);
   return (
@@ -104,7 +115,10 @@ function EventItem({
           Apri il link della call <ExternalLink size={12} aria-hidden="true" />
         </a>
       )}
-      <DeleteTeamForm table="calendar_events" id={event.id} title={event.title} />
+      <div className={styles.itemActions}>
+        <EditEventForm event={event} members={members} onSaved={onSaved} />
+        <DeleteTeamForm table="calendar_events" id={event.id} title={event.title} />
+      </div>
     </li>
   );
 }
@@ -112,12 +126,23 @@ function EventItem({
 function TaskItem({
   task,
   memberName,
+  members,
+  highlighted,
+  onSaved,
 }: {
   task: TeamTask;
   memberName: (id: string | null) => string;
+  members: TeamMember[];
+  highlighted: boolean;
+  onSaved: (item: NonNullable<TeamActionState["updatedItem"]>) => void;
 }) {
   return (
-    <li className={styles.task}>
+    <li
+      id={`scadenza-${task.id}`}
+      className={styles.task}
+      data-highlight={highlighted || undefined}
+      tabIndex={-1}
+    >
       <div className={styles.itemMeta}>
         <span>
           Attività ·{" "}
@@ -132,6 +157,7 @@ function TaskItem({
       <h4 className={task.status === "done" ? styles.done : undefined}>{task.title}</h4>
       <div className={styles.itemActions}>
         <ToggleTaskForm task={task} />
+        <EditTaskForm task={task} members={members} onSaved={onSaved} />
         <DeleteTeamForm table="tasks" id={task.id} title={task.title} />
       </div>
     </li>
@@ -159,6 +185,21 @@ export function TeamCalendar({
   const [selected, setSelected] = useState(today);
   const [highlight, setHighlight] = useState<string | null>(null);
   const [focusDay, setFocusDay] = useState<string | null>(null);
+  const [savedMessage, setSavedMessage] = useState("");
+  const onSaved = useCallback((item: NonNullable<TeamActionState["updatedItem"]>) => {
+    setSavedMessage(
+      item.kind === "event"
+        ? "Appuntamento aggiornato nel calendario del team."
+        : item.day
+          ? "Attività aggiornata nel calendario del team."
+          : "Attività aggiornata. Senza scadenza la trovi nell’elenco Attività.",
+    );
+    if (item.day) {
+      setMonth(monthOf(item.day));
+      setSelected(item.day);
+      setHighlight(item.id);
+    }
+  }, []);
   const items = useMemo(() => itemsByDay(events, tasks, month), [events, tasks, month]);
   const cells = useMemo(() => monthGrid(month), [month]);
   const eventsRef = useRef(events);
@@ -217,13 +258,22 @@ export function TeamCalendar({
   }, []);
   useEffect(() => {
     if (!highlight) return;
-    const element = document.getElementById(`evento-${highlight}`);
+    const element =
+      document.getElementById(`evento-${highlight}`) ??
+      document.getElementById(`scadenza-${highlight}`);
     element?.scrollIntoView({ block: "center" });
     element?.focus({ preventScroll: true });
   }, [highlight, selected]);
 
   return (
     <>
+      <div className={styles.feedback} aria-live="polite">
+        {savedMessage && (
+          <p role="status" className={styles.success}>
+            {savedMessage}
+          </p>
+        )}
+      </div>
       <div className={styles.calendar}>
         <div className={styles.calendarMain}>
           <div className={styles.monthBar}>
@@ -314,9 +364,18 @@ export function TeamCalendar({
                     day={selected}
                     memberName={memberName}
                     highlighted={highlight === item.event.id}
+                    members={members}
+                    onSaved={onSaved}
                   />
                 ) : (
-                  <TaskItem key={item.task.id} task={item.task} memberName={memberName} />
+                  <TaskItem
+                    key={item.task.id}
+                    task={item.task}
+                    memberName={memberName}
+                    members={members}
+                    highlighted={highlight === item.task.id}
+                    onSaved={onSaved}
+                  />
                 ),
               )}
             </ul>
