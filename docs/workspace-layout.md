@@ -28,7 +28,7 @@ Una sola fonte: `src/lib/navigation.ts`, funzioni pure senza React né icone.
 | --- | --- | --- | --- | --- |
 | Oggi | `/` | — | tutti | barra |
 | Vendite | `/sales` | Ordini `/sales`, Conto vendita `/consignment` | tutti | barra |
-| Magazzino | `/stock` | Giacenze `/stock`, Rettifiche `/stock/rettifiche`, Packaging `/packaging`, Riassortimento `/stock/riassortimento` | tutti | barra |
+| Magazzino | `/stock` | Giacenze `/stock`, Rettifiche `/stock/rettifiche`, Conto vendita `/stock/conto-vendita`, Riassortimento `/stock/riassortimento`, Packaging `/packaging` | tutti | barra |
 | Partner | `/partner` | — | tutti | barra |
 | Team | `/team` | Calendario e attività `/team`, Nuovi prodotti `/development`, Grafica e foto `/assets` | tutti | «Altro» |
 | Finance | `/finance` | Panoramica `/finance`, Registrazioni `/finance/work`, Documenti `/finance/documents` | tutti | «Altro» |
@@ -36,7 +36,8 @@ Una sola fonte: `src/lib/navigation.ts`, funzioni pure senza React né icone.
 
 - Fuori dalle sezioni (`ACCOUNT_LINKS`): «Come si usa» (`/guida`), «Account e sicurezza» (`/auth/account`, accesa anche da `/auth/password` e `/auth/verify`) ed «Esci». Sul desktop stanno nel piede della barra laterale, sul telefono in «Altro». Ogni voce ha un nome breve (`band`) per la fascia verde del telefono: «Come si usa» e «Account».
 - Tutti i membri vedono le sette sezioni, comprese Finance e Controllo CEO con il lucchetto. Le schede Finance compaiono anche prima dell’apertura dell’area; pagine, RPC e RLS richiedono la password corretta nella sessione corrente. In anteprima locale 7; senza sessione o con account non abilitato nessuna; con verifica in corso o non riuscita le 5 aperte a tutti.
-- **Prefisso più lungo.** Un `href` combacia se il percorso è uguale o continua con `/`; `/` combacia solo con `/`. Vince l'`href` più lungo tra schede, sezioni e `also`. Così `/stock/rettifiche` accende Rettifiche, `/consignment/NEG01/conta` accende Conto vendita e `/sales-old` non accende niente.
+- **Prefisso più lungo.** Un `href` combacia se il percorso è uguale o continua con `/`; `/` combacia solo con `/`. Vince l'`href` più lungo tra schede, sezioni e `also`. Così `/stock/rettifiche` accende Rettifiche, `/stock/conto-vendita/NEG01/conta` accende Conto vendita di Magazzino, `/consignment/NEG01` quello di Vendite e `/sales-old` non accende niente.
+- **Conto vendita in due sezioni.** Le due schede hanno lo stesso nome e `href` diversi: in Vendite `/consignment` (vendite del negozio, resoconto mensile, fattura e pagamenti), in Magazzino `/stock/conto-vendita` (magliette in negozio, conta, ordini e consegne, impostazioni). Le schede di Magazzino mettono prima le magliette (Giacenze e Rettifiche del Magadzino, Conto vendita, Riassortimento) e in fondo il materiale per spedire (Packaging). Vedi [Conto vendita](consignment.md), «Pagine».
 - `also`: percorsi senza scheda che accendono la sezione. Finance ha `/auth/area/finance`, Controllo CEO `/auth/area/audit`.
 - Ogni `href` compare una volta sola. L'`href` di una sezione con schede è la sua prima scheda. Le schede compaiono solo con almeno due pagine.
 - Ordine fisso. Finance e Controllo CEO stanno in fondo e non spostano le altre voci.
@@ -56,7 +57,7 @@ Una sola fonte: `src/lib/navigation.ts`, funzioni pure senza React né icone.
 ## Regole per le pagine nuove
 
 - Ogni pagina per i membri va in `src/app/(workspace)/…`. I file nuovi (per esempio `actions.ts` di una pagina nuova) stanno accanto alla pagina, dentro il gruppo. Le `actions.ts` e `route.ts` esistenti non si spostano.
-- La pagina deve essere raggiunta dalla mappa di `src/lib/navigation.ts`: come sezione, come scheda, in `also`, oppure perché continua un `href` già presente (`/consignment/NEG01` accende già Conto vendita, senza nessuna voce nuova).
+- La pagina deve essere raggiunta dalla mappa di `src/lib/navigation.ts`: come sezione, come scheda, in `also`, oppure perché continua un `href` già presente (`/stock/conto-vendita/NEG01` accende già Conto vendita di Magazzino, senza nessuna voce nuova).
 - Se apre un nuovo primo segmento di URL, va nel `matcher` di `src/proxy.ts`.
 - Niente testata propria, niente link indietro («Torna al workspace»), niente collegamento di salto, niente `<main>`: li ha il guscio. Niente `AuthShell` dentro il gruppo.
 - Stati (configurazione mancante, accesso negato, area chiusa, errore) con `WorkspacePanel` (`src/components/workspace-panel.tsx`): titolo, testo, azioni in `PanelActions`, `tone="warning"` per gli avvisi. «Riprova» con `RefreshButton`. Le pagine che usano `requireMember()` hanno gli stati comuni in `AccessPanel`. Nei pannelli, «Esci» compare solo nello stato «Account non abilitato»: per tutto il resto è nel menu.

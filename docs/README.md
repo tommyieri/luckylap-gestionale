@@ -58,7 +58,7 @@ Alcuni documenti scritti prima del modello attuale chiedono ancora una sessione 
 
 ## Conto vendita
 
-- [Conto vendita](consignment.md): modulo `/consignment` con negozi, conta in negozio, resoconto mensile da fatturare (60% LuckyLap, 40% negozio), pagamenti in Finance e ordini del negozio; taglie del negozio (Milano S–XL).
+- [Conto vendita](consignment.md): due schede, Magazzino › Conto vendita (`/stock/conto-vendita`: magliette in negozio, conta, ordini e consegne) e Vendite › Conto vendita (`/consignment`: resoconto mensile da fatturare, 60% LuckyLap e 40% negozio, fattura e pagamenti in Finance); indirizzi vecchi con redirect; taglie del negozio (Milano S–XL).
 
 ## Partner
 

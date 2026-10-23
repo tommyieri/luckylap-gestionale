@@ -17,7 +17,7 @@ import {
   type CountDraft,
   type ShopPage,
 } from "../lib/consignment/shop-read";
-import { consignmentShopHref } from "../lib/consignment/links";
+import { shopStockHref } from "../lib/consignment/links";
 import { ConsignmentStockGrid } from "./consignment-stock-grid";
 import { FormMessage, useShopCommands, type FormNotice } from "./consignment-pending";
 import styles from "./consignment-shop.module.css";
@@ -172,7 +172,7 @@ export function ConsignmentCountForm({ page, now }: { page: ShopPage; now: strin
     if (!result) return;
     if (result.status === "success") {
       commands.flash(result.message);
-      router.push(consignmentShopHref(page.shop.code));
+      router.push(shopStockHref(page.shop.code));
       return;
     }
     setDraft(null);

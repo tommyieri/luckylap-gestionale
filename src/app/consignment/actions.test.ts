@@ -32,6 +32,7 @@ describe("runShopCommand", () => {
     expect(mocks.execute).toHaveBeenCalledWith({ db: true }, { any: true });
     expect(mocks.revalidate.mock.calls).toEqual([
       ["/consignment", "layout"],
+      ["/stock/conto-vendita", "layout"],
       ["/", undefined],
       ["/stock", undefined],
       ["/packaging", undefined],
@@ -48,7 +49,7 @@ describe("runShopCommand", () => {
       throw Error("cache");
     });
     expect((await runShopCommand({})).status).toBe("success");
-    expect(mocks.revalidate).toHaveBeenCalledTimes(8);
+    expect(mocks.revalidate).toHaveBeenCalledTimes(9);
   });
 
   it("anche il recupero precedente conserva la ricevuta e tenta le altre viste se la prima cache fallisce", async () => {

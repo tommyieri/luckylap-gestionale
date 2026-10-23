@@ -70,8 +70,10 @@ export const SECTIONS: readonly NavSection[] = deepFreeze<NavSection[]>([
     tabs: [
       { href: "/stock", label: "Giacenze" },
       { href: "/stock/rettifiche", label: "Rettifiche" },
-      { href: "/packaging", label: "Packaging" },
+      // Prima le magliette (Magadzino, negozi, riordini), poi il materiale per spedire.
+      { href: "/stock/conto-vendita", label: "Conto vendita" },
       { href: "/stock/riassortimento", label: "Riassortimento" },
+      { href: "/packaging", label: "Packaging" },
     ],
     mobile: "bar",
   },

@@ -310,6 +310,17 @@ function shopSizesFrom(v: unknown): string[] | null {
 /** La taglia è tra quelle del negozio (o il negozio le tiene tutte). */
 export const shopTakesSize = (shop: Pick<ShopConfig, "sizes">, size: string) =>
   shop.sizes === null || shop.sizes.includes(size);
+/** «Taglie S–XL» per una serie senza buchi, «Taglie S, M, XL» altrimenti, «Tutte le taglie». */
+export function shopSizesLabel(shop: Pick<ShopConfig, "sizes">): string {
+  const sizes = SIZES.filter((size) => shopTakesSize(shop, size));
+  if (shop.sizes === null || sizes.length === SIZES.length) return "Tutte le taglie";
+  if (!sizes.length) return "Nessuna taglia";
+  if (sizes.length === 1) return `Taglia ${sizes[0]}`;
+  const from = SIZES.indexOf(sizes[0]);
+  return sizes.every((size, index) => SIZES[from + index] === size)
+    ? `Taglie ${sizes[0]}–${sizes.at(-1)}`
+    : `Taglie ${sizes.join(", ")}`;
+}
 
 /** Primo mese che il negozio deve rendicontare: avvio delle vendite, o creazione del negozio se successiva. */
 export function shopStartMonth(shop: ShopConfig, settings: ShopSettings): string | null {
@@ -1421,8 +1432,23 @@ export type ShopReminder = {
   text: string;
   href: string | null;
 };
-/** Promemoria calcolati alla lettura, senza job pianificati. */
-export function shopReminders(page: ShopPage, now: Date | string): ShopReminder[] {
+/**
+ * Lato delle pagine del negozio: Magazzino › Conto vendita (magliette in negozio, conta,
+ * ordini e consegne) o Vendite › Conto vendita (resoconto mensile, fattura, pagamenti).
+ */
+export type ShopSide = "stock" | "sales";
+/** Conta e ordini stanno nel magazzino del negozio; resoconti, fatture e pagamenti nelle vendite. */
+export const reminderSide = (reminder: Pick<ShopReminder, "key">): ShopSide =>
+  reminder.key === "count" || reminder.key === "orders" ? "stock" : "sales";
+/**
+ * Promemoria calcolati alla lettura, senza job pianificati. Con `side`, solo quelli del lato:
+ * le vendite spiegano la conta mancante nel loro riquadro, non negli avvisi.
+ */
+export function shopReminders(page: ShopPage, now: Date | string, side?: ShopSide): ShopReminder[] {
+  const all = allShopReminders(page, now);
+  return side ? all.filter((r) => reminderSide(r) === side) : all;
+}
+function allShopReminders(page: ShopPage, now: Date | string): ShopReminder[] {
   const reminders: ShopReminder[] = [];
   const code = page.shop.code;
   if (page.shop.firstCountedAt === null)
@@ -1491,18 +1517,31 @@ export function shopReminders(page: ShopPage, now: Date | string): ShopReminder[
 
 export type ShopHistoryEntry = {
   key: string;
+  /** Conta, consegna o magliette riportate, versione delle righe di un resoconto, fattura. */
+  kind: "count" | "shipment" | "lines" | "invoice";
   at: string;
   author: string;
   text: string;
   detail: string | null;
   href: string | null;
 };
-/** Conte, consegne, magliette riportate e versioni dei resoconti, dalla più recente. */
-export function shopHistory(page: ShopPage): ShopHistoryEntry[] {
+/**
+ * Conte, consegne, magliette riportate e versioni dei resoconti, dalla più recente. Con `side`:
+ * nel magazzino del negozio tutto ciò che muove le magliette (conte, consegne, magliette
+ * riportate, resoconti che le scalano); nelle vendite le versioni dei resoconti e le fatture.
+ */
+export function shopHistory(page: ShopPage, side?: ShopSide): ShopHistoryEntry[] {
+  const all = allShopHistory(page);
+  if (side === "sales") return all.filter((e) => e.kind === "lines" || e.kind === "invoice");
+  if (side === "stock") return all.filter((e) => e.kind !== "invoice");
+  return all;
+}
+function allShopHistory(page: ShopPage): ShopHistoryEntry[] {
   const code = page.shop.code;
   const entries: ShopHistoryEntry[] = [
     ...page.counts.map((c) => ({
       key: `count:${c.id}`,
+      kind: "count" as const,
       at: c.countedAt,
       author: c.author,
       text: c.fullCount
@@ -1515,6 +1554,7 @@ export function shopHistory(page: ShopPage): ShopHistoryEntry[] {
       const order = page.orders.find((o) => o.id === s.orderId);
       return {
         key: `shipment:${s.id}`,
+        kind: "shipment" as const,
         at: s.occurredAt,
         author: s.author,
         text:
@@ -1528,6 +1568,7 @@ export function shopHistory(page: ShopPage): ShopHistoryEntry[] {
     ...page.reports.flatMap((report) =>
       report.revisions.map((r) => ({
         key: `revision:${r.id}`,
+        kind: r.kind,
         at: r.createdAt,
         author: r.author,
         text:

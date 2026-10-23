@@ -40,6 +40,12 @@ describe("colonna «In negozio» del Magazzino", () => {
     expect(t).not.toContain("LCM");
     expect(t).toContain("Magadzino e negozi restano separati.");
   });
+  it("la nota porta al magazzino dei negozi, in Magazzino › Conto vendita", () => {
+    const html = renderToStaticMarkup(
+      <InventoryWorkspace items={[item("M", null)]} sourceMeta={meta} shared />,
+    );
+    expect(html).toMatch(/<a href="\/stock\/conto-vendita">Conto vendita<\/a>/);
+  });
   it("dopo la conta mostra i pezzi dei negozi contati, anche 0", () => {
     const t = text([item("M", 3), item("L", 0)]);
     expect(t).toContain("In negozio 3 pezzi");

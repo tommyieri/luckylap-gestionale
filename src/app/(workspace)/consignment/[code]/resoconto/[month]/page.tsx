@@ -8,7 +8,7 @@ import styles from "../../../../../../components/consignment-shop.module.css";
 import { consignmentShopHref } from "../../../../../../lib/consignment/links";
 import { monthLabel, periodMonth } from "../../../../../../lib/consignment/shop-model";
 import { reportMonthAllowed } from "../../../../../../lib/consignment/shop-read";
-import { loadShop, shopTitle, SHOP_SETUP } from "../../../load";
+import { loadShop, shopTitle, SHOP_SETUP } from "../../../../../../lib/consignment/shop-page-load";
 
 export const dynamic = "force-dynamic";
 
@@ -21,7 +21,10 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
   return { title: await shopTitle(code, () => `Resoconto di ${monthLabel(period)}`) };
 }
 
-/** Resoconto del mese: modulo se manca, riepilogo con «Modifica» se è registrato. */
+/**
+ * Resoconto del mese (Vendite › Conto vendita): modulo se manca, riepilogo con «Modifica» se è
+ * registrato. Indirizzo della decisione 17: il feed del Controllo CEO lo costruisce in SQL.
+ */
 export default async function ReportPage({ params }: Props) {
   const { code, month } = await params;
   const period = periodMonth(month);
@@ -35,6 +38,7 @@ export default async function ReportPage({ params }: Props) {
   return (
     <ShopFrame
       page={page}
+      side="sales"
       userId={load.userId}
       preview={load.preview}
       title={`Resoconto di ${monthLabel(period)}`}
@@ -51,7 +55,7 @@ export default async function ReportPage({ params }: Props) {
             prefetch={false}
             className="button button-secondary"
           >
-            Apri il negozio
+            Apri le vendite del negozio
           </Link>
         </div>
       ) : (

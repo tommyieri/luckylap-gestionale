@@ -1,17 +1,23 @@
 import type { Metadata } from "next";
-import { AccessPanel } from "../../../../components/access-panel";
-import { ShopCommandsProvider, ShopPendingSlot } from "../../../../components/consignment-pending";
-import { ConsignmentShopSettings } from "../../../../components/consignment-shop-settings";
-import styles from "../../../../components/consignment-shop.module.css";
-import { requireMember } from "../../../../lib/auth/current-member";
-import { previewWarehouses } from "../../../../lib/consignment/shop-fixtures";
-import { readNewShopForm } from "../../../../lib/consignment/shop-server";
-import { PREVIEW_USER, SHOP_SETUP } from "../load";
+import { AccessPanel } from "../../../../../components/access-panel";
+import {
+  ShopCommandsProvider,
+  ShopPendingSlot,
+} from "../../../../../components/consignment-pending";
+import { ConsignmentShopSettings } from "../../../../../components/consignment-shop-settings";
+import styles from "../../../../../components/consignment-shop.module.css";
+import { requireMember } from "../../../../../lib/auth/current-member";
+import { previewWarehouses } from "../../../../../lib/consignment/shop-fixtures";
+import { PREVIEW_USER, SHOP_SETUP } from "../../../../../lib/consignment/shop-page-load";
+import { readNewShopForm } from "../../../../../lib/consignment/shop-server";
 
 export const dynamic = "force-dynamic";
 export const metadata: Metadata = { title: "Nuovo negozio" };
 
-/** Nuovo negozio: solo con Finance aperta (decisione 34). */
+/**
+ * Nuovo negozio (Magazzino › Conto vendita): solo con Finance aperta (decisione 34). Il vecchio
+ * indirizzo `/consignment/nuovo` arriva qui con la sua query (next.config.ts).
+ */
 export default async function NewShopPage() {
   const current = await requireMember();
   if (current.status !== "member" && current.status !== "preview")

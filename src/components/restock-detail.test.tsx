@@ -63,7 +63,9 @@ describe("pagina di un riordine", () => {
     );
     const shop = renderToStaticMarkup(<ShopSection page={arrived} />);
     expect(text(shop)).toContain("Da consegnare a Negozio sintetico");
-    expect(shop).toContain(`href="/consignment/NEG01/ordini/nuovo?riordine=${rx.arrived}"`);
+    expect(shop).toContain(`href="/stock/conto-vendita/NEG01/ordini/nuovo?riordine=${rx.arrived}"`);
+    expect(shop).toContain('href="/stock/conto-vendita/NEG01"');
+    expect(text(shop)).toContain("Apri il magazzino del negozio Negozio sintetico");
     expect(text(shop)).toContain("Prepara la consegna a Negozio sintetico");
     expect(text(shop)).toContain("Segna come già consegnate");
     const delivered = text(renderToStaticMarkup(<ShopSection page={page(rx.delivered)} />));

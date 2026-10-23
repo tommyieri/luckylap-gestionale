@@ -975,7 +975,7 @@ export function ConsignmentReport({
         <p className={styles.emptyTitle}>Prima conta le magliette in negozio.</p>
         <p className={styles.muted}>
           Il resoconto parte dalla giacenza contata: senza conta non si sa da dove scalare i pezzi
-          venduti.
+          venduti. La conta si fa in Magazzino › Conto vendita.
         </p>
         <Link
           href={consignmentCountHref(page.shop.code)}

@@ -15,6 +15,7 @@ import {
   shopQuantity,
   shopReminders,
   shopsFromRows,
+  shopSizesLabel,
   shopStartMonth,
   shopStockGrid,
   suggestedReportMonth,
@@ -462,6 +463,22 @@ describe("promemoria", () => {
   });
   it("prima della conta nessun resoconto da registrare, solo la conta", () => {
     expect(shopReminders(uncounted(), "2026-12-05T10:00:00Z").map((r) => r.key)).toEqual(["count"]);
+    expect(shopReminders(uncounted(), "2026-12-05T10:00:00Z")[0].href).toBe(
+      "/stock/conto-vendita/NEG02/conta",
+    );
+  });
+  it("un lato per pagina: conta e ordini nel magazzino, resoconti e fatture nelle vendite", () => {
+    const p = page();
+    const at = "2026-11-05T10:00:00Z";
+    expect(shopReminders(p, at, "stock").map((r) => [r.key, r.href])).toEqual([
+      ["orders", "/stock/conto-vendita/NEG01/ordini/2"],
+    ]);
+    expect(shopReminders(p, at, "sales").map((r) => [r.key, r.href])).toEqual([
+      ["report:2026-10", "/consignment/NEG01/resoconto/2026-10"],
+    ]);
+    // Le vendite spiegano la conta mancante nel loro riquadro, non negli avvisi.
+    expect(shopReminders(uncounted(), at, "sales")).toEqual([]);
+    expect(shopReminders(uncounted(), at, "stock").map((r) => r.key)).toEqual(["count"]);
   });
   it("un negozio nuovo non deve i mesi prima della sua apertura", () => {
     const p = page(
@@ -548,6 +565,17 @@ describe("promemoria", () => {
   });
 });
 
+describe("taglie del negozio", () => {
+  it("«Taglie S–XL», «Tutte le taglie» o l'elenco quando ci sono buchi", () => {
+    expect(shopSizesLabel({ sizes: ["S", "M", "L", "XL"] })).toBe("Taglie S–XL");
+    expect(shopSizesLabel({ sizes: null })).toBe("Tutte le taglie");
+    expect(shopSizesLabel({ sizes: ["XS", "S", "M", "L", "XL", "XXL"] })).toBe("Tutte le taglie");
+    expect(shopSizesLabel({ sizes: ["S", "M", "XL"] })).toBe("Taglie S, M, XL");
+    expect(shopSizesLabel({ sizes: ["M"] })).toBe("Taglia M");
+    expect(shopSizesLabel({ sizes: [] })).toBe("Nessuna taglia");
+  });
+});
+
 describe("storico", () => {
   it("conte, consegne, magliette riportate e versioni, dalla più recente", () => {
     const history = shopHistory(page());
@@ -562,7 +590,27 @@ describe("storico", () => {
       "Conta in negozio: 20 magliette",
     ]);
     expect(history[0].detail).toBe("Fine stagione sintetica");
-    expect(history[1].href).toBe("/consignment/NEG01/ordini/2");
+    expect(history[1].href).toBe("/stock/conto-vendita/NEG01/ordini/2");
+  });
+
+  it("un lato per pagina: le magliette nel magazzino del negozio, i resoconti nelle vendite", () => {
+    const stock = shopHistory(page(), "stock").map((h) => h.text);
+    expect(stock).toEqual([
+      "Riportate in magazzino: 2 magliette",
+      "Consegna dell’ordine n. 2: 1 maglietta",
+      "Correzione della conta: 2 magliette nelle varianti contate",
+      "Resoconto di settembre 2026 corretto (versione 2)",
+      "Resoconto di settembre 2026 registrato: 3 magliette",
+      "Consegna dell’ordine n. 1: 4 magliette",
+      "Conta in negozio: 20 magliette",
+    ]);
+    const sales = shopHistory(page(), "sales");
+    expect(sales.map((h) => h.text)).toEqual([
+      "Resoconto di settembre 2026: fattura n. 12 segnata",
+      "Resoconto di settembre 2026 corretto (versione 2)",
+      "Resoconto di settembre 2026 registrato: 3 magliette",
+    ]);
+    expect(sales.every((h) => h.href === "/consignment/NEG01/resoconto/2026-09")).toBe(true);
   });
 });
 

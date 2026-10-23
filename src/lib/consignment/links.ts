@@ -1,11 +1,19 @@
 /*
  * Indirizzi del conto vendita. Un solo posto per i percorsi, così Oggi, Finance
  * e il feed del Controllo CEO portano alla stessa pagina (decisione 17).
+ * Due lati, due prefissi:
+ * - Vendite › Conto vendita (`/consignment`): vendite del negozio, resoconto
+ *   mensile, fattura e pagamenti;
+ * - Magazzino › Conto vendita (`/stock/conto-vendita`): magliette in negozio,
+ *   conta, ordini e consegne, impostazioni e nuovo negozio.
  * Un codice o un mese non valido non produce mai un indirizzo rotto: si torna
- * all'elenco o alla pagina del negozio.
+ * all'elenco del lato giusto o alla pagina del negozio.
  */
 
+/** Vendite › Conto vendita. */
 export const CONSIGNMENT_HREF = "/consignment";
+/** Magazzino › Conto vendita. */
+export const SHOP_STOCK_HREF = "/stock/conto-vendita";
 const SHOP_CODE = /^[A-Z0-9]{2,12}$/;
 const MONTH = /^2\d{3}-(0[1-9]|1[0-2])$/;
 
@@ -16,7 +24,10 @@ export function shopCode(value: unknown): string | null {
   return SHOP_CODE.test(code) ? code : null;
 }
 
-/** `/consignment/NEG01`, oppure `/consignment/NEG01/resoconto/2026-10` con il mese. */
+/**
+ * Vendite del negozio: `/consignment/NEG01`, oppure `/consignment/NEG01/resoconto/2026-10`
+ * con il mese. Forme della decisione 17: il feed del Controllo CEO le costruisce in SQL.
+ */
 export function consignmentShopHref(code: string, month?: string | null): string {
   const shop = shopCode(code);
   if (!shop) return CONSIGNMENT_HREF;
@@ -24,20 +35,26 @@ export function consignmentShopHref(code: string, month?: string | null): string
   return typeof month === "string" && MONTH.test(month) ? `${base}/resoconto/${month}` : base;
 }
 
-/** `/consignment/NEG01/conta`. */
-export function consignmentCountHref(code: string): string {
-  const base = consignmentShopHref(code);
-  return base === CONSIGNMENT_HREF ? base : `${base}/conta`;
+/** Magazzino del negozio: `/stock/conto-vendita/NEG01`. */
+export function shopStockHref(code: string): string {
+  const shop = shopCode(code);
+  return shop ? `${SHOP_STOCK_HREF}/${shop}` : SHOP_STOCK_HREF;
 }
 
-/** `/consignment/NEG01/impostazioni`. */
+/** `/stock/conto-vendita/NEG01/conta`. */
+export function consignmentCountHref(code: string): string {
+  const base = shopStockHref(code);
+  return base === SHOP_STOCK_HREF ? base : `${base}/conta`;
+}
+
+/** `/stock/conto-vendita/NEG01/impostazioni`. */
 export function consignmentSettingsHref(code: string): string {
-  const base = consignmentShopHref(code);
-  return base === CONSIGNMENT_HREF ? base : `${base}/impostazioni`;
+  const base = shopStockHref(code);
+  return base === SHOP_STOCK_HREF ? base : `${base}/impostazioni`;
 }
 
 /**
- * `/consignment/NEG01/ordini/3`, oppure `/consignment/NEG01/ordini/nuovo`;
+ * `/stock/conto-vendita/NEG01/ordini/3`, oppure `/stock/conto-vendita/NEG01/ordini/nuovo`;
  * con `fromMonth` il nuovo ordine parte dalle magliette vendute in quel mese.
  */
 export function consignmentOrderHref(
@@ -45,8 +62,8 @@ export function consignmentOrderHref(
   order: number | "nuovo",
   fromMonth?: string | null,
 ): string {
-  const base = consignmentShopHref(code);
-  if (base === CONSIGNMENT_HREF) return base;
+  const base = shopStockHref(code);
+  if (base === SHOP_STOCK_HREF) return base;
   if (order === "nuovo")
     return `${base}/ordini/nuovo${typeof fromMonth === "string" && MONTH.test(fromMonth) ? `?da=${fromMonth}` : ""}`;
   return Number.isSafeInteger(order) && order >= 1 && order <= 1_000_000
@@ -62,7 +79,7 @@ export function shopOrderParam(value: unknown): number | "nuovo" | null {
   return n <= 1_000_000 ? n : null;
 }
 
-export const NEW_SHOP_HREF = `${CONSIGNMENT_HREF}/nuovo`;
+export const NEW_SHOP_HREF = `${SHOP_STOCK_HREF}/nuovo`;
 
 /** Ancora del pannello «Conto vendita · da incassare» nelle pagine Finance. */
 export const CONSIGNMENT_FINANCE_ANCHOR = "conto-vendita-da-incassare";

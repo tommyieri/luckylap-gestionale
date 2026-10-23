@@ -1,10 +1,10 @@
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
-import { AccessPanel } from "../../../../../components/access-panel";
-import { ConsignmentCountForm } from "../../../../../components/consignment-count-form";
-import { ShopFrame } from "../../../../../components/consignment-shop";
-import type { ShopPage } from "../../../../../lib/consignment/shop-read";
-import { loadShop, shopTitle, SHOP_SETUP } from "../../load";
+import { AccessPanel } from "../../../../../../components/access-panel";
+import { ConsignmentCountForm } from "../../../../../../components/consignment-count-form";
+import { ShopFrame } from "../../../../../../components/consignment-shop";
+import type { ShopPage } from "../../../../../../lib/consignment/shop-read";
+import { loadShop, shopTitle, SHOP_SETUP } from "../../../../../../lib/consignment/shop-page-load";
 
 export const dynamic = "force-dynamic";
 
@@ -19,7 +19,10 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
 const countTitle = (page: ShopPage) =>
   page.shop.firstCountedAt === null ? "Conta in negozio" : "Correggi la conta";
 
-/** Conta in negozio: prima conta completa, poi correzioni anche di una sola taglia. */
+/**
+ * Conta in negozio (Magazzino › Conto vendita): prima conta completa, poi correzioni anche di
+ * una sola taglia. Il vecchio indirizzo `/consignment/<CODICE>/conta` arriva qui (next.config.ts).
+ */
 export default async function CountPage({ params }: Props) {
   const { code } = await params;
   const load = await loadShop(code);
@@ -28,6 +31,7 @@ export default async function CountPage({ params }: Props) {
   return (
     <ShopFrame
       page={load.page}
+      side="stock"
       userId={load.userId}
       preview={load.preview}
       title={countTitle(load.page)}
