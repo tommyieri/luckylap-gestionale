@@ -1,0 +1,278 @@
+/*
+ * «Magliette disponibili» (Giacenze): griglia di riquadri uguali, aperta dal filetto
+ * d'inchiostro da 1,5 px delle liste roadbook e divisa da filetti da 1 px. Sei riquadri:
+ * due colonne sul telefono, tre da 560 px di contenuto, sei da 1100 px.
+ */
+.section {
+  container-type: inline-size;
+  margin-bottom: 22px;
+}
+.heading {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 4px 16px;
+  margin-bottom: 12px;
+}
+.heading h2 {
+  font-family: var(--f-cond);
+  font-size: var(--text-xl);
+  font-weight: 700;
+  line-height: 1.1;
+}
+.heading p {
+  color: var(--muted);
+  font-size: var(--text-sm);
+}
+.grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 1px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  background: var(--rule);
+  border-top: 1.5px solid var(--ink);
+  border-bottom: 1px solid var(--rule);
+}
+@container (min-width: 560px) {
+  .grid {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+}
+@container (min-width: 1100px) {
+  .grid {
+    grid-template-columns: repeat(6, minmax(0, 1fr));
+  }
+}
+.grid > li {
+  display: flex;
+  min-width: 0;
+  container-type: inline-size;
+}
+/* Tutto il riquadro è il bersaglio: ben oltre 44 px anche sul telefono. */
+.tile {
+  position: relative;
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  gap: 10px;
+  min-width: 0;
+  min-height: var(--tap);
+  padding: 16px 18px 18px;
+  background: var(--paper);
+  color: var(--ink);
+  text-decoration: none;
+  cursor: pointer;
+  transition: background-color 160ms var(--ease);
+}
+.tile:hover {
+  background: var(--tint);
+}
+.tile:focus-visible {
+  outline-offset: -4px;
+}
+/* Filtro attivo: verde chiaro dei filtri e filetto d'inchiostro da 3 px, come la scheda attiva. */
+.tile[aria-current="true"] {
+  background: var(--green-wash);
+}
+.tile[aria-current="true"]::before {
+  content: "";
+  position: absolute;
+  top: 0;
+  right: 0;
+  left: 0;
+  height: 3px;
+  background: var(--ink);
+}
+.head {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-width: 0;
+}
+/* Chip ottagonale: il filetto da 1 px è il fondo che resta tra i due ottagoni. */
+.chip,
+.chip > img,
+.initials {
+  clip-path: polygon(
+    29.3% 0,
+    70.7% 0,
+    100% 29.3%,
+    100% 70.7%,
+    70.7% 100%,
+    29.3% 100%,
+    0 70.7%,
+    0 29.3%
+  );
+}
+.chip {
+  flex: none;
+  display: block;
+  width: var(--tap);
+  height: var(--tap);
+  padding: 1px;
+  background: var(--rule);
+}
+.chip > img {
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  background: var(--paper);
+}
+.initials {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+  height: 100%;
+  background: var(--paper);
+  color: var(--ink);
+  font-family: var(--f-cond);
+  font-size: var(--text-sm);
+  font-weight: 700;
+  letter-spacing: 0.02em;
+}
+.chip[data-swatch="navy"] > .initials {
+  background: #1f2a44;
+  color: var(--paper);
+}
+.chip[data-swatch="sky"] > .initials {
+  background: #a9bdcb;
+}
+.name {
+  min-width: 0;
+  font-family: var(--f-cond);
+  font-size: var(--text-lg);
+  font-weight: 700;
+  line-height: 1.1;
+  letter-spacing: 0.02em;
+  text-transform: uppercase;
+  overflow-wrap: anywhere;
+}
+.count {
+  font-family: var(--f-cond);
+  font-size: 52px;
+  font-weight: 600;
+  line-height: 0.9;
+  letter-spacing: -0.01em;
+  font-variant-numeric: tabular-nums;
+}
+.colors {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 2px 8px;
+  color: var(--ink-2);
+  font-family: var(--f-cond);
+  font-size: var(--text-md);
+  font-weight: 600;
+  line-height: 1.2;
+}
+.color {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+.colorCount {
+  font-family: var(--f-cond);
+  font-variant-numeric: tabular-nums;
+}
+.separator {
+  color: var(--muted);
+}
+/* Campione del colore della maglietta: il 50% resta ai pallini e ai campioni. */
+.dot {
+  flex: none;
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  border: 1px solid var(--muted);
+  background: var(--paper);
+}
+.dot[data-swatch="navy"] {
+  border-color: #1f2a44;
+  background: #1f2a44;
+}
+.dot[data-swatch="sky"] {
+  border-color: #7f98aa;
+  background: #a9bdcb;
+}
+.hint {
+  margin-top: auto;
+  color: var(--muted);
+  font-family: var(--f-cond);
+  font-size: var(--text-sm);
+  font-weight: 500;
+  line-height: 1.25;
+}
+/* Zero e dato mancante: numero e icona attenuati, con la parola sotto. */
+.tile[data-state="empty"] .count,
+.tile[data-state="unknown"] .count,
+.tile[data-state="missing"] .count {
+  color: color-mix(in srgb, var(--muted) 72%, var(--paper));
+}
+.tile[data-state="empty"] .chip,
+.tile[data-state="missing"] .chip {
+  filter: grayscale(1);
+  opacity: 0.7;
+}
+/* Riquadro largo (desktop a tre colonne): numero a sinistra, colori e taglie accanto. */
+@container (min-width: 280px) {
+  .tile {
+    display: grid;
+    grid-template-columns: auto minmax(0, 1fr);
+    grid-template-rows: auto 1fr auto;
+    grid-template-areas:
+      "head head"
+      "count colors"
+      "count hint";
+    gap: 4px 18px;
+  }
+  .head {
+    grid-area: head;
+    margin-bottom: 10px;
+  }
+  .count {
+    grid-area: count;
+    align-self: end;
+  }
+  .colors {
+    grid-area: colors;
+    align-self: end;
+  }
+  .hint {
+    grid-area: hint;
+    margin-top: 0;
+  }
+}
+.unavailable {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px 16px;
+  padding: 16px 0;
+  border-top: 1.5px solid var(--ink);
+  border-bottom: 1px solid var(--rule);
+  color: var(--ink-2);
+  font-size: var(--text-sm);
+}
+@media (max-width: 760px) {
+  .heading p {
+    font-size: var(--text-xs);
+    line-height: 1.5;
+  }
+  .tile {
+    gap: 8px;
+    padding: 14px 12px 14px;
+  }
+  .head {
+    gap: 8px;
+  }
+  .count {
+    font-size: 44px;
+  }
+}

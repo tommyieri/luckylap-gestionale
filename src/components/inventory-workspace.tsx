@@ -19,6 +19,13 @@ import {
 } from "lucide-react";
 import type { InventoryItem, InventorySourceMeta } from "../lib/types";
 import { orderInventoryItems } from "../lib/inventory-order";
+import {
+  filterInventoryItems,
+  stockModelHref,
+  type StockFilter,
+} from "../lib/inventory/model-filter";
+import { tshirtLineForModel, type TshirtLineCount } from "../lib/inventory/tshirt-lines";
+import { TshirtAvailability } from "./tshirt-availability";
 
 /*
  * Giacenze (`/stock`), estratte dal vecchio monolite `management-app.tsx`
@@ -105,11 +112,17 @@ function SourceInfo({ shared }: { shared: boolean }) {
 export function InventoryWorkspace({
   items,
   shared,
+  model = null,
+  tshirts,
 }: {
   items: InventoryItem[];
   /** Provenienza dell'inventario: resta nel contratto della pagina, non si mostra (06 R3). */
   sourceMeta: InventorySourceMeta;
   shared: boolean;
+  /** Filtro `?modello=` letto dal server. */
+  model?: string | null;
+  /** «Magliette disponibili»: `lines` è `null` se la lettura del Magadzino non è riuscita. */
+  tshirts?: { lines: TshirtLineCount[] | null; preview: boolean };
 }) {
   const [selected, setSelected] = useState<InventoryItem | null>(null);
   const [toast, setToast] = useState("");
@@ -120,7 +133,14 @@ export function InventoryWorkspace({
   }, [toast]);
   return (
     <>
-      <InventoryView items={items} onSelect={setSelected} shared={shared} notify={setToast} />
+      <InventoryView
+        items={items}
+        onSelect={setSelected}
+        shared={shared}
+        notify={setToast}
+        initialModel={model}
+        tshirts={tshirts}
+      />
       {selected && (
         <ProductDetail
           item={selected}
@@ -144,31 +164,67 @@ function InventoryView({
   onSelect,
   notify,
   shared,
+  initialModel,
+  tshirts,
 }: {
   items: InventoryItem[];
   onSelect: (item: InventoryItem) => void;
   notify: (text: string) => void;
   shared: boolean;
+  initialModel: string | null;
+  tshirts?: { lines: TshirtLineCount[] | null; preview: boolean };
 }) {
   const [search, setSearch] = useState("");
   const [category, setCategory] = useState("all");
-  const [stock, setStock] = useState("all");
+  const [stock, setStock] = useState<StockFilter>("all");
   const [grouped, setGrouped] = useState(true);
+  const [model, setModel] = useState(initialModel);
+  // Una navigazione verso un altro `?modello=` porta un nuovo filtro dal server.
+  const [modelFromServer, setModelFromServer] = useState(initialModel);
+  if (initialModel !== modelFromServer) {
+    setModelFromServer(initialModel);
+    setModel(initialModel);
+  }
+  const panelRef = useRef<HTMLElement>(null);
+  const [scrollRequest, setScrollRequest] = useState(0);
   const filtered = useMemo(
-    () =>
-      orderInventoryItems(items).filter(
-        (item) =>
-          `${item.sku} ${item.model} ${item.color} ${item.size}`
-            .toLocaleLowerCase("it")
-            .includes(search.toLocaleLowerCase("it")) &&
-          (category === "all" || item.category === category) &&
-          (stock === "all" ||
-            (stock === "available" && item.centralQuantity !== null && item.centralQuantity > 0) ||
-            (stock === "empty" && item.centralQuantity === 0) ||
-            (stock === "unknown" && item.centralQuantity === null)),
-      ),
-    [items, search, category, stock],
+    () => filterInventoryItems(orderInventoryItems(items), { search, category, stock, model }),
+    [items, search, category, stock, model],
   );
+  const modelName = model ? (tshirtLineForModel(model)?.name ?? model) : null;
+  /** Un riquadro delle magliette: solo quel modello, con l'indirizzo aggiornato. */
+  function chooseModel(next: string | null) {
+    setModel(next);
+    if (next) {
+      setSearch("");
+      setCategory("all");
+      setStock("all");
+    }
+    try {
+      window.history.replaceState(null, "", stockModelHref(next));
+    } catch {
+      // Indirizzo non aggiornabile: il filtro resta valido in questa pagina.
+    }
+    if (next) setScrollRequest((count) => count + 1);
+  }
+  // Sul telefono la tabella sta sotto i riquadri: dopo il filtro la porta in vista se è fuori
+  // schermo. Aspetta il ridisegno, che altrimenti interrompe lo scorrimento.
+  useEffect(() => {
+    if (!scrollRequest) return;
+    const frame = window.requestAnimationFrame(() => {
+      const panel = panelRef.current;
+      if (!panel || panel.getBoundingClientRect().top <= window.innerHeight * 0.7) return;
+      const reduce = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+      panel.scrollIntoView({ behavior: reduce ? "auto" : "smooth", block: "start" });
+    });
+    return () => window.cancelAnimationFrame(frame);
+  }, [scrollRequest]);
+  function resetFilters() {
+    setSearch("");
+    setCategory("all");
+    setStock("all");
+    if (model) chooseModel(null);
+  }
   const groups = useMemo(() => {
     const result: [string, InventoryItem[]][] = [];
     if (!grouped) return [["", filtered]] as [string, InventoryItem[]][];
@@ -230,6 +286,14 @@ function InventoryView({
           Esporta CSV
         </button>
       </div>
+      {tshirts && (
+        <TshirtAvailability
+          lines={tshirts.lines}
+          preview={tshirts.preview}
+          activeModel={model}
+          onSelect={chooseModel}
+        />
+      )}
       <div className="inventory-summary">
         <div className="summary-cell">
           <span>Catalogo</span>
@@ -277,7 +341,7 @@ function InventoryView({
           nessun negozio è stato contato. Le scorte Shopify non sono incluse.
         </p>
       </div>
-      <section className="inventory-panel" aria-label="Inventario prodotti">
+      <section className="inventory-panel" aria-label="Inventario prodotti" ref={panelRef}>
         <div className="inventory-toolbar">
           <div className="search-input">
             <Search size={17} />
@@ -306,7 +370,10 @@ function InventoryView({
             </label>
             <label className="select-wrap">
               <span className="sr-only">Disponibilità Magadzino</span>
-              <select value={stock} onChange={(event) => setStock(event.target.value)}>
+              <select
+                value={stock}
+                onChange={(event) => setStock(event.target.value as StockFilter)}
+              >
                 <option value="all">Tutte le disponibilità</option>
                 <option value="available">Disponibili</option>
                 <option value="empty">Esauriti</option>
@@ -314,6 +381,18 @@ function InventoryView({
               </select>
               <ChevronDown size={14} />
             </label>
+            {model && modelName && (
+              <button
+                type="button"
+                className="group-button is-active"
+                onClick={() => chooseModel(null)}
+                aria-pressed="true"
+                aria-label={`Togli il filtro ${modelName}: mostra tutti i prodotti`}
+              >
+                <span>{modelName}</span>
+                <X size={15} />
+              </button>
+            )}
             <button
               className={`group-button ${grouped ? "is-active" : ""}`}
               onClick={() => setGrouped((value) => !value)}
@@ -423,14 +502,7 @@ function InventoryView({
             icon={Search}
             title="Nessuna variante trovata"
             action={
-              <button
-                className="button button-secondary"
-                onClick={() => {
-                  setSearch("");
-                  setCategory("all");
-                  setStock("all");
-                }}
-              >
+              <button className="button button-secondary" onClick={resetFilters}>
                 Azzera i filtri
               </button>
             }

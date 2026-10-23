@@ -174,6 +174,7 @@ describe("le operazioni più comuni", () => {
       "Conto vendita: resoconto del mese e nuovo ordine",
       "Aggiungere una call o un’attività",
       "Caricare una foto",
+      "Vedere quante magliette puoi vendere",
       "Aprire una scheda prodotto",
       "Seguire un prodotto nuovo",
       "Partner: cambiare lo stato e copiare il messaggio",
@@ -380,6 +381,7 @@ describe("i nomi citati esistono davvero", () => {
     ["src/components/restock-grid.tsx", ["Modifica quantità", "Proponi quantità"]],
     ["src/components/restock-detail.tsx", ["In mano nostra", "Prepara la consegna a"]],
     ["src/components/consignment-order.tsx", ["Consegnato"]],
+    ["src/components/tshirt-availability.tsx", [">Magliette disponibili</h2>"]],
     ["src/components/partner-work-links.tsx", ["<h1>Partner nel Team</h1>"]],
   ];
 
