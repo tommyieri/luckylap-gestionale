@@ -67,7 +67,7 @@ describe("Shopify order controls and visible provenance", () => {
       const html = render(externalSyntheticRows(channel));
       expect(html).toContain(channel === "shopify_pos" ? "Shopify POS" : "Shopify · Online");
       expect(html).toContain("Ordine Shopify 100");
-      expect(html).toContain("Account tecnico".toLowerCase());
+      expect(html).toContain("Arriva da Shopify");
       expect(html).toContain("Incasso parziale Shopify");
       expect(html).toContain("90,02");
       expect(html).toContain('data-command-kind="complete_production" data-enabled="true"');
@@ -157,5 +157,36 @@ describe("invii da verificare con i nomi della pagina (06 R4)", () => {
       expect(names?.requirement?.(syntheticId(6))).toBe(`${article}, VENDITA-SINTETICA-7`);
     }
     expect(received.recovery).toHaveLength(1);
+  });
+});
+
+describe("testi senza gergo (06 R10)", () => {
+  it("produzione, origine Shopify, colonne e piè di pagina in parole semplici", () => {
+    const html = render(syntheticRows());
+    const start = html.indexOf('aria-labelledby="sales-production"'),
+      production = html.slice(start, html.indexOf("</section>", start));
+    expect(production).toContain("1 capo da produrre");
+    expect(production).toContain("Richiesti 1 · Completati 0 · Annullati 0.");
+    expect(production).not.toMatch(/fabbisogn/i);
+    expect(html).toContain("L’annullo libera i capi riservati e toglie quelli ancora da produrre.");
+    expect(html).toContain("<th>Prezzo, costo e margine</th>");
+    expect(html).toContain("Questi numeri non sono il saldo della banca.");
+    // I testi sostituiti non tornano: lo controlla anche src/lib/ui-copy.test.ts.
+    const shop = render(externalSyntheticRows());
+    expect(shop).toContain(
+      "Arriva da Shopify: consegne, annulli e pagamenti si aggiornano da soli.",
+    );
+    expect(shop).not.toMatch(/account tecnico/i);
+  });
+
+  it("senza capi da produrre lo dice senza gergo", () => {
+    const snapshot = salesSnapshotFromRows(syntheticRows());
+    snapshot.requirements = [];
+    const html = renderToStaticMarkup(
+      <SalesWorkspace snapshot={snapshot} member={member} now="2026-10-22T12:00Z" />,
+    );
+    expect(html).toContain("0 capi da produrre");
+    expect(html).toContain("Nessun capo da produrre.");
+    expect(html).not.toContain("Nessun fabbisogno");
   });
 });

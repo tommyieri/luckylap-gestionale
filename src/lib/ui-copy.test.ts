@@ -32,16 +32,9 @@ const FORBIDDEN: [RegExp, string][] = [
   [/Riferimento: /, "il codice va in «Codice per l’assistenza» (R4)"],
   [/Origine tecnica/, "«Arriva da Shopify…» (R10)"],
   [/I fatti osservati non equivalgono/, "«Questi numeri non sono il saldo della banca.» (R10)"],
+  [/\bfabbisogni\b/, "«N capi da produrre» (R10)"],
+  [/Valore \/ costo \/ margine iniziali/, "«Prezzo, costo e margine» (R10)"],
 ];
-
-/*
- * Resti noti, da togliere nella parte B di P7: `sales-workspace.tsx` è anche nella pull
- * request #3 di Codex e si ripulisce dopo il rebase. Qui si può solo togliere, mai aggiungere.
- */
-const KNOWN_LEFTOVERS: Record<string, string[]> = {
-  "Origine tecnica": ["components/sales-workspace.tsx"],
-  "I fatti osservati non equivalgono": ["components/sales-workspace.tsx"],
-};
 
 describe("testi dell'interfaccia", () => {
   it("legge davvero i sorgenti", () => {
@@ -53,23 +46,8 @@ describe("testi dell'interfaccia", () => {
     const found = FORBIDDEN.flatMap(([pattern, replacement]) =>
       files
         .filter((file) => pattern.test(file.text))
-        .filter((file) => !(KNOWN_LEFTOVERS[pattern.source] ?? []).includes(file.path))
         .map((file) => `${file.path}: ${pattern.source} → ${replacement}`),
     );
     expect(found).toEqual([]);
-  });
-
-  it("i resti noti stanno solo nei file elencati", () => {
-    for (const [source, allowed] of Object.entries(KNOWN_LEFTOVERS)) {
-      expect(
-        FORBIDDEN.some(([pattern]) => pattern.source === source),
-        source,
-      ).toBe(true);
-      for (const path of allowed)
-        expect(
-          files.some((file) => file.path === path),
-          path,
-        ).toBe(true);
-    }
   });
 });
