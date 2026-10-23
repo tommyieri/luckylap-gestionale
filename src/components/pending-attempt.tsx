@@ -9,7 +9,8 @@ import styles from "./pending-attempt.module.css";
  * di un tentativo il cui esito non è confermato: data italiana a Roma, righe già
  * scritte per le persone, codice tecnico nascosto in «Codice per l’assistenza».
  * «Scarta» c'è solo nei casi che non potranno mai riuscire (tentativo illeggibile
- * o in conflitto) e chiede conferma prima di liberare il modulo.
+ * o in conflitto) e chiede conferma prima di liberare il modulo. In quei casi la verifica
+ * non compare: il riquadro dice che il tentativo non si ripete e «Scarta» è l'azione principale.
  */
 
 const attemptTime = new Intl.DateTimeFormat("it-IT", {
@@ -38,7 +39,7 @@ export type PendingAttemptProps = {
   operationId: string;
   /** Verifica in corso. */
   pending: boolean;
-  /** Il tentativo non potrà riuscire (illeggibile o in conflitto): la verifica resta spenta. */
+  /** Il tentativo non potrà riuscire (illeggibile o in conflitto): niente verifica. */
   blocked?: boolean;
   onRetry: () => void;
   onReread?: () => void;
@@ -65,8 +66,9 @@ export function PendingAttempt({
     <section className={styles.attempt} aria-label={title}>
       <p className={styles.title}>{title}</p>
       <p className={styles.explain}>
-        I dati restano fermi finché l’esito non è chiaro. «Verifica lo stesso invio» ripete lo
-        stesso tentativo: non crea un secondo invio.
+        {blocked
+          ? "Questo tentativo non può più andare a buon fine, quindi non si ripete."
+          : "I dati restano fermi finché l’esito non è chiaro. «Verifica lo stesso invio» ripete lo stesso tentativo: non crea un secondo invio."}
       </p>
       {(date !== undefined || lines.length > 0) && (
         <ul className={styles.lines}>
@@ -77,14 +79,16 @@ export function PendingAttempt({
         </ul>
       )}
       <div className={styles.actions}>
-        <button
-          type="button"
-          className="button button-primary"
-          disabled={pending || blocked}
-          onClick={() => onRetry()}
-        >
-          {pending ? "Verifica in corso…" : "Verifica lo stesso invio"}
-        </button>
+        {!blocked && (
+          <button
+            type="button"
+            className="button button-primary"
+            disabled={pending}
+            onClick={() => onRetry()}
+          >
+            {pending ? "Verifica in corso…" : "Verifica lo stesso invio"}
+          </button>
+        )}
         {onReread && (
           <button
             type="button"
@@ -98,7 +102,7 @@ export function PendingAttempt({
         {onDiscard && !confirming && (
           <button
             type="button"
-            className="button button-secondary"
+            className={blocked ? "button button-primary" : "button button-secondary"}
             disabled={pending}
             onClick={() => setConfirming(true)}
           >

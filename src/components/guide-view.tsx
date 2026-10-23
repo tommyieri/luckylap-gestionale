@@ -387,6 +387,11 @@ export function GuideView({ access, preview = false }: { access: GuideAccess; pr
                 Premi «Verifica lo stesso invio» e non rifare l’operazione da capo: la registreresti
                 due volte.
               </li>
+              <li>
+                Se il riquadro dice che il tentativo non si ripete, controlla che l’operazione non
+                sia già nell’elenco, poi premi «Scarta questo tentativo». Scartare non cancella
+                niente: libera solo il modulo.
+              </li>
               <li>Non vedi una modifica appena fatta da un collega: ricarica la pagina.</li>
               <li>
                 Una pagina dice «Qualcosa non ha funzionato.»: premi «Riprova». Se succede ancora,

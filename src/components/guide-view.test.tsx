@@ -164,6 +164,7 @@ describe("telefono, conto vendita e aiuto", () => {
   it("dice cosa fare con un invio da verificare e a chi chiedere", () => {
     const all = text(html(everyone));
     expect(all).toContain("«Verifica lo stesso invio»");
+    expect(all).toContain("«Scarta questo tentativo»");
     expect(all).toContain("«Riprova»");
     for (const name of ["Tommi", "Gabriele", "Ettore", "Gherardo", "Luca"])
       expect(all).toContain(name);

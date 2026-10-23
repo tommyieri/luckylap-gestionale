@@ -63,7 +63,7 @@ Una sola fonte: `src/lib/navigation.ts`, funzioni pure senza React né icone.
 - Titoli: `metadata.title` è solo il nome della voce («Partner»), il modello aggiunge « · LuckyLap». L'`h1` è il nome della sezione sulla sua prima pagina e il nome della scheda sulle altre; sulle pagine fuori dalle schede è uguale a `metadata.title` («Password», «Apri Finance»). Niente sopratitoli in maiuscolo.
 - Una pagina del gruppo che chiama `notFound()` restituisce `title: "Pagina non trovata"` da `generateMetadata` per quel caso, come `/auth/area/[area]`: il `not-found.tsx` del gruppo non può esportare metadati, e senza titolo il browser direbbe «LuckyLap · Gestionale».
 - Righe e liste con `src/components/roadbook.module.css`: colonna di controllo a sinistra (ora, giorno o numero in Condensed), casella verde piena solo per «adesso», ambra per il ritardo, verde chiaro per il fatto.
-- Invii dall'esito incerto con `src/components/pending-attempt.tsx`: data italiana all'ora di Roma, righe leggibili, codice tecnico solo in «Codice per l’assistenza», «Scarta» solo per i tentativi che non potranno riuscire.
+- Invii dall'esito incerto con `src/components/pending-attempt.tsx`: data italiana all'ora di Roma, righe leggibili, codice tecnico solo in «Codice per l’assistenza», «Scarta» solo per i tentativi che non potranno riuscire (illeggibili o in conflitto). Per questi la verifica non compare: il riquadro dice che il tentativo non si ripete e «Scarta questo tentativo» è l'azione principale, sempre con la conferma in linea.
 - Una cartella del gruppo può avere i suoi `loading.tsx`, `error.tsx` e `not-found.tsx`: si vedono dentro il guscio.
 
 ## La guida «Come si usa»
