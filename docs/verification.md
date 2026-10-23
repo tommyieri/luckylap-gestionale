@@ -1,18 +1,18 @@
 # Verifiche LuckyLap
 
-Stato del 23 ottobre 2026, dal branch `claude/revisione-pre-invio` (P7, revisione prima dell'invio). Prove applicative, SQL sintetico, PostgreSQL concorrente e Auth cloud sono conteggiati separatamente. Le sezioni «Avvio del 21 ottobre 2026» restano come verbale dell'avvio: i numeri di allora non sono quelli di oggi.
+Stato del 23 ottobre 2026, dal branch `claude/revisione-pre-invio` (P7, revisione prima dell'invio). Il branch contiene la parte A, il merge di `origin/main` a `b24690f` (commit `5af0f1a`: la pull request #3 di Codex, cioè P4 Finance modificabile, P5 collegamenti e Oggi, P6 feed di Controllo CEO) e la parte B fino alla guida e ai documenti. Da allora `origin/main` è andato avanti a `da96128`, la pull request #6 di Codex («Finance: movimenti più leggibili»: solo `finance-imports-view.tsx`, il suo test e `finance.module.css`), che questo branch non contiene ancora. Prove applicative, SQL sintetico, PostgreSQL concorrente e Auth cloud sono conteggiati separatamente. Le sezioni «Avvio del 21 ottobre 2026» restano come verbale dell'avvio: i numeri di allora non sono quelli di oggi.
 
 ## Test di oggi
 
-Eseguiti il 23 ottobre 2026 nel worktree di P7, con dati sintetici e senza accessi al cloud.
+Eseguiti il 23 ottobre 2026 nel worktree di P7, sul codice del commit `187549e` (dopo la guida e i documenti delle aree), con dati sintetici e senza accessi al cloud.
 
 | Comando | Esito |
 | --- | --- |
-| `npm test` | 1.468 test in 122 file, tutti superati |
-| `npm run test:db` senza `LUCKYLAP_PG_BIN` | 15 harness PGlite superati, 2.904 controlli; i 6 harness su PostgreSQL 17 risultano saltati |
-| `npm run test:db` con `LUCKYLAP_PG_BIN` (PostgreSQL 17.11 locale) | in più 6 harness PostgreSQL 17 superati, 939 controlli: 21 harness, 3.843 controlli in tutto |
+| `npm test` | 1.684 test in 158 file, tutti superati |
+| `npm run test:db` senza `LUCKYLAP_PG_BIN` | 17 harness PGlite superati, 3.018 controlli; gli 11 harness su PostgreSQL 17 risultano saltati |
+| `npm run test:db` con `LUCKYLAP_PG_BIN` (PostgreSQL 17.11 locale) | in più 11 harness PostgreSQL 17 superati, 1.300 controlli: 28 harness, 4.318 controlli in tutto |
 
-`npm run typecheck`, `npm run build` e `npm run format:check` passano prima di ogni commit (regole in `AGENTS.md`). I cluster PostgreSQL usa e getta del runner si fermano e si cancellano alla fine; nessun servizio resta attivo.
+`npm run typecheck`, `npm run build` e `npm run format:check` passano prima di ogni commit (regole in `AGENTS.md`). Ogni harness ha eseguito esattamente il suo minimo. I cluster PostgreSQL usa e getta del runner si fermano e si cancellano alla fine; nessun servizio resta attivo.
 
 Controlli per harness:
 
@@ -31,6 +31,8 @@ Controlli per harness:
 | `shopify-scheduler.mjs` | PGlite | 173 | recupero ogni minuto (Cron, Vault e pg_net simulati) |
 | `consignment.mjs` | PGlite | 145 | conto vendita precedente |
 | `consignment-monthly.mjs` | PGlite | 613 | conto vendita semplice: negozi, conta, resoconto mensile, pagamenti, ordini |
+| `finance-revisions.mjs` | PGlite | 72 | revisioni Finance: fonti immutabili, versioni, eliminazione e ripristino, permessi |
+| `partner-work-links.mjs` | PGlite | 42 | solleciti dopo l'invio, date Partner nel calendario, riquadro Partner di Oggi |
 | `partner.mjs` | PGlite | 343 | Partner: sicurezza, import della ricerca, comandi, file dei dispositivi, generatore |
 | `review-handoff.mjs` | PGlite | 51 | archivio dei contenuti in «Grafica e foto» |
 | `sales-concurrency.mjs` | PostgreSQL 17 | 39 | vendite concorrenti ([evidenze](verifica-concorrenza.md)) |
@@ -38,9 +40,14 @@ Controlli per harness:
 | `area-passwords.mjs` | PostgreSQL 17 | 161 | password di Finance e Controllo CEO ([contratto](area-passwords-backend.md)) |
 | `shopify-scheduler-concurrency.mjs` | PostgreSQL 17 | 15 | recupero Shopify con connessioni sovrapposte |
 | `shopify-ecosystem.mjs` | PostgreSQL 17 | 702 | ordini Shopify, worker e coda |
+| `ceo-activity-feed.mjs` | PostgreSQL 17 | 121 | feed di Controllo CEO con la password CEO vera |
 | `consignment-concurrency.mjs` | PostgreSQL 17 | 16 | conto vendita con comandi concorrenti |
+| `finance-ecosystem-integration.mjs` | PostgreSQL 17 | 93 | catena completa delle migrazioni: Shopify, residui, conto vendita, feed, Partner |
+| `finance-revisions-concurrency.mjs` | PostgreSQL 17 | 32 | revisioni Finance concorrenti |
+| `partner-work-concurrency.mjs` | PostgreSQL 17 | 82 | collegamenti Partner e solleciti concorrenti |
+| `shop-payment-finance-concurrency.mjs` | PostgreSQL 17 | 33 | pagamenti dei negozi corretti da Finance, concorrenti |
 
-Auth è simulato in tutti gli harness: questi controlli non sostituiscono le prove su Auth cloud. In CI il job «Concorrenza (PostgreSQL 17)» esegue anche i sei harness su PostgreSQL reale.
+Auth è simulato in tutti gli harness: questi controlli non sostituiscono le prove su Auth cloud. In CI il job «Concorrenza (PostgreSQL 17)» esegue anche gli undici harness su PostgreSQL reale.
 
 ## Produzione, 22 ottobre 2026
 
@@ -55,33 +62,71 @@ Procedura per ogni migrazione (piano di lavoro, §1.3): impronte in sola lettura
 - Import della ricerca Partner il 22 ottobre 2026, dal commit `f6ad90c`: 207 contatti; 119 Vendita, 80 Eventi, 73 Collab; 218 varianti; recapiti attivi 165 email, 148 telefoni, 170 Instagram, 143 moduli, 19 pagine brand, 205 siti; 49 contatti nel periodo 1; zero differenze aperte; zero righe di audit con email o recapiti. Import `e471ff5e-d63e-4a58-8793-2bfa0991aee2`, SHA-256 normalizzato `49bc4bc3f870012a1e4dde3c9c25260354eaecd73b92469429211ea89055d68d` ([dettagli](partner.md), «Esiti in produzione»).
 - La sede centrale `MAG01` resta «Magadzino»: è il nome voluto dal founder e nessuna migrazione lo cambia.
 
-Ancora da fare per P7, prima del merge, in quest'ordine:
+## Produzione, 23 ottobre 2026: P4–P6
 
-1. Rebase di questo branch su `origin/main`, poi CI di nuovo verde. La pull request #3 di Codex è su `main` dal 23 ottobre (merge `b24690f`) e porta quattro migrazioni più recenti di `20261022220100_archivio_contenuti.sql`, fino a `20261023091633_shop_payment_finance.sql`. Il rebase viene **prima** della migrazione: il piano (§1.3, passo 2) vuole che l'ultima versione in cloud sia l'ultima del repository, e senza rebase non può esserlo. Tra le migrazioni non c'è dipendenza: quelle della pull request #3 non toccano `assets` né le funzioni usate dall'archivio.
-2. La parte B, qui sotto.
-3. Applicare in produzione `archivio_contenuti`, con impronta di `assets` prima e dopo. Il file prende la versione cloud, che sarà successiva a `20261023091633`, e la tabella «Produzione» qui sopra riceve la sua riga ([archivio](assets-development.md), «Archivio dei contenuti»).
-4. Prove visive della parte B a 1280 e 390 px (piano di lavoro, §1.4); quelle della parte A sono in «Prove visive della parte A».
-5. CI verde, compreso il job «Concorrenza (PostgreSQL 17)».
+Codex ha applicato le quattro migrazioni della pull request #3 il 23 ottobre 2026 alle 09:16 UTC, dopo l'OK di Tommi. I file del repository hanno i nomi delle versioni cloud.
 
-Parte B: file che sono anche nella pull request #3, da toccare solo dopo il rebase.
+| Migrazione | Versione cloud |
+| --- | --- |
+| `ceo_activity_feed` (P6, feed di Controllo CEO) | `20261023091605` |
+| `finance_revisions` (P4, revisioni Finance) | `20261023091616` |
+| `partner_work_links` (P5, solleciti, date e collegamenti Partner) | `20261023091627` |
+| `shop_payment_finance` (P4, pagamenti dei negozi in Finance) | `20261023091633` |
 
-- `sales-workspace.tsx`: passare `names` (articolo, ordine, riga) a `SalesPendingRecovery` e ai cinque `SalesCommandForm`. Oggi un invio da verificare dice «Riga 1» al posto dell'articolo, e «Ordine» con 8 caratteri del codice anche per gli ordini che nell'elenco hanno il loro riferimento (06 R4; i componenti accettano già `names`).
-- `sales-workspace.tsx`, testi di 06 R10: «N capi · N fabbisogni», «I fatti osservati non equivalgono…», «Origine tecnica…», «Valore / costo / margine iniziali». Poi togliere le due voci di `KNOWN_LEFTOVERS` in `src/lib/ui-copy.test.ts`.
-- «Chiudi Finance» in `/finance` e «Chiudi» in Controllo CEO (06 R12). Oggi Finance si chiude solo da «Account e sicurezza» e da `/auth/area/finance`.
-- Riquadro «Prima volta qui?» su Oggi (`today-sheet.tsx`).
-- Calendario: all'inizio solo gli appuntamenti futuri, con «N passati nascosti» (06 R16, `team-workspace.tsx`).
-- Feed di Controllo CEO: la frase per l'archivio dei contenuti. Oggi un'archiviazione si leggerebbe «ha aggiornato un contenuto».
-- `AGENTS.md`, «Decisioni del founder»: Finance modificabile e Controllo CEO come feed sono fatti; la frase sull'immutabilità diventa quella di 04 §4.
+Dopo le quattro migrazioni:
 
-Nota per la pull request: in `AGENTS.md` P7 cambia anche una parola fuori da «Decisioni del founder», nella sezione dei test: «i cinque harness» diventa «gli harness». Gli harness su PostgreSQL 17 oggi sono sei, e con la pull request #3 sono di più.
+- l'impronta del magazzino (md5 `b0221490182f06a20df8875a4310713f`) e i 104 movimenti di magazzino sono invariati;
+- i contatti Partner sono ancora 207;
+- `finance_movement_revisions` ha zero righe: nessuna correzione Finance è stata fatta;
+- le sole righe nuove sono 54 appuntamenti del calendario e 54 righe di `partner_work_links`, create dal riporto delle date Partner, con le loro 108 righe di audit.
 
-Finance modificabile, collegamenti Partner e Oggi completo, Controllo CEO come feed (P4–P6) sono su `main` dalla pull request #3, ma questo branch non li contiene ancora: le loro migrazioni e i loro test non fanno parte di questi numeri.
+## Revisione prima dell'invio (P7): fatto e da fare
+
+Parte A (prima del merge di P4–P6): guida «Come si usa» in `ACCOUNT_LINKS`, «Magadzino» rimesso dove era stato cambiato, migrazione dell'archivio dei contenuti (`20261022220100_archivio_contenuti.sql`, **non ancora applicata in produzione**), «Invio da verificare» con `pending-attempt.tsx` nei moduli manuali di Vendite, Rettifiche, Packaging e Finance, testi senza gergo, guardia `ui-copy.test.ts`. Poi il merge di `origin/main` a `b24690f` (`5af0f1a`) al posto del rebase previsto: stesso risultato, nessun commit riscritto.
+
+Parte B, fatto (ogni commit con tutti i controlli verdi):
+
+- Oggi: riquadro «Prima volta qui?» verso «Come si usa» (`a3ef382`).
+- «Chiudi Finance» in cima a tutte le pagine Finance e «Chiudi Controllo CEO» in `/audit`, solo dopo la verifica dell'area aperta (`beffa36`).
+- Calendario del Team: all'inizio solo i prossimi, con «N passati nascosti» (`1727c02`).
+- Vendite: gli invii da verificare dicono ordine e articolo, testi senza gergo, guardia dei testi completa (`42a5d09`, `bbbbb9e`); «eliminata» negli invii Finance da verificare (`e5dbcd3`); due correzioni degli harness (`8d6f694`, `8465fcc`).
+- Guida aggiornata a P4–P6: Oggi, solleciti Partner e «Partner nel Team», correzioni Finance, feed CEO; test che controlla i nomi citati (`9d38b88`).
+- Documenti: `AGENTS.md` («Decisioni del founder»), `README.md`, `PRODUCT.md`, `DESIGN.md` (`598ad10`); `audit-workspace.md`, `finance-work.md`, `finance-dashboard.md`, `team-workspace.md`, indice e avviso in `partner.md` (`187549e`); questo documento.
+
+Da fare prima del merge, in quest'ordine:
+
+1. Merge di `origin/main` (oggi `da96128`, pull request #6) in questo branch, poi tutti i controlli e la CI di nuovo verdi. La pull request #6 tocca solo tre file di Finance che P7 non modifica.
+2. Prove visive della parte B a 1280 × 800 e 390 × 844 (piano di lavoro, §1.4): `/guida`, «Prima volta qui?» su `/`, `/finance` con «Chiudi Finance», `/team` con i passati nascosti, `/assets` con «Mostra archiviati», un invio da verificare su `/sales`, `/auth/account`.
+3. Applicare in produzione `archivio_contenuti`, con l'impronta di `assets` prima e dopo. Oggi l'ultima versione in cloud e nel repository è `20261023091633`: la nuova versione sarà successiva e il file prende quel nome. La tabella «Produzione» riceve la sua riga ([archivio](assets-development.md), «Archivio dei contenuti»).
+4. Pull request con gli esiti, CI verde compreso il job «Concorrenza (PostgreSQL 17)», poi merge.
+5. Messaggio di benvenuto per WhatsApp pronto per Tommi, senza password.
+
+Resta fuori da P7, perché chiede una migrazione nuova: la frase del feed per archiviare e ripristinare un contenuto (oggi «ha aggiornato un contenuto»). È nei problemi noti, punto 12.
+
+Nota per la pull request: in `AGENTS.md` P7 cambia anche una parola fuori da «Decisioni del founder», nella sezione dei test: «i cinque harness» diventa «gli harness». Gli harness su PostgreSQL 17 oggi sono undici.
+
+## Problemi noti dopo P4-P6
+
+Trovati il 23 ottobre 2026 da revisori indipendenti e confermati da verifiche contrarie, nel lavoro di Codex della pull request #3 (già su `main` e in produzione). P7 non li corregge: sono un promemoria per Tommi, da decidere uno per uno.
+
+1. **Importi nel feed CEO.** Le frasi di Finance mostrano importi e categorie, anche degli incassi. La decisione 16 e la correzione 04-6 del piano li escludono. `/audit` chiede solo la password CEO.
+2. **Feed lento con la crescita.** A ogni apertura il feed ricalcola tutto il registro. Su una copia locale PostgreSQL 17: circa 7.500 righe di audit in 6 s, 9.500 in 11 s, oltre il limite di 8 s di Supabase. Oggi la produzione ha circa 2.200 righe.
+3. **Import in tante righe.** Un'operazione di massa dà una riga per record: l'import Partner 207 righe, quello dell'inventario 214. Dovrebbe essere una frase per operazione.
+4. **Link, aree e sottotitolo del feed.** Diversi dalla decisione 17: il conto vendita sta sotto «Vendite» e porta a `/sales`, i link Finance non hanno l'ancora del movimento. Il sottotitolo non è quello della decisione 5. Le azioni del founder sono nascoste all'inizio.
+5. **File dei dispositivi senza solleciti.** Le righe Partner caricate dai file «Esporta» (`origin = 'file'`) non creano né chiudono solleciti, contro la decisione 30. Da decidere con Tommi **prima** che carichi i file dei dispositivi.
+6. **Solleciti doppi in Oggi.** Ogni sollecito in scadenza compare due volte, in «Agenda» e in «Contatti e solleciti», contro la decisione 9 e la correzione 05-11.
+7. **Conteggi diversi tra Oggi e Partner.** I «contatti da fare» di Oggi arrivano al mese in corso; «Adesso» in Partner arriva alla fine del mese prossimo (decisione 33). I numeri non coincidono.
+8. **Pezzi mancanti di P5.** Mancano «Ha risposto» in Oggi, la data del sollecito nella conferma di «Segna inviato» e il blocco «Esito» nella scheda Partner (decisione 10, correzione 05-7).
+9. **Incassi eliminabili.** Finance permette di eliminare gli incassi delle vendite e i rimborsi Shopify, che la spec 04 (B.1) voleva non eliminabili. Una correzione cambia anche lo stato del pagamento in Vendite.
+10. **Percorsi come testo.** Attività e appuntamenti creati da Partner mostrano «/partner?co=12#lead-12» come testo, non come link.
+11. **«Collega l'evento» con date passate.** Per un contatto con l'evento già passato fallisce, con un messaggio che non spiega il motivo.
+12. **Minori.** In Finance mancano il filtro «Modificati» e la riga «Modificato da X · data»; la motivazione è sempre obbligatoria; due funzioni di trigger hanno un `EXECUTE` che non serve; alcune chiavi esterne non hanno indice; il feed non ha una frase per archiviare e ripristinare un contenuto (l'archivio della parte A si legge come un aggiornamento generico).
 
 ## Prove visive della parte A
 
 Anteprima locale (`npm run dev`, dati sintetici), a 1280 × 800 e 390 × 844, il 23 ottobre 2026. In ogni pagina: nessuno scorrimento orizzontale, nessun testo sotto 12 px, bersagli da almeno 44 px sul telefono.
 
-- `/guida`: otto parti, indice a destra sul computer e su due colonne in cima sul telefono, «Le operazioni più comuni» con link e pulsanti veri.
+- `/guida`: otto parti (oggi nove, con «Oggi»: da riprovare nella parte B), indice a destra sul computer e su due colonne in cima sul telefono, «Le operazioni più comuni» con link e pulsanti veri.
 - `/auth/account`: ha il ramo dell'anteprima (account sintetico, aree chiuse, nessuna scrittura).
 - Invio da verificare: `/sales`, `/stock/rettifiche`, `/packaging` e `/finance/work` non hanno un ramo dell'anteprima (non sono pagine nuove: piano di lavoro, §1.5). La prova si fa con una pagina temporanea, mai committata e cancellata subito dopo, che monta il vero `SalesCommandForm` con un tentativo illeggibile messo a mano in `sessionStorage` (chiave `luckylap.sales.pending:<utente>:new-sale`) e i casi di `PendingAttempt`. Esito: data italiana, codice nascosto in «Codice per l’assistenza»; un tentativo bloccato non mostra «Verifica lo stesso invio» e ha «Scarta questo tentativo» come azione principale; dopo «Sì, scarta il tentativo» la chiave sparisce da `sessionStorage` e il riquadro si chiude. Il resto lo coprono i test dei componenti (`sales-command-form`, `sales-pending-recovery`, `stock-adjustment-form`, `packaging-workspace`, `finance-work-form`).
 
