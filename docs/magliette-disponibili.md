@@ -35,7 +35,7 @@ Sotto il numero:
 
 ## Il filtro
 
-Ogni riquadro è un link a `/stock?modello=<modello>`, per esempio `/stock?modello=SENNA`. Dentro Giacenze il tocco filtra la tabella senza ricaricare la pagina: aggiorna l'indirizzo con `history.replaceState`, come fa Partner, toglie ricerca, categoria e disponibilità e, sul telefono, porta la tabella in vista. Senza JavaScript, oppure con Cmd, Ctrl o Maiusc, il link apre la pagina già filtrata dal server. Il riquadro scelto è segnato (verde chiaro, filetto d'inchiostro in alto, `aria-current`); toccarlo di nuovo toglie il filtro, come il pulsante con il nome della grafica e la «×» nella barra della tabella. Il filtro vale per ogni modello del catalogo, cappellini compresi, e per l'export CSV. Codice: `src/lib/inventory/model-filter.ts` (`parseModelParam`, `filterInventoryItems`).
+Ogni riquadro è un link a `/stock?modello=<modello>`, per esempio `/stock?modello=SENNA`. Dentro Giacenze il tocco filtra la tabella senza ricaricare la pagina. Aggiorna l'indirizzo con `history.replaceState`, che Next riporta in `useSearchParams`: il filtro sta solo nell'indirizzo, così anche la scheda «Giacenze» lo toglie. Il tocco toglie anche ricerca, categoria e disponibilità e, sul telefono, porta la tabella in vista. Senza JavaScript, oppure con Cmd, Ctrl o Maiusc, il link apre la pagina già filtrata dal server. Il riquadro scelto è segnato (verde chiaro, filetto d'inchiostro in alto, `aria-current`); toccarlo di nuovo toglie il filtro, come il pulsante con il nome della grafica e la «×» nella barra della tabella. Il filtro vale per ogni modello del catalogo, cappellini compresi, e per l'export CSV. Codice: `src/lib/inventory/model-filter.ts` (`parseModelParam`, `filterInventoryItems`).
 
 ## Icone
 

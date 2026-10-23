@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import { useSearchParams } from "next/navigation";
 import { useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import {
   AlertCircle,
@@ -20,7 +21,9 @@ import {
 import type { InventoryItem, InventorySourceMeta } from "../lib/types";
 import { orderInventoryItems } from "../lib/inventory-order";
 import {
+  MODEL_PARAM,
   filterInventoryItems,
+  parseModelParam,
   stockModelHref,
   type StockFilter,
 } from "../lib/inventory/model-filter";
@@ -178,13 +181,12 @@ function InventoryView({
   const [category, setCategory] = useState("all");
   const [stock, setStock] = useState<StockFilter>("all");
   const [grouped, setGrouped] = useState(true);
-  const [model, setModel] = useState(initialModel);
-  // Una navigazione verso un altro `?modello=` porta un nuovo filtro dal server.
-  const [modelFromServer, setModelFromServer] = useState(initialModel);
-  if (initialModel !== modelFromServer) {
-    setModelFromServer(initialModel);
-    setModel(initialModel);
-  }
+  // Il filtro modello sta nell'indirizzo: `replaceState` e le navigazioni lo aggiornano
+  // insieme. Fuori dal router (test) vale quello letto dal server.
+  const searchParams = useSearchParams();
+  const model = searchParams
+    ? parseModelParam(searchParams.get(MODEL_PARAM) ?? undefined)
+    : initialModel;
   const panelRef = useRef<HTMLElement>(null);
   const [scrollRequest, setScrollRequest] = useState(0);
   const filtered = useMemo(
@@ -194,7 +196,6 @@ function InventoryView({
   const modelName = model ? (tshirtLineForModel(model)?.name ?? model) : null;
   /** Un riquadro delle magliette: solo quel modello, con l'indirizzo aggiornato. */
   function chooseModel(next: string | null) {
-    setModel(next);
     if (next) {
       setSearch("");
       setCategory("all");
@@ -203,7 +204,9 @@ function InventoryView({
     try {
       window.history.replaceState(null, "", stockModelHref(next));
     } catch {
-      // Indirizzo non aggiornabile: il filtro resta valido in questa pagina.
+      // Indirizzo non aggiornabile: la pagina filtrata arriva dal server.
+      window.location.assign(stockModelHref(next));
+      return;
     }
     if (next) setScrollRequest((count) => count + 1);
   }
