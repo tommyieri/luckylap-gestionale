@@ -22,7 +22,7 @@ Questo documento descrive la tappa P2 (branch `claude/tappa-4-partner`). Fonti: 
 `src/app/(workspace)/partner/page.tsx`, componenti in `src/components/partner/`. Dall'alto:
 
 1. `h1` «Partner» e la riga dei totali per sezione.
-2. Sezioni Tutti, Vendita, Eventi, Collab con il conteggio.
+2. Sezioni Tutti, Vendita, Eventi, Collab con il conteggio, e in fondo «Ci siamo» con il pallino verde e il numero degli accordi fatti (sul telefono va a capo, sempre in vista).
 3. Barra dei cinque periodi, ferma in alto con `top: var(--ws-sticky-top)`. «Adesso» scelta è in verde pieno.
 4. Ricerca («Cerca nome, città o CO»), select «Stato» e «Seguito da».
 5. Avviso ambra delle differenze da controllare, con «Mostrale».
@@ -82,12 +82,26 @@ Indirizzo: `/partner?periodo=1&sezione=eventi&stato=da_fare&chi=io&q=porsche&co=
 | --- | --- | --- |
 | `periodo` | 1–5 | 1, o l'ultimo usato nel browser |
 | `sezione` | `tutti`, `vendita`, `eventi`, `collab` | `tutti`, o l'ultima usata |
-| `stato` | `da_fare` (tutti tranne Chiuso e Non interessato), `tutti`, uno dei 6 stati, `non_contattare`, `da_controllare` | `da_fare` |
+| `stato` | `da_fare` (tutti tranne Accordo fatto e Non interessato), `tutti`, uno dei 6 stati, `non_contattare`, `da_controllare` | `da_fare` |
 | `chi` | `tutti`, `io`, `nessuno`, id di un membro | `tutti` |
 | `q` | al massimo 80 caratteri: nome, città, paese, tipo, CO («12», «CO 12», «CO012») | vuoto |
 | `co` | contatto con i dettagli aperti | nessuno |
+| `vista` | `ci_siamo`: solo gli accordi fatti (vedi sotto) | nessuna |
 
 Valori non validi tornano ai predefiniti, senza errore. Filtri, periodo, sezione e ricerca lavorano nel browser e aggiornano l'indirizzo. Ultimo periodo e ultima sezione restano in `localStorage` (`luckylap.partner.vista.v1`) quando l'indirizzo non li indica. Un link `#lead-12` senza `co` apre il contatto 12. Il link canonico è `partnerHref({ co })` di `src/lib/partner/links.ts`: `/partner?co=12#lead-12`.
+
+## Accordo fatto e calendario
+
+Decisione di Tommi del 23 ottobre 2026: nel calendario del team e nell'agenda di Oggi vanno solo gli eventi a cui partecipiamo davvero.
+
+- Lo stato con chiave `chiuso` si chiama «Accordo fatto» (`PARTNER_STAGE_LABELS`): ci andiamo, c'è una collab o un accordo. La chiave nel database, nei file «Esporta» e nei comandi resta `chiuso`.
+- **Regola**: le date di una scheda (evento e scadenza della candidatura) diventano un appuntamento di giornata intera solo con «Accordo fatto»; con ogni altro stato no. Prima bastava che lo stato non fosse «Non interessato».
+- Migrazione additiva `supabase/migrations/20261023120000_partner_dates_only_agreed.sql` (non ancora applicata: la applica Tommi). Sostituisce `private.sync_partner_work_dates` (stessa firma, `security definer`, `search_path` vuoto, nessun grant) con la condizione `stage <> 'chiuso'` al posto di `stage = 'no'`, e `private.partner_work_command` con un solo controllo in più. Le regole di sicurezza restano: un appuntamento con vendite collegate (`partner_event_sales`) o modificato dal team non si cancella e il collegamento passa a «Scelta richiesta» (`needs_review`); quelli che il team ha scelto di tenere («Mantieni modifiche manuali») non si toccano. In più: se l'appuntamento di una scheda senza accordo non c'è già più, il collegamento si azzera senza chiedere una scelta.
+- **Pulizia in produzione**: alla fine la migrazione ripassa ogni scheda con un collegamento `dates`. Gli appuntamenti automatici delle schede senza accordo, non toccati e senza vendite, si cancellano: il 23 ottobre 2026 erano 54, creati dal backfill di `20261023091627_partner_work_links`. Nel Controllo CEO risultano eliminati da «Il sistema».
+- Cambi di stato: «Accordo fatto» con date future crea l'appuntamento; togliere l'accordo lo cancella, salvo vendite o modifiche del team (allora «Scelta richiesta»). Un accordo su un evento già passato non crea niente.
+- «Collega l'evento» in `/team/partner` è attivo solo con «Accordo fatto»; il comando rifiuta le altre schede con `partner_work_not_agreed` («In calendario vanno solo gli eventi a cui partecipiamo: segna prima «Accordo fatto» nella scheda Partner.»). «Usa date Partner» su una scheda senza accordo toglie l'appuntamento, o si ferma con `partner_work_event_has_sales` se ha vendite.
+- **«Ci siamo»** (`/partner?vista=ci_siamo`): tutti gli accordi fatti, di ogni periodo, sezione e stato scelto; valgono «Seguito da» e la ricerca. Prima gli eventi non ancora finiti, per data d'inizio, poi gli altri per CO. Le celle dei periodi restano quelle della vista normale; toccare un periodo, una sezione o lo stato esce da «Ci siamo». Sulla riga di un accordo con date in arrivo l'etichetta verde «Nel calendario del team».
+- Verifiche: `supabase/tests/partner-dates-agreed.mjs` (PGlite, 76 controlli: stato di produzione con la regola vecchia, pulizia, cambi di stato, comandi, firme e permessi); `finance-ecosystem-integration.mjs` segna «Accordo fatto» prima di collegare la vendita all'evento. `partner-work-links.mjs` e `partner-work-concurrency.mjs` provano ancora la sola migrazione P5.
 
 ## Database
 
@@ -238,7 +252,7 @@ Regole, mai sopra il lavoro del team:
 - **Stato**: `da_contattare` nel file è ignorato. Si applica se nel gestionale è Da contattare e nessun membro ha mai cambiato lo stato, oppure se lo stato viene da un file esportato prima. Un file più vecchio è «superato». Altrimenti resta il valore del gestionale e nasce una differenza `stage`. Quando si applica, `stage_from_file_at` = data di esportazione.
 - **Testi**, per contatto e approccio: si applicano come revisione `file` se vale l'originale o una revisione `file` più vecchia; uguali all'originale o al testo in uso: ignorati; altrimenti differenza `message`. Variante inesistente: «sconosciuto».
 - **Approccio**: si applica se nel gestionale è vuoto o viene da un file più vecchio; altrimenti ignorato.
-- **Registro**: una riga per contatto toccato, `origin = 'file'`, `occurred_at` = data di esportazione, autore chi carica il file. Stato Contattato → `inviato` (primo messaggio, canale della variante o del canale preferito); Ha risposto e In trattativa → `risposta`; Chiuso e Non interessato → `stato`; solo testi → `messaggio`; solo approccio → `approccio`.
+- **Registro**: una riga per contatto toccato, `origin = 'file'`, `occurred_at` = data di esportazione, autore chi carica il file. Stato Contattato → `inviato` (primo messaggio, canale della variante o del canale preferito); Ha risposto e In trattativa → `risposta`; Accordo fatto (chiave `chiuso`, come nel file) e Non interessato → `stato`; solo testi → `messaggio`; solo approccio → `approccio`.
 
 Quando: dopo il rilascio di P5, così gli invii importati creano i solleciti (decisione 30). Claude chiede a Tommi di premere «Esporta» su ogni dispositivo e browser e di caricare i file in `/partner/dati`.
 

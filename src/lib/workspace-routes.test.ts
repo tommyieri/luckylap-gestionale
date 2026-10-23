@@ -150,7 +150,7 @@ describe("ancore statiche (00-sequenza, decisione 18)", () => {
   const anchor = (prefix: string) =>
     new RegExp(`<li\\b[^>]*\\bid=\\{\`${prefix}-\\$\\{[^}]+\\}\`\\}`);
   const cases: [string, string][] = [
-    ["components/team-workspace.tsx", "evento"],
+    ["components/team-calendar.tsx", "evento"],
     ["components/team-workspace.tsx", "attivita"],
     ["components/team-workspace.tsx", "nota"],
     ["components/brand-assets-view.tsx", "contenuto"],

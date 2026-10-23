@@ -58,12 +58,12 @@ Alcuni documenti scritti prima del modello attuale chiedono ancora una sessione 
 
 ## Partner
 
-- [Partner nel gestionale](partner.md): pagina `/partner` con contatti, periodi, messaggi e stati, import della ricerca e dei file «Esporta», lookbook, privacy e GitHub Pages.
+- [Partner nel gestionale](partner.md): pagina `/partner` con contatti, periodi, messaggi e stati, «Ci siamo» (accordi fatti, unici nel calendario), import della ricerca e dei file «Esporta», lookbook, privacy e GitHub Pages.
 
 ## Team, contenuti e sviluppo
 
 - [Layout condiviso e navigazione](workspace-layout.md): guscio comune a tutte le pagine, mappa delle sezioni, token di stile e regole per le pagine nuove.
-- [Workspace condiviso del team](team-workspace.md): route `/team` con calendario e call, attività e note nel database.
+- [Workspace condiviso del team](team-workspace.md): route `/team` con il calendario a mese (pallino sui giorni con impegni), attività e note nel database.
 - [Libreria del brand e sviluppo prodotti](assets-development.md): route `/assets` e `/development`, con bucket privato per gli originali.
 - [Ricerca UI UX Pro Max](ui-ux-pro-max-research.md): fonte, licenza e comandi della ricerca usata per l'interfaccia.
 

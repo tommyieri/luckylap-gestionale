@@ -95,7 +95,7 @@ Con `npm run dev` l'anteprima locale (`isLocalPreviewEnabled()` in `src/lib/runt
 | Menu | Tutte e 7 le sezioni, piede «Anteprima locale · Dati solo su questo browser» con «Account e sicurezza», niente «Esci». |
 | `/` | Avviso «Anteprima locale: Oggi legge solo dal database.» e riquadri «Non disponibile nell’anteprima locale.». Nessuna lettura. |
 | `/stock` | Giacenze dallo snapshot `data/inventory-source.json`, con dettaglio prodotto ed export CSV. |
-| `/team` | `LocalPreviewWorkspace`: calendario, attività e note sul `localStorage` del browser. |
+| `/team` | Calendario a mese, attività e note sintetici di `src/lib/team/fixtures.ts`, con l'avviso «Anteprima locale: dati sintetici, salvataggio disattivato.». Le Server Action rispondono «Anteprima locale: salvataggio disattivato.» senza chiamare Supabase. |
 | Altre pagine | Senza configurazione Supabase mostrano lo stato «da collegare», dentro il guscio. |
 
 ## Test di guardia

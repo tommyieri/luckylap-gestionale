@@ -4,7 +4,7 @@ La route `/team` raccoglie calendario/call, attività e note reali del database 
 
 ## Operazioni disponibili
 
-- Calendario: creazione ed eliminazione di appuntamenti, partecipanti del team, descrizione e link HTTP(S) facoltativo; filtro per includere gli appuntamenti passati.
+- Calendario: griglia del mese, creazione ed eliminazione di appuntamenti, partecipanti del team, descrizione e link HTTP(S) facoltativo (vedi «Calendario a mese»).
 - Attività: creazione con descrizione, assegnatario attivo e giorno di scadenza facoltativi; completamento, riapertura ed eliminazione.
 - Note e idee: creazione ed eliminazione, con collegamento facoltativo a un’attività esistente. Eliminando l’attività, la nota rimane e il database azzera il collegamento.
 
@@ -13,6 +13,22 @@ Tutte queste informazioni sono condivise tra i membri attivi, secondo le RLS gi�
 Le Server Actions verificano nuovamente l’utente tramite `getUser` e la membership corrente prima di ogni operazione, anche se l’input non è valido. Non usano chiavi di servizio. Il chiamante non può impostare `created_by` o altri campi esclusi dai grant esistenti. Assegnatari e partecipanti sono verificati rispetto alle membership attive; un collegamento a una nota deve riferirsi a un’attività leggibile nella stessa sessione. Le policy del database restano l’autorità finale, inclusa una revoca intervenuta tra verifica e scrittura.
 
 La route è dinamica e la sua integrazione deve includere `/team/:path*` nel Proxy che applica le intestazioni `no-store`. Dopo una modifica riuscita viene invalidato `/team`; il pulsante Aggiorna rilegge i dati degli altri membri. Questa versione non promette aggiornamenti Realtime né modifica istantanea delle altre schede già aperte.
+
+## Calendario a mese
+
+`src/components/team-calendar.tsx`, regole pure in `src/lib/team/calendar.ts`. Sostituisce la lista con «Mostra anche passati».
+
+- Griglia del mese con le settimane da lunedì, nomi italiani di mesi e giorni, «Mese precedente», «Mese successivo» e «Oggi» per tornare al giorno corrente. Oggi ha il filetto verde sotto il numero; il giorno scelto è in inversione d'inchiostro.
+- Un pallino nero sui giorni con almeno un impegno: gli appuntamenti segnano ogni giorno di Roma che coprono (giornata intera e più giorni compresi; la fine a mezzanotte non segna il giorno dopo), le attività il giorno di scadenza.
+- Toccare un giorno mostra i suoi impegni sotto la griglia (telefono) o accanto (desktop): orario («10:00–10:45», «Giornata intera»), tipo, partecipanti, descrizione, «Apri il link della call» ed «Elimina»; per le attività «Completa»/«Riapri» ed «Elimina». Il modulo «Nuovo appuntamento» resta sotto il calendario. Cambiando mese si apre oggi, se è nel mese, altrimenti il primo giorno con qualcosa.
+- Ogni giorno è un pulsante con `aria-pressed` e un'etichetta come «23 ottobre, 2 impegni, oggi»; `aria-current="date"` su oggi. Le frecce spostano il giorno (anche nel mese accanto) e il fuoco lo segue; solo il giorno scelto è nella sequenza del tasto Tab.
+- I link `/team#evento-<id>` (Oggi, Controllo CEO, Partner nel Team) aprono il mese e il giorno d'inizio dell'evento e lo evidenziano in verde chiaro. Le ancore `#attivita-<id>` e `#nota-<id>` restano sulle liste.
+- Telefono a 390 px: celle di almeno 47 × 52 px, nessuno scorrimento orizzontale, testo da 12 px in su, campi a 16 px.
+- Gli appuntamenti Partner entrano qui solo con lo stato «Accordo fatto» (vedi [partner.md](partner.md), «Accordo fatto e calendario»). Oggi resta una lista breve del giorno e legge lo stesso calendario.
+
+## Anteprima locale
+
+Con `npm run dev` (`isLocalPreviewEnabled()`, sempre spenta su Vercel e con `NODE_ENV=production`) `/team` mostra il calendario, le attività e le note sintetici di `src/lib/team/fixtures.ts`, con le date calcolate da oggi, e l'avviso «Anteprima locale: dati sintetici, salvataggio disattivato.». Le Server Action rispondono «Anteprima locale: salvataggio disattivato.» senza creare il client Supabase. Lo provano `src/lib/team/fixtures.test.ts` e `src/lib/team/actions.test.ts`. La vecchia anteprima su `localStorage` (`LocalPreviewWorkspace`) è stata tolta.
 
 ## Orari e collegamenti
 

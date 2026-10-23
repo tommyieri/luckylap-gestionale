@@ -1,15 +1,13 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { redirect } from "next/navigation";
-import { LocalPreviewWorkspace } from "@/components/local-preview-workspace";
 import { TeamWorkspace } from "@/components/team-workspace";
 import { PanelActions, WorkspacePanel } from "@/components/workspace-panel";
 import { verifiedMember } from "@/lib/auth/server";
-import { isLocalPreviewEnabled } from "@/lib/runtime";
 import { getSupabasePublicConfig } from "@/lib/supabase/config";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
+import { teamLocalPreview } from "@/lib/team/fixtures";
 import { loadTeamWorkspace } from "@/lib/team/server";
-import { romeDay } from "@/lib/today/model";
 
 export const dynamic = "force-dynamic";
 export const metadata: Metadata = { title: "Team" };
@@ -37,8 +35,17 @@ function AccessState({
 }
 
 export default async function TeamPage() {
-  // Anteprima locale: calendario, attività e note solo su questo browser.
-  if (isLocalPreviewEnabled()) return <LocalPreviewWorkspace today={romeDay(new Date())} />;
+  // Anteprima locale: dati sintetici, salvataggio disattivato, nessuna chiamata a Supabase.
+  const preview = teamLocalPreview();
+  if (preview)
+    return (
+      <TeamWorkspace
+        snapshot={preview.snapshot}
+        displayName="Anteprima locale"
+        loadedAt={preview.loadedAt}
+        preview
+      />
+    );
   try {
     getSupabasePublicConfig();
   } catch {
