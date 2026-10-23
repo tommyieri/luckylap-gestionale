@@ -23,7 +23,7 @@ export function archivedDate(value: string): string | null {
 /**
  * Archivia o ripristina un contenuto della libreria (docs/assets-development.md, «Archivio dei
  * contenuti»). Non cancella niente: il contenuto esce dalla libreria per tutti e torna con
- * «Ripristina». Un solo invio alla volta; dopo un esito incerto «Riprova» ripete lo stesso
+ * «Ripristina». Un solo invio alla volta; dopo un errore lo stesso pulsante ripete lo stesso
  * operation_id, così il database restituisce l'esito di allora.
  */
 export function BrandAssetArchive({

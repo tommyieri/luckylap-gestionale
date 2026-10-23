@@ -8,7 +8,7 @@ Eseguiti il 23 ottobre 2026 nel worktree di P7, con dati sintetici e senza acces
 
 | Comando | Esito |
 | --- | --- |
-| `npm test` | 1.434 test in 119 file, tutti superati |
+| `npm test` | 1.468 test in 122 file, tutti superati |
 | `npm run test:db` senza `LUCKYLAP_PG_BIN` | 15 harness PGlite superati, 2.904 controlli; i 6 harness su PostgreSQL 17 risultano saltati |
 | `npm run test:db` con `LUCKYLAP_PG_BIN` (PostgreSQL 17.11 locale) | in più 6 harness PostgreSQL 17 superati, 939 controlli: 21 harness, 3.843 controlli in tutto |
 
@@ -55,13 +55,35 @@ Procedura per ogni migrazione (piano di lavoro, §1.3): impronte in sola lettura
 - Import della ricerca Partner il 22 ottobre 2026, dal commit `f6ad90c`: 207 contatti; 119 Vendita, 80 Eventi, 73 Collab; 218 varianti; recapiti attivi 165 email, 148 telefoni, 170 Instagram, 143 moduli, 19 pagine brand, 205 siti; 49 contatti nel periodo 1; zero differenze aperte; zero righe di audit con email o recapiti. Import `e471ff5e-d63e-4a58-8793-2bfa0991aee2`, SHA-256 normalizzato `49bc4bc3f870012a1e4dde3c9c25260354eaecd73b92469429211ea89055d68d` ([dettagli](partner.md), «Esiti in produzione»).
 - La sede centrale `MAG01` resta «Magadzino»: è il nome voluto dal founder e nessuna migrazione lo cambia.
 
-Ancora da fare per P7, prima del merge:
+Ancora da fare per P7, prima del merge, in quest'ordine:
 
-- applicare in produzione `archivio_contenuti` (oggi `20261022220100_archivio_contenuti.sql`), con impronta di `assets` prima e dopo; poi il file prende la versione cloud ([archivio](assets-development.md), «Archivio dei contenuti»);
-- prove visive a 1280 e 390 px delle pagine toccate da P7 (piano di lavoro, §1.4), con l'esito scritto qui;
-- CI verde, compreso il job «Concorrenza (PostgreSQL 17)».
+1. Rebase di questo branch su `origin/main`, poi CI di nuovo verde. La pull request #3 di Codex è su `main` dal 23 ottobre (merge `b24690f`) e porta quattro migrazioni più recenti di `20261022220100_archivio_contenuti.sql`, fino a `20261023091633_shop_payment_finance.sql`. Il rebase viene **prima** della migrazione: il piano (§1.3, passo 2) vuole che l'ultima versione in cloud sia l'ultima del repository, e senza rebase non può esserlo. Tra le migrazioni non c'è dipendenza: quelle della pull request #3 non toccano `assets` né le funzioni usate dall'archivio.
+2. La parte B, qui sotto.
+3. Applicare in produzione `archivio_contenuti`, con impronta di `assets` prima e dopo. Il file prende la versione cloud, che sarà successiva a `20261023091633`, e la tabella «Produzione» qui sopra riceve la sua riga ([archivio](assets-development.md), «Archivio dei contenuti»).
+4. Prove visive della parte B a 1280 e 390 px (piano di lavoro, §1.4); quelle della parte A sono in «Prove visive della parte A».
+5. CI verde, compreso il job «Concorrenza (PostgreSQL 17)».
 
-Finance modificabile, collegamenti Partner e Oggi completo, Controllo CEO come feed (P4–P6) sono in un branch di Codex non ancora unito (pull request #3): le loro migrazioni e i loro test non fanno parte di questi numeri.
+Parte B: file che sono anche nella pull request #3, da toccare solo dopo il rebase.
+
+- `sales-workspace.tsx`: passare `names` (articolo, ordine, riga) a `SalesPendingRecovery` e ai cinque `SalesCommandForm`. Oggi un invio da verificare dice «Riga 1» al posto dell'articolo, e «Ordine» con 8 caratteri del codice anche per gli ordini che nell'elenco hanno il loro riferimento (06 R4; i componenti accettano già `names`).
+- `sales-workspace.tsx`, testi di 06 R10: «N capi · N fabbisogni», «I fatti osservati non equivalgono…», «Origine tecnica…», «Valore / costo / margine iniziali». Poi togliere le due voci di `KNOWN_LEFTOVERS` in `src/lib/ui-copy.test.ts`.
+- «Chiudi Finance» in `/finance` e «Chiudi» in Controllo CEO (06 R12). Oggi Finance si chiude solo da «Account e sicurezza» e da `/auth/area/finance`.
+- Riquadro «Prima volta qui?» su Oggi (`today-sheet.tsx`).
+- Calendario: all'inizio solo gli appuntamenti futuri, con «N passati nascosti» (06 R16, `team-workspace.tsx`).
+- Feed di Controllo CEO: la frase per l'archivio dei contenuti. Oggi un'archiviazione si leggerebbe «ha aggiornato un contenuto».
+- `AGENTS.md`, «Decisioni del founder»: Finance modificabile e Controllo CEO come feed sono fatti; la frase sull'immutabilità diventa quella di 04 §4.
+
+Nota per la pull request: in `AGENTS.md` P7 cambia anche una parola fuori da «Decisioni del founder», nella sezione dei test: «i cinque harness» diventa «gli harness». Gli harness su PostgreSQL 17 oggi sono sei, e con la pull request #3 sono di più.
+
+Finance modificabile, collegamenti Partner e Oggi completo, Controllo CEO come feed (P4–P6) sono su `main` dalla pull request #3, ma questo branch non li contiene ancora: le loro migrazioni e i loro test non fanno parte di questi numeri.
+
+## Prove visive della parte A
+
+Anteprima locale (`npm run dev`, dati sintetici), a 1280 × 800 e 390 × 844, il 23 ottobre 2026. In ogni pagina: nessuno scorrimento orizzontale, nessun testo sotto 12 px, bersagli da almeno 44 px sul telefono.
+
+- `/guida`: otto parti, indice a destra sul computer e su due colonne in cima sul telefono, «Le operazioni più comuni» con link e pulsanti veri.
+- `/auth/account`: ha il ramo dell'anteprima (account sintetico, aree chiuse, nessuna scrittura).
+- Invio da verificare: `/sales`, `/stock/rettifiche`, `/packaging` e `/finance/work` non hanno un ramo dell'anteprima (non sono pagine nuove: piano di lavoro, §1.5). La prova si fa con una pagina temporanea, mai committata e cancellata subito dopo, che monta il vero `SalesCommandForm` con un tentativo illeggibile messo a mano in `sessionStorage` (chiave `luckylap.sales.pending:<utente>:new-sale`) e i casi di `PendingAttempt`. Esito: data italiana, codice nascosto in «Codice per l’assistenza»; un tentativo bloccato non mostra «Verifica lo stesso invio» e ha «Scarta questo tentativo» come azione principale; dopo «Sì, scarta il tentativo» la chiave sparisce da `sessionStorage` e il riquadro si chiude. Il resto lo coprono i test dei componenti (`sales-command-form`, `sales-pending-recovery`, `stock-adjustment-form`, `packaging-workspace`, `finance-work-form`).
 
 ## Avvio del 21 ottobre 2026
 
