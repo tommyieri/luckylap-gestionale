@@ -9,6 +9,7 @@ export type TeamActionState = {
   values?: Record<string, string>;
   participantIds?: string[];
   revision?: string;
+  updatedItem?: { id: string; day: string | null; kind: "event" | "task" };
 };
 export type EventDetails = {
   summary: string;
@@ -263,6 +264,85 @@ export function decodeEventDetails(description: string): EventDetails {
   }
 }
 
+/** A stable snapshot of editable values, independent of Postgres timestamp formatting. */
+export function eventEditToken(event: TeamEvent): string {
+  return JSON.stringify({
+    title: event.title,
+    startsAt: new Date(event.startsAt).toISOString(),
+    endsAt: new Date(event.endsAt).toISOString(),
+    eventType: event.eventType,
+    summary: event.details.summary,
+    participantIds: [...event.details.participantIds].sort(),
+    callUrl: event.details.callUrl,
+    typeLabel: event.details.typeLabel ?? null,
+    allDay: event.details.allDay === true,
+  });
+}
+
+export function taskEditToken(task: TeamTask): string {
+  return JSON.stringify({
+    title: task.title,
+    description: task.description,
+    status: task.status,
+    dueAt: task.dueAt === null ? null : new Date(task.dueAt).toISOString(),
+    assignedTo: task.assignedTo,
+  });
+}
+
+export function parseTeamEditForm(form: FormData): { id: string; expected: string } {
+  const id = optionalId(form, "id", "Elemento");
+  const tokens = form.getAll("expected");
+  // This is serialized JSON, not human text: quotes, escapes and newlines are valid.
+  ensure(
+    id &&
+      tokens.length === 1 &&
+      typeof tokens[0] === "string" &&
+      tokens[0].length > 0 &&
+      tokens[0].length <= 100000,
+    "La versione dell’elemento non è valida. Ricarica la pagina e riprova.",
+  );
+  return { id, expected: tokens[0] };
+}
+
+function eventFormTimes(form: FormData): { startsAt: string; endsAt: string; allDay: boolean } {
+  const allDayValue = field(form, "allDay", "Giornata intera", 5);
+  ensure(["", "false", "true"].includes(allDayValue), "La durata di giornata intera non è valida.");
+  if (allDayValue !== "true") {
+    return {
+      startsAt: resolveRomeLocalTime(
+        field(form, "startsAt", "Inizio", 16, true),
+        field(form, "startsOccurrence", "Occorrenza inizio", 10),
+        "L’orario di inizio",
+      ),
+      endsAt: resolveRomeLocalTime(
+        field(form, "endsAt", "Fine", 16, true),
+        field(form, "endsOccurrence", "Occorrenza fine", 10),
+        "L’orario di fine",
+      ),
+      allDay: false,
+    };
+  }
+  const start = field(form, "startsAt", "Inizio", 10, true);
+  const end = field(form, "endsAt", "Fine", 10, true);
+  ensure(
+    /^\d{4}-\d{2}-\d{2}$/.test(start) && /^\d{4}-\d{2}-\d{2}$/.test(end),
+    "Giornata intera: seleziona date valide.",
+  );
+  const startsAt = resolveRomeLocalTime(`${start}T00:00`, "", "La data di inizio");
+  resolveRomeLocalTime(`${end}T00:00`, "", "La data di fine");
+  const nextDay = new Date(`${end}T00:00:00.000Z`);
+  nextDay.setUTCDate(nextDay.getUTCDate() + 1);
+  return {
+    startsAt,
+    endsAt: resolveRomeLocalTime(
+      `${nextDay.toISOString().slice(0, 10)}T00:00`,
+      "",
+      "La data di fine",
+    ),
+    allDay: true,
+  };
+}
+
 export function parseEventForm(form: FormData) {
   const title = field(form, "title", "Titolo", 240, true);
   const eventType = field(form, "eventType", "Tipo appuntamento", 20, true);
@@ -277,16 +357,7 @@ export function parseEventForm(form: FormData) {
         ? field(form, "customEventType", "Tipo appuntamento", 80, true)
         : undefined;
   if (typeLabel !== undefined) validateEventTypeLabel(typeLabel);
-  const startsAt = resolveRomeLocalTime(
-    field(form, "startsAt", "Inizio", 16, true),
-    field(form, "startsOccurrence", "Occorrenza inizio", 10),
-    "L’orario di inizio",
-  );
-  const endsAt = resolveRomeLocalTime(
-    field(form, "endsAt", "Fine", 16, true),
-    field(form, "endsOccurrence", "Occorrenza fine", 10),
-    "L’orario di fine",
-  );
+  const { startsAt, endsAt, allDay } = eventFormTimes(form);
   ensure(endsAt > startsAt, "L’orario di fine deve essere successivo all’inizio.");
   const ids = form.getAll("participantIds");
   ensure(
@@ -299,6 +370,7 @@ export function parseEventForm(form: FormData) {
     participantIds,
     callUrl: validatedCallUrl(field(form, "callUrl", "Link call", 2048)),
     ...(typeLabel !== undefined ? { typeLabel } : {}),
+    ...(allDay ? { allDay: true } : {}),
   };
   return {
     title,
@@ -310,16 +382,18 @@ export function parseEventForm(form: FormData) {
   };
 }
 
-export function parseTaskForm(form: FormData) {
+export function parseTaskForm(form: FormData, options: { editing?: boolean } = {}) {
   const dueDate = field(form, "dueDate", "Scadenza", 10);
   ensure(
     dueDate === "" || /^\d{4}-\d{2}-\d{2}$/.test(dueDate),
     "La data di scadenza non è valida.",
   );
+  const status = options.editing ? field(form, "status", "Stato attività", 20, true) : "todo";
+  ensure(TASK_STATUSES.includes(status as TaskStatus), "Lo stato dell’attività non è valido.");
   return {
     title: field(form, "title", "Titolo", 240, true),
     description: field(form, "description", "Descrizione", 8000),
-    status: "todo" as const,
+    status: status as TaskStatus,
     due_at: dueDate ? resolveRomeLocalTime(`${dueDate}T12:00`, "", "La scadenza") : null,
     assigned_to: optionalId(form, "assignedTo", "Assegnatario"),
   };
@@ -368,11 +442,13 @@ export function capturedFormValues(
     "endsAt",
     "startsOccurrence",
     "endsOccurrence",
+    "allDay",
     "eventType",
     "customEventType",
     "callUrl",
     "dueDate",
     "assignedTo",
+    "status",
     "taskId",
   ];
   return {

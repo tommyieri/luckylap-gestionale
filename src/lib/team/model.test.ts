@@ -4,6 +4,11 @@ import {
   decodeEventDetails,
   encodeEventDetails,
   eventTypeLabel,
+  eventEditToken,
+  taskEditToken,
+  parseTeamEditForm,
+  type TeamEvent,
+  type TeamTask,
   parseEventForm,
   parseNoteForm,
   parseTaskForm,
@@ -228,4 +233,147 @@ it("keeps the free type label after validation errors and renders only the selec
       details: { summary: "", participantIds: [], callUrl: null, typeLabel: "Shooting" },
     }),
   ).toBe("Consegna");
+});
+
+describe("modifica dei dati del calendario", () => {
+  it.each([
+    ["2026-03-29", "2026-03-29", "2026-03-28T23:00:00.000Z", "2026-03-29T22:00:00.000Z", 23],
+    ["2026-10-25", "2026-10-25", "2026-10-24T22:00:00.000Z", "2026-10-25T23:00:00.000Z", 25],
+    ["2026-07-12", "2026-07-14", "2026-07-11T22:00:00.000Z", "2026-07-14T22:00:00.000Z", 72],
+  ])(
+    "giornata intera %s–%s mantiene fine inclusiva e mezzanotte romana",
+    (startsAt, endsAt, start, end, hours) => {
+      const event = parseEventForm(
+        form({ title: "Evento sintetico", eventType: "event", allDay: "true", startsAt, endsAt }),
+      );
+      expect(event.starts_at).toBe(start);
+      expect(event.ends_at).toBe(end);
+      expect((Date.parse(event.ends_at) - Date.parse(event.starts_at)) / 3600000).toBe(hours);
+      expect(decodeEventDetails(event.description)).toMatchObject({
+        typeLabel: "Evento",
+        allDay: true,
+      });
+    },
+  );
+  it.each([
+    { allDay: "true", startsAt: "2026-03-30", endsAt: "2026-03-29" },
+    { allDay: "true", startsAt: "2026-02-30", endsAt: "2026-03-02" },
+    { allDay: "true", startsAt: "2026-03-29T10:00", endsAt: "2026-03-29" },
+    { allDay: "yes", startsAt: "2026-03-29", endsAt: "2026-03-29" },
+  ])("rifiuta date giornata intera o indicatore non validi", (dates) => {
+    expect(() =>
+      parseEventForm(form({ title: "Evento sintetico", eventType: "meeting", ...dates })),
+    ).toThrow();
+  });
+  it("accetta gli stati previsti solo in modifica e crea sempre un’attività da fare", () => {
+    for (const status of ["todo", "in_progress", "done"]) {
+      const input = form({ title: "Attività sintetica", status });
+      expect(parseTaskForm(input, { editing: true }).status).toBe(status);
+      expect(parseTaskForm(input).status).toBe("todo");
+    }
+    for (const status of ["", "deleted", "DONE"]) {
+      expect(() =>
+        parseTaskForm(form({ title: "Attività sintetica", status }), { editing: true }),
+      ).toThrow(/stato/i);
+    }
+    const duplicate = form({ title: "Attività sintetica", status: "done" });
+    duplicate.append("status", "todo");
+    expect(() => parseTaskForm(duplicate, { editing: true })).toThrow(/stato/i);
+  });
+  it("normalizza token rispetto a istanti equivalenti, metadati opzionali e ordine dei partecipanti", () => {
+    const event: TeamEvent = {
+      id: memberId,
+      title: "Call sintetica",
+      startsAt: "2026-10-25T02:30:00+01:00",
+      endsAt: "2026-10-25T03:30:00+01:00",
+      eventType: "meeting",
+      createdBy: memberId,
+      details: {
+        summary: "Agenda",
+        participantIds: [memberId, "00000000-0000-4000-8000-000000000002"],
+        callUrl: null,
+      },
+    };
+    const equivalent: TeamEvent = {
+      ...event,
+      id: "00000000-0000-4000-8000-000000000003",
+      createdBy: "00000000-0000-4000-8000-000000000004",
+      startsAt: "2026-10-25T01:30:00.000Z",
+      endsAt: "2026-10-25T02:30:00.000Z",
+      details: {
+        ...event.details,
+        participantIds: [...event.details.participantIds].reverse(),
+        allDay: false,
+      },
+    };
+    expect(eventEditToken(event)).toBe(eventEditToken(equivalent));
+    expect(event.details.participantIds[0]).toBe(memberId);
+    expect(eventEditToken({ ...event, title: "Call corretta" })).not.toBe(eventEditToken(event));
+    expect(eventEditToken({ ...event, startsAt: "2026-10-25T00:30:00.000Z" })).not.toBe(
+      eventEditToken(event),
+    );
+    const task: TeamTask = {
+      id: memberId,
+      title: "Attività",
+      description: "Testo",
+      status: "done",
+      dueAt: "2026-10-25T12:00:00+01:00",
+      assignedTo: null,
+      createdBy: memberId,
+    };
+    expect(taskEditToken(task)).toBe(
+      taskEditToken({
+        ...task,
+        dueAt: "2026-10-25T11:00:00.000Z",
+        createdBy: "00000000-0000-4000-8000-000000000002",
+      }),
+    );
+    expect(taskEditToken({ ...task, status: "todo" })).not.toBe(taskEditToken(task));
+  });
+  it("accetta token JSON con tutto il contenuto massimo senza trattarlo come testo umano", () => {
+    const ids = Array.from(
+      { length: 100 },
+      (_, i) => `00000000-0000-4000-8000-${String(i + 1).padStart(12, "0")}`,
+    );
+    const event: TeamEvent = {
+      id: memberId,
+      title: '"'.repeat(240),
+      startsAt: "2026-10-25T01:30:00.000Z",
+      endsAt: "2026-10-25T02:30:00.000Z",
+      eventType: "other",
+      createdBy: memberId,
+      details: {
+        summary: '\n"'.repeat(4000),
+        participantIds: ids,
+        callUrl: "https://example.test/" + "p".repeat(2027),
+        typeLabel: "x".repeat(80),
+        allDay: true,
+      },
+    };
+    const expected = eventEditToken(event);
+    const input = form({ id: memberId, expected });
+    expect(parseTeamEditForm(input)).toEqual({ id: memberId, expected });
+    expect(expected.length).toBeLessThan(100000);
+    const file = form({ id: memberId });
+    file.set("expected", new File(["{}"], "snapshot.json"));
+    expect(() => parseTeamEditForm(file)).toThrow(/versione/);
+  });
+  it("conserva stato, giornata intera e campi selezionati dopo un errore", () => {
+    const input = form({
+      status: "in_progress",
+      allDay: "true",
+      startsAt: "2026-10-25",
+      endsAt: "2026-10-26",
+    });
+    input.append("participantIds", memberId);
+    expect(capturedFormValues(input)).toMatchObject({
+      values: {
+        status: "in_progress",
+        allDay: "true",
+        startsAt: "2026-10-25",
+        endsAt: "2026-10-26",
+      },
+      participantIds: [memberId],
+    });
+  });
 });
