@@ -13,7 +13,7 @@ import {
   lineFields,
   ReturnStockForm,
 } from "./consignment-order";
-import { item, shopPageRows } from "../lib/consignment/shop-fixtures";
+import { item, shopPageRows, sid } from "../lib/consignment/shop-fixtures";
 import {
   orderLinesFromReport,
   orderProgress,
@@ -78,6 +78,47 @@ describe("ordine del negozio", () => {
       /aria-label="GT3RS Blu M, richieste"[^>]*value="3"|value="3"[^>]*aria-label="GT3RS Blu M, richieste"/,
     );
     expect(t).toContain("Salva ordine");
+  });
+});
+
+describe("ordine nato da un riordine", () => {
+  it("già compilato con le magliette per il negozio, nota del riordine", () => {
+    const p = page();
+    const prefill = [{ stock_item_id: item("GT3RS", "Blu", "S"), quantity: 1 }];
+    const html = renderToStaticMarkup(
+      <ConsignmentOrder
+        page={p}
+        order={null}
+        prefill={prefill}
+        restock={{ id: sid(902), title: "Pezzi arrivati da Antonella" }}
+        now={NOW}
+      />,
+    );
+    const t = text(html);
+    expect(t).toContain(
+      "Ordine già compilato con le magliette per il negozio del riordine «Pezzi arrivati da Antonella».",
+    );
+    expect(html).toContain("Riordine «Pezzi arrivati da Antonella»");
+    expect(html).toMatch(
+      /aria-label="GT3RS Blu S, richieste"[^>]*value="1"|value="1"[^>]*aria-label="GT3RS Blu S, richieste"/,
+    );
+    // Il negozio tiene solo S–XL: nessuna casella XS o XXL.
+    expect(html).not.toContain('aria-label="GT3RS Blu XS, richieste"');
+  });
+
+  it("arrivando dal riordine il modulo «Consegnato» è già aperto, finché non si è consegnato niente", () => {
+    const p = page();
+    const open = p.orders.find((o) => o.number === 2)!;
+    const fresh = { ...open, lines: open.lines.map((l) => ({ ...l, delivered: 0 })) };
+    const html = renderToStaticMarkup(
+      <ConsignmentOrder page={p} order={fresh} startDelivery now={NOW} />,
+    );
+    expect(html).toContain('aria-label="Consegna al negozio"');
+    const delivered = renderToStaticMarkup(
+      <ConsignmentOrder page={p} order={open} startDelivery now={NOW} />,
+    );
+    expect(open.lines.some((l) => l.delivered > 0)).toBe(true);
+    expect(delivered).not.toContain('aria-label="Consegna al negozio"');
   });
 });
 

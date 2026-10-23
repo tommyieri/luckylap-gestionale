@@ -36,7 +36,9 @@ describe("griglia delle magliette", () => {
   });
 
   it("gruppi per modello nell'ordine del Magazzino, una riga per colore, sei taglie", () => {
-    const grid = shopStockGrid(page());
+    // Un negozio con tutte le taglie: sei colonne.
+    const all = page();
+    const grid = shopStockGrid({ ...all, shop: { ...all.shop, sizes: null } });
     expect(grid.groups.map((g) => g.model)).toEqual(["GT3RS", "964", "F40"]);
     expect(grid.groups[0].rows.map((r) => r.color)).toEqual(["Blu", "Bianco"]);
     const html = renderToStaticMarkup(<ConsignmentStockGrid grid={grid} label="Magliette" />);
@@ -44,6 +46,15 @@ describe("griglia delle magliette", () => {
     for (const size of ["XS", "S", "M", "L", "XL", "XXL"]) expect(html).toContain(`>${size}<`);
     // F40 Rosso XXL non è attiva e non è in negozio: casella vuota.
     expect(html).toMatch(/aria-hidden="true"/);
+  });
+
+  it("negozio con le sue taglie: solo S, M, L, XL", () => {
+    const html = renderToStaticMarkup(
+      <ConsignmentStockGrid grid={shopStockGrid(page())} label="Magliette" />,
+    );
+    for (const size of ["S", "M", "L", "XL"]) expect(html).toContain(`>${size}<`);
+    for (const size of ["XS", "XXL"]) expect(html).not.toContain(`>${size}<`);
+    expect(html).toContain("--sizes:4");
   });
 
   it("le magliette in arrivo dagli ordini aperti", () => {

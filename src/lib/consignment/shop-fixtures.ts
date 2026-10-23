@@ -124,6 +124,8 @@ const shops = () => [
     version: 1,
     created_by: null,
     created_at: "2026-08-20T10:00:00+00:00",
+    // Come la libreria di Milano: solo S, M, L, XL.
+    sizes: ["S", "M", "L", "XL"],
   },
   {
     location_id: sx.shop2,
@@ -588,6 +590,20 @@ export function shopPageRows(code = "NEG01", finance = true): ShopPageRows {
     profiles: profiles(),
     payments: finance ? own(payments()) : null,
     paymentRevisions: finance ? own(paymentRevisions()) : null,
+  };
+}
+
+/** Catalogo, sedi, negozi, giacenze del magazzino e persone sintetiche, per l'anteprima del riassortimento. */
+export function previewCatalogRows() {
+  const rows = shopPageRows("NEG01");
+  return {
+    products: rows.products,
+    variants: rows.variants,
+    items: rows.items,
+    locations: rows.locations,
+    shops: shops(),
+    central: centralStock(),
+    profiles: profiles(),
   };
 }
 

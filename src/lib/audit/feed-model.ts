@@ -103,7 +103,8 @@ export const BOUNDARY_CURSOR_ID = "00000000-0000-0000-0000-000000000000";
 const UUID = "[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}";
 /**
  * I soli link che il feed può portare nel browser (decisione 17): sezioni e ancore tipizzate.
- * Partner `/partner?co=N#lead-N` (partnerHref), rettifiche `/stock/rettifiche`, resoconto
+ * Partner `/partner?co=N#lead-N` (partnerHref), rettifiche `/stock/rettifiche`, riordine
+ * `/stock/riassortimento/<id>`, resoconto
  * `/consignment/<CODICE>/resoconto/<AAAA-MM>`, movimento `/finance#movimento-<fonte>-<id>`.
  */
 const ACTIVITY_HREFS = [
@@ -111,6 +112,7 @@ const ACTIVITY_HREFS = [
   new RegExp(`^/sales(?:#order-${UUID})?$`),
   /^\/consignment(?:\/[A-Z0-9]{2,12}(?:\/resoconto\/2[0-9]{3}-(?:0[1-9]|1[0-2]))?)?$/,
   /^\/stock(?:\/rettifiche)?$/,
+  new RegExp(`^/stock/riassortimento(?:/${UUID})?$`),
   /^\/packaging$/,
   new RegExp(
     `^/finance(?:#movimento-(?:budgetflow|manual|payment|refund|consignment|shop_payment)-${UUID})?$`,

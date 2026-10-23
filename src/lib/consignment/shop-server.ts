@@ -35,7 +35,7 @@ import {
  */
 
 const SHOP_COLUMNS =
-  "location_id,supply_location_id,brand_share_bps,markup_cents,first_counted_at,note,version,created_by,created_at";
+  "location_id,supply_location_id,brand_share_bps,markup_cents,first_counted_at,note,version,created_by,created_at,sizes";
 const REPORT_COLUMNS =
   "id,location_id,period_month,revision,brand_share_bps,markup_cents,pieces,gross_cents,brand_cents,shop_cents,invoice_number,invoice_date,invoice_revision,payment_state,created_at,updated_at";
 const AVAILABILITY_COLUMNS = "stock_item_id,location_id,on_hand,reserved,available";
@@ -390,6 +390,13 @@ export const SHOP_MESSAGES: Record<string, Message> = {
   ),
   payment_not_found: fixed("Questo pagamento non c’è più. Rileggi la pagina."),
   shop_not_empty: fixed("Il negozio ha ancora magliette, ordini aperti o resoconti da pagare."),
+  size_not_in_shop: perSku(
+    (sku) => `Il negozio non tiene la taglia di ${sku}: togli quella riga.`,
+    "Il negozio non tiene una di queste taglie: togli quella riga.",
+  ),
+  restock_not_ready: fixed(
+    "Il riordine non è più «In mano nostra» o è di un altro negozio. Rileggi il riordine.",
+  ),
 };
 /** Errori che arrivano prima della ricevuta: in una verifica non provano che l'invio non sia avvenuto. */
 const EARLY = [
@@ -411,6 +418,7 @@ const LINE_CODES = [
   "unknown_stock",
   "exceeds_order",
   "below_delivered",
+  "size_not_in_shop",
 ];
 const SKU_SAFE = /^[A-Za-z0-9][A-Za-z0-9._\-/ ]{0,119}$/;
 

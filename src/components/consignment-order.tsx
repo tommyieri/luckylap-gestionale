@@ -67,17 +67,22 @@ const requestedFormat = new Intl.DateTimeFormat("it-IT", {
 });
 const dayText = (day: string) => requestedFormat.format(new Date(`${day}T12:00:00Z`));
 
+/** Riordine da cui nasce un ordine nuovo (Magazzino › Riassortimento): resta legato all'ordine. */
+export type OrderRestock = { id: string; title: string };
+
 /** Ordine nuovo o in modifica: data della richiesta, nota, griglia dei pezzi richiesti. */
 function OrderEditor({
   page,
   order,
   prefill,
+  restock = null,
   now,
   onCancel,
 }: {
   page: ShopPage;
   order: ShopOrder | null;
   prefill: ItemLine[] | null;
+  restock?: OrderRestock | null;
   now: string;
   onCancel?: () => void;
 }) {
@@ -90,7 +95,9 @@ function OrderEditor({
     Object.fromEntries(initial.map((l) => [l.stock_item_id, String(l.quantity)])),
   );
   const [requestedOn, setRequestedOn] = useState(order?.requestedOn ?? romeToday(now));
-  const [note, setNote] = useState(order?.note ?? "");
+  const [note, setNote] = useState(
+    order?.note ?? (restock ? `Riordine «${restock.title}»`.slice(0, 1000) : ""),
+  );
   const [invalid, setInvalid] = useState<Set<string>>(new Set());
   const [highlight, setHighlight] = useState<string | null>(null);
   const [message, setMessage] = useState<FormNotice | null>(null);
@@ -164,6 +171,7 @@ function OrderEditor({
         requested_on: requestedOn,
         note,
         lines: parsed.lines,
+        ...(restock && !order ? { restock_order_id: restock.id } : {}),
       },
     });
     if (!command)
@@ -177,7 +185,10 @@ function OrderEditor({
     if (result.status === "success") {
       if (!order && result.target.orderNumber) {
         commands.flash(result.message);
-        router.push(consignmentOrderHref(page.shop.code, result.target.orderNumber));
+        // Dal riordine si apre subito il modulo «Consegnato», già compilato.
+        router.push(
+          `${consignmentOrderHref(page.shop.code, result.target.orderNumber)}${restock ? "?consegna=1" : ""}`,
+        );
       } else {
         commands.announce(result.message);
         onCancel?.();
@@ -193,9 +204,11 @@ function OrderEditor({
       <p className={styles.sectionNote}>
         {order
           ? "Modifica le quantità richieste. Una taglia non può scendere sotto le magliette già consegnate."
-          : prefill?.length
-            ? "Ordine già compilato con le magliette vendute nel mese: cambia quello che serve."
-            : "Scrivi quante magliette chiede il negozio per taglia. L’ordine non blocca il magazzino: la consegna controlla le magliette disponibili."}
+          : restock
+            ? `Ordine già compilato con le magliette per il negozio del riordine «${restock.title}». Salva l’ordine, poi registri la consegna come sempre.`
+            : prefill?.length
+              ? "Ordine già compilato con le magliette vendute nel mese: cambia quello che serve."
+              : "Scrivi quante magliette chiede il negozio per taglia. L’ordine non blocca il magazzino: la consegna controlla le magliette disponibili."}
       </p>
       <fieldset className={styles.fieldset}>
         <legend className="sr-only">Magliette richieste</legend>
@@ -533,9 +546,24 @@ function CloseForm({ order, onDone }: { order: ShopOrder; onDone: () => void }) 
   );
 }
 
-function OrderView({ page, order, now }: { page: ShopPage; order: ShopOrder; now: string }) {
+function OrderView({
+  page,
+  order,
+  now,
+  startDelivery = false,
+}: {
+  page: ShopPage;
+  order: ShopOrder;
+  now: string;
+  /** Arrivo dal riordine: il modulo «Consegnato» è già aperto, finché non si è consegnato niente. */
+  startDelivery?: boolean;
+}) {
   const commands = useShopCommands();
-  const [mode, setMode] = useState<"view" | "deliver" | "edit" | "close">("view");
+  const [mode, setMode] = useState<"view" | "deliver" | "edit" | "close">(() =>
+    startDelivery && order.status === "open" && order.lines.every((l) => l.delivered === 0)
+      ? "deliver"
+      : "view",
+  );
   const progress = orderProgress(page, order);
   const shipments = page.shipments.filter((s) => s.orderId === order.id);
   const isOpen = order.status === "open";
@@ -674,15 +702,28 @@ export function ConsignmentOrder({
   page,
   order,
   prefill = null,
+  restock = null,
+  startDelivery = false,
   now,
 }: {
   page: ShopPage;
   order: ShopOrder | null;
   prefill?: ItemLine[] | null;
+  restock?: OrderRestock | null;
+  startDelivery?: boolean;
   now: string;
 }) {
-  if (!order) return <OrderEditor page={page} order={null} prefill={prefill} now={now} />;
-  return <OrderView key={`${order.id}:${order.version}`} page={page} order={order} now={now} />;
+  if (!order)
+    return <OrderEditor page={page} order={null} prefill={prefill} restock={restock} now={now} />;
+  return (
+    <OrderView
+      key={`${order.id}:${order.version}`}
+      page={page}
+      order={order}
+      now={now}
+      startDelivery={startDelivery}
+    />
+  );
 }
 
 /** «Riporta in magazzino»: azione secondaria dello storico, per esempio a fine stagione. */

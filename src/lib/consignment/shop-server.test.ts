@@ -275,6 +275,8 @@ describe("comandi del conto vendita", () => {
       "payment_not_found",
       "report_not_found",
       "shop_not_empty",
+      "size_not_in_shop",
+      "restock_not_ready",
     ];
     expect(Object.keys(SHOP_MESSAGES).sort()).toEqual([...codes].sort());
     for (const code of codes) {

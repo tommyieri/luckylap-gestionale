@@ -114,7 +114,8 @@ describe("giacenza del negozio", () => {
     ).toEqual(Array(24).fill(null));
   });
   it("dopo la conta lo zero è noto e un saldo mancante vale 0", () => {
-    const p = page(),
+    // Un negozio con tutte le taglie (sizes NULL): sei colonne.
+    const p = page(edit((r) => ((r.shop as Row).sizes = null))),
       grid = shopStockGrid(p);
     expect(p.shopStock[item("GT3RS", "Bianco", "XS")]).toBeNull();
     expect(shopQuantity(p, item("GT3RS", "Bianco", "XS"))).toBe(0);
@@ -131,7 +132,7 @@ describe("giacenza del negozio", () => {
       [gt3BluM]: 2,
       [item("F40", "Rosso", "L")]: 3,
     });
-    const cell = shopStockGrid(p).groups[0].rows[0].cells[2];
+    const cell = shopStockGrid(p).groups[0].rows[0].cells.find((c) => c.size === "M");
     expect(cell).toMatchObject({ size: "M", quantity: 5, incoming: 2 });
   });
   it("due varianti con modello, colore e taglia uguali vanno su righe distinte", () => {
@@ -148,7 +149,8 @@ describe("giacenza del negozio", () => {
   });
   it("nasconde le T-shirt disattivate, salvo se sono ancora in negozio", () => {
     const f40xxl = item("F40", "Rosso", "XXL");
-    const hidden = shopStockGrid(page()).groups[2].rows[0].cells[5];
+    const hidden = shopStockGrid(page(edit((r) => ((r.shop as Row).sizes = null)))).groups[2]
+      .rows[0].cells[5];
     expect(hidden.item).toBeNull();
     const shown = shopStockGrid(
       page(
@@ -160,9 +162,35 @@ describe("giacenza del negozio", () => {
           row.available = 1;
         }),
       ),
-    ).groups[2].rows[0].cells[5];
+    ).groups[2].rows[0].cells.find((c) => c.size === "XXL")!;
     expect(shown).toMatchObject({ quantity: 1 });
     expect(shown.item?.id).toBe(f40xxl);
+  });
+  it("il negozio di Milano tiene solo S, M, L, XL: la griglia mostra solo quelle taglie", () => {
+    const p = page();
+    expect(p.shop.sizes).toEqual(["S", "M", "L", "XL"]);
+    const grid = shopStockGrid(p);
+    expect(grid.sizes).toEqual(["S", "M", "L", "XL"]);
+    expect(
+      grid.groups.flatMap((g) => g.rows.flatMap((r) => r.cells.map((c) => c.item?.size ?? null))),
+    ).not.toContain("XS");
+    // Una XS ancora in negozio resta visibile, per poterla riportare in magazzino.
+    const xs = item("GT3RS", "Blu", "XS");
+    const withXs = shopStockGrid(
+      page(
+        edit((r) => {
+          const row = r.availability.find(
+            (a) => (a as Row).stock_item_id === xs && (a as Row).location_id === sx.shop,
+          ) as Row;
+          row.on_hand = 1;
+          row.available = 1;
+        }),
+      ),
+    );
+    expect(withXs.sizes).toEqual(["S", "M", "L", "XL", "XS"]);
+    expect(shopPageFromRows(shopPageRows("NEG02")).shop.sizes).toBeNull();
+    expect(() => page(edit((r) => ((r.shop as Row).sizes = ["S", "S"])))).toThrow();
+    expect(() => page(edit((r) => ((r.shop as Row).sizes = ["m"])))).toThrow();
   });
 });
 
@@ -267,7 +295,9 @@ describe("resoconto mensile", () => {
       "GT3RS Blu L",
       "964 Bianco L",
     ]);
-    const all = reportFormRows(p, "2026-10", true);
+    // «Mostra tutte le varianti»: solo le taglie del negozio (S–XL a Milano).
+    expect(reportFormRows(p, "2026-10", true)).toHaveLength(16);
+    const all = reportFormRows(page(edit((r) => ((r.shop as Row).sizes = null))), "2026-10", true);
     expect(all).toHaveLength(23);
     expect(all.find((r) => r.item.label === "964 Bianco XXL")).toMatchObject({
       disabled: true,

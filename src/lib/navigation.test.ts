@@ -235,6 +235,8 @@ describe("locate", () => {
     ["/stock", "magazzino", "Giacenze"],
     ["/stock/rettifiche", "magazzino", "Rettifiche"],
     ["/packaging", "magazzino", "Packaging"],
+    ["/stock/riassortimento", "magazzino", "Riassortimento"],
+    ["/stock/riassortimento/95000000-0000-4000-8000-000000000001", "magazzino", "Riassortimento"],
     ["/partner", "partner", null],
     ["/partner/x", "partner", null],
     ["/team", "team", "Calendario e attività"],

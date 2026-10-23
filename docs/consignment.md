@@ -9,7 +9,8 @@ Migrazione: `supabase/migrations/20261022215046_consignment_monthly.sql`, solo a
 | Tema | Regola |
 | --- | --- |
 | Giacenza del negozio | Finché il negozio non ha la prima conta, ogni cella è «—» (da contare): il saldo che c'era prima non viene letto come conta. Dopo la prima conta ogni variante è nota e un saldo assente vale 0. |
-| Prima conta | Comprende tutte le T-shirt attive. Un campo vuoto vale 0, con conferma prima del salvataggio. |
+| Prima conta | Comprende tutte le T-shirt attive nelle taglie del negozio. Un campo vuoto vale 0, con conferma prima del salvataggio. |
+| Taglie del negozio | Ogni negozio ha le sue taglie (`consignment_shops.sizes`, NULL = tutte). La libreria di Milano (`NEG01`) tiene solo S, M, L, XL: griglia, conta, resoconto, ordini e consegne mostrano e accettano solo quelle. Vedi «Taglie del negozio». |
 | Correzione della conta | Può cambiare anche una sola variante e imposta la quantità assoluta. Il magazzino centrale non cambia mai. |
 | Prezzo in negozio | Prezzo del sito (`shopify_catalog_variants`, variante `ACTIVE`, EUR, `product_type = 'T-shirt'`, SKU esatto) più la maggiorazione del negozio. NEG01: +10 €. |
 | Quota LuckyLap | Percentuale del negozio, in punti base (6000 = 60%), sul totale di ogni riga (variante × mese), arrotondata al centesimo con la metà per eccesso. Da fatturare = somma delle quote delle righe. |
@@ -82,7 +83,7 @@ Dall'alto:
 
 ### Griglia
 
-Un solo componente (`consignment-stock-grid.tsx`) per lettura, conta, resoconto e ordini. Gruppi per modello nell'ordine del Magazzino (`orderInventoryItems`), una riga per colore, sei celle XS–XXL quadrate con filetti da 1 px. Numeri in Barlow Condensed con cifre tabellari; «—» per sconosciuto, «0» grigio per zero. Campi `type="text"`, `inputMode="numeric"`, 16 px, alti 44 px, con etichetta accessibile («GT3RS Blu M, venduti»). Sul telefono nome e colore sopra e le sei celle sotto; sotto 360 px due righe da tre.
+Un solo componente (`consignment-stock-grid.tsx`) per lettura, conta, resoconto e ordini. Gruppi per modello nell'ordine del Magazzino (`orderInventoryItems`), una riga per colore, sei celle XS–XXL (o solo le taglie del negozio: S–XL a Milano) quadrate con filetti da 1 px. Una variante fuori taglia ancora in negozio o in arrivo resta visibile, in una colonna in più, per poterla riportare in magazzino. Numeri in Barlow Condensed con cifre tabellari; «—» per sconosciuto, «0» grigio per zero. Campi `type="text"`, `inputMode="numeric"`, 16 px, alti 44 px, con etichetta accessibile («GT3RS Blu M, venduti»). Sul telefono nome e colore sopra e le sei celle sotto; sotto 360 px due righe da tre.
 
 ### Conta
 
@@ -96,7 +97,7 @@ Riepilogo: quattro numeri grandi (pezzi venduti, incasso del negozio, quota del 
 
 ### Ordini
 
-Nuovo ordine: data della richiesta (predefinita oggi), nota, griglia dei pezzi. Il numero è progressivo per negozio. Ordine aperto: per riga «Richieste · Consegnate · Da consegnare · In magazzino · Mancano», in ambra le righe con mancanze. «Consegnato» apre il modulo già compilato con tutto il residuo, modificabile per una consegna parziale, con data e ora. Se i numeri scritti superano quelli in magazzino, prima dell'invio un avviso ambra dice quante ne mancano («GT3RS Blu M (1 su 2)») e propone «Consegna solo quelle in magazzino», che abbassa solo quelle righe. Se al momento dell'invio in magazzino manca una maglietta non si registra nulla e la riga viene indicata. «Modifica ordine» finché è aperto, senza scendere sotto il consegnato. «Chiudi ordine» annulla il residuo, con motivo. Tutto consegnato: segno «fatto».
+Nuovo ordine: data della richiesta (predefinita oggi), nota, griglia dei pezzi. Da un riordine arrivato (Magazzino › Riassortimento, «Prepara la consegna») l'indirizzo è `/consignment/NEG01/ordini/nuovo?riordine=<id>`: l'ordine parte già compilato con i pezzi per il negozio ancora da consegnare e la nota «Riordine «<titolo>»», resta legato al riordine (`restock_order_id`) e, salvato, apre l'ordine con «Consegnato» già aperto (`?consegna=1`, solo se non è stato consegnato niente). La consegna si conferma come sempre. Vedi [Riassortimento](riassortimento.md). Il numero è progressivo per negozio. Ordine aperto: per riga «Richieste · Consegnate · Da consegnare · In magazzino · Mancano», in ambra le righe con mancanze. «Consegnato» apre il modulo già compilato con tutto il residuo, modificabile per una consegna parziale, con data e ora. Se i numeri scritti superano quelli in magazzino, prima dell'invio un avviso ambra dice quante ne mancano («GT3RS Blu M (1 su 2)») e propone «Consegna solo quelle in magazzino», che abbassa solo quelle righe. Se al momento dell'invio in magazzino manca una maglietta non si registra nulla e la riga viene indicata. «Modifica ordine» finché è aperto, senza scendere sotto il consegnato. «Chiudi ordine» annulla il residuo, con motivo. Tutto consegnato: segno «fatto».
 
 ### Negozi
 
@@ -185,6 +186,14 @@ Codici con SQLSTATE `22023`, tranne `membership_required`, `finance_access_requi
 
 `src/lib/consignment/shop-server.ts` legge con il client della persona collegata, mai con chiavi amministrative: elenco (`readConsignmentShops`) e pagina del negozio (`readConsignmentShop`). Ogni tabella si legge per intero con `consignmentPages` (chiave crescente e conteggio esatto); il catalogo con una sola lettura paginata delle varianti attive collegate a un articolo. Pagamenti e loro storico si leggono solo con Finance aperta. Le funzioni pure di `shop-read.ts` fanno fallire tutta la lettura se una riga è incompleta, orfana, doppia o troncata, o se lo stato del pagamento non coincide con i pagamenti letti: la pagina d'errore non mostra dati parziali.
 
+## Taglie del negozio
+
+Migrazione `20261023160000_riassortimento.sql`: colonna `consignment_shops.sizes` (`text[]`, NULL = tutte le taglie, così i negozi futuri non cambiano) e una sola riga aggiornata: `NEG01` (tipo «Negozio Conto Vendita», «milano» nel nome) ha `{S,M,L,XL}`, con la sua riga di audit. Le taglie non si cambiano ancora dalle impostazioni del negozio: per ora solo con una migrazione.
+
+- Database: il trigger `consignment_size_allowed` (`before insert` su `consignment_count_lines`, `consignment_report_lines`, `consignment_order_lines` e `consignment_shipment_lines` delle consegne `to_shop`) rifiuta una variante fuori taglia con `size_not_in_shop` e lo SKU nel dettaglio. Le magliette riportate in magazzino (`to_warehouse`) restano possibili in ogni taglia. `private.count_consignment_stock` è sostituita con una riga in più: la prima conta comprende le T-shirt attive nelle taglie del negozio.
+- Interfaccia: `ShopConfig.sizes` e `shopTakesSize` (`shop-read.ts`); griglia, prima conta, «Mostra tutte le varianti» del resoconto e ordini usano solo le taglie del negozio. Messaggio: «Il negozio non tiene la taglia di {SKU}: togli quella riga.».
+- Un ordine di `NEG01` aperto prima della migrazione con righe XS o XXL non si consegna più in quelle taglie: si modifica l'ordine o lo si chiude.
+
 ## Finance
 
 Il resoconto non è denaro: incasso del negozio, quota del negozio e da fatturare restano fuori da saldi, grafico e categorie. Entra solo il pagamento del negozio, una volta, sul suo conto, come movimento `shop_payment` (`shop-payment:<id>`, ancora `movimento-shop_payment-<id>`). `/finance` e `/finance/work` mostrano il pannello «Conto vendita · da incassare», una riga per resoconto. Regole e interfaccia in [Finance: conti, andamento e categorie](finance-dashboard.md).
@@ -234,6 +243,7 @@ Harness SQL (`npm run test:db`):
 - `supabase/tests/consignment-monthly.mjs`, PGlite, **613 controlli** (riga in testa `// test-db: pglite minimo 613`): permessi, migrazione, conta, resoconto, ordini e consegne, packaging, fattura e pagamenti, negozi, audit, RPC precedenti, rettifiche rifiutate sul negozio e accettate su MAG01.
 - `supabase/tests/consignment-concurrency.mjs`, PostgreSQL 17 reale, **16 controlli** (`// test-db: postgres minimo 16`), cluster usa e getta: due creazioni dello stesso mese, due modifiche dalla stessa versione, ultima maglietta fra consegna e vendita diretta, conta contro consegna, due pagamenti che insieme superano il dovuto.
 - `consignment.mjs` (145), `packaging-automation.mjs` (73) e `packaging-concurrency.mjs` (6) applicano anche questa migrazione: le RPC precedenti e la funzione packaging sostituita passano con gli stessi controlli.
+- Taglie del negozio e ordine legato al riordine: `supabase/tests/riassortimento.mjs` (PGlite) e `riassortimento-concurrency.mjs` (PostgreSQL 17), vedi [Riassortimento](riassortimento.md). Nei Vitest il negozio sintetico `NEG01` tiene S–XL come Milano: `shop-read.test.ts` e `consignment-stock-grid.test.tsx` provano le due varianti (tutte le taglie e S–XL), `consignment-order.test.tsx` l'ordine nato da un riordine.
 
 Prova visiva del 22 ottobre 2026 sull'anteprima sintetica (`npm run dev`), a 1280 × 800 e 390 × 844: elenco; `NEG02` da contare («—» e avviso ambra); `NEG01` contato; conta; resoconto di ottobre (modulo, con la barra sopra la barra di navigazione del telefono) e di settembre (riepilogo con i quattro numeri, fattura e pagamento); nuovo ordine; ordine n. 2 con le mancanze in ambra; nuovo negozio; impostazioni; `/finance` con il pannello «Conto vendita · da incassare»; `/stock` con la colonna «In negozio». In ogni pagina nessuno scorrimento orizzontale (anche a 360 px per negozio, conta e riepilogo), nessun testo sotto 12 px, campi a 16 px; sul telefono nessun bersaglio sotto 44 px nelle pagine del conto vendita (nel pannello Finance la riga intera è il link); nessun errore nella console o nel server. In anteprima `/stock/rettifiche` resta «da collegare»: l'esclusione del negozio dalle sedi è provata da `src/lib/stock/server.test.ts`.
 

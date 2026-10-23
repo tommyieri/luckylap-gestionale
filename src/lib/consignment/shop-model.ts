@@ -207,6 +207,8 @@ export type OrderPayload = {
   requested_on: string;
   note: string;
   lines: ItemLine[];
+  /** Solo per un ordine nuovo nato da un riordine arrivato (Magazzino › Riassortimento). */
+  restock_order_id?: string;
 };
 export type ShipPayload = {
   schema_version: 1;
@@ -626,7 +628,8 @@ function parsePayload(kind: ShopCommandKind, p: Record<string, unknown>) {
               : undefined,
         location = lowerUuid(p.location_id),
         note = cleanNote(p.note, 1000),
-        lines = itemLines(p.lines);
+        lines = itemLines(p.lines),
+        restock = Object.hasOwn(p, "restock_order_id") ? lowerUuid(p.restock_order_id) : undefined;
       if (
         (p.order_id !== null && order === null) ||
         version === undefined ||
@@ -634,7 +637,9 @@ function parsePayload(kind: ShopCommandKind, p: Record<string, unknown>) {
         !location ||
         !calendarDay(p.requested_on) ||
         note === null ||
-        !lines
+        !lines ||
+        restock === null ||
+        (restock !== undefined && order !== null)
       )
         return null;
       return {
@@ -645,6 +650,7 @@ function parsePayload(kind: ShopCommandKind, p: Record<string, unknown>) {
         requested_on: p.requested_on,
         note,
         lines,
+        ...(restock === undefined ? {} : { restock_order_id: restock }),
       } satisfies OrderPayload;
     }
     case "ship_consignment_order": {
@@ -716,7 +722,9 @@ export function parseShopCommand(value: unknown): ShopCommand | null {
       p,
       kind === "update_consignment_payment" && Object.hasOwn(p, "finance")
         ? [...PAYLOAD_KEYS[kind], "finance"]
-        : PAYLOAD_KEYS[kind],
+        : kind === "save_consignment_order" && Object.hasOwn(p, "restock_order_id")
+          ? [...PAYLOAD_KEYS[kind], "restock_order_id"]
+          : PAYLOAD_KEYS[kind],
     ) ||
     p.schema_version !== 1
   )

@@ -7,6 +7,20 @@ Stato del 23 ottobre 2026, dal branch `claude/revisione-pre-invio` (P7, revision
 
 Prove applicative, SQL sintetico, PostgreSQL concorrente e Auth cloud sono conteggiati separatamente. Le sezioni «Avvio del 21 ottobre 2026» restano come verbale dell'avvio: i numeri di allora non sono quelli di oggi.
 
+## Riassortimento, 23 ottobre 2026
+
+Dal branch `claude/riassortimento` (base `origin/main` a `e187934`), con dati sintetici e senza accessi al cloud. Dettagli in [riassortimento.md](riassortimento.md).
+
+| Comando | Esito |
+| --- | --- |
+| `npm test` | 2.059 test in 183 file, tutti superati |
+| `npm run test:db` senza `LUCKYLAP_PG_BIN` | 20 harness PGlite superati, 3.512 controlli; i 16 harness su PostgreSQL 17 risultano saltati |
+| `npm run test:db` con `LUCKYLAP_PG_BIN` (PostgreSQL 17 locale) | in più 16 harness PostgreSQL 17 superati, 1.981 controlli: 36 harness, 5.493 controlli in tutto |
+
+Harness nuovi: `riassortimento.mjs` (PGlite, 264 controlli) e `riassortimento-concurrency.mjs` (PostgreSQL 17, 24 controlli). Gli harness che applicano tutta la catena delle migrazioni contano un controllo per migrazione: con la migrazione nuova `finance-ecosystem-integration.mjs` passa a 107, `manual-sale-cancellation.mjs` a 109, `manual-sale-returns.mjs` a 124, `sensitive-area-members.mjs` a 176 (righe in testa aggiornate). `npm run typecheck`, `npm run build` e `npm run format:check` passano.
+
+Prova visiva sull'anteprima sintetica, a 1280 × 800 e 390 × 844: elenco dei riordini, un riordine in «Discussione» (con «Modifica quantità», «Proponi quantità» e la destinazione del negozio con le sole taglie S–XL), uno «Da Antonella» con la conferma dell'arrivo, uno arrivato con «Da consegnare» e il nuovo ordine del Conto vendita già compilato, la griglia del negozio e la conta in S–XL. In ogni pagina nessuno scorrimento orizzontale, nessun testo sotto 12 px, campi a 16 px, bersagli da almeno 44 px, nessun errore nella console o nel server.
+
 ## Test di oggi
 
 Eseguiti il 23 ottobre 2026 nel worktree di P7, dopo il merge di `origin/main` a `3acbad3` (pull request #6 e #7), con dati sintetici e senza accessi al cloud.

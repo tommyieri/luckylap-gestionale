@@ -36,7 +36,8 @@ const ICONS: Record<IconName, LucideIcon> = {
 export const SECTION_TEXT: Partial<Record<SectionId, string>> = {
   oggi: "Il lavoro del giorno: agenda, contatti e solleciti, ordini da preparare e magazzino.",
   vendite: "Le vendite di LuckyLap, dirette e nei negozi.",
-  magazzino: "Le magliette che abbiamo, quelle da correggere e il materiale per spedire.",
+  magazzino:
+    "Le magliette che abbiamo, quelle da correggere, il materiale per spedire e i riordini.",
   partner: "Negozi, eventi, club, media e brand da contattare, con i messaggi già scritti.",
   team: "Il lavoro di tutti i giorni del team.",
   finance: "Conti, movimenti e documenti del brand.",
@@ -49,6 +50,8 @@ export const TAB_TEXT: Record<string, string> = {
   "/stock": "Ogni variante con le quantità del Magadzino e dei negozi, costi e prezzi.",
   "/stock/rettifiche": "Correggi una quantità in magazzino, sempre con la causale.",
   "/packaging": "Scatole e adesivi: una scatola e un adesivo per ogni T-shirt consegnata.",
+  "/stock/riassortimento":
+    "I riordini di magliette, dalla discussione su cosa riordinare all’arrivo in mano nostra, che le carica nel Magadzino.",
   "/team":
     "Il calendario del mese (un pallino sui giorni con impegni), le cose da fare, le note e le idee. Qui c’è anche «Partner nel Team».",
   "/development": "I prodotti nuovi, dall’idea al campione fino al prodotto pronto.",
@@ -114,6 +117,12 @@ export const OPERATIONS: { title: string; href: string; text: string; who?: stri
     href: "/packaging",
     text: "In Magazzino, Packaging: «Modifica quantità» sul materiale, scrivi quanti ne hai contati e la causale, poi «Conferma quantità».",
     who: "Ettore",
+  },
+  {
+    title: "Riordinare le magliette",
+    href: "/stock/riassortimento",
+    text: "In Magazzino, Riassortimento: «Nuovo riordine», poi «Modifica quantità» per noi, per il negozio e per il cliente («Proponi quantità» guarda giacenza e obiettivo). Tocca un passo per spostarlo; «In mano nostra» carica le magliette nel Magadzino dopo la conferma, e «Prepara la consegna» apre la consegna al negozio già compilata.",
+    who: "Tommi",
   },
   {
     title: "Conto vendita: resoconto del mese e nuovo ordine",
