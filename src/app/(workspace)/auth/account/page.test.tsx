@@ -1,17 +1,19 @@
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type { ReactElement } from "react";
 import { renderToStaticMarkup } from "react-dom/server";
 
 const mocks = vi.hoisted(() => ({
   verified: vi.fn(),
   sensitive: vi.fn(),
+  config: vi.fn(() => ({ url: "https://example.test", publishableKey: "sintetica" })),
+  client: vi.fn(async () => ({})),
 }));
 vi.mock("server-only", () => ({}));
 vi.mock("../../../../lib/supabase/config", () => ({
-  getSupabasePublicConfig: () => ({ url: "https://example.test", publishableKey: "sintetica" }),
+  getSupabasePublicConfig: mocks.config,
 }));
 vi.mock("../../../../lib/supabase/server", () => ({
-  createSupabaseServerClient: async () => ({}),
+  createSupabaseServerClient: mocks.client,
 }));
 vi.mock("../../../../lib/auth/server", () => ({ verifiedMember: mocks.verified }));
 vi.mock("../../../../lib/auth/sensitive-access", () => ({
@@ -33,6 +35,8 @@ const text = (html: string) => html.replace(/<[^>]+>/g, " ").replace(/\s+/g, " "
 const render = async () => renderToStaticMarkup((await AccountPage()) as ReactElement);
 
 beforeEach(() => {
+  vi.unstubAllEnvs();
+  vi.stubEnv("LUCKYLAP_LOCAL_PREVIEW", "");
   vi.clearAllMocks();
   mocks.verified.mockResolvedValue({
     status: "member",
@@ -45,6 +49,7 @@ beforeEach(() => {
   });
   mocks.sensitive.mockResolvedValue(false);
 });
+afterEach(() => vi.unstubAllEnvs());
 
 describe("/auth/account", () => {
   it("la password personale è un link secondario, con l'avviso sotto (06 R13)", async () => {
@@ -68,5 +73,34 @@ describe("/auth/account", () => {
     expect(copy).toContain("Finance Chiusa. Serve la password Finance.");
     expect(copy).toContain("Controllo CEO Chiusa. Serve la password CEO scelta da Tommi.");
     expect(copy).not.toContain("Area chiusa.");
+  });
+
+  it("in anteprima locale mostra un account sintetico con le aree chiuse, senza Supabase", async () => {
+    vi.stubEnv("LUCKYLAP_LOCAL_PREVIEW", "true");
+    vi.stubEnv("VERCEL", "");
+    const html = await render();
+    const copy = text(html);
+    expect(copy).toContain("Anteprima locale: dati sintetici, salvataggio disattivato.");
+    expect(copy).toContain("Accesso di Tommi (anteprima).");
+    expect(copy).toContain("Finance Chiusa. Serve la password Finance.");
+    expect(copy).toContain("Controllo CEO Chiusa. Serve la password CEO scelta da Tommi.");
+    expect(html).not.toContain("<form");
+    expect(mocks.config).not.toHaveBeenCalled();
+    expect(mocks.client).not.toHaveBeenCalled();
+    expect(mocks.verified).not.toHaveBeenCalled();
+    expect(mocks.sensitive).not.toHaveBeenCalled();
+  });
+
+  it.each([
+    ["VERCEL", "1"],
+    ["NODE_ENV", "production"],
+  ])("con %s=%s il ramo dell'anteprima non si attiva", async (name, value) => {
+    vi.stubEnv("LUCKYLAP_LOCAL_PREVIEW", "true");
+    vi.stubEnv("VERCEL", "");
+    vi.stubEnv(name, value);
+    const copy = text(await render());
+    expect(copy).not.toContain("Anteprima locale");
+    expect(copy).toContain("Accesso di Membro sintetico.");
+    expect(mocks.verified).toHaveBeenCalled();
   });
 });

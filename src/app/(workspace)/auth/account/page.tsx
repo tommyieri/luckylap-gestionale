@@ -10,11 +10,29 @@ import { createSupabaseServerClient } from "../../../../lib/supabase/server";
 import { verifiedMember } from "../../../../lib/auth/server";
 import { isSensitiveAreaEligible, type SensitiveArea } from "../../../../lib/auth/model";
 import { verifiedSensitiveAccess } from "../../../../lib/auth/sensitive-access";
+import { isLocalPreviewEnabled } from "../../../../lib/runtime";
 
 export const dynamic = "force-dynamic";
 export const metadata: Metadata = { title: "Account e sicurezza" };
 
+/** Avviso dell'anteprima locale (00-sequenza §1.5). */
+const ACCOUNT_PREVIEW_NOTICE = "Anteprima locale: dati sintetici, salvataggio disattivato.";
+
+type AreaState = { area: SensitiveArea; unlocked: boolean | null };
+
 export default async function AccountPage() {
+  // Anteprima locale: un account sintetico con le due aree chiuse, nessuna chiamata a Supabase.
+  if (isLocalPreviewEnabled())
+    return (
+      <AccountView
+        displayName="Tommi (anteprima)"
+        states={[
+          { area: "finance", unlocked: false },
+          { area: "audit", unlocked: false },
+        ]}
+        preview
+      />
+    );
   try {
     getSupabasePublicConfig();
   } catch {
@@ -45,17 +63,34 @@ export default async function AccountPage() {
   const areas = (["finance", "audit"] as SensitiveArea[]).filter((area) =>
     isSensitiveAreaEligible(access.member, area),
   );
-  const states = await Promise.all(
+  const states: AreaState[] = await Promise.all(
     areas.map(async (area) => ({
       area,
       unlocked: await verifiedSensitiveAccess(supabase, access.member, area).catch(() => null),
     })),
   );
+  return <AccountView displayName={access.member.displayName} states={states} />;
+}
+
+function AccountView({
+  displayName,
+  states,
+  preview = false,
+}: {
+  displayName: string;
+  states: AreaState[];
+  preview?: boolean;
+}) {
   return (
     <WorkspacePanel
       title="Account e sicurezza"
-      description={`Accesso di ${access.member.displayName}. Entri con la tua email e la password del workspace condivisa dal team. Le attività restano associate al tuo account.`}
+      description={`Accesso di ${displayName}. Entri con la tua email e la password del workspace condivisa dal team. Le attività restano associate al tuo account.`}
     >
+      {preview && (
+        <p className={styles.status} role="status">
+          {ACCOUNT_PREVIEW_NOTICE}
+        </p>
+      )}
       {states.map(({ area, unlocked }) => (
         <section key={area} className={styles.status}>
           <strong>{area === "finance" ? "Finance" : "Controllo CEO"}</strong>
@@ -82,7 +117,7 @@ export default async function AccountPage() {
               </Link>
             )}
           </div>
-          {unlocked && <SensitiveAreaLockForm area={area} />}
+          {unlocked && !preview && <SensitiveAreaLockForm area={area} />}
         </section>
       ))}
       <section className={styles.status} aria-labelledby="account-password">
