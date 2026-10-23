@@ -7,14 +7,26 @@ import { verifiedMember } from "../../lib/auth/server";
 import { isLocalPreviewEnabled } from "../../lib/runtime";
 import {
   capturedFormValues,
+  decodeEventDetails,
+  encodeEventDetails,
+  eventEditToken,
+  EVENT_TYPES,
   parseDeleteForm,
   parseEventForm,
   parseNoteForm,
   parseTaskForm,
   parseTaskToggleForm,
+  parseTeamEditForm,
+  taskEditToken,
+  TASK_STATUSES,
+  TEAM_TIME_ZONE,
   TEAM_PREVIEW_WRITE_MESSAGE,
   TeamValidationError,
   type TeamActionState,
+  type EventType,
+  type TaskStatus,
+  type TeamEvent,
+  type TeamTask,
 } from "../../lib/team/model";
 
 const denied = "Accesso al team richiesto. Accedi di nuovo e riprova.";
@@ -36,8 +48,11 @@ function assertWriteResult(error: { code?: string } | null) {
 
 async function mutate(
   form: FormData,
-  write: (supabase: SupabaseClient) => Promise<string>,
+  write: (
+    supabase: SupabaseClient,
+  ) => Promise<string | Pick<TeamActionState, "success" | "updatedItem">>,
   preserveValues = false,
+  revalidatePaths: string[] = ["/team"],
 ): Promise<TeamActionState> {
   const values = preserveValues ? capturedFormValues(form) : {};
   // A fresh form mount restores defaultSelected as well as text inputs after
@@ -67,9 +82,9 @@ async function mutate(
     };
   }
   try {
-    const success = await write(supabase);
-    revalidatePath("/team");
-    return { success, ...revision };
+    const result = await write(supabase);
+    for (const path of revalidatePaths) revalidatePath(path);
+    return { ...(typeof result === "string" ? { success: result } : result), ...revision };
   } catch (error) {
     return {
       error: error instanceof TeamValidationError ? error.message : uncertain,
@@ -194,4 +209,187 @@ export async function toggleTeamTask(
       );
     return nextStatus === "done" ? "Attività completata." : "Attività riaperta.";
   });
+}
+
+const changed =
+  "L’elemento è stato modificato o rimosso da un altro membro. Ricarica la pagina e riprova.";
+const updatePaths = ["/team", "/", "/audit", "/partner", "/team/partner"];
+const romeDay = (value: string): string =>
+  new Intl.DateTimeFormat("en-CA", {
+    timeZone: TEAM_TIME_ZONE,
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+  }).format(new Date(value));
+
+type EventRow = {
+  id: string;
+  title: string;
+  description: string;
+  starts_at: string;
+  ends_at: string;
+  event_type: EventType;
+  created_by: string;
+};
+type TaskRow = {
+  id: string;
+  title: string;
+  description: string;
+  status: TaskStatus;
+  due_at: string | null;
+  assigned_to: string | null;
+  created_by: string;
+};
+function eventSnapshot(row: EventRow): TeamEvent {
+  if (!EVENT_TYPES.includes(row.event_type)) throw new Error("Appuntamento non disponibile.");
+  return {
+    id: row.id,
+    title: row.title,
+    startsAt: row.starts_at,
+    endsAt: row.ends_at,
+    eventType: row.event_type,
+    details: decodeEventDetails(row.description),
+    createdBy: row.created_by,
+  };
+}
+function taskSnapshot(row: TaskRow): TeamTask {
+  if (!TASK_STATUSES.includes(row.status)) throw new Error("Attività non disponibile.");
+  return {
+    id: row.id,
+    title: row.title,
+    description: row.description,
+    status: row.status,
+    dueAt: row.due_at,
+    assignedTo: row.assigned_to,
+    createdBy: row.created_by,
+  };
+}
+/** Preserve seconds and Postgres precision when a minute-resolution input was not edited. */
+function originalUnchangedMinute(next: string, previous: string): string {
+  return Math.floor(Date.parse(previous) / 60000) === Date.parse(next) / 60000 ? previous : next;
+}
+
+export async function updateTeamEvent(
+  _previous: TeamActionState,
+  form: FormData,
+): Promise<TeamActionState> {
+  return mutate(
+    form,
+    async (supabase) => {
+      const { id, expected } = parseTeamEditForm(form);
+      const { participantIds, ...row } = parseEventForm(form);
+      const current = await supabase
+        .from("calendar_events")
+        .select("id,title,description,starts_at,ends_at,event_type,created_by")
+        .eq("id", id)
+        .maybeSingle();
+      assertWriteResult(current.error);
+      if (!current.data) throw new TeamValidationError(changed);
+      const original = current.data as EventRow;
+      const snapshot = eventSnapshot(original);
+      if (eventEditToken(snapshot) !== expected) throw new TeamValidationError(changed);
+      const nextDetails = decodeEventDetails(row.description);
+      if (
+        original.event_type === "other" &&
+        snapshot.details.typeLabel === undefined &&
+        row.event_type === "other" &&
+        nextDetails.typeLabel === "Altro"
+      ) {
+        // Existing Other events had no explicit label: the form's visible "Altro"
+        // fallback represents the same category and must not create an audit entry.
+        delete nextDetails.typeLabel;
+        row.description = encodeEventDetails(nextDetails);
+      }
+      await assertActiveMembers(
+        supabase,
+        participantIds.filter((memberId) => !snapshot.details.participantIds.includes(memberId)),
+      );
+      row.starts_at = originalUnchangedMinute(row.starts_at, original.starts_at);
+      row.ends_at = originalUnchangedMinute(row.ends_at, original.ends_at);
+      const updatedItem = { id, day: romeDay(row.starts_at), kind: "event" as const };
+      if (eventEditToken(eventSnapshot({ ...original, ...row })) === expected)
+        return {
+          success: "L’appuntamento è già aggiornato: nessuna modifica da salvare.",
+          updatedItem,
+        };
+      // Include the original raw description and timestamps, so another writer between
+      // this SELECT and UPDATE cannot be silently overwritten. RLS remains authoritative.
+      const { data, error } = await supabase
+        .from("calendar_events")
+        .update(row)
+        .eq("id", id)
+        .eq("title", original.title)
+        .eq("description", original.description)
+        .eq("starts_at", original.starts_at)
+        .eq("ends_at", original.ends_at)
+        .eq("event_type", original.event_type)
+        .select("id")
+        .maybeSingle();
+      assertWriteResult(error);
+      if (!data) throw new TeamValidationError(changed);
+      return { success: "Appuntamento modificato nel calendario del team.", updatedItem };
+    },
+    true,
+    updatePaths,
+  );
+}
+
+export async function updateTeamTask(
+  _previous: TeamActionState,
+  form: FormData,
+): Promise<TeamActionState> {
+  return mutate(
+    form,
+    async (supabase) => {
+      const { id, expected } = parseTeamEditForm(form);
+      const row = parseTaskForm(form, { editing: true });
+      const current = await supabase
+        .from("tasks")
+        .select("id,title,description,status,due_at,assigned_to,created_by")
+        .eq("id", id)
+        .maybeSingle();
+      assertWriteResult(current.error);
+      if (!current.data) throw new TeamValidationError(changed);
+      const original = current.data as TaskRow;
+      if (taskEditToken(taskSnapshot(original)) !== expected)
+        throw new TeamValidationError(changed);
+      if (row.assigned_to !== null && row.assigned_to !== original.assigned_to)
+        await assertActiveMembers(supabase, [row.assigned_to]);
+      if (
+        row.due_at !== null &&
+        original.due_at !== null &&
+        romeDay(row.due_at) === romeDay(original.due_at)
+      )
+        row.due_at = original.due_at;
+      const updatedItem = {
+        id,
+        day: row.due_at === null ? null : romeDay(row.due_at),
+        kind: "task" as const,
+      };
+      if (taskEditToken(taskSnapshot({ ...original, ...row })) === expected)
+        return {
+          success: "L’attività è già aggiornata: nessuna modifica da salvare.",
+          updatedItem,
+        };
+      let query = supabase
+        .from("tasks")
+        .update(row)
+        .eq("id", id)
+        .eq("title", original.title)
+        .eq("description", original.description)
+        .eq("status", original.status);
+      query =
+        original.due_at === null ? query.is("due_at", null) : query.eq("due_at", original.due_at);
+      query =
+        original.assigned_to === null
+          ? query.is("assigned_to", null)
+          : query.eq("assigned_to", original.assigned_to);
+      const { data, error } = await query.select("id").maybeSingle();
+      assertWriteResult(error);
+      if (!data) throw new TeamValidationError(changed);
+      return { success: "Attività modificata nel calendario del team.", updatedItem };
+    },
+    true,
+    updatePaths,
+  );
 }

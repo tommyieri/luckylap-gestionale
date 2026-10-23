@@ -13,7 +13,13 @@ import {
 } from "../lib/team/model";
 import { PartnerRefText } from "./partner-ref-text";
 import { TeamCalendar } from "./team-calendar";
-import { DeleteTeamForm, NewNoteForm, NewTaskForm, ToggleTaskForm } from "./team-workspace-forms";
+import {
+  DeleteTeamForm,
+  EditTaskForm,
+  NewNoteForm,
+  NewTaskForm,
+  ToggleTaskForm,
+} from "./team-workspace-forms";
 import styles from "./team-workspace.module.css";
 
 export function TeamWorkspace({
@@ -127,6 +133,7 @@ export function TeamWorkspace({
                     )}
                     <div className={styles.itemActions}>
                       <ToggleTaskForm task={task} />
+                      <EditTaskForm task={task} members={snapshot.members} />
                       <DeleteTeamForm table="tasks" id={task.id} title={task.title} />
                     </div>
                   </li>
