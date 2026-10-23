@@ -1,5 +1,5 @@
 // test-db: pglite minimo 208
-// Foto dei nuovi prodotti (20261023180000_foto_nuovi_prodotti) su PGlite: Auth simulato, metadata
+// Foto dei nuovi prodotti (20261023184200_foto_nuovi_prodotti) su PGlite: Auth simulato, metadata
 // Storage simulati, solo dati sintetici, nessun cloud. Gruppi: migrazione sopra contenuti e
 // progetti esistenti, permessi e policy, aggiunta (anche HEIC), ricevute e replay, ordine e
 // spostamento, rimozione con archivio, guardie sui collegamenti, scritture dirette, audit,

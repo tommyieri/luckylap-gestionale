@@ -88,7 +88,7 @@ Lo stesso percorso dei caricamenti della libreria. Il browser calcola l’SHA-25
 
 Il bucket accetta oggi PNG, JPEG, WebP, MP4, WebM e `application/octet-stream`, non `image/heic`. Sul telefono il problema di solito non si pone: con `accept="image/*"` Safari per iPhone converte in JPEG le foto della galleria e della fotocamera. Da un Mac, o da un browser che non converte, arriva un file `.heic`: si accetta e si conserva com’è, caricato come `application/octet-stream` (come gli SVG), con `content_type` `image/heic` nei metadati. Non serve cambiare il bucket. La verifica dei byte controlla la scatola `ftyp` con una marca HEIF (`heic`, `heix`, `mif1`…). In pagina il browser prova a mostrarla: Safari ci riesce, Chrome e Firefox no, e al posto dell’immagine rotta compare un riquadro con il nome del file; nella foto in grande, il riquadro invita a scaricare l’originale. La libreria resta senza HEIC: `register_brand_asset` non cambia.
 
-### Migrazione `20261023180000_foto_nuovi_prodotti.sql`
+### Migrazione `20261023184200_foto_nuovi_prodotti.sql`
 
 Nessuna riga esistente viene scritta. Di esistente cambiano solo il vincolo dei tipi di `public.assets` (allargato) e tre funzioni del feed; il resto è nuovo:
 
