@@ -29,6 +29,7 @@ import {
   type TeamTask,
 } from "../lib/team/model";
 import { DeleteTeamForm, NewEventForm, ToggleTaskForm } from "./team-workspace-forms";
+import { PartnerRefText } from "./partner-ref-text";
 import styles from "./team-workspace.module.css";
 
 const ARROWS: Record<string, number> = { ArrowLeft: -1, ArrowRight: 1, ArrowUp: -7, ArrowDown: 7 };
@@ -88,7 +89,11 @@ function EventItem({
           Con {event.details.participantIds.map(memberName).join(", ")}
         </p>
       )}
-      {event.details.summary && <p className={styles.bodyText}>{event.details.summary}</p>}
+      {event.details.summary && (
+        <p className={styles.bodyText}>
+          <PartnerRefText text={event.details.summary} />
+        </p>
+      )}
       {event.details.callUrl && (
         <a
           className={styles.callLink}
