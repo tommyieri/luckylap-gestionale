@@ -109,7 +109,7 @@ Con `npm run dev` l'anteprima locale (`isLocalPreviewEnabled()` in `src/lib/runt
 | --- | --- |
 | Menu | Tutte e 7 le sezioni, piede «Anteprima locale · Dati solo su questo browser» con «Come si usa» e «Account e sicurezza», niente «Esci». |
 | `/` | Avviso «Anteprima locale: Oggi legge solo dal database.», riquadro «Prima volta qui?» (chiave `luckylap-guida-vista-v1:anteprima`) e riquadri «Non disponibile nell’anteprima locale.». Nessuna lettura. |
-| `/stock` | Giacenze dallo snapshot `data/inventory-source.json`, con dettaglio prodotto ed export CSV. |
+| `/stock` | Giacenze dallo snapshot `data/inventory-source.json`, con dettaglio prodotto ed export CSV; «Magliette disponibili» con i numeri sintetici di `src/lib/inventory/tshirt-fixtures.ts` (F40 a zero), detti nella pagina. |
 | `/stock/riassortimento` | Riordini sintetici di `src/lib/restock/fixtures.ts` (uno per ogni momento: discussione, «Da Antonella», arrivato con la consegna al negozio da fare, consegnato), salvataggio disattivato. |
 | `/team` | Calendario a mese, attività e note sintetici di `src/lib/team/fixtures.ts`, con l'avviso «Anteprima locale: dati sintetici, salvataggio disattivato.». Le Server Action rispondono «Anteprima locale: salvataggio disattivato.» senza chiamare Supabase. |
 | `/guida` | La guida come la vede Tommi, con l'avviso «Anteprima locale: la guida come la vede Tommi, con Finance e Controllo CEO.». |

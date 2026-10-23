@@ -27,6 +27,7 @@ Alcuni documenti scritti prima del modello attuale chiedono ancora una sessione 
 ## Magazzino e packaging
 
 - [Rettifiche del magazzino condiviso](stock-interface.md): pagina `/stock/rettifiche` per consultare le quantità e registrare variazioni motivate.
+- [Magliette disponibili](magliette-disponibili.md): riquadri in cima a Giacenze (`/stock`) con i pezzi da vendere nel Magadzino per ognuna delle sei grafiche, filtro `?modello=` e icone dallo shop pubblico.
 - [Packaging T-shirt nel database](packaging-backend.md): scatole e adesivi, prenotazioni, consumo alla consegna e rettifiche.
 - [Interfaccia packaging](packaging-interface.md): pagina `/packaging` semplificata, con due materiali, carenze e modifica della quantità.
 - [Riassortimento](riassortimento.md): scheda `/stock/riassortimento` con i riordini di magliette per noi, per il negozio e per il cliente, cinque stati, arrivo nel Magadzino una volta sola con annullo, consegna al negozio già compilata, import dei due riordini in corso.

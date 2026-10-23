@@ -142,6 +142,11 @@ export const OPERATIONS: { title: string; href: string; text: string; who?: stri
     text: "In Team, Grafica e foto: in «Aggiungi un contenuto» scegli il file e premi «Carica originale».",
   },
   {
+    title: "Vedere quante magliette puoi vendere",
+    href: "/stock",
+    text: "In Magazzino, Giacenze: in cima «Magliette disponibili» dice, grafica per grafica, quanti pezzi puoi vendere dal Magadzino. Tocca una grafica e la tabella mostra solo quella.",
+  },
+  {
     title: "Aprire una scheda prodotto",
     href: "/stock",
     text: "In Magazzino, Giacenze: tocca una riga e si apre il «Dettaglio prodotto», con taglia, quantità, costo e prezzi.",

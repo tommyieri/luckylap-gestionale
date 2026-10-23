@@ -488,6 +488,8 @@ body:has(dialog[open]) {
   border: 1px solid var(--rule);
   border-radius: 0;
   overflow: hidden;
+  /* Un riquadro «Magliette disponibili» la porta in vista: non sotto le schede ferme. */
+  scroll-margin-top: calc(var(--ws-sticky-top) + 12px);
 }
 .inventory-toolbar {
   display: flex;

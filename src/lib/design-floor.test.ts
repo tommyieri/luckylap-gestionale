@@ -258,6 +258,7 @@ const NUMERIC_SELECTORS: Record<string, string[]> = {
   "components/finance.module.css": [".amount", ".detailAmount", ".balanceTotal > strong"],
   "components/finance-work.module.css": [".amount"],
   "components/shopify-sync-health.module.css": [".counts dd"],
+  "components/tshirt-availability.module.css": [".count", ".colorCount", ".colors"],
 };
 
 describe("pavimento di stile dei CSS di src", () => {
