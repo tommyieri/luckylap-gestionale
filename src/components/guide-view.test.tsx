@@ -16,6 +16,7 @@ import { SECTIONS } from "../lib/navigation";
 const everyone: GuideAccess = { finance: false, ceo: false };
 const finance: GuideAccess = { finance: true, ceo: false };
 const founder: GuideAccess = { finance: true, ceo: true };
+const guideSections = SECTIONS.filter((section) => section.id !== "ceo");
 
 const html = (access: GuideAccess, preview = false) =>
   renderToStaticMarkup(<GuideView access={access} preview={preview} />);
@@ -41,7 +42,7 @@ describe("«Come si usa»: struttura", () => {
       "Le operazioni più comuni",
       "Partner",
       "Conto vendita e resoconto del mese",
-      "Finance e Controllo CEO",
+      "Finance",
       "Sul telefono",
       "Se qualcosa non va",
     ]);
@@ -65,9 +66,9 @@ describe("«Come si usa»: struttura", () => {
     expect(hrefs(index)).toEqual(GUIDE_PARTS.map((part) => `#${part.id}`));
   });
 
-  it("descrive ogni sezione e ogni scheda della mappa del menu, senza voci in più", () => {
-    expect(Object.keys(SECTION_TEXT).sort()).toEqual(SECTIONS.map((s) => s.id).sort());
-    const tabs = SECTIONS.flatMap((section) => section.tabs.map((tab) => tab.href));
+  it("descrive le sezioni del lavoro quotidiano e tutte le loro schede", () => {
+    expect(Object.keys(SECTION_TEXT).sort()).toEqual(guideSections.map((s) => s.id).sort());
+    const tabs = guideSections.flatMap((section) => section.tabs.map((tab) => tab.href));
     expect(Object.keys(TAB_TEXT).sort()).toEqual([...tabs].sort());
     for (const value of [...Object.values(SECTION_TEXT), ...Object.values(TAB_TEXT)])
       expect(value.trim().length).toBeGreaterThan(10);
@@ -126,28 +127,27 @@ describe("Oggi", () => {
 });
 
 describe("il menu della persona", () => {
-  it("Tommi vede le sette sezioni con i loro link e le schede", () => {
+  it("descrive le sei sezioni del lavoro quotidiano con i loro link e le schede", () => {
     const markup = html(founder);
     const menu = markup.slice(
       markup.indexOf('id="guida-menu"'),
       markup.indexOf('id="guida-partner"'),
     );
-    for (const section of SECTIONS) {
+    for (const section of guideSections) {
       expect(hrefs(menu)).toContain(section.href);
       expect(text(menu)).toContain(SECTION_TEXT[section.id]);
       for (const tab of section.tabs) expect(hrefs(menu)).toContain(tab.href);
     }
-    expect(text(menu).match(/con password/g)).toHaveLength(2);
+    expect(text(menu).match(/con password/g)).toHaveLength(1);
   });
 
   it.each([everyone, finance, founder])(
-    "mostra le aree nel menu anche prima di aprirle: %j",
+    "descrive Finance nel menu anche prima di aprirla: %j",
     (access) => {
       const markup = html(access);
-      for (const href of ["/finance", "/finance/work", "/audit"])
-        expect(hrefs(markup)).toContain(href);
-      expect(text(markup)).toContain("Finance e Controllo CEO sono visibili a tutti i membri.");
-      expect(text(markup)).toContain("Per entrare serve la password corretta della relativa area.");
+      for (const href of ["/finance", "/finance/work"]) expect(hrefs(markup)).toContain(href);
+      expect(text(markup)).toContain("Finance è visibile a tutti i membri.");
+      expect(text(markup)).toContain("Per entrare serve la password Finance.");
       expect(text(markup)).not.toContain("non sono nel tuo menu");
     },
   );
@@ -244,13 +244,11 @@ describe("Partner", () => {
   });
 });
 
-describe("Finance e Controllo CEO", () => {
-  it("dice a tutti cosa sono e chi li apre", () => {
+describe("Finance", () => {
+  it("dice a tutti cosa contiene e chi la apre", () => {
     for (const access of [everyone, finance, founder]) {
       const all = text(html(access));
       expect(all).toContain("La apre chi conosce la password Finance.");
-      expect(all).toContain("Lo apre chi conosce la password CEO.");
-      expect(all).toContain("per esempio «Luca ha aggiunto una call»");
       expect(all).toContain("Costi e margini dei prodotti invece sono nel Magazzino");
     }
   });
@@ -280,17 +278,9 @@ describe("Finance e Controllo CEO", () => {
     }
   });
 
-  it("i filtri del feed li legge solo chi apre Controllo CEO", () => {
-    expect(text(html(founder))).toContain("i filtri Persona e Area");
-    expect(text(html(founder))).toContain("Le tue compaiono solo se scegli il tuo nome.");
-    expect(text(html(finance))).not.toContain("i filtri Persona e Area");
-  });
-
   it("il riquadro dell’apertura segue l’idoneità ricevuta dal server", () => {
     expect(financeBox(html(everyone))).toBe(false);
-    expect(text(html(everyone))).toContain(
-      "Per aprire Finance serve la password Finance; per Controllo CEO serve la password CEO.",
-    );
+    expect(text(html(everyone))).toContain("Per aprire Finance serve la password Finance.");
     for (const access of [finance, founder]) {
       const markup = html(access);
       expect(financeBox(markup)).toBe(true);
@@ -298,20 +288,29 @@ describe("Finance e Controllo CEO", () => {
       expect(text(markup)).toContain("fino a 8 ore");
       expect(text(markup)).toContain("premi «Chiudi Finance» in cima alle pagine Finance");
     }
-    expect(text(html(finance))).not.toContain("«Chiudi Controllo CEO»");
-    expect(text(html(founder))).toContain("con la password CEO e «Chiudi Controllo CEO».");
-    expect(hrefs(html(finance))).not.toContain("/auth/area/audit");
-    expect(hrefs(html(founder))).toContain("/auth/area/audit");
   });
+
+  it.each([everyone, finance, founder, { finance: false, ceo: true }])(
+    "non cita Controllo CEO nella guida, neanche in anteprima: %j",
+    (access) => {
+      for (const preview of [false, true]) {
+        const markup = html(access, preview);
+        expect(text(markup)).not.toContain("CEO");
+        expect(text(markup)).not.toContain("i filtri Persona e Area");
+        expect(hrefs(markup)).not.toContain("/audit");
+        expect(hrefs(markup)).not.toContain("/auth/area/audit");
+      }
+    },
+  );
 });
 
 describe("telefono, conto vendita e aiuto", () => {
   it("elenca la barra in basso e «Altro» secondo il menu della persona", () => {
     expect(text(html(everyone))).toContain(
-      "In basso trovi Oggi, Vendite, Magazzino e Partner. In «Altro» ci sono Team, Finance, Controllo CEO, questa guida, «Account e sicurezza» e «Esci».",
+      "In basso trovi Oggi, Vendite, Magazzino e Partner. In «Altro» ci sono Team, Finance, questa guida, «Account e sicurezza» e «Esci».",
     );
     expect(text(html(founder))).toContain(
-      "In «Altro» ci sono Team, Finance, Controllo CEO, questa guida, «Account e sicurezza» e «Esci».",
+      "In «Altro» ci sono Team, Finance, questa guida, «Account e sicurezza» e «Esci».",
     );
   });
 
@@ -357,7 +356,7 @@ describe("i nomi citati esistono davvero", () => {
   const ROOT = join(__dirname, "..", "..");
   const source = (path: string) => readFileSync(join(ROOT, path), "utf8");
   const QUOTED: [string, string[]][] = [
-    ["src/components/auth-sensitive-area-form.tsx", ["Chiudi Finance", "Chiudi Controllo CEO"]],
+    ["src/components/auth-sensitive-area-form.tsx", ["Chiudi Finance"]],
     ["src/components/today/guide-intro.tsx", ["Prima volta qui?", "Ho capito"]],
     ["src/components/today/today-tiles.tsx", ["Non riesco a leggere"]],
     ["src/components/refresh-button.tsx", ['"Riprova"']],
@@ -365,7 +364,6 @@ describe("i nomi citati esistono davvero", () => {
     ["src/components/finance-revision-editor.tsx", ["Salva correzione"]],
     ["src/components/finance-shop-payment-editor.tsx", ["Salva correzione"]],
     ["src/components/finance-imports-view.tsx", ["Eliminati · recuperabili"]],
-    ["src/components/audit-view.tsx", ["Apri elemento", "Persona", "Area"]],
     ["src/components/partner/partner-messages.tsx", ["Segna inviato", "Segna sollecito inviato"]],
     ["src/components/partner/partner-activity.tsx", ["Ha risposto"]],
     ["src/components/partner/partner-details.tsx", ["Metti tra i non contattare"]],

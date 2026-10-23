@@ -18,7 +18,7 @@ L’app mantiene due percorsi separati. `npm run dev` abilita l’anteprima loca
 
 La decisione del founder del 23 ottobre 2026 separa visibilità e apertura: tutti i cinque membri vedono Finance e Controllo CEO, e ciascuno può aprirle con la relativa password corretta. Ruolo e flag Finance non aggiungono più un blocco. La gestione delle password, la sessione personale, la durata dei grant, i limiti dei tentativi e i ruoli delle altre operazioni restano quelli esistenti.
 
-La migrazione `20261023131218_sensitive_area_member_passwords.sql` aggiorna soltanto `private.sensitive_area_eligible(text)`, senza riscrivere credenziali, membership, dati, grant o policy. Va applicata prima di pubblicare il nuovo modello dell’app. L’harness PostgreSQL 17 `sensitive-area-members.mjs` verifica l’accesso dei cinque ruoli, le due aree separate, la chiusura e la scadenza delle sessioni, rotazione e revoca, RLS e gestione delle credenziali.
+La migrazione `20261023133615_sensitive_area_member_passwords.sql` aggiorna soltanto `private.sensitive_area_eligible(text)`, senza riscrivere credenziali, membership, dati, grant o policy. Va applicata prima di pubblicare il nuovo modello dell’app. L’harness PostgreSQL 17 `sensitive-area-members.mjs` verifica l’accesso dei cinque ruoli, le due aree separate, la chiusura e la scadenza delle sessioni, rotazione e revoca, RLS e gestione delle credenziali.
 
 ## Cookie, cache e richieste
 
