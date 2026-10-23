@@ -83,6 +83,38 @@ describe("complete sales reads", () => {
       expect(snapshot.orders[0].lines[0].totalCents).toBe(8002);
     },
   );
+  it.each(["partially_returned", "returned"])(
+    "reads the complete database state %s while preserving fulfilled history",
+    (state) => {
+      const rows = syntheticRows();
+      Object.assign(rows.orders[0] as Record<string, unknown>, {
+        order_state: state,
+        fulfillment_state: state,
+        payment_state: state === "returned" ? "refunded" : "partially_refunded",
+      });
+      Object.assign(rows.lines[0] as Record<string, unknown>, { fulfilled_quantity: 2 });
+      Object.assign(rows.reservations[0] as Record<string, unknown>, { reserved_quantity: 0 });
+      Object.assign(rows.availability[0] as Record<string, unknown>, {
+        on_hand: state === "returned" ? 5 : 4,
+        reserved: 0,
+        available: state === "returned" ? 5 : 4,
+      });
+      rows.requirements = [];
+      const snapshot = salesSnapshotFromRows(rows);
+      expect(snapshot.orders[0]).toMatchObject({
+        orderState: state,
+        fulfillmentState: state,
+        paymentState: state === "returned" ? "refunded" : "partially_refunded",
+      });
+      expect(snapshot.orders[0].lines[0]).toMatchObject({
+        quantity: 2,
+        fulfilled: 2,
+        cancelled: 0,
+        reserved: 0,
+      });
+      expect(snapshot.requirements).toEqual([]);
+    },
+  );
   it("refuses mixed provenance and accepts effective partial payment states on manual orders", () => {
     const rows = externalSyntheticRows();
     (rows.lines[0] as Record<string, unknown>).source_kind = "manual_declaration";

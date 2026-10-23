@@ -1,0 +1,189 @@
+.root {
+  margin-top: 22px;
+  padding-top: 18px;
+  border-top: 1px solid var(--rule);
+  min-width: 0;
+}
+.body h3 {
+  font-family: var(--f-cond);
+  font-size: var(--text-lg);
+  margin-bottom: 12px;
+}
+.body p {
+  font-size: var(--text-sm);
+  line-height: 1.6;
+  max-width: 70ch;
+}
+.form {
+  display: grid;
+  gap: 16px;
+}
+.form fieldset {
+  border: 0;
+  padding: 0;
+  margin: 0;
+  min-width: 0;
+  display: grid;
+  gap: 16px;
+}
+.form label {
+  display: grid;
+  gap: 6px;
+  font-size: var(--text-sm);
+  font-weight: 500;
+  min-width: 0;
+}
+.form input,
+.form textarea {
+  width: 100%;
+  min-height: var(--tap);
+  padding: 10px 12px;
+  background: var(--paper);
+  border: 1px solid var(--rule);
+  border-radius: var(--radius-control);
+  font-size: var(--text-md);
+  color: var(--ink);
+  min-width: 0;
+}
+.form textarea {
+  resize: vertical;
+}
+.form fieldset:disabled input,
+.form fieldset:disabled textarea {
+  background: var(--tint);
+  color: var(--muted);
+}
+.form button {
+  justify-self: start;
+  max-width: 100%;
+  white-space: normal;
+}
+.grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 16px;
+}
+.lines {
+  border-top: 1px solid var(--rule);
+}
+.form label.line {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 120px;
+  gap: 16px;
+  padding: 12px 0;
+  border-bottom: 1px solid var(--rule);
+  align-items: center;
+}
+.line strong {
+  font-family: var(--f-cond);
+  font-size: var(--text-lg);
+  overflow-wrap: anywhere;
+}
+.line small {
+  display: block;
+  color: var(--muted);
+  font-size: var(--text-sm);
+  margin-top: 4px;
+}
+.line > span:last-child {
+  display: grid;
+  gap: 6px;
+}
+.help {
+  color: var(--muted);
+}
+.quote {
+  padding-top: 16px;
+  border-top: 1px solid var(--rule);
+  display: grid;
+  gap: 16px;
+}
+.quote dl {
+  margin: 0;
+}
+.quote dl > div {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 8px 0;
+  border-bottom: 1px solid var(--rule-soft);
+  font-size: var(--text-sm);
+}
+.quote dd {
+  margin: 0;
+  font-family: var(--f-cond);
+  font-size: var(--text-lg);
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+.form .confirmation {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  min-height: var(--tap);
+  padding: 10px 0;
+  line-height: 1.6;
+  cursor: pointer;
+}
+.form .confirmation input {
+  flex: 0 0 auto;
+  width: 20px;
+  height: 20px;
+  min-height: 0;
+  margin-top: 2px;
+  accent-color: var(--green);
+}
+.feedback,
+.success {
+  padding: 12px 14px;
+  border: 1px solid var(--rule);
+  margin: 12px 0;
+  font-size: var(--text-sm);
+  line-height: 1.6;
+  overflow-wrap: anywhere;
+}
+.feedback {
+  background: var(--amber-wash);
+  color: var(--red);
+}
+.success {
+  background: var(--green-wash);
+  color: var(--green-dark);
+}
+.pending {
+  padding: 14px;
+  border: 1px solid var(--rule);
+  background: var(--amber-wash);
+  font-size: var(--text-sm);
+}
+.pending p {
+  margin: 8px 0 14px;
+  overflow-wrap: anywhere;
+}
+.pending button {
+  max-width: 100%;
+  white-space: normal;
+}
+.assistance {
+  margin-top: 14px;
+  color: var(--ink-2);
+  font-size: var(--text-xs);
+}
+.assistance summary {
+  min-height: var(--tap);
+  padding: 12px 0;
+  cursor: pointer;
+}
+.assistance span {
+  display: block;
+  overflow-wrap: anywhere;
+}
+@media (max-width: 760px) {
+  .grid {
+    grid-template-columns: 1fr;
+  }
+  .form button {
+    justify-self: stretch;
+  }
+}

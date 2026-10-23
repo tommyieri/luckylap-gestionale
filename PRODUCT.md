@@ -1,5 +1,11 @@
 # LuckyLap Gestionale
 
+<!-- impeccable:product-schema 1 -->
+
+## Platform
+
+web
+
 ## Prodotto e persone
 
 Gestionale interno in italiano per cinque persone del brand LuckyLap: founder/CEO, Gabriele produzione, Ettore logistica, Gherardo Finance, Luca consulente Ciago Agency. Una piattaforma condivisa per trovare dati e materiali, gestire scorte, organizzare call e attività, sviluppare prodotti e seguire i partner.
@@ -11,7 +17,7 @@ Il progetto GitHub `tommyieri/luckylap-partner` è la fonte per identità e sist
 ## Regole del prodotto
 
 - Fonte scorte: apertura dall'Excel inventario autorizzato su Drive, poi registro movimenti del gestionale; mai Shopify.
-- Vendite attive dal 21 ottobre 2026, manuali e da Shopify; nessuno storico importato. Finance: 144 righe BudgetFlow importate, tutte da verificare, visibili solo ai tre autorizzati.
+- Vendite attive dal 21 ottobre 2026, manuali e da Shopify; nessuno storico importato. Finance conserva lo storico importato da BudgetFlow e i movimenti del gestionale, visibili solo ai tre autorizzati.
 - Costi/margini e operazioni di sconto/rettifica accessibili a tutti i membri.
 - Finance soltanto founder, Gabriele, Gherardo; Controllo soltanto founder.
 - Finance: ogni movimento si corregge, si elimina e si ripristina, con motivazione e storico. Le fonti restano immutabili; le modifiche sono revisioni append-only con storico.
@@ -36,6 +42,24 @@ App pubblicata su Vercel con dati in Supabase: cinque account personali, permess
 - **Controllo CEO** (dal 23 ottobre 2026) è il feed di cosa fa il team, per giorno, con filtri per persona e area e «Chiudi Controllo CEO». Problemi noti da decidere con Tommi in `docs/verification.md`.
 
 L'anteprima locale, con lo snapshot dell'inventario, le note sul browser e dati sintetici per le altre pagine, resta solo per lo sviluppo.
+
+## Contesto di lavoro
+
+Un unico gestionale su GitHub, Vercel e Supabase riunisce vendite, pronto fisico, packaging, Partner, Team e Finance. Il pronto fisico deriva dalla conta autorizzata; il vendibile commerciale e i fatti degli ordini arrivano da Shopify. Il conto vendita conserva separati conta, resoconto da fatturare e incasso effettivo. I file Finance e la ricerca Partner importati restano fonti tracciabili.
+
+## Evidenze disponibili
+
+- Mappa delle sezioni e dei permessi: `src/lib/navigation.ts`; ruoli e accessi alle aree: `src/lib/auth/model.ts`.
+- Flussi e guida del team: `src/components/guide-view.tsx`, `src/components/today/`, `docs/verification.md` e indice `docs/README.md`.
+- Identità già implementata: caratteri locali e fonti in `public/fonts/`, token in `src/app/globals.css`, guscio in `src/components/workspace-shell.module.css`. `DESIGN.md` e `.impeccable/design.json` descrivono queste sorgenti; non sono una proposta di nuova identità.
+
+## Principi di prodotto
+
+- Registrare i fatti una volta e aggiornare i moduli collegati, conservando provenienza e storico.
+- Tenere distinti pronto fisico, disponibilità commerciale Shopify e merce affidata ai negozi.
+- Rendere condiviso il lavoro operativo e applicare nel database i permessi delle aree riservate.
+- Mostrare un esito verificabile e recuperare lo stesso tentativo quando una risposta manca.
+- Consentire le operazioni e la lettura anche dal telefono, con termini italiani e i nomi reali delle sezioni.
 
 ## Esiti attesi
 

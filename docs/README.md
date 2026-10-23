@@ -32,6 +32,8 @@ Alcuni documenti scritti prima del modello attuale chiedono ancora una sessione 
 
 ## Vendite e Shopify
 
+- [Annullamenti e resi dalle vendite](annullamenti-e-resi.md): registrazioni errate, rientro e rimborso contestuali, packaging riutilizzabile e storico.
+
 - [Ecosistema vendite](ecosistema-vendite.md): contratto tra vendite, magazzino, produzione e Finance, con le fonti e il significato dei numeri.
 - [Nucleo transazionale vendite](sales-ecosystem-backend.md): RPC `register_manual_sale` e ciclo produzione e consegna, ognuno in una sola transazione.
 - [Vendite e produzione condivise](sales-interface.md): pagina `/sales` collegata alle RPC del nucleo transazionale.
