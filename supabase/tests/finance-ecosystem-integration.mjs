@@ -1,4 +1,4 @@
-// test-db: postgres minimo 98
+// test-db: postgres minimo 104
 // Catena reale di tutte le migrazioni: P2/P3 prima di P4/P5/P6.
 // Solo Auth, Storage e le estensioni Supabase esterne hanno stand-in espliciti.
 // Nessuna funzione applicativa sostituita; dati sintetici, socket privata, nessun cloud.
@@ -223,12 +223,42 @@ try {
       "Sblocco attraverso il gate applicativo reale",
     );
   eq(
+    (await as("consultant", "select public.sensitive_area_status('finance') value"))[0].value,
+    false,
+    "Il ruolo operativo non sostituisce la password",
+  );
+  eq(
     (
       await as("consultant", "select public.unlock_sensitive_area('finance',$1) value", [
         "synthetic-password",
       ])
     )[0].value.status,
+    "unlocked",
+    "Ogni membro attivo può sbloccare Finance con la password corretta",
+  );
+  eq(
+    (await as("consultant", "select public.sensitive_area_status('finance') value"))[0].value,
+    true,
+    "Grant password effettivo anche per consulente",
+  );
+  eq(
+    (await as("consultant", "select public.lock_sensitive_area('finance') value"))[0].value,
+    true,
+    "Chiusura della sola sessione del consulente",
+  );
+  eq(
+    (await as("consultant", "select public.sensitive_area_status('finance') value"))[0].value,
+    false,
+    "Senza grant la lettura resta chiusa indipendentemente dal ruolo",
+  );
+  eq(
+    (
+      await as("consultant", "select public.unlock_sensitive_area('finance',$1) value", [
+        "wrong-synthetic-password",
+      ])
+    )[0].value.status,
     "denied",
+    "Password errata non riapre Finance",
   );
   await rejected(
     as("consultant", "select public.ceo_activity_feed()"),

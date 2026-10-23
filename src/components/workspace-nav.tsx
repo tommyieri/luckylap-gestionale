@@ -317,8 +317,8 @@ export function WorkspaceBottomBar({ access, signOut }: NavProps) {
 
 /**
  * Schede della sezione attiva, solo con almeno due pagine. Ferme in alto durante lo scorrimento.
- * Come il menu, seguono l'accesso: chi non vede Finance non ne vede nemmeno le schede, anche
- * sulla pagina della password d'area; prima della verifica compaiono solo per le sezioni aperte a tutti.
+ * Tutti i membri vedono anche le schede di Finance, compresa la pagina della password.
+ * Prima della verifica compaiono solo quelle delle sezioni aperte a tutti.
  */
 export function WorkspaceTabs({ access }: { access: NavAccess }) {
   const { pathname, location } = useLocation();

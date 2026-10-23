@@ -118,21 +118,34 @@ describe("requireMember", () => {
 });
 
 describe("readNavAccess", () => {
-  it("dà al menu nome e permessi del membro verificato, senza il client", async () => {
-    await expect(readNavAccess()).resolves.toEqual({
-      status: "member",
-      displayName: "Membro di prova",
-      finance: false,
-      ceo: false,
-    });
-  });
-
-  it("senza sessione non reindirizza: il menu resta vuoto", async () => {
-    mocks.verify.mockResolvedValue({ status: "signed-out" });
-    await expect(readNavAccess()).resolves.toEqual({ status: "outside" });
-    expect(mocks.redirect).not.toHaveBeenCalled();
-  });
-
+  it.each(["founder", "production", "finance", "logistics", "consultant"] as const)(
+    "mostra le due aree nel menu al membro verificato %s senza leggere dati riservati",
+    async (role) => {
+      mocks.verify.mockResolvedValue({
+        status: "member",
+        member: { ...verified, role, financeAccess: false },
+      });
+      await expect(readNavAccess()).resolves.toEqual({
+        status: "member",
+        displayName: "Membro di prova",
+        finance: true,
+        ceo: true,
+      });
+      expect(mocks.verify).toHaveBeenCalledExactlyOnceWith(client);
+      expect(client.from).not.toHaveBeenCalled();
+    },
+  );
+  it.each(["signed-out", "denied", "unavailable"] as const)(
+    "con stato %s non reindirizza e non espone il menu riservato",
+    async (status) => {
+      mocks.verify.mockResolvedValue({ status });
+      await expect(readNavAccess()).resolves.toEqual({
+        status: status === "unavailable" ? "unavailable" : "outside",
+      });
+      expect(mocks.redirect).not.toHaveBeenCalled();
+      expect(client.from).not.toHaveBeenCalled();
+    },
+  );
   it("in anteprima dà l'accesso di anteprima senza chiamate", async () => {
     mocks.preview.mockReturnValue(true);
     await expect(readNavAccess()).resolves.toEqual({ status: "preview" });

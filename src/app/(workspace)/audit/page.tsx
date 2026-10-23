@@ -57,7 +57,7 @@ export default async function AuditPage({
     return (
       <AccessState
         title="Il controllo attende il collegamento."
-        description="Le attività saranno disponibili dopo la configurazione del workspace e dell’account founder."
+        description="Le attività saranno disponibili dopo la configurazione del workspace e degli accessi del team."
       />
     );
   }
@@ -74,8 +74,8 @@ export default async function AuditPage({
   if (access.status !== "member" || !isSensitiveAreaEligible(access.member, "audit"))
     return (
       <AccessState
-        title="Controllo riservato al founder."
-        description="Le attività del team sono accessibili qui esclusivamente all’account founder abilitato."
+        title="Controllo riservato al team."
+        description="Per leggere le attività servono un account del team attivo e la password CEO."
       />
     );
   const unlocked = await verifiedSensitiveAccess(supabase, access.member, "audit").catch(

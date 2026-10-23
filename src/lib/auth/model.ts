@@ -56,14 +56,9 @@ export type SensitiveArea = "finance" | "audit";
 export function sensitiveAreaFrom(value: unknown): SensitiveArea | null {
   return value === "finance" || value === "audit" ? value : null;
 }
-/** Role eligibility is separate from a password grant for the current session. */
-export function isSensitiveAreaEligible(member: VerifiedMember, area: SensitiveArea): boolean {
-  if (area === "audit") return member.role === "founder";
-  if (area !== "finance") return false;
-  return (
-    member.role === "founder" ||
-    (member.financeAccess && (member.role === "production" || member.role === "finance"))
-  );
+/** Ogni membro attivo appena verificato può aprire entrambe le aree con il grant della password per la sessione. */
+export function isSensitiveAreaEligible(_member: VerifiedMember, area: SensitiveArea): boolean {
+  return area === "finance" || area === "audit";
 }
 /** UI guidance only. PostgreSQL RLS remains the authority for sensitive queries. */
 export function canReadSensitiveArea(

@@ -21,7 +21,9 @@ export async function loadActivityFeed(
   query: ActivityQuery,
 ): Promise<ActivityFeedPage> {
   if (!canReadSensitiveArea(member, "audit", unlocked))
-    throw new Error("Feed riservato al founder con password CEO per questa sessione.");
+    throw new Error(
+      "Per leggere le attività servono un account del team attivo e la password CEO aperta in questa sessione.",
+    );
   if (!validActivityQuery(query)) throw new Error("Filtri o pagina del feed non validi.");
   const { data, error } = await supabase.rpc("ceo_activity_feed", {
     p_actor: query.actor,

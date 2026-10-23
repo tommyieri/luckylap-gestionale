@@ -49,18 +49,53 @@ beforeEach(() => {
 afterEach(() => vi.useRealTimers());
 
 describe("accesso e caricamento del feed CEO", () => {
-  it.each(["production", "logistics", "finance", "consultant"] as const)(
-    "nega %s prima di leggere sessione riservata o feed",
+  it.each(["founder", "production", "finance", "logistics", "consultant"] as const)(
+    "rimanda %s alla password prima di leggere il feed se la sua area è chiusa",
     async (role) => {
-      mocks.member.mockResolvedValue({ status: "member", member: { ...founder, role } });
+      mocks.member.mockResolvedValue({
+        status: "member",
+        member: { ...founder, role, financeAccess: false },
+      });
+      rpc.mockResolvedValue({ data: false, error: null });
+      await expect(AuditPage({ searchParams: Promise.resolve({}) })).rejects.toThrow(
+        "redirect:/auth/area/audit",
+      );
+      expect(rpc).toHaveBeenCalledExactlyOnceWith("sensitive_area_status", { p_area: "audit" });
+      expect(mocks.feed).not.toHaveBeenCalled();
+    },
+  );
+  it.each(["founder", "production", "finance", "logistics", "consultant"] as const)(
+    "apre il feed a %s soltanto dopo il grant CEO corrente",
+    async (role) => {
+      const member = { ...founder, role, financeAccess: false };
+      mocks.member.mockResolvedValue({ status: "member", member });
       const html = renderToStaticMarkup(await AuditPage({ searchParams: Promise.resolve({}) }));
-      expect(html).toContain("Controllo riservato al founder.");
-      expect(html).not.toContain("data-area-bar");
+      expect(html).toContain('data-area-bar="audit"');
+      expect(rpc).toHaveBeenCalledExactlyOnceWith("sensitive_area_status", { p_area: "audit" });
+      expect(mocks.feed).toHaveBeenCalledExactlyOnceWith({ rpc }, member, true, {
+        actor: null,
+        area: null,
+        before: null,
+      });
+      expect(rpc.mock.invocationCallOrder[0]).toBeLessThan(mocks.feed.mock.invocationCallOrder[0]);
+    },
+  );
+  it.each(["signed-out", "denied", "unavailable"])(
+    "non carica la sessione riservata o il feed se la membership corrente è %s",
+    async (status) => {
+      mocks.member.mockResolvedValue({ status });
+      if (status === "signed-out")
+        await expect(AuditPage({ searchParams: Promise.resolve({}) })).rejects.toThrow(
+          "redirect:/auth/login",
+        );
+      else
+        expect(
+          renderToStaticMarkup(await AuditPage({ searchParams: Promise.resolve({}) })),
+        ).not.toContain("data-area-bar");
       expect(rpc).not.toHaveBeenCalled();
       expect(mocks.feed).not.toHaveBeenCalled();
     },
   );
-
   it("a otto ore ricontrolla il gate DB e rimanda allo sblocco senza caricare dati", async () => {
     vi.setSystemTime(expiresAt);
     await expect(AuditPage({ searchParams: Promise.resolve({}) })).rejects.toThrow(

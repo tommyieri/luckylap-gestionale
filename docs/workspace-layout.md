@@ -31,15 +31,15 @@ Una sola fonte: `src/lib/navigation.ts`, funzioni pure senza React né icone.
 | Magazzino | `/stock` | Giacenze `/stock`, Rettifiche `/stock/rettifiche`, Packaging `/packaging` | tutti | barra |
 | Partner | `/partner` | — | tutti | barra |
 | Team | `/team` | Calendario e attività `/team`, Nuovi prodotti `/development`, Grafica e foto `/assets` | tutti | «Altro» |
-| Finance | `/finance` | Panoramica `/finance`, Registrazioni `/finance/work`, Documenti `/finance/documents` | chi può aprire Finance | «Altro» |
-| Controllo CEO | `/audit` | — | il founder | «Altro» |
+| Finance | `/finance` | Panoramica `/finance`, Registrazioni `/finance/work`, Documenti `/finance/documents` | tutti | «Altro» |
+| Controllo CEO | `/audit` | — | tutti | «Altro» |
 
 - Fuori dalle sezioni (`ACCOUNT_LINKS`): «Come si usa» (`/guida`), «Account e sicurezza» (`/auth/account`, accesa anche da `/auth/password` e `/auth/verify`) ed «Esci». Sul desktop stanno nel piede della barra laterale, sul telefono in «Altro». Ogni voce ha un nome breve (`band`) per la fascia verde del telefono: «Come si usa» e «Account».
-- Finance e Controllo CEO compaiono solo a chi può entrare, con la regola esistente `isSensitiveAreaEligible` (`src/lib/auth/model.ts`), senza copie. Voci per persona: Luca ed Ettore 5, Gabriele e Gherardo 6, Tommi 7. In anteprima locale 7; senza sessione o con account non abilitato nessuna; con verifica in corso o non riuscita le 5 aperte a tutti. Le schede seguono la stessa regola: chi non vede Finance non ne vede nemmeno le schede, neanche su `/auth/area/finance` o su `/finance`.
+- Tutti i membri vedono le sette sezioni, comprese Finance e Controllo CEO con il lucchetto. Le schede Finance compaiono anche prima dell’apertura dell’area; pagine, RPC e RLS richiedono la password corretta nella sessione corrente. In anteprima locale 7; senza sessione o con account non abilitato nessuna; con verifica in corso o non riuscita le 5 aperte a tutti.
 - **Prefisso più lungo.** Un `href` combacia se il percorso è uguale o continua con `/`; `/` combacia solo con `/`. Vince l'`href` più lungo tra schede, sezioni e `also`. Così `/stock/rettifiche` accende Rettifiche, `/consignment/NEG01/conta` accende Conto vendita e `/sales-old` non accende niente.
 - `also`: percorsi senza scheda che accendono la sezione. Finance ha `/auth/area/finance`, Controllo CEO `/auth/area/audit`.
 - Ogni `href` compare una volta sola. L'`href` di una sezione con schede è la sua prima scheda. Le schede compaiono solo con almeno due pagine.
-- Ordine fisso. Finance e Controllo CEO stanno in fondo: quando arrivano, dopo la verifica dell'accesso, non spostano le altre voci.
+- Ordine fisso. Finance e Controllo CEO stanno in fondo e non spostano le altre voci.
 - `aria-current`: la scheda attiva ha `"page"`; la voce di sezione ha `"page"` se la sezione non ha schede, altrimenti `"true"`.
 
 ## Struttura visiva
@@ -76,7 +76,7 @@ Una sola fonte: `src/lib/navigation.ts`, funzioni pure senza React né icone.
 - «Le operazioni più comuni» (`OPERATIONS`) unisce i punti 3 e 4 della spec 06: una riga per operazione, con il link alla pagina, i nomi veri dei pulsanti e chi la fa di solito («di solito Ettore»). Al posto di un riquadro per persona: così ognuno trova il suo lavoro nello stesso elenco. Quando cambia il nome di un pulsante citato, si aggiorna anche questa riga.
 - «Parole che trovi spesso» usa i nomi delle colonne di Giacenze e Rettifiche: Fisico, Riservato, Disponibile.
 - Partner: «Segna inviato» e «Segna sollecito inviato» creano un sollecito a 7 giorni per chi ha inviato, solo per gli invii segnati nell'app (il trigger di `20261023091627_partner_work_links.sql` guarda solo `origin = 'team'`); le date Partner entrano nel calendario; «Partner nel Team» (`/team/partner`).
-- Finance e Controllo CEO: tutti leggono cosa sono e chi li apre. Il riquadro «Aprire e chiudere Finance», con i link a `/auth/area/finance` (e `/auth/area/audit` per Tommi), compare solo a chi può entrare, con la regola `isSensitiveAreaEligible`. Dentro: «Chiudi Finance» in cima alle pagine Finance, «Correggere un movimento» («Modifica / storico», motivazione, storico, «Eliminati · recuperabili») e, solo per Tommi, i filtri del feed e «Chiudi Controllo CEO».
+- Finance e Controllo CEO: tutti leggono cosa sono e chi li apre. Il riquadro «Aprire e chiudere Finance», con i link a `/auth/area/finance` e `/auth/area/audit`, compare per tutti i membri; ogni area richiede la propria password. Dentro: «Chiudi Finance» in cima alle pagine Finance, «Correggere un movimento» («Modifica / storico», motivazione, storico, «Eliminati · recuperabili») e i filtri del feed e «Chiudi Controllo CEO», dopo l’apertura dell’area.
 - La guida cita pulsanti e riquadri di altre pagine. `guide-view.test.tsx` («i nomi citati esistono davvero») legge i componenti e la migrazione dei solleciti: se un nome citato cambia, il test fallisce e la guida si aggiorna insieme.
 - Il magazzino centrale si chiama «Magadzino» anche nella guida; «Magazzino» è la sezione.
 - Telefono: indice in cima su due colonne, parti una sotto l'altra. Computer: indice fermo a destra. Testo a 16 px, righe al massimo di 72 caratteri.

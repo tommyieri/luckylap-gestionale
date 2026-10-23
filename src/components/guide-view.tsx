@@ -11,20 +11,14 @@ import {
   Wallet,
   type LucideIcon,
 } from "lucide-react";
-import {
-  SECTIONS,
-  mobileSplit,
-  visibleSections,
-  type IconName,
-  type SectionId,
-} from "../lib/navigation";
+import { mobileSplit, visibleSections, type IconName, type SectionId } from "../lib/navigation";
 import roadbook from "./roadbook.module.css";
 import styles from "./guide-view.module.css";
 
 /**
  * «Come si usa» (docs: workspace-layout.md, «La guida»). Testo fisso, scritto sull'app
  * com'è oggi: quando una pagina cambia nome, scopo o pulsanti, si aggiorna anche qui.
- * Il menu descritto è quello della persona: Finance e Controllo CEO solo a chi li apre.
+ * La guida descrive le sezioni per il lavoro quotidiano e l'apertura di Finance.
  */
 export type GuideAccess = { finance: boolean; ceo: boolean };
 
@@ -38,15 +32,14 @@ const ICONS: Record<IconName, LucideIcon> = {
   ShieldCheck,
 };
 
-/** Una frase per sezione del menu (`SECTIONS`): il test vuole tutte le sezioni. */
-export const SECTION_TEXT: Record<SectionId, string> = {
+/** Una frase per ogni sezione descritta nella guida. */
+export const SECTION_TEXT: Partial<Record<SectionId, string>> = {
   oggi: "Il lavoro del giorno: agenda, contatti e solleciti, ordini da preparare e magazzino.",
   vendite: "Le vendite di LuckyLap, dirette e nei negozi.",
   magazzino: "Le magliette che abbiamo, quelle da correggere e il materiale per spedire.",
   partner: "Negozi, eventi, club, media e brand da contattare, con i messaggi già scritti.",
   team: "Il lavoro di tutti i giorni del team.",
   finance: "Conti, movimenti e documenti del brand.",
-  ceo: "Cosa fa il team, una frase per ogni azione, dalla più recente.",
 };
 
 /** Una frase per scheda: il test vuole tutte le schede della mappa. */
@@ -77,7 +70,7 @@ export const GUIDE_PARTS = [
     title: "Conto vendita e resoconto del mese",
     short: "Conto vendita",
   },
-  { id: "guida-finance", title: "Finance e Controllo CEO", short: "Finance e Controllo CEO" },
+  { id: "guida-finance", title: "Finance", short: "Finance" },
   { id: "guida-telefono", title: "Sul telefono", short: "Sul telefono" },
   { id: "guida-aiuto", title: "Se qualcosa non va", short: "Se qualcosa non va" },
 ] as const;
@@ -245,7 +238,9 @@ function Part({ id, children }: { id: PartId; children: ReactNode }) {
 }
 
 export function GuideView({ access, preview = false }: { access: GuideAccess; preview?: boolean }) {
-  const visible = visibleSections({ status: "member", displayName: "", ...access });
+  const visible = visibleSections({ status: "member", displayName: "", ...access }).filter(
+    (section) => section.id !== "ceo",
+  );
   const { bar, altro } = mobileSplit(visible);
   return (
     <div className={styles.page}>
@@ -257,7 +252,7 @@ export function GuideView({ access, preview = false }: { access: GuideAccess; pr
       </div>
       {preview && (
         <p className={styles.notice} role="status">
-          Anteprima locale: la guida come la vede Tommi, con Finance e Controllo CEO.
+          Anteprima locale: la guida del team.
         </p>
       )}
       <div className={styles.layout}>
@@ -309,7 +304,7 @@ export function GuideView({ access, preview = false }: { access: GuideAccess; pr
           <Part id="guida-menu">
             <p className={styles.lead}>
               Sul computer il menu è a sinistra, sul telefono in basso. Le sezioni con più pagine
-              hanno le schede in alto. Questo è il tuo menu:
+              hanno le schede in alto. Qui trovi le sezioni per il lavoro di tutti i giorni:
             </p>
             <ul className={styles.menu}>
               {visible.map((section) => {
@@ -349,14 +344,9 @@ export function GuideView({ access, preview = false }: { access: GuideAccess; pr
                 );
               })}
             </ul>
-            {!access.finance && (
-              <p className={styles.after}>
-                Finance e Controllo CEO non sono nel tuo menu: il tuo account non li apre.
-              </p>
-            )}
-            {access.finance && !access.ceo && (
-              <p className={styles.after}>Controllo CEO non è nel tuo menu: lo apre solo Tommi.</p>
-            )}
+            <p className={styles.after}>
+              Finance è visibile a tutti i membri. Per entrare serve la password Finance.
+            </p>
             <h3 className={styles.subTitle}>Parole che trovi spesso</h3>
             <dl className={styles.terms}>
               {WORDS.map(([word, meaning]) => (
@@ -474,16 +464,8 @@ export function GuideView({ access, preview = false }: { access: GuideAccess; pr
               <div>
                 <dt>Finance</dt>
                 <dd>
-                  Conti, movimenti, registrazioni e documenti del brand. La aprono Tommi, Gabriele e
-                  Gherardo, con la password Finance.
-                </dd>
-              </div>
-              <div>
-                <dt>Controllo CEO</dt>
-                <dd>
-                  Una frase per ogni azione sui dati condivisi, con chi l’ha fatta: per esempio
-                  «Luca ha aggiunto una call». Non registra le pagine aperte. Lo apre solo Tommi,
-                  con la password CEO.
+                  Conti, movimenti, registrazioni e documenti del brand. La apre chi conosce la
+                  password Finance.
                 </dd>
               </div>
             </dl>
@@ -499,13 +481,6 @@ export function GuideView({ access, preview = false }: { access: GuideAccess; pr
                   condiviso, premi «Chiudi Finance» in cima alle pagine Finance, oppure chiudila da
                   «Account e sicurezza».
                 </p>
-                {access.ceo && (
-                  <p>
-                    Controllo CEO funziona allo stesso modo, con la password CEO e «Chiudi Controllo
-                    CEO». Le attività sono divise per giorno, con «Apri elemento» e i filtri Persona
-                    e Area. Le tue compaiono solo se scegli il tuo nome.
-                  </p>
-                )}
                 <h3 className={styles.subTitle}>Correggere un movimento</h3>
                 <p>
                   In Panoramica e in Registrazioni ogni movimento ha «Modifica / storico». Lì
@@ -531,24 +506,13 @@ export function GuideView({ access, preview = false }: { access: GuideAccess; pr
                   >
                     Apri Finance
                   </Link>
-                  {access.ceo && (
-                    <Link
-                      href="/auth/area/audit"
-                      prefetch={false}
-                      className="button button-secondary"
-                    >
-                      Apri Controllo CEO
-                    </Link>
-                  )}
                   <Link href="/auth/account" prefetch={false} className="button button-secondary">
                     Account e sicurezza
                   </Link>
                 </p>
               </div>
             ) : (
-              <p className={styles.after}>
-                Il tuo account non apre Finance. Se ti serve un dato, chiedi a Gherardo o a Tommi.
-              </p>
+              <p className={styles.after}>Per aprire Finance serve la password Finance.</p>
             )}
           </Part>
 

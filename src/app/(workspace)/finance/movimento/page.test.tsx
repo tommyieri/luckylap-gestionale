@@ -50,6 +50,7 @@ const actor = "91000000-0000-4000-8000-000000000001",
   source = "91000000-0000-4000-8000-000000000002";
 const params = () => Promise.resolve({ source_kind: "manual", source_id: source });
 beforeEach(() => {
+  vi.clearAllMocks();
   mocks.member.mockReset().mockResolvedValue({
     status: "member",
     member: { userId: actor, role: "finance", financeAccess: true },
@@ -78,15 +79,45 @@ describe("Finance editor server page gate", () => {
     expect(mocks.history).not.toHaveBeenCalled();
     expect(mocks.profiles).not.toHaveBeenCalled();
   });
-  it.each(["logistics", "consultant"])("does not pass source history to %s", async (role) => {
-    mocks.member.mockResolvedValue({
-      status: "member",
-      member: { userId: actor, role, financeAccess: true },
-    });
-    const html = renderToStaticMarkup(await Page({ searchParams: params() }));
-    expect(html).not.toContain("data-protected-history");
-    expect(mocks.history).not.toHaveBeenCalled();
-  });
+  it.each(["founder", "production", "finance", "logistics", "consultant"])(
+    "does not pass source history to %s until its Finance password grant is verified",
+    async (role) => {
+      const member = { userId: actor, role, financeAccess: false };
+      mocks.member.mockResolvedValue({ status: "member", member });
+      mocks.grant.mockResolvedValue(false);
+      await expect(Page({ searchParams: params() })).rejects.toThrow("redirect:/auth/area/finance");
+      expect(mocks.grant).toHaveBeenCalledExactlyOnceWith({}, member, "finance");
+      expect(mocks.history).not.toHaveBeenCalled();
+      expect(mocks.profiles).not.toHaveBeenCalled();
+    },
+  );
+  it.each(["founder", "production", "finance", "logistics", "consultant"])(
+    "loads the source history for %s with the current Finance grant, without requiring the legacy flag",
+    async (role) => {
+      const member = { userId: actor, role, financeAccess: false };
+      mocks.member.mockResolvedValue({ status: "member", member });
+      const html = renderToStaticMarkup(await Page({ searchParams: params() }));
+      expect(html).toContain("data-protected-history");
+      expect(html).toContain('data-area-bar="finance"');
+      expect(mocks.grant).toHaveBeenCalledExactlyOnceWith({}, member, "finance");
+      expect(mocks.grant.mock.invocationCallOrder[0]).toBeLessThan(
+        mocks.history.mock.invocationCallOrder[0],
+      );
+      expect(mocks.history).toHaveBeenCalledWith({}, { sourceKind: "manual", sourceId: source });
+    },
+  );
+  it.each(["denied", "unavailable"])(
+    "does not expose protected history when current membership is %s",
+    async (status) => {
+      mocks.member.mockResolvedValue({ status });
+      const html = renderToStaticMarkup(await Page({ searchParams: params() }));
+      expect(html).not.toContain("data-protected-history");
+      expect(html).not.toContain("data-area-bar");
+      expect(mocks.grant).not.toHaveBeenCalled();
+      expect(mocks.history).not.toHaveBeenCalled();
+      expect(mocks.profiles).not.toHaveBeenCalled();
+    },
+  );
   it("fails closed on unavailable password verification and forged source kinds", async () => {
     mocks.grant.mockRejectedValue(new Error("Private failure"));
     let html = renderToStaticMarkup(await Page({ searchParams: params() }));

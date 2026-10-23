@@ -64,9 +64,9 @@ beforeEach(() => {
 afterEach(() => vi.useRealTimers());
 describe("fresh session password grants", () => {
   it.each(["logistics", "consultant"] as const)(
-    "does not query private grant status for ineligible %s",
+    "requires a fresh password grant regardless of the former %s role restriction",
     async (role) => {
-      const f = fixture();
+      const f = fixture({ grant: false });
       expect(
         await verifiedSensitiveAccess(
           f.client,
@@ -74,7 +74,7 @@ describe("fresh session password grants", () => {
           "finance",
         ),
       ).toBe(false);
-      expect(f.rpc).not.toHaveBeenCalled();
+      expect(f.rpc).toHaveBeenCalledExactlyOnceWith("sensitive_area_status", { p_area: "finance" });
     },
   );
   it("rechecks DB status on every call and does not use aal2 to bypass a closed gate", async () => {
@@ -118,22 +118,34 @@ describe("shared area password commands", () => {
     });
     expect(f.auth.mfa.getAuthenticatorAssuranceLevel).not.toHaveBeenCalled();
   });
-  it.each([
-    { signedIn: false },
-    { active: false },
-    { role: "logistics", finance: false },
-    { role: "consultant", finance: false },
-    { role: "production", finance: false },
-  ])("does not unlock for missing or revoked access (%j)", async (options) => {
-    const f = fixture(options);
-    expect((await unlockSensitiveArea(f.client, "finance", password)).status).toBe("error");
-    expect(f.rpc).not.toHaveBeenCalled();
-  });
-  it("does not grant CEO to a Finance member even with the correct shared password", async () => {
-    const f = fixture({ role: "finance" });
-    expect((await unlockSensitiveArea(f.client, "audit", password)).status).toBe("error");
-    expect(f.rpc).not.toHaveBeenCalled();
-  });
+  it.each([{ signedIn: false }, { active: false }])(
+    "does not unlock for missing or revoked access (%j)",
+    async (options) => {
+      const f = fixture(options);
+      expect((await unlockSensitiveArea(f.client, "finance", password)).status).toBe("error");
+      expect(f.rpc).not.toHaveBeenCalled();
+    },
+  );
+  it.each(["founder", "production", "finance", "logistics", "consultant"] as const)(
+    "lets active %s unlock either area with the correct password and no Finance flag",
+    async (role) => {
+      const f = fixture({ role, finance: false });
+      f.rpc.mockResolvedValue({
+        data: { status: "unlocked", expires_at: "2026-10-21T20:00:00Z" },
+        error: null,
+      });
+      for (const area of ["finance", "audit"] as const) {
+        expect(await unlockSensitiveArea(f.client, area, password)).toEqual({
+          status: "unlocked",
+          area,
+        });
+        expect(f.rpc).toHaveBeenLastCalledWith("unlock_sensitive_area", {
+          p_area: area,
+          p_password: password,
+        });
+      }
+    },
+  );
   it.each(["other", "https://hostile.test", "/finance?next=https://hostile.test", null])(
     "rejects non-allowlisted destinations (%j)",
     async (area) => {
@@ -188,7 +200,7 @@ describe("shared area password commands", () => {
       /private|abcdef/,
     );
   });
-  it("locks only an eligible current caller and accepts the idempotent true response", async () => {
+  it("locks only the current member session and accepts the idempotent true response", async () => {
     const f = fixture();
     expect(await lockSensitiveArea(f.client, "audit")).toEqual({ status: "locked", area: "audit" });
     expect(f.rpc).toHaveBeenCalledExactlyOnceWith("lock_sensitive_area", { p_area: "audit" });
