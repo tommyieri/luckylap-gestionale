@@ -224,7 +224,7 @@ const SPECS: Spec[] = [
     priority: "bassa",
     monthOffset: 9,
     preferredChannel: "email",
-    stage: "trattativa",
+    stage: "chiuso",
     research: {
       why: "Club sintetico di prova con un raduno estivo.",
       idea: {

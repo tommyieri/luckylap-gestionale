@@ -1,4 +1,4 @@
-// test-db: postgres minimo 93
+// test-db: postgres minimo 95
 // Catena reale di tutte le migrazioni: P2/P3 prima di P4/P5/P6.
 // Solo Auth, Storage e le estensioni Supabase esterne hanno stand-in espliciti.
 // Nessuna funzione applicativa sostituita; dati sintetici, socket privata, nessun cloud.
@@ -454,8 +454,8 @@ try {
       "select count(*)::int value from public.partner_work_links where partner_id=$1 and kind='event'",
       [partnerId],
     ),
-    1,
-    "Data Partner genera evento condiviso",
+    0,
+    "Data Partner senza accordo: nessun evento condiviso",
   );
   const sent = await rpc(
     "record_partner_activity",
@@ -509,10 +509,23 @@ try {
     users.production,
     "Esito assegnato alla produzione",
   );
+  await rpc(
+    "set_partner_state",
+    {
+      schema_version: 1,
+      partner_id: partnerId,
+      expected_version: Number(
+        await scalar("select version value from public.partners where id=$1", [partnerId]),
+      ),
+      stage: "chiuso",
+    },
+    "consultant",
+  );
   const linkedEvent = await scalar(
     "select calendar_event_id value from public.partner_work_links where partner_id=$1 and kind='event'",
     [partnerId],
   );
+  ok(linkedEvent, "Accordo fatto: la data Partner genera l'evento condiviso");
   await rpc(
     "create_partner_work",
     {

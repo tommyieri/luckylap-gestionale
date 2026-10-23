@@ -9,13 +9,13 @@ Prove applicative, SQL sintetico, PostgreSQL concorrente e Auth cloud sono conte
 
 ## Test di oggi
 
-Eseguiti il 23 ottobre 2026 nel worktree di P7, sul codice del commit `187549e` (dopo la guida e i documenti delle aree), con dati sintetici e senza accessi al cloud.
+Eseguiti il 23 ottobre 2026 nel worktree di P7, dopo il merge di `origin/main` a `3acbad3` (pull request #6 e #7), con dati sintetici e senza accessi al cloud.
 
 | Comando | Esito |
 | --- | --- |
-| `npm test` | 1.684 test in 158 file, tutti superati |
-| `npm run test:db` senza `LUCKYLAP_PG_BIN` | 17 harness PGlite superati, 3.018 controlli; gli 11 harness su PostgreSQL 17 risultano saltati |
-| `npm run test:db` con `LUCKYLAP_PG_BIN` (PostgreSQL 17.11 locale) | in più 11 harness PostgreSQL 17 superati, 1.300 controlli: 28 harness, 4.318 controlli in tutto |
+| `npm test` | 1.680 test in 159 file, tutti superati |
+| `npm run test:db` senza `LUCKYLAP_PG_BIN` | 18 harness PGlite superati, 3.094 controlli; gli 11 harness su PostgreSQL 17 risultano saltati |
+| `npm run test:db` con `LUCKYLAP_PG_BIN` (PostgreSQL 17.11 locale) | in più 11 harness PostgreSQL 17 superati, 1.302 controlli: 29 harness, 4.396 controlli in tutto |
 
 `npm run typecheck`, `npm run build` e `npm run format:check` passano prima di ogni commit (regole in `AGENTS.md`). Ogni harness ha eseguito esattamente il suo minimo. I cluster PostgreSQL usa e getta del runner si fermano e si cancellano alla fine; nessun servizio resta attivo.
 
@@ -40,6 +40,7 @@ Controlli per harness:
 | `partner-work-links.mjs` | PGlite | 42 | solleciti dopo l'invio, date Partner nel calendario, riquadro Partner di Oggi |
 | `partner.mjs` | PGlite | 343 | Partner: sicurezza, import della ricerca, comandi, file dei dispositivi, generatore |
 | `review-handoff.mjs` | PGlite | 51 | archivio dei contenuti in «Grafica e foto» |
+| `partner-dates-agreed.mjs` | PGlite | 76 | date Partner nel calendario solo con «Accordo fatto», pulizia degli appuntamenti automatici |
 | `sales-concurrency.mjs` | PostgreSQL 17 | 39 | vendite concorrenti ([evidenze](verifica-concorrenza.md)) |
 | `packaging-concurrency.mjs` | PostgreSQL 17 | 6 | packaging con worker sovrapposti |
 | `area-passwords.mjs` | PostgreSQL 17 | 161 | password di Finance e Controllo CEO ([contratto](area-passwords-backend.md)) |
@@ -47,7 +48,7 @@ Controlli per harness:
 | `shopify-ecosystem.mjs` | PostgreSQL 17 | 702 | ordini Shopify, worker e coda |
 | `ceo-activity-feed.mjs` | PostgreSQL 17 | 121 | feed di Controllo CEO con la password CEO vera |
 | `consignment-concurrency.mjs` | PostgreSQL 17 | 16 | conto vendita con comandi concorrenti |
-| `finance-ecosystem-integration.mjs` | PostgreSQL 17 | 93 | catena completa delle migrazioni: Shopify, residui, conto vendita, feed, Partner |
+| `finance-ecosystem-integration.mjs` | PostgreSQL 17 | 95 | catena completa delle migrazioni: Shopify, residui, conto vendita, feed, Partner |
 | `finance-revisions-concurrency.mjs` | PostgreSQL 17 | 32 | revisioni Finance concorrenti |
 | `partner-work-concurrency.mjs` | PostgreSQL 17 | 82 | collegamenti Partner e solleciti concorrenti |
 | `shop-payment-finance-concurrency.mjs` | PostgreSQL 17 | 33 | pagamenti dei negozi corretti da Finance, concorrenti |
@@ -95,21 +96,19 @@ Parte B, fatto (ogni commit con tutti i controlli verdi):
 
 - Oggi: riquadro «Prima volta qui?» verso «Come si usa» (`a3ef382`).
 - «Chiudi Finance» in cima a tutte le pagine Finance e «Chiudi Controllo CEO» in `/audit`, solo dopo la verifica dell'area aperta (`beffa36`).
-- Calendario del Team: all'inizio solo i prossimi, con «N passati nascosti» (`1727c02`). Superato dal calendario a mese della pull request #7, che arriva con il merge di `main`.
+- Calendario del Team: all'inizio solo i prossimi, con «N passati nascosti» (`1727c02`). Superato dal calendario a mese della pull request #7: nel merge di `main` vale la griglia del mese.
 - Vendite: gli invii da verificare dicono ordine e articolo, testi senza gergo, guardia dei testi completa (`42a5d09`, `bbbbb9e`); «eliminata» negli invii Finance da verificare (`e5dbcd3`); due correzioni degli harness (`8d6f694`, `8465fcc`).
 - Guida aggiornata a P4–P6: Oggi, solleciti Partner e «Partner nel Team», correzioni Finance, feed CEO; test che controlla i nomi citati (`9d38b88`).
 - Documenti: `AGENTS.md` («Decisioni del founder»), `README.md`, `PRODUCT.md`, `DESIGN.md` (`598ad10`); `audit-workspace.md`, `finance-work.md`, `finance-dashboard.md`, `team-workspace.md`, indice e avviso in `partner.md` (`187549e`); questo documento.
 
+Fatto il 23 ottobre: merge di `origin/main` a `3acbad3` (pull request #6 e #7). Il calendario a mese sostituisce la lista e il commit `1727c02`; la guida, `README.md`, `docs/team-workspace.md`, `docs/workspace-layout.md` e questo documento seguono la regola «Accordo fatto»; tutti i controlli verdi con i numeri qui sopra.
+
 Da fare prima del merge, in quest'ordine:
 
-1. Merge di `origin/main` (oggi `3acbad3`, pull request #6 e #7) in questo branch, poi tutti i controlli e la CI di nuovo verdi. La #6 tocca solo tre file di Finance che P7 non modifica. La #7 dà conflitti nei nove file elencati in cima e cambia cose che questo branch descrive. Nel merge:
-   - `team-workspace.tsx` e il suo test: il calendario a mese della #7 sostituisce la lista; il commit `1727c02` («N passati nascosti», 06 R16) non serve più, perché i passati non spingono più in basso i prossimi.
-   - Guida (`guide-view.tsx`): le date Partner entrano nel calendario solo con «Accordo fatto»; tra gli stati che chiudono un sollecito «Chiuso» diventa «Accordo fatto»; `TAB_TEXT` di `/team` con il calendario a mese. Il test «i nomi citati esistono davvero» fallisce finché la guida dice «Chiuso»: è voluto.
-   - Documenti: `README.md`, `PRODUCT.md`, `docs/team-workspace.md`, `docs/workspace-layout.md` e `docs/partner.md` con la regola nuova; questo documento con il numero degli harness (la #7 aggiunge `partner-dates-agreed.mjs`, PGlite) e i numeri dei test dopo il merge.
-2. Prove visive della parte B a 1280 × 800 e 390 × 844 (piano di lavoro, §1.4): `/guida`, «Prima volta qui?» su `/`, `/finance` con «Chiudi Finance», `/team` con i passati nascosti, `/assets` con «Mostra archiviati», un invio da verificare su `/sales`, `/auth/account`.
-3. Applicare in produzione `archivio_contenuti`, con l'impronta di `assets` prima e dopo. Oggi l'ultima versione in cloud è `20261023113212`, che il repository ha solo dopo il merge del punto 1: la nuova versione sarà successiva e il file prende quel nome. La tabella «Produzione» riceve la sua riga ([archivio](assets-development.md), «Archivio dei contenuti»).
-4. Pull request con gli esiti, CI verde compreso il job «Concorrenza (PostgreSQL 17)», poi merge.
-5. Messaggio di benvenuto per WhatsApp pronto per Tommi, senza password.
+1. Prove visive della parte B a 1280 × 800 e 390 × 844 (piano di lavoro, §1.4): `/guida`, «Prima volta qui?» su `/`, `/finance` con «Chiudi Finance», `/team` con il calendario a mese, `/assets` con «Mostra archiviati», un invio da verificare su `/sales`, `/auth/account`.
+2. Applicare in produzione `archivio_contenuti`, con l'impronta di `assets` prima e dopo. Oggi l'ultima versione in cloud è `20261023113212`, che il repository ha solo dopo il merge del punto 1: la nuova versione sarà successiva e il file prende quel nome. La tabella «Produzione» riceve la sua riga ([archivio](assets-development.md), «Archivio dei contenuti»).
+3. Pull request con gli esiti, CI verde compreso il job «Concorrenza (PostgreSQL 17)», poi merge.
+4. Messaggio di benvenuto per WhatsApp pronto per Tommi, senza password.
 
 Resta fuori da P7, perché chiede una migrazione nuova: la frase del feed per archiviare e ripristinare un contenuto (oggi «ha aggiornato un contenuto»). È nei problemi noti, punto 12.
 

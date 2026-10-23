@@ -4,6 +4,7 @@ import type { SupabaseClient } from "@supabase/supabase-js";
 import { revalidatePath } from "next/cache";
 import { createSupabaseServerClient } from "../../lib/supabase/server";
 import { verifiedMember } from "../../lib/auth/server";
+import { isLocalPreviewEnabled } from "../../lib/runtime";
 import {
   capturedFormValues,
   parseDeleteForm,
@@ -11,6 +12,7 @@ import {
   parseNoteForm,
   parseTaskForm,
   parseTaskToggleForm,
+  TEAM_PREVIEW_WRITE_MESSAGE,
   TeamValidationError,
   type TeamActionState,
 } from "../../lib/team/model";
@@ -41,6 +43,8 @@ async function mutate(
   // A fresh form mount restores defaultSelected as well as text inputs after
   // React resets a completed form action, including validation-error results.
   const revision = preserveValues ? { revision: crypto.randomUUID() } : {};
+  // Anteprima locale: dati sintetici, mai Supabase.
+  if (isLocalPreviewEnabled()) return { error: TEAM_PREVIEW_WRITE_MESSAGE, ...values, ...revision };
   let supabase: SupabaseClient;
   try {
     supabase = await createSupabaseServerClient({ writable: true });

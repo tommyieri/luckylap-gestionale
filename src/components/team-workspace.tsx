@@ -1,45 +1,37 @@
 "use client";
 
 import Link from "next/link";
-import { useState, useTransition } from "react";
+import { useTransition } from "react";
 import { useRouter } from "next/navigation";
-import { ExternalLink, RefreshCw } from "lucide-react";
+import { RefreshCw } from "lucide-react";
+import { romeDayOf } from "../lib/team/calendar";
 import {
-  eventTypeLabel,
+  TEAM_PREVIEW_NOTICE,
   formatRomeDate,
   formatRomeDateTime,
-  inclusiveEventEnd,
   type TeamSnapshot,
 } from "../lib/team/model";
-import {
-  DeleteTeamForm,
-  NewEventForm,
-  NewNoteForm,
-  NewTaskForm,
-  ToggleTaskForm,
-} from "./team-workspace-forms";
+import { TeamCalendar } from "./team-calendar";
+import { DeleteTeamForm, NewNoteForm, NewTaskForm, ToggleTaskForm } from "./team-workspace-forms";
 import styles from "./team-workspace.module.css";
 
 export function TeamWorkspace({
   snapshot,
   loadedAt,
+  preview = false,
 }: {
   snapshot: TeamSnapshot;
   /** Non più mostrato qui: il nome del membro sta nel menu del guscio. */
   displayName: string;
   loadedAt: string;
+  /** Anteprima locale: dati sintetici e salvataggio spento. */
+  preview?: boolean;
 }) {
-  const [showPast, setShowPast] = useState(false);
   const [refreshing, startRefresh] = useTransition();
   const router = useRouter();
   const memberName = (id: string | null) =>
     snapshot.members.find((member) => member.id === id)?.name ??
     (id ? "Membro non disponibile" : "Da assegnare");
-  // Passato = finito alla lettura. Le giornate intere (anche le date Partner) finiscono alla
-  // mezzanotte successiva di Roma: restano in vista per tutto il giorno.
-  const upcoming = (event: { endsAt: string }) => Date.parse(event.endsAt) > Date.parse(loadedAt);
-  const pastCount = snapshot.events.filter((event) => !upcoming(event)).length;
-  const events = showPast ? snapshot.events : snapshot.events.filter(upcoming);
   return (
     <div className={styles.main}>
       <div className={styles.heading}>
@@ -66,6 +58,11 @@ export function TeamWorkspace({
           Partner nel Team
         </Link>
       </nav>
+      {preview && (
+        <p className={styles.previewNotice} role="note">
+          {TEAM_PREVIEW_NOTICE}
+        </p>
+      )}
       <p className={styles.sharedNotice}>
         Le modifiche sono salvate nel workspace condiviso. Per leggere le modifiche degli altri
         membri, usa Aggiorna. Orari Europe/Rome.
@@ -73,96 +70,15 @@ export function TeamWorkspace({
 
       <section id="calendario" className={styles.section} aria-labelledby="calendar-title">
         <div className={styles.sectionHeading}>
-          <h2 id="calendar-title">
-            Calendario e call <span>{snapshot.events.length}</span>
-          </h2>
-          <div className={styles.filterGroup}>
-            {!showPast && pastCount > 0 && (
-              <span className={styles.hiddenCount}>
-                {pastCount} {pastCount === 1 ? "passato nascosto" : "passati nascosti"}
-              </span>
-            )}
-            <label className={styles.filter}>
-              <input
-                type="checkbox"
-                checked={showPast}
-                onChange={(event) => setShowPast(event.target.checked)}
-              />
-              Mostra anche passati
-            </label>
-          </div>
+          <h2 id="calendar-title">Calendario e call</h2>
+          <span>Tocca un giorno per vedere cosa c’è</span>
         </div>
-        <div className={styles.columns}>
-          <div className={styles.list}>
-            {events.length === 0 ? (
-              <div className={styles.empty}>
-                <h3>
-                  {snapshot.events.length
-                    ? "Nessun appuntamento in programma."
-                    : "Il calendario è pronto."}
-                </h3>
-                <p>Aggiungi una call, una consegna o un momento di lavoro per il team.</p>
-              </div>
-            ) : (
-              <ul className={styles.items}>
-                {events.map((event) => (
-                  <li key={event.id} id={`evento-${event.id}`} className={styles.event}>
-                    <div className={styles.itemMeta}>
-                      <span>
-                        {eventTypeLabel(event)}
-                        {event.details.allDay && " · Giornata intera"}
-                      </span>
-                      <time dateTime={event.startsAt}>
-                        {event.details.allDay
-                          ? formatRomeDate(event.startsAt)
-                          : formatRomeDateTime(event.startsAt)}
-                      </time>
-                    </div>
-                    <h3>{event.title}</h3>
-                    {event.details.allDay ? (
-                      formatRomeDate(event.startsAt) !==
-                        formatRomeDate(inclusiveEventEnd(event)) && (
-                        <p className={styles.timeEnd}>
-                          Fino al{" "}
-                          <time dateTime={inclusiveEventEnd(event)}>
-                            {formatRomeDate(inclusiveEventEnd(event))}
-                          </time>
-                        </p>
-                      )
-                    ) : (
-                      <p className={styles.timeEnd}>
-                        Fine:{" "}
-                        <time dateTime={event.endsAt}>{formatRomeDateTime(event.endsAt)}</time>
-                      </p>
-                    )}
-                    {event.details.participantIds.length > 0 && (
-                      <p className={styles.participantNames}>
-                        Con {event.details.participantIds.map(memberName).join(", ")}
-                      </p>
-                    )}
-                    {event.details.summary && (
-                      <p className={styles.bodyText}>{event.details.summary}</p>
-                    )}
-                    {event.details.callUrl && (
-                      <a
-                        className={styles.callLink}
-                        href={event.details.callUrl}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                      >
-                        Apri il link della call <ExternalLink size={12} aria-hidden="true" />
-                      </a>
-                    )}
-                    <DeleteTeamForm table="calendar_events" id={event.id} title={event.title} />
-                  </li>
-                ))}
-              </ul>
-            )}
-          </div>
-          <div className={styles.formColumn}>
-            <NewEventForm members={snapshot.members} />
-          </div>
-        </div>
+        <TeamCalendar
+          events={snapshot.events}
+          tasks={snapshot.tasks}
+          members={snapshot.members}
+          today={romeDayOf(loadedAt)}
+        />
       </section>
 
       <section id="attivita" className={styles.section} aria-labelledby="tasks-title">

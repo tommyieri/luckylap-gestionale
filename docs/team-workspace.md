@@ -4,7 +4,7 @@ La route `/team` raccoglie calendario/call, attività e note reali del database 
 
 ## Operazioni disponibili
 
-- Calendario: creazione ed eliminazione di appuntamenti, partecipanti del team, descrizione e link HTTP(S) facoltativo. All'inizio si vedono solo gli appuntamenti non ancora finiti, con «N passati nascosti»; «Mostra anche passati» li aggiunge (06 R16). Una giornata intera resta in vista fino alla mezzanotte di Roma.
+- Calendario: griglia del mese, creazione ed eliminazione di appuntamenti, partecipanti del team, descrizione e link HTTP(S) facoltativo (vedi «Calendario a mese»).
 - Attività: creazione con descrizione, assegnatario attivo e giorno di scadenza facoltativi; completamento, riapertura ed eliminazione.
 - Note e idee: creazione ed eliminazione, con collegamento facoltativo a un’attività esistente. Eliminando l’attività, la nota rimane e il database azzera il collegamento.
 
@@ -18,10 +18,26 @@ La route è dinamica e la sua integrazione deve includere `/team/:path*` nel Pro
 
 Migrazione `20261023091627_partner_work_links.sql`, tabella `partner_work_links`: collega una scheda Partner a un'attività, a un appuntamento o a un progetto.
 
-- **Solleciti.** Quando qualcuno segna nell'app un invio Partner («Segna inviato» o «Segna sollecito inviato», riga `partner_activities` con `origin = 'team'` e `kind = 'inviato'`), un trigger crea l'attività «Sollecito · <nome>», assegnata a chi ha inviato, con scadenza alla mezzanotte di Roma di 7 giorni dopo. Non succede se il contatto è chiuso, non interessato o tra i non contattare, né se esiste già un invio o una risposta più recenti. Un nuovo invio, «Ha risposto», lo stato «Chiuso» o «Non interessato» e «Non contattare» chiudono i solleciti aperti. Le righe che arrivano dai file dei dispositivi (`origin = 'file'`) non creano né chiudono solleciti.
-- **Date nel calendario.** Le date di evento e di scadenza della candidatura di una scheda Partner diventano appuntamenti di giornata intera («Evento partner», «Scadenza candidatura»), e si aggiornano quando cambia la scheda. Le date già passate non vengono create a posteriori. Se qualcuno modifica a mano l'appuntamento, il collegamento chiede una scelta in «Partner nel Team» invece di sovrascriverlo. Alla migrazione sono nati così 54 appuntamenti; in produzione li ha poi tolti la pull request #7, che su `main` porta le date nel calendario solo con «Accordo fatto» (vedi [verifiche](verification.md)).
+- **Solleciti.** Quando qualcuno segna nell'app un invio Partner («Segna inviato» o «Segna sollecito inviato», riga `partner_activities` con `origin = 'team'` e `kind = 'inviato'`), un trigger crea l'attività «Sollecito · <nome>», assegnata a chi ha inviato, con scadenza alla mezzanotte di Roma di 7 giorni dopo. Non succede se il contatto è chiuso, non interessato o tra i non contattare, né se esiste già un invio o una risposta più recenti. Un nuovo invio, «Ha risposto», lo stato «Accordo fatto» o «Non interessato» e «Non contattare» chiudono i solleciti aperti. Le righe che arrivano dai file dei dispositivi (`origin = 'file'`) non creano né chiudono solleciti.
+- **Date nel calendario.** Le date di evento e di scadenza della candidatura di una scheda Partner con stato «Accordo fatto» diventano appuntamenti di giornata intera («Evento partner», «Scadenza candidatura»), e si aggiornano quando cambia la scheda; senza accordo non entrano in calendario (migrazione `20261023113212_partner_dates_only_agreed.sql`). Le date già passate non vengono create a posteriori. Se qualcuno modifica a mano l'appuntamento, il collegamento chiede una scelta in «Partner nel Team» invece di sovrascriverlo. Alla prima migrazione erano nati così 54 appuntamenti per schede senza accordo; la migrazione del 23 ottobre li ha tolti (vedi [verifiche](verification.md)).
 - **Partner nel Team** (`/team/partner`, `src/components/partner-work-links.tsx`): si sceglie un contatto per nome o CO e si vedono date, collegamenti e solleciti. Pulsanti: «Collega l’evento», «Mantieni modifiche manuali» o «Usa date Partner», «Crea progetto per Produzione» (in Nuovi prodotti, assegnato a Produzione), «Crea attività di apertura» (conto vendita; per sedi estere serve prima la verifica del commercialista), «Collega vendita all’evento». Ogni comando passa da `create_partner_work`, con ricevuta e riquadro «Invio da verificare». Da Oggi ci si arriva con «Collega un esito Partner al lavoro del team».
 - Il riferimento alla scheda è scritto nel testo dell'attività o dell'appuntamento («Partner CO 12 · /partner?co=12#lead-12»): oggi non è un link (problema noto, vedi [verifiche](verification.md)).
+
+## Calendario a mese
+
+`src/components/team-calendar.tsx`, regole pure in `src/lib/team/calendar.ts`. Sostituisce la lista con «Mostra anche passati».
+
+- Griglia del mese con le settimane da lunedì, nomi italiani di mesi e giorni, «Mese precedente», «Mese successivo» e «Oggi» per tornare al giorno corrente. Oggi ha il filetto verde sotto il numero; il giorno scelto è in inversione d'inchiostro.
+- Un pallino nero sui giorni con almeno un impegno: gli appuntamenti segnano ogni giorno di Roma che coprono (giornata intera e più giorni compresi; la fine a mezzanotte non segna il giorno dopo), le attività il giorno di scadenza.
+- Toccare un giorno mostra i suoi impegni sotto la griglia (telefono) o accanto (desktop): orario («10:00–10:45», «Giornata intera»), tipo, partecipanti, descrizione, «Apri il link della call» ed «Elimina»; per le attività «Completa»/«Riapri» ed «Elimina». Il modulo «Nuovo appuntamento» resta sotto il calendario. Cambiando mese si apre oggi, se è nel mese, altrimenti il primo giorno con qualcosa.
+- Ogni giorno è un pulsante con `aria-pressed` e un'etichetta come «23 ottobre, 2 impegni, oggi»; `aria-current="date"` su oggi. Le frecce spostano il giorno (anche nel mese accanto) e il fuoco lo segue; solo il giorno scelto è nella sequenza del tasto Tab.
+- I link `/team#evento-<id>` (Oggi, Controllo CEO, Partner nel Team) aprono il mese e il giorno d'inizio dell'evento e lo evidenziano in verde chiaro. Le ancore `#attivita-<id>` e `#nota-<id>` restano sulle liste.
+- Telefono a 390 px: celle di almeno 47 × 52 px, nessuno scorrimento orizzontale, testo da 12 px in su, campi a 16 px.
+- Gli appuntamenti Partner entrano qui solo con lo stato «Accordo fatto» (vedi [partner.md](partner.md), «Accordo fatto e calendario»). Oggi resta una lista breve del giorno e legge lo stesso calendario.
+
+## Anteprima locale
+
+Con `npm run dev` (`isLocalPreviewEnabled()`, sempre spenta su Vercel e con `NODE_ENV=production`) `/team` mostra il calendario, le attività e le note sintetici di `src/lib/team/fixtures.ts`, con le date calcolate da oggi, e l'avviso «Anteprima locale: dati sintetici, salvataggio disattivato.». Le Server Action rispondono «Anteprima locale: salvataggio disattivato.» senza creare il client Supabase. Lo provano `src/lib/team/fixtures.test.ts` e `src/lib/team/actions.test.ts`. La vecchia anteprima su `localStorage` (`LocalPreviewWorkspace`) è stata tolta.
 
 ## Orari e collegamenti
 

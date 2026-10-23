@@ -9,7 +9,7 @@ import {
   shortRoute,
   type PartnerAction,
 } from "../../lib/partner/contacts";
-import type { PartnerViewSection } from "../../lib/partner/filters";
+import { upcomingEventStart, type PartnerViewSection } from "../../lib/partner/filters";
 import {
   PARTNER_PRIORITY_LABELS,
   PARTNER_SECTION_LABELS,
@@ -183,6 +183,11 @@ export function PartnerRow({
             : []),
         ];
   const ready = readyMessagesLabel(messages);
+  // Accordo fatto con date in arrivo: l'appuntamento è nel calendario del team.
+  const inCalendar =
+    stage === "chiuso" &&
+    (upcomingEventStart(partner, today) !== null ||
+      (partner.applicationDeadline !== null && partner.applicationDeadline >= today));
 
   function changeStage(value: string) {
     const nextStage = PARTNER_STAGES.find((item) => item === value);
@@ -239,6 +244,9 @@ export function PartnerRow({
             </span>
           )}
           {partner.followers && <span className={styles.tag}>{partner.followers}</span>}
+          {inCalendar && (
+            <span className={`${styles.tag} ${styles.tagAgreed}`}>Nel calendario del team</span>
+          )}
           {ready && <span className={`${styles.tag} ${styles.tagReady}`}>{ready}</span>}
           {partner.ownerId && (
             <span className={styles.tag}>Seguito da {memberName(members, partner.ownerId)}</span>

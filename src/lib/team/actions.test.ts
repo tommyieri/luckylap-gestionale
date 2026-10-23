@@ -60,6 +60,21 @@ beforeEach(() => {
 
 describe("team Server Actions authorization and mutations", () => {
   it.each([createTeamEvent, createTeamTask, createTeamNote, deleteTeamItem, toggleTeamTask])(
+    "anteprima locale: salvataggio disattivato, mai Supabase",
+    async (action) => {
+      vi.stubEnv("LUCKYLAP_LOCAL_PREVIEW", "true");
+      try {
+        const result = await action({}, form({ title: "Prova" }));
+        expect(result.error).toBe("Anteprima locale: salvataggio disattivato.");
+        expect(mocks.createClient).not.toHaveBeenCalled();
+        expect(mocks.verify).not.toHaveBeenCalled();
+        expect(mocks.revalidate).not.toHaveBeenCalled();
+      } finally {
+        vi.unstubAllEnvs();
+      }
+    },
+  );
+  it.each([createTeamEvent, createTeamTask, createTeamNote, deleteTeamItem, toggleTeamTask])(
     "checks current membership before every action, including malformed input",
     async (action) => {
       const { db } = client();

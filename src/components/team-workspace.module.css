@@ -41,6 +41,14 @@
 .navigation a:hover {
   text-decoration: underline;
 }
+.previewNotice {
+  margin-bottom: 16px;
+  padding: 10px 12px;
+  border: 1px solid var(--amber);
+  background: var(--amber-wash);
+  color: var(--amber);
+  font-weight: 600;
+}
 .sharedNotice {
   font-size: var(--text-md);
   color: var(--muted);
@@ -79,26 +87,6 @@
   font-size: var(--text-sm);
   color: var(--muted);
 }
-.filterGroup {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  justify-content: flex-end;
-  gap: 0 16px;
-}
-.hiddenCount {
-  font-size: var(--text-sm);
-  color: var(--muted);
-}
-.filter {
-  display: flex;
-  align-items: center;
-  gap: 7px;
-  min-height: var(--tap);
-  font-size: var(--text-sm);
-  color: var(--muted);
-}
-.filter input,
 .participants input {
   accent-color: var(--green);
   height: 16px;
@@ -108,6 +96,150 @@
 .columns {
   display: grid;
   grid-template-columns: minmax(0, 1.15fr) minmax(0, 1fr);
+}
+
+/* Calendario a mese: griglia a sinistra, giorno scelto a destra (sotto, sul telefono). */
+.calendar {
+  display: grid;
+  grid-template-columns: minmax(0, 1.15fr) minmax(0, 1fr);
+}
+.calendarMain {
+  min-width: 0;
+  padding: 18px 22px 22px;
+}
+.monthBar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 8px 12px;
+  margin-bottom: 12px;
+}
+.monthTitle {
+  font-family: var(--f-cond);
+  font-size: var(--text-xl);
+  font-weight: 700;
+  line-height: 1.1;
+}
+.monthTitle span {
+  margin-left: 6px;
+  color: var(--muted);
+  font-family: var(--f-body);
+  font-size: var(--text-sm);
+  font-weight: 400;
+}
+.monthNav {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+}
+.monthNav .button {
+  margin-right: 6px;
+}
+.monthGrid {
+  display: grid;
+  grid-template-columns: repeat(7, minmax(0, 1fr));
+  border-top: 1.5px solid var(--ink);
+}
+.weekday {
+  padding: 8px 0 6px;
+  border-bottom: 1px solid var(--rule);
+  color: var(--muted);
+  font-family: var(--f-cond);
+  font-size: var(--text-xs);
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  text-align: center;
+  text-decoration: none;
+  text-transform: uppercase;
+}
+.blank {
+  border-bottom: 1px solid var(--rule-soft);
+}
+.day {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 5px;
+  min-width: 0;
+  min-height: 60px;
+  padding: 9px 0 6px;
+  border-bottom: 1px solid var(--rule-soft);
+  background: var(--paper);
+  color: var(--ink);
+  font-family: var(--f-cond);
+  font-size: var(--text-lg);
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+  cursor: pointer;
+  transition: background-color 160ms var(--ease);
+}
+@media (hover: hover) {
+  .day:not([aria-pressed="true"]):hover {
+    background: var(--tint);
+  }
+}
+.day:focus-visible {
+  outline: 2px solid var(--green);
+  outline-offset: -2px;
+}
+.dayNumber {
+  line-height: 1.2;
+  border-bottom: 2px solid transparent;
+}
+/* Oggi: filetto verde sotto il numero. Giorno scelto: inversione d'inchiostro. */
+.day[aria-current="date"] .dayNumber {
+  border-bottom-color: var(--green);
+  font-weight: 700;
+}
+.day[aria-pressed="true"] {
+  background: var(--ink);
+  color: var(--paper);
+}
+.day[aria-pressed="true"][aria-current="date"] .dayNumber {
+  border-bottom-color: var(--on-green-2);
+}
+.dot {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: var(--ink);
+}
+.day[aria-pressed="true"] .dot {
+  background: var(--paper);
+}
+.dayPanel {
+  min-width: 0;
+  padding: 18px 22px 4px;
+  border-left: 1px solid var(--rule);
+}
+.dayTitle {
+  padding-bottom: 12px;
+  border-bottom: 1.5px solid var(--ink);
+  font-family: var(--f-cond);
+  font-size: var(--text-xl);
+  font-weight: 700;
+  line-height: 1.1;
+}
+.dayTitle span {
+  color: var(--green);
+}
+.dayPanel .items > li[data-highlight] {
+  margin: 0 -22px;
+  padding-right: 22px;
+  padding-left: 22px;
+  background: var(--green-wash);
+}
+.dayPanel .items > li:focus {
+  outline: none;
+}
+.calendarForm {
+  padding: 23px 22px;
+  border-top: 1px solid var(--rule);
+  background: #fbfcf8;
+}
+.calendarForm > form {
+  max-width: 720px;
 }
 .list {
   min-width: 0;
@@ -130,7 +262,8 @@
 .items > li + li {
   border-top: 1px solid var(--rule);
 }
-.items h3 {
+.items h3,
+.items h4 {
   font-size: var(--text-lg);
   line-height: 1.35;
   font-weight: 600;
@@ -186,7 +319,8 @@
 .empty {
   padding: 30px 0 35px;
 }
-.empty h3 {
+.empty h3,
+.empty h4 {
   font-size: var(--text-lg);
   font-weight: 500;
   line-height: 1.4;
@@ -447,10 +581,36 @@
   .sectionHeading h2 {
     font-size: var(--text-lg);
   }
-  .sectionHeading > span,
-  .hiddenCount,
-  .filter {
+  .sectionHeading > span {
     font-size: var(--text-xs);
+  }
+  .calendar {
+    grid-template-columns: minmax(0, 1fr);
+  }
+  .calendarMain {
+    padding: 14px 12px 16px;
+  }
+  .monthTitle span {
+    display: block;
+    margin: 2px 0 0;
+  }
+  .day {
+    min-height: 52px;
+    padding-top: 8px;
+    font-size: var(--text-md);
+  }
+  .dayPanel {
+    padding: 16px 17px 4px;
+    border-top: 1px solid var(--rule);
+    border-left: 0;
+  }
+  .dayPanel .items > li[data-highlight] {
+    margin: 0 -17px;
+    padding-right: 17px;
+    padding-left: 17px;
+  }
+  .calendarForm {
+    padding: 20px 17px;
   }
   .columns {
     grid-template-columns: minmax(0, 1fr);
@@ -470,7 +630,8 @@
   .items > li {
     padding: 21px 0;
   }
-  .items h3 {
+  .items h3,
+  .items h4 {
     font-size: var(--text-md);
   }
   .bodyText {

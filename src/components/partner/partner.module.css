@@ -1,7 +1,7 @@
 /*
  * Partner nel gestionale (spec 02 §5.12): il roadbook del sito Partner con i token del guscio.
  * Carta, inchiostro, filetti a un pixel; verde pieno solo per «adesso» (cella Adesso scelta,
- * casella del mese e azione principale nel periodo 1) e per «fatto» (Chiuso, copia riuscita).
+ * casella del mese e azione principale nel periodo 1) e per «fatto» (Accordo fatto, copia riuscita).
  * Ambra solo per tempo e cautela, sempre con il suo fondo. Niente rosso per i contatti: chi non
  * è interessato resta attenuato e barrato. La griglia delle righe segue la larghezza del
  * contenuto (container query), perché la barra laterale del guscio toglie spazio.
@@ -86,6 +86,26 @@
 .sectionTab[aria-pressed="true"] {
   border-bottom-color: var(--ink);
   color: var(--ink);
+}
+/* «Ci siamo»: in fondo alla riga delle sezioni, con il pallino verde dell'accordo fatto. */
+.agreedTab {
+  align-items: center;
+  margin-left: auto;
+}
+/* Telefono: le sezioni vanno a capo, così «Ci siamo» resta in vista senza scorrere. */
+@container partner (max-width: 560px) {
+  .sections {
+    flex-wrap: wrap;
+  }
+  .agreedTab {
+    margin-left: 0;
+  }
+}
+.agreedDot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--green);
 }
 .sectionCount {
   font-family: var(--f-cond);
@@ -463,6 +483,11 @@
 }
 .tagReady {
   border-color: var(--green);
+  color: var(--green);
+}
+.tagAgreed {
+  border-color: var(--green);
+  background: var(--green-wash);
   color: var(--green);
 }
 .tagBlocked {

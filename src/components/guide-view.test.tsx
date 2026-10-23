@@ -237,7 +237,7 @@ describe("Partner", () => {
     expect(copy).toContain("«Segna inviato» e «Segna sollecito inviato» creano per te");
     expect(copy).toContain("che scade dopo 7 giorni");
     expect(copy).toContain("«Contatti e solleciti»");
-    for (const closing of ["«Ha risposto»", "«Chiuso»", "«Non interessato»"])
+    for (const closing of ["«Ha risposto»", "«Accordo fatto»", "«Non interessato»"])
       expect(copy).toContain(closing);
     expect(copy).toContain("gli invii che arrivano dai file «Esporta» dei dispositivi non creano");
   });
@@ -359,7 +359,7 @@ describe("i nomi citati esistono davvero", () => {
     ["src/components/partner/partner-messages.tsx", ["Segna inviato", "Segna sollecito inviato"]],
     ["src/components/partner/partner-activity.tsx", ["Ha risposto"]],
     ["src/components/partner/partner-details.tsx", ["Metti tra i non contattare"]],
-    ["src/lib/partner/model.ts", ['"Chiuso"', '"Non interessato"']],
+    ["src/lib/partner/model.ts", ['"Accordo fatto"', '"Non interessato"']],
     ["src/components/team-workspace.tsx", ["Partner nel Team"]],
     ["src/components/partner-work-links.tsx", ["<h1>Partner nel Team</h1>"]],
   ];

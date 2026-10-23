@@ -57,7 +57,7 @@ export const TAB_TEXT: Record<string, string> = {
   "/stock/rettifiche": "Correggi una quantità in magazzino, sempre con la causale.",
   "/packaging": "Scatole e adesivi: una scatola e un adesivo per ogni T-shirt consegnata.",
   "/team":
-    "Call, consegne, date Partner, cose da fare, note e idee. Qui c’è anche «Partner nel Team».",
+    "Il calendario del mese (un pallino sui giorni con impegni), le cose da fare, le note e le idee. Qui c’è anche «Partner nel Team».",
   "/development": "I prodotti nuovi, dall’idea al campione fino al prodotto pronto.",
   "/assets": "Loghi, grafiche, foto e video del brand, da scaricare o da aggiungere.",
   "/finance": "Conti e movimenti, con i saldi. Ogni movimento si corregge e si ripristina.",
@@ -409,13 +409,15 @@ export function GuideView({ access, preview = false }: { access: GuideAccess; pr
               </li>
               <li>
                 Il sollecito si chiude da solo con «Ha risposto», con un nuovo invio, con lo stato
-                «Chiuso» o «Non interessato» e con «Metti tra i non contattare». Vale per quello che
-                segni qui: gli invii che arrivano dai file «Esporta» dei dispositivi non creano
-                solleciti.
+                «Accordo fatto» o «Non interessato» e con «Metti tra i non contattare». Vale per
+                quello che segni qui: gli invii che arrivano dai file «Esporta» dei dispositivi non
+                creano solleciti.
               </li>
               <li>
-                Le date di eventi e candidature delle schede compaiono da sole nel calendario del
-                Team, come giornate intere.
+                Quando una scheda passa ad «Accordo fatto», le sue date di evento e candidatura
+                compaiono da sole nel calendario del Team, come giornate intere. Senza accordo non
+                ci sono: in calendario va solo dove ci saremo. «Ci siamo» in Partner mostra gli
+                accordi fatti.
               </li>
               <li>
                 In Team, «Partner nel Team» porta un contatto nel lavoro del team: l’evento nel

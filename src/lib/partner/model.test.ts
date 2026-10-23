@@ -78,7 +78,7 @@ describe("valori di dominio Partner", () => {
       "Contattato",
       "Ha risposto",
       "In trattativa",
-      "Chiuso",
+      "Accordo fatto",
       "Non interessato",
     ]);
     expect(PARTNER_APPROACHES.map((approach) => PARTNER_APPROACH_LABELS[approach])).toEqual([

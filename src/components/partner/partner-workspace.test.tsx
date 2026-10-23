@@ -84,7 +84,7 @@ describe("PartnerWorkspace", () => {
       "Dic – Gen 1 contatto",
       "Feb – Mar 1 contatto",
       "Apr – Giu 1 contatto",
-      "Da lug 2027 1 contatto",
+      "Da lug 2027 0 contatti",
     ]);
     expect(text(html)).toContain("Adesso, entro novembre");
     expect(text(html)).toContain("2 differenze dalla ricerca o dai file da controllare");
@@ -144,6 +144,30 @@ describe("PartnerWorkspace", () => {
     expect(third).toContain('href="tel:+390000000003"');
     expect(text(third)).toContain("+39 000 000 0003");
     expect(text(third)).not.toContain("+390000000003");
+  });
+
+  it("«Ci siamo»: gli accordi fatti di ogni periodo, con le date nel calendario del team", () => {
+    const html = render({ vista: "ci_siamo" });
+    const agreed = buttons(html).find((b) => b.text.startsWith("Ci siamo"))!;
+    expect(agreed.text).toBe("Ci siamo 1");
+    expect(agreed.tag).toContain('aria-pressed="true"');
+    const pressed = buttons(html).filter((b) => b.tag.includes('aria-pressed="true"'));
+    expect(pressed.map((b) => b.text)).toEqual(["Ci siamo 1"]);
+    expect(html.match(/<li id="lead-\d+"/g)).toEqual(['<li id="lead-6"']);
+    expect(text(html)).toContain("Ci siamo Accordi fatti");
+    expect(text(html)).toContain("Apri il calendario del team");
+    const periods = buttons(html).filter((b) => /^(Adesso|Dic|Feb|Apr|Da lug)/.test(b.text));
+    expect(periods.map((b) => b.text)[4]).toBe("Da lug 2027 0 contatti");
+    expect(html).toContain('href="/team#calendario"');
+    const sixth = row(html, 6);
+    expect(text(sixth)).toContain("Nel calendario del team");
+    expect(sixth).toMatch(/<option value="chiuso" selected="">Accordo fatto<\/option>/);
+    // Fuori da «Ci siamo» la stessa scheda non dice «Nel calendario» se non ha l'accordo.
+    const second = row(render(), 2);
+    expect(text(second)).toContain("Raduno Sintetico Due");
+    expect(text(second)).not.toContain("Nel calendario del team");
+    const off = buttons(render()).find((b) => b.text.startsWith("Ci siamo"))!;
+    expect(off.tag).toContain('aria-pressed="false"');
   });
 
   it("filtro senza risultati: messaggio del sito e «Togli i filtri»", () => {

@@ -17,7 +17,7 @@ type SearchParams = Promise<Record<string, string | string[] | undefined>>;
 /** Primo valore di ogni parametro, solo testi brevi: il resto lo decide parsePartnerView. */
 function firstParams(params: Record<string, string | string[] | undefined>) {
   const query: Record<string, string> = {};
-  for (const key of ["periodo", "sezione", "stato", "chi", "q", "co"]) {
+  for (const key of ["periodo", "sezione", "stato", "chi", "q", "co", "vista"]) {
     const value = params[key];
     const first = Array.isArray(value) ? value[0] : value;
     if (typeof first === "string" && first.length <= 200) query[key] = first;

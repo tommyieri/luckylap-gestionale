@@ -246,9 +246,23 @@
 .rowActions a {
   font-size: var(--text-sm);
 }
+.rowTitle {
+  display: block;
+  font-weight: 600;
+  overflow-wrap: anywhere;
+}
+.rowDescription {
+  display: block;
+  margin-top: 4px;
+  color: var(--ink-2);
+  font-size: var(--text-sm);
+  overflow-wrap: anywhere;
+}
 .rowAccount {
   display: block;
-  font-weight: 500;
+  margin-top: 4px;
+  color: var(--muted);
+  font-size: var(--text-xs);
   overflow-wrap: anywhere;
 }
 .rowCategory {
@@ -267,6 +281,12 @@
   font-weight: 600;
   white-space: nowrap;
   font-variant-numeric: tabular-nums;
+}
+.incomeAmount {
+  color: var(--green);
+}
+.expenseAmount {
+  color: var(--red);
 }
 .detailButton {
   display: flex;
@@ -323,9 +343,6 @@
   padding: 30px 20px;
   color: var(--muted);
   font-size: var(--text-sm);
-}
-.mobileTiming {
-  display: none;
 }
 .dialog {
   width: 490px;
@@ -499,10 +516,7 @@
     max-width: 64px;
     line-height: 1.6;
   }
-  .statusColumn {
-    display: none;
-  }
-  .rowAccount {
+  .rowTitle {
     font-size: var(--text-sm);
   }
   .rowCategory {
@@ -512,10 +526,6 @@
     font-size: var(--text-sm);
     white-space: normal;
     overflow-wrap: anywhere;
-  }
-  .mobileTiming {
-    display: block;
-    margin-top: 7px;
   }
   .badges {
     gap: 4px;
@@ -1009,12 +1019,6 @@
   color: var(--ink);
   cursor: pointer;
 }
-.rowSource {
-  font-size: var(--text-xs);
-  display: block;
-  margin-bottom: 5px;
-  color: var(--muted);
-}
 .section[id] {
   scroll-margin-top: 18px;
 }
@@ -1207,14 +1211,6 @@
   .transactionPeriod {
     padding: 0 14px 14px;
     font-size: var(--text-xs);
-  }
-  .mobileTiming {
-    font-size: var(--text-xs);
-    color: var(--muted);
-    line-height: 1.6;
-  }
-  .mobileTiming > .badges {
-    margin-top: 5px;
   }
   .customCategories {
     align-items: flex-start;

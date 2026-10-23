@@ -51,6 +51,11 @@ export type TeamSnapshot = {
   members: TeamMember[];
 };
 
+/** Anteprima locale (`isLocalPreviewEnabled()`): avviso della pagina, come in Partner. */
+export const TEAM_PREVIEW_NOTICE = "Anteprima locale: dati sintetici, salvataggio disattivato.";
+/** Risposta delle Server Action in anteprima: nessuna chiamata a Supabase. */
+export const TEAM_PREVIEW_WRITE_MESSAGE = "Anteprima locale: salvataggio disattivato.";
+
 export class TeamValidationError extends Error {}
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 export const isTeamId = (value: unknown): value is string =>

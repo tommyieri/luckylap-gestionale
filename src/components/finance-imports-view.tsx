@@ -59,16 +59,42 @@ function Timing({ row, deleted = false }: { row: FinanceMovement; deleted?: bool
         <span className={styles.attention}>Eliminato · recuperabile</span>
       </span>
     );
+  if (!row.pending && !row.future) return null;
   return (
     <span className={styles.badges}>
       {row.pending && <span className={styles.attention}>Pending</span>}
       {row.future && <span className={styles.attention}>Data futura</span>}
-      {!row.pending && !row.future && (
-        <span className={styles.neutral}>Registrato · Da verificare</span>
-      )}
     </span>
   );
 }
+
+const movementCategory = (row: FinanceMovement) =>
+  row.transfer ? "Trasferimento" : row.category || "Senza categoria";
+const movementAmountClass = (row: FinanceMovement) =>
+  row.transfer || row.cents === 0n
+    ? ""
+    : row.cents > 0n
+      ? styles.incomeAmount
+      : styles.expenseAmount;
+const movementAmountLabel = (row: FinanceMovement) =>
+  `${!row.transfer && row.cents > 0n ? "+" : ""}${financeCentsLabel(row.cents)}`;
+const movementDirection = (row: FinanceMovement) =>
+  row.transfer
+    ? "Trasferimento"
+    : row.cents > 0n
+      ? "Entrata"
+      : row.cents < 0n
+        ? "Uscita"
+        : "Importo nullo";
+const movementDescription = (row: FinanceMovement) => {
+  const description =
+    row.description.trim() && row.description !== "Movimento BudgetFlow"
+      ? row.description
+      : "Descrizione da aggiungere";
+  return row.source === "shop_payment"
+    ? `${sourceLabels.shop_payment} · ${description}`
+    : description;
+};
 
 export function FinanceImportsView({
   snapshot,
@@ -560,10 +586,7 @@ export function FinanceImportsView({
                 <thead>
                   <tr>
                     <th scope="col">Data</th>
-                    <th scope="col">Conto / categoria</th>
-                    <th scope="col" className={styles.statusColumn}>
-                      Fonte / stato
-                    </th>
+                    <th scope="col">Categoria / conto</th>
                     <th scope="col" className={styles.numeric}>
                       Importo
                     </th>
@@ -579,11 +602,11 @@ export function FinanceImportsView({
                         <time dateTime={row.date}>{formatCalendarDate(row.date)}</time>
                       </td>
                       <td>
-                        <strong className={styles.rowAccount}>
+                        <strong className={styles.rowTitle}>{movementCategory(row)}</strong>
+                        <span className={styles.rowDescription}>{movementDescription(row)}</span>
+                        <span className={styles.rowAccount}>
                           {row.account || "Da attribuire"}
-                        </strong>
-                        <span className={styles.rowCategory}>
-                          {row.transfer ? "Trasferimento" : row.category || "Senza categoria"}
+                          {row.targetAccount && ` → ${row.targetAccount}`}
                         </span>
                         {row.revision && (
                           <span className={styles.rowCategory}>
@@ -591,13 +614,7 @@ export function FinanceImportsView({
                             {row.revision.deleted ? " · Eliminato" : " · Corretta"}
                           </span>
                         )}
-                        {row.targetAccount && (
-                          <span className={styles.rowCategory}>→ {row.targetAccount}</span>
-                        )}
-                        <span className={styles.mobileTiming}>
-                          {sourceLabels[row.source]}
-                          <Timing row={row} deleted={filter === "deleted"} />
-                        </span>
+                        <Timing row={row} deleted={filter === "deleted"} />
                         <div className={styles.rowActions}>
                           <FinanceMovementActions
                             source={row.source}
@@ -607,19 +624,18 @@ export function FinanceImportsView({
                           />
                         </div>
                       </td>
-                      <td className={styles.statusColumn}>
-                        <span className={styles.rowSource}>{sourceLabels[row.source]}</span>
-                        <Timing row={row} deleted={filter === "deleted"} />
-                      </td>
-                      <td className={`${styles.numeric} ${styles.amount}`}>
-                        {financeCentsLabel(row.cents)}
+                      <td
+                        className={`${styles.numeric} ${styles.amount} ${movementAmountClass(row)}`}
+                      >
+                        <span className="sr-only">{movementDirection(row)}: </span>
+                        {movementAmountLabel(row)}
                       </td>
                       <td>
                         <button
                           type="button"
                           className={styles.detailButton}
                           onClick={() => setSelected(row)}
-                          aria-label={`Dettagli ${sourceLabels[row.source]}, ${formatCalendarDate(row.date)}, ${financeCentsLabel(row.cents)}`}
+                          aria-label={`Dettagli ${movementCategory(row)}, ${formatCalendarDate(row.date)}, ${movementDirection(row).toLocaleLowerCase("it")} ${movementAmountLabel(row)}`}
                         >
                           <ArrowUpRight size={17} aria-hidden="true" />
                         </button>
@@ -631,8 +647,7 @@ export function FinanceImportsView({
             </div>
           )}
           <p className={styles.tableFooter}>
-            BudgetFlow: dati originali da verificare · Nuove voci: dichiarazioni da classificare ·
-            Gli incassi non rappresentano automaticamente fatturato.
+            Entrate (+) · Uscite (−). I trasferimenti tra conti non sono entrate o spese.
           </p>
         </section>
         <details id="finance-imports" className={styles.section}>
@@ -702,7 +717,10 @@ export function FinanceImportsView({
               Movimento{" "}
               {selected.revision ? `· versione ${selected.revision.version}` : "collegato"}
             </h2>
-            <p className={styles.detailAmount}>{financeCentsLabel(selected.cents)}</p>
+            <p className={`${styles.detailAmount} ${movementAmountClass(selected)}`}>
+              <span className="sr-only">{movementDirection(selected)}: </span>
+              {movementAmountLabel(selected)}
+            </p>
             <Timing row={selected} deleted={filter === "deleted" || selected.revision?.deleted} />
             <FinanceMovementActions
               source={selected.source}
