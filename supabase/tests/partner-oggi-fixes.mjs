@@ -1,5 +1,5 @@
 // test-db: pglite minimo 138
-// Partner e Oggi dopo P4-P6 (20261023140100_partner_oggi_fixes): solleciti dai file dei
+// Partner e Oggi dopo P4-P6 (20261023140414_partner_oggi_fixes): solleciti dai file dei
 // dispositivi, «contatti da fare» con la regola di «Adesso», «Collega l'evento» con date
 // passate, permessi dei trigger del calendario e indici. Prima lo stato con le migrazioni già in
 // produzione, poi la migrazione: nessuna riga cambia. Solo dati sintetici, Auth simulato.

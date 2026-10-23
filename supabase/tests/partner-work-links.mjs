@@ -1,7 +1,7 @@
 // test-db: pglite minimo 44
 // Synthetic Auth contract. Uses actual P2 migration after integration, minimal contract otherwise.
 // Applies every later Partner work migration too (dates only with «Accordo fatto», device-file
-// reminders): the assertions describe the rules in production after 20261023140100.
+// reminders): the assertions describe the rules in production after 20261023140414.
 import assert from "node:assert/strict";
 import { randomUUID } from "node:crypto";
 import { readFileSync, readdirSync, existsSync } from "node:fs";

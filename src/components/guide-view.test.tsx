@@ -386,7 +386,7 @@ describe("i nomi citati esistono davvero", () => {
   });
 
   it("la regola del sollecito è quella del database: invii del team e dei file, 7 giorni", () => {
-    const sql = source("supabase/migrations/20261023140100_partner_oggi_fixes.sql");
+    const sql = source("supabase/migrations/20261023140414_partner_oggi_fixes.sql");
     expect(sql).toContain("if new.origin not in('team','file')then return new;end if;");
     expect(sql).toContain("select d.imported_by into v_owner from public.partner_device_imports d");
     expect(sql).toContain("::date+7)");
