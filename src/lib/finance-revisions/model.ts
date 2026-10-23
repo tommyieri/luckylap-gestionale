@@ -9,6 +9,31 @@ export const FINANCE_REVISION_SOURCES = [
   "consignment_settlement",
 ] as const;
 export type FinanceRevisionSource = (typeof FINANCE_REVISION_SOURCES)[number];
+/**
+ * Incassi delle vendite e rimborsi Shopify appartengono alla vendita (spec 04 B.1):
+ * da Finance si correggono e si ripristinano, ma non si eliminano. Una vendita
+ * sbagliata si annulla in Vendite. Stessa regola di `revise_finance_movement`.
+ */
+export const financeRevisionDeletable = (kind: FinanceRevisionSource) =>
+  kind !== "payment" && kind !== "refund";
+/**
+ * La motivazione è facoltativa nell'app. Il database la vuole di 3–500 caratteri
+ * (vincolo della tabella `finance_movement_revisions`): se resta vuota l'app
+ * manda una motivazione neutra, la stessa che lo storico mostrerà.
+ */
+export const FINANCE_REVISION_DEFAULT_REASON = {
+  update: "Correzione",
+  delete: "Eliminazione",
+  restore: "Ripristino",
+} as const;
+export type FinanceRevisionAction = keyof typeof FINANCE_REVISION_DEFAULT_REASON;
+/** Motivazione rifilata, oppure quella neutra se vuota; `null` se 1–2 o oltre 500 caratteri. */
+export function financeRevisionReason(value: unknown, action: FinanceRevisionAction) {
+  if (typeof value !== "string") return null;
+  const reason = value.trim();
+  if (!reason) return FINANCE_REVISION_DEFAULT_REASON[action];
+  return reason.length < 3 || reason.length > 500 ? null : reason;
+}
 export type FinanceRevisionRef = { sourceKind: FinanceRevisionSource; sourceId: string };
 export type FinanceRevisionValues = {
   date: string;
@@ -163,17 +188,17 @@ export function parseFinanceRevisionCommand(value: unknown): FinanceRevisionComm
     !sourceKind(payload.source_kind) ||
     !revisionUuid(payload.source_id) ||
     !integer(payload.expected_version, 2_147_483_645) ||
-    typeof payload.reason !== "string" ||
-    payload.reason.trim().length < 3 ||
-    payload.reason.trim().length > 500
+    !Object.hasOwn(FINANCE_REVISION_DEFAULT_REASON, String(payload.action))
   )
     return null;
+  const reason = financeRevisionReason(payload.reason, payload.action as FinanceRevisionAction);
+  if (reason === null) return null;
   const shared = {
     schema_version: 1 as const,
     source_kind: payload.source_kind,
     source_id: payload.source_id.toLowerCase(),
     expected_version: payload.expected_version,
-    reason: payload.reason.trim(),
+    reason,
   };
   const baseKeys = [
     "schema_version",

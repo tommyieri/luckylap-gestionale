@@ -1,4 +1,4 @@
-// test-db: pglite minimo 72
+// test-db: pglite minimo 86
 // Synthetic-only SQL/RLS/CAS tests; no cloud or credential input.
 import assert from "node:assert/strict";
 import { randomUUID } from "node:crypto";
@@ -134,25 +134,38 @@ try {
       ),
     "payment_already_recorded",
   );
-  const gone = await rpc({
+  // A sale payment is corrected in Finance but undone only in Vendite.
+  const receiptsBeforeDelete = (
+    await db.query("select count(*)::int n from private.finance_revision_receipts")
+  ).rows[0].n;
+  await reject(
+    () =>
+      rpc({
+        schema_version: 1,
+        source_kind: "payment",
+        source_id: sourceIds.payment,
+        expected_version: 1,
+        action: "delete",
+        reason: "Synthetic deleted",
+      }),
+    "finance_movement_delete_not_allowed",
+  );
+  equal(
+    (await db.query("select count(*)::int n from private.finance_revision_receipts")).rows[0].n,
+    receiptsBeforeDelete,
+    "a refused payment deletion leaves no receipt",
+  );
+  equal((await summary()).payment_state, "paid", "refused deletion keeps the sale paid");
+  const restoredPayment = await rpc({
     schema_version: 1,
     source_kind: "payment",
     source_id: sourceIds.payment,
     expected_version: 1,
-    action: "delete",
-    reason: "Synthetic deleted",
-  });
-  equal(gone.version, 2, "recoverable deletion");
-  equal((await summary()).amount_due_cents, "5000", "void does not leave paid false state");
-  await rpc({
-    schema_version: 1,
-    source_kind: "payment",
-    source_id: sourceIds.payment,
-    expected_version: 2,
     action: "restore",
     restore_version: 0,
     reason: "Synthetic restored",
   });
+  equal(restoredPayment.version, 2, "a sale payment can still go back to its original");
   equal(
     (await summary()).refund_due_cents,
     "5000",
@@ -172,8 +185,8 @@ try {
   );
   equal(
     (await db.query("select count(*)::int n from public.finance_movement_revisions")).rows[0].n,
-    3,
-    "exactly three revisions after replays/rejections",
+    2,
+    "exactly two revisions after replays/rejections",
   );
 
   // Complete source validation and full snapshots, not arbitrary synthetic origins.
@@ -186,6 +199,9 @@ try {
     () => rpc({ ...payload("manual"), source_id: sourceIds.payment }),
     "finance_source_not_found",
   );
+  // The reason stays mandatory in SQL (table check 3-500): the app sends a neutral default.
+  for (const reason of ["", "  ", "ok"])
+    await reject(() => rpc(payload("manual", { reason })), "invalid_finance_revision");
   for (const bad of [
     values({ date: "2026-02-30" }),
     values({ amount_cents: 0.1 }),
@@ -247,6 +263,40 @@ try {
     await rpc(aliasPayload, aliasOperation),
     { ...customReceipt, replayed: true },
     "canonical account normalization preserves frozen exact retry",
+  );
+  const budgetDeleted = await rpc({
+    schema_version: 1,
+    source_kind: "budgetflow",
+    source_id: sourceIds.budgetflow,
+    expected_version: 2,
+    action: "delete",
+    reason: "Synthetic BudgetFlow delete",
+  });
+  equal(budgetDeleted.version, 3, "BudgetFlow movement can still be deleted");
+  equal(
+    (
+      await db.query(
+        "select deleted from public.finance_revision_current where source_kind='budgetflow' and source_id=$1",
+        [sourceIds.budgetflow],
+      )
+    ).rows[0].deleted,
+    true,
+    "deleted BudgetFlow movement is marked deleted",
+  );
+  equal(
+    (
+      await rpc({
+        schema_version: 1,
+        source_kind: "budgetflow",
+        source_id: sourceIds.budgetflow,
+        expected_version: 3,
+        action: "restore",
+        restore_version: 2,
+        reason: "Synthetic BudgetFlow restore",
+      })
+    ).version,
+    4,
+    "deleted BudgetFlow movement is restored",
   );
   equal(
     (
@@ -444,6 +494,25 @@ try {
     reason: "Synthetic legacy overpayment",
   });
   equal((await legacySummary()).refund_due_cents, "500", "legacy restore exposes overpayment");
+  equal(
+    (
+      await rpc({
+        schema_version: 1,
+        source_kind: "consignment_settlement",
+        source_id: sourceIds.consignment_settlement,
+        expected_version: 2,
+        action: "delete",
+        reason: "Synthetic legacy settlement delete",
+      })
+    ).version,
+    3,
+    "old consignment collection can still be deleted",
+  );
+  equal(
+    (await legacySummary()).amount_due_cents,
+    "500",
+    "deleted old collection leaves the residual",
+  );
   // An uncorrected provider status is not inferred from incomplete observations.
   await db.exec(`create function private.synthetic_canonical_paid()returns void language plpgsql security definer set search_path='' as $$begin
   insert into public.sales_orders(id,operation_id,payload_sha256,channel,occurred_at,operational_date,total_cents,payment_state,fulfillment_mode,fulfillment_state,created_by,source_kind)
@@ -473,6 +542,47 @@ try {
     payload("refund", {
       values: values({ direction: "expense", amount_cents: 1000, account: null }),
     }),
+  );
+  for (const [kind, sourceId] of [
+    ["refund", sourceIds.refund],
+    ["payment", id(212)],
+  ])
+    await reject(
+      () =>
+        rpc({
+          schema_version: 1,
+          source_kind: kind,
+          source_id: sourceId,
+          expected_version: 1,
+          action: "delete",
+          reason: "Synthetic Shopify delete",
+        }),
+      "finance_movement_delete_not_allowed",
+    );
+  // A deletion written before this rule is never stuck: restore still works.
+  await db.query(
+    "insert into public.finance_movement_revisions(operation_id,source_kind,source_id,version,previous_version,action,value_snapshot,deleted,reason,created_by) select $1,source_kind,source_id,2,1,'delete',value_snapshot,true,'Synthetic legacy delete',created_by from public.finance_revision_current where source_kind='refund' and source_id=$2",
+    [randomUUID(), sourceIds.refund],
+  );
+  const refundRestored = await rpc({
+    schema_version: 1,
+    source_kind: "refund",
+    source_id: sourceIds.refund,
+    expected_version: 2,
+    action: "restore",
+    restore_version: 1,
+    reason: "Synthetic refund restore",
+  });
+  equal(refundRestored.version, 3, "a refund deleted before the rule can be restored");
+  equal(
+    (
+      await db.query(
+        "select deleted,value_snapshot->>'amount_cents' amount from public.finance_revision_current where source_kind='refund' and source_id=$1",
+        [sourceIds.refund],
+      )
+    ).rows[0],
+    { deleted: false, amount: "1000" },
+    "restored refund keeps its corrected amount",
   );
   const externalSummary = () =>
     asRevisionUser(

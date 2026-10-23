@@ -30,11 +30,13 @@ Le correzioni e i saldi seguono gli alias conto già adottati dalla dashboard: `
 schema_version: 1
 source_kind / source_id
 expected_version: versione corrente, zero per la fonte non corretta
-reason: motivazione
+reason: motivazione, 3–500 caratteri
 azione update: values completi
-azione delete: nessun values
+azione delete: nessun values; non ammessa per payment e refund
 azione restore: restore_version
 ```
+
+Dal 23 ottobre 2026 (`20261023140200_finance_fixes.sql`) `delete` su `payment` o `refund` risponde `finance_movement_delete_not_allowed` (`22023`): incassi delle vendite e rimborsi Shopify si correggono e si ripristinano, ma si annullano in Vendite («Annulla registrazione» o «Registra reso»). Una ricevuta già scritta prima della regola si recupera ancora. La motivazione resta obbligatoria nel database (vincolo della tabella); nell'app è facoltativa e, se vuota, diventa «Correzione», «Eliminazione» o «Ripristino» (`financeRevisionReason`).
 
 I nomi esatti dei campi e i DTO si trovano in `src/lib/finance-revisions/model.ts`. Il payload viene normalizzato e associato in modo persistente a UUID, utente e hash del contenuto. Un retry con lo stesso tentativo recupera la ricevuta; UUID riusato con utente o dati diversi è un conflitto. La verifica del permesso Finance precede anche il recupero della ricevuta e viene ripetuta dopo l’attesa sui lock.
 
@@ -55,7 +57,7 @@ Un solo helper SQL, `private.effective_order_payment_summary`, legge pagamenti e
 
 Il nuovo `refresh_sale_order` usa questo calcolo per i manuali. `record_manual_payment` blocca la riga ordine e accetta esattamente il residuo efficace: una correzione da 100 a 50 permette un nuovo incasso di 50. Sono rimossi soltanto i due indici che imponevano un pagamento manuale per ordine; rimangono unicità di ID, operation ID, collegamento pagamento/fatto e ricevute. Due incassi concorrenti dello stesso residuo non possono riuscire entrambi.
 
-Eliminare un incasso riapre il residuo. Ripristinarlo dopo un altro pagamento espone il sovraincasso come importo da restituire, senza creare un rimborso eseguito. Segni, pending e date corrette determinano il flusso dichiarato; non generano eventi esterni. Per Shopify la revisione lascia intatti capture, rimborsi, stato del provider, importi fiscali e identità tecniche. Una nuova osservazione viene aggiunta una volta e non sostituisce l’overlay.
+Correggere un incasso a un importo minore riapre il residuo; da Finance non si elimina. L'annullamento di una registrazione in Vendite esclude i suoi incassi con revisioni proprie, senza passare da `revise_finance_movement`. Ripristinare la versione originale dopo un altro pagamento espone il sovraincasso come importo da restituire, senza creare un rimborso eseguito. Segni, pending e date corrette determinano il flusso dichiarato; non generano eventi esterni. Per Shopify la revisione lascia intatti capture, rimborsi, stato del provider, importi fiscali e identità tecniche. Una nuova osservazione viene aggiunta una volta e non sostituisce l’overlay.
 
 `readEffectiveSalesPayments` e `applyEffectiveSalesPayments` forniscono a Vendite il medesimo stato efficace, residuo e sovraincasso. Il DTO per tutti i membri contiene soltanto valori operativi già pertinenti all’ordine, con `sourcePaymentState` separato; per Shopify senza correzioni conserva lo stato canonico e il sovraincasso del provider, lasciando sconosciuto (`null`) il residuo interno anziché dedurlo da osservazioni incomplete; non include conto, riferimento, transazioni o JSON Finance. La scrittura della correzione rimane Finance-only. Nessuna funzione cambia quantità, prezzi, riserve, consegne o scorte.
 

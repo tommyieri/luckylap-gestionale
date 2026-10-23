@@ -5,6 +5,7 @@ import { verifiedMember } from "../auth/server";
 import { verifiedSensitiveAccess } from "../auth/sensitive-access";
 import { readCompletePages } from "../finance/read";
 import {
+  financeRevisionDeletable,
   financeRevisionKey,
   parseFinanceRevisionCommand,
   revisionFromDatabase,
@@ -100,6 +101,10 @@ const messages: Record<string, string> = {
     "Questo tentativo corrisponde a dati diversi. Conserva l’invio e verifica lo storico.",
   effective_payment_limit:
     "La correzione supera il limite dei valori di un ordine. Verifica importo e segno.",
+  finance_movement_delete_not_allowed:
+    "Incassi delle vendite e rimborsi Shopify non si eliminano da Finance: qui puoi correggerli. Una vendita sbagliata si annulla in Vendite, con «Annulla registrazione» o «Registra reso».",
+  sale_registration_cancelled:
+    "La vendita è annullata in Vendite: i suoi incassi non cambiano più da Finance.",
 };
 export async function executeFinanceRevision(
   supabase: SupabaseClient,
@@ -121,6 +126,18 @@ export async function executeFinanceRevision(
           code: "invalid_finance_revision",
           message: messages.invalid_finance_revision,
         };
+  // Same rule as the database: never send a deletion it would refuse. A frozen
+  // retry still goes through, so an earlier recorded outcome can be recovered.
+  if (
+    !retry &&
+    command.payload.action === "delete" &&
+    !financeRevisionDeletable(command.payload.source_kind)
+  )
+    return {
+      status: "rejected",
+      code: "finance_movement_delete_not_allowed",
+      message: messages.finance_movement_delete_not_allowed,
+    };
   let submitted = false;
   try {
     if (!(await financeRevisionAccess(supabase)))

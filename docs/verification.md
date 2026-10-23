@@ -36,7 +36,7 @@ Controlli per harness:
 | `shopify-scheduler.mjs` | PGlite | 173 | recupero ogni minuto (Cron, Vault e pg_net simulati) |
 | `consignment.mjs` | PGlite | 145 | conto vendita precedente |
 | `consignment-monthly.mjs` | PGlite | 613 | conto vendita semplice: negozi, conta, resoconto mensile, pagamenti, ordini |
-| `finance-revisions.mjs` | PGlite | 72 | revisioni Finance: fonti immutabili, versioni, eliminazione e ripristino, permessi |
+| `finance-revisions.mjs` | PGlite | 86 | revisioni Finance: fonti immutabili, versioni, eliminazione e ripristino, incassi e rimborsi non eliminabili, permessi |
 | `partner-work-links.mjs` | PGlite | 42 | solleciti dopo l'invio, date Partner nel calendario, riquadro Partner di Oggi |
 | `partner.mjs` | PGlite | 343 | Partner: sicurezza, import della ricerca, comandi, file dei dispositivi, generatore |
 | `review-handoff.mjs` | PGlite | 51 | archivio dei contenuti in «Grafica e foto» |
@@ -134,10 +134,11 @@ Trovati il 23 ottobre 2026 da revisori indipendenti e confermati da verifiche co
 6. **Solleciti doppi in Oggi.** Ogni sollecito in scadenza compare due volte, in «Agenda» e in «Contatti e solleciti», contro la decisione 9 e la correzione 05-11.
 7. **Conteggi diversi tra Oggi e Partner.** I «contatti da fare» di Oggi arrivano al mese in corso; «Adesso» in Partner arriva alla fine del mese prossimo (decisione 33). I numeri non coincidono.
 8. **Pezzi mancanti di P5.** Mancano «Ha risposto» in Oggi, la data del sollecito nella conferma di «Segna inviato» e il blocco «Esito» nella scheda Partner (decisione 10, correzione 05-7).
-9. **Incassi eliminabili.** Finance permette di eliminare gli incassi delle vendite e i rimborsi Shopify, che la spec 04 (B.1) voleva non eliminabili. Una correzione cambia anche lo stato del pagamento in Vendite.
+9. **Incassi eliminabili.** Finance permette di eliminare gli incassi delle vendite e i rimborsi Shopify, che la spec 04 (B.1) voleva non eliminabili. Una correzione cambia anche lo stato del pagamento in Vendite. Risolto: da Finance si correggono e si ripristinano, non si eliminano (`20261023140200_finance_fixes.sql`); una vendita si annulla in Vendite.
 10. **Percorsi come testo.** Risolto il 23 ottobre: in Team il percorso «/partner?co=12#lead-12» diventa il link «Apri la scheda». Nel database il testo resta quello.
 11. **«Collega l'evento» con date passate.** Per un contatto con l'evento già passato fallisce, con un messaggio che non spiega il motivo.
 12. **Minori.** In Finance mancano il filtro «Modificati» e la riga «Modificato da X · data»; la motivazione è sempre obbligatoria; due funzioni di trigger hanno un `EXECUTE` che non serve; alcune chiavi esterne non hanno indice; il feed non ha una frase per archiviare e ripristinare un contenuto (l'archivio della parte A si legge come un aggiornamento generico).
+    Parte Finance risolta: filtro «Modificati», riga «Modificato da X · data», motivazione facoltativa nell'app (il database la vuole ancora, l'app manda «Correzione»).
 
 ## Prove visive della parte A
 

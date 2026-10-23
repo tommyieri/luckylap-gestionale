@@ -1,5 +1,7 @@
 import { describe, expect, it } from "vitest";
 import {
+  financeRevisionDeletable,
+  financeRevisionReason,
   parseFinanceRevisionCommand,
   revisionFromDatabase,
   revisionOriginalFromDatabase,
@@ -114,6 +116,26 @@ describe("Finance revision command contract", () => {
         payload: { ...payload, action: "restore", restore_version: 4 },
       }),
     ).toBeNull();
+  });
+  it("keeps sale payments and Shopify refunds out of deletion, as the database does", () => {
+    expect(financeRevisionDeletable("payment")).toBe(false);
+    expect(financeRevisionDeletable("refund")).toBe(false);
+    for (const kind of ["budgetflow", "manual", "consignment_settlement"] as const)
+      expect(financeRevisionDeletable(kind)).toBe(true);
+  });
+  it("makes the reason optional: empty becomes a neutral reason, trimmed, max 500", () => {
+    const parsed = (reason: unknown) =>
+      parseFinanceRevisionCommand({ ...command(), payload: { ...command().payload, reason } });
+    expect(parsed("")?.payload.reason).toBe("Correzione");
+    expect(parsed("   ")?.payload.reason).toBe("Correzione");
+    expect(parsed("  Cliente ha pagato meno  ")?.payload.reason).toBe("Cliente ha pagato meno");
+    expect(parsed("x".repeat(500))?.payload.reason).toHaveLength(500);
+    expect(parsed("x".repeat(501))).toBeNull();
+    expect(parsed("ok")).toBeNull();
+    expect(parsed(undefined)).toBeNull();
+    expect(financeRevisionReason("", "delete")).toBe("Eliminazione");
+    expect(financeRevisionReason(" ", "restore")).toBe("Ripristino");
+    expect(financeRevisionReason(42, "update")).toBeNull();
   });
   it("routes monthly shop payments to the sole P3 CAS command", () => {
     expect(financeRevisionTarget("shop_payment", id(2))).toEqual({

@@ -53,7 +53,14 @@ export function FinanceWorkView({
   const [query, setQuery] = useState(""),
     [filter, setFilter] = useState("all"),
     [page, setPage] = useState(0);
-  const declaredPayments = snapshot.payments.filter((p) => p.source === "manual_declaration");
+  const declaredPayments = snapshot.payments
+    .filter((p) => p.source === "manual_declaration")
+    .map((payment) => ({
+      payment,
+      head: revisionHeads.find(
+        (row) => row.sourceKind === "payment" && row.sourceId === payment.id,
+      ),
+    }));
   const sales = snapshot.facts.filter((f) => f.kind === "sale_observed"),
     cancellations = snapshot.facts.filter((f) => f.kind === "sale_cancellation_observed");
   const entries = snapshot.entries.map((entry) => {
@@ -139,8 +146,8 @@ export function FinanceWorkView({
           <span>{declaredPayments.length} dichiarazioni</span>
         </div>
         <p className={styles.caption}>
-          Valori originali dichiarati dai collaboratori. Le correzioni efficaci sono nei movimenti
-          Finance; qui la fonte resta consultabile con il suo storico.
+          Importi attuali, con le correzioni Finance. Se un incasso è stato corretto, sotto resta il
+          valore dichiarato in Vendite. Un incasso si annulla in Vendite, non da qui.
         </p>
         {!declaredPayments.length ? (
           <p className={styles.empty}>Nessun incasso dichiarato dagli ordini.</p>
@@ -152,12 +159,12 @@ export function FinanceWorkView({
                   <th>Data · Europe/Rome</th>
                   <th>Ordine</th>
                   <th>Metodo / riferimento</th>
-                  <th>Importo dichiarato</th>
+                  <th>Importo</th>
                   <th>Correzioni</th>
                 </tr>
               </thead>
               <tbody>
-                {declaredPayments.map((payment) => (
+                {declaredPayments.map(({ payment, head }) => (
                   <tr key={payment.id}>
                     <td>{timestamp(payment.occurredAt)}</td>
                     <td>
@@ -167,12 +174,15 @@ export function FinanceWorkView({
                       {methods[payment.method]}
                       <small>{payment.reference || "Riferimento non fornito"}</small>
                     </td>
-                    <td className={styles.amount}>{centsLabel(payment.cents)}</td>
+                    <td className={styles.amount}>
+                      <EffectiveAmount declaredCents={payment.cents} head={head} />
+                    </td>
                     <td>
                       <FinanceMovementActions
                         source="payment"
                         sourceId={payment.id}
                         readOnly={readOnly}
+                        deleted={head?.deleted}
                       />
                     </td>
                   </tr>
@@ -320,6 +330,36 @@ function OrderLink({ id, snapshot }: { id: string; snapshot: FinanceWorkSnapshot
     <Link href={`/sales#order-${id}`}>
       {order ? salesOrderLabel(order) : `Ordine ${short(id)}`}
     </Link>
+  );
+}
+/** Importo effettivo dell'ultima versione; il dichiarato resta sotto se è diverso. */
+export function EffectiveAmount({
+  declaredCents,
+  head,
+}: {
+  declaredCents: number;
+  head?: FinanceRevisionRecord;
+}) {
+  if (head?.deleted)
+    return (
+      <>
+        Escluso
+        <small>Dichiarato {centsLabel(declaredCents)} · fuori dai saldi</small>
+      </>
+    );
+  const values = head?.values;
+  const cents = values?.amountCents ?? declaredCents;
+  const expense = values?.direction === "expense";
+  return (
+    <>
+      {centsLabel(expense ? -cents : cents)}
+      {(cents !== declaredCents || expense) && (
+        <small>
+          Dichiarato {centsLabel(declaredCents)} · corretto in Finance
+          {expense ? ", come uscita" : ""}
+        </small>
+      )}
+    </>
   );
 }
 function ShopifyMoneySections({

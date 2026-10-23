@@ -96,6 +96,60 @@ describe("Finance revision server authorization and frozen receipts", () => {
     expect(result.status).toBe("uncertain");
     expect(JSON.stringify(result)).not.toContain("Private raw database detail");
   });
+  it("never sends the deletion of a sale payment or Shopify refund, and maps the database refusal", async () => {
+    for (const source_kind of ["payment", "refund"]) {
+      const client = { rpc: vi.fn() };
+      const result = await executeFinanceRevision(client as never, {
+        ...command,
+        payload: { ...command.payload, source_kind },
+      });
+      expect(result).toMatchObject({
+        status: "rejected",
+        code: "finance_movement_delete_not_allowed",
+      });
+      expect(result.message).toContain("«Annulla registrazione» o «Registra reso»");
+      expect(client.rpc).not.toHaveBeenCalled();
+    }
+    // A frozen retry still reaches the database, which answers with the same code.
+    const client = {
+      rpc: vi.fn().mockResolvedValue({
+        data: null,
+        error: { code: "22023", message: "finance_movement_delete_not_allowed" },
+      }),
+    };
+    expect(
+      await executeFinanceRevision(client as never, {
+        ...command,
+        retry: true,
+        payload: { ...command.payload, source_kind: "payment" },
+      }),
+    ).toMatchObject({ status: "rejected", code: "finance_movement_delete_not_allowed" });
+    expect(client.rpc).toHaveBeenCalledOnce();
+    client.rpc.mockResolvedValue({
+      data: null,
+      error: { code: "22023", message: "sale_registration_cancelled" },
+    });
+    expect(
+      await executeFinanceRevision(client as never, {
+        ...command,
+        payload: {
+          ...command.payload,
+          source_kind: "payment",
+          action: "update",
+          values: {
+            date: "2026-03-17",
+            direction: "income",
+            amount_cents: 100,
+            account: null,
+            target_account: null,
+            category: "Vendite",
+            description: "Synthetic",
+            pending: false,
+          },
+        },
+      }),
+    ).toMatchObject({ status: "rejected", code: "sale_registration_cancelled" });
+  });
   it("rejects incomplete reads and invalid source requests before exposing history", async () => {
     const range = vi.fn().mockResolvedValue({ data: [], count: 1, error: null });
     const q = { select: vi.fn().mockReturnThis(), order: vi.fn().mockReturnThis(), range };
