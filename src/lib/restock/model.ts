@@ -3,7 +3,7 @@ import { stockRecord as record, stockUuid as uuid } from "../stock/model";
 /*
  * Riassortimento (docs/riassortimento.md): stati, destinazioni, comandi e testi.
  * Le regole dei comandi sono le stesse delle funzioni SQL di
- * 20261023160000_riassortimento.sql; il database resta l'autorità.
+ * 20261023164150_riassortimento.sql; il database resta l'autorità.
  */
 
 export const RESTOCK_HREF = "/stock/riassortimento";

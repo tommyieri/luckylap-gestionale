@@ -188,7 +188,7 @@ Codici con SQLSTATE `22023`, tranne `membership_required`, `finance_access_requi
 
 ## Taglie del negozio
 
-Migrazione `20261023160000_riassortimento.sql`: colonna `consignment_shops.sizes` (`text[]`, NULL = tutte le taglie, così i negozi futuri non cambiano) e una sola riga aggiornata: `NEG01` (tipo «Negozio Conto Vendita», «milano» nel nome) ha `{S,M,L,XL}`, con la sua riga di audit. Le taglie non si cambiano ancora dalle impostazioni del negozio: per ora solo con una migrazione.
+Migrazione `20261023164150_riassortimento.sql`: colonna `consignment_shops.sizes` (`text[]`, NULL = tutte le taglie, così i negozi futuri non cambiano) e una sola riga aggiornata: `NEG01` (tipo «Negozio Conto Vendita», «milano» nel nome) ha `{S,M,L,XL}`, con la sua riga di audit. Le taglie non si cambiano ancora dalle impostazioni del negozio: per ora solo con una migrazione.
 
 - Database: il trigger `consignment_size_allowed` (`before insert` su `consignment_count_lines`, `consignment_report_lines`, `consignment_order_lines` e `consignment_shipment_lines` delle consegne `to_shop`) rifiuta una variante fuori taglia con `size_not_in_shop` e lo SKU nel dettaglio. Le magliette riportate in magazzino (`to_warehouse`) restano possibili in ogni taglia. `private.count_consignment_stock` è sostituita con una riga in più: la prima conta comprende le T-shirt attive nelle taglie del negozio.
 - Interfaccia: `ShopConfig.sizes` e `shopTakesSize` (`shop-read.ts`); griglia, prima conta, «Mostra tutte le varianti» del resoconto e ordini usano solo le taglie del negozio. Messaggio: «Il negozio non tiene la taglia di {SKU}: togli quella riga.».

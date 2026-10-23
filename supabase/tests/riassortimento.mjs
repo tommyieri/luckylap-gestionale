@@ -1,5 +1,5 @@
 // test-db: pglite minimo 264
-// Riassortimento su PGlite (20261023160000_riassortimento): Auth simulato, solo dati sintetici,
+// Riassortimento su PGlite (20261023164150_riassortimento): Auth simulato, solo dati sintetici,
 // nessun cloud. Gruppi: migrazione (taglie del negozio di Milano e audit), permessi, riordini,
 // righe, stati, arrivo in magazzino una volta sola, annullo dell'arrivo, ordine del negozio legato
 // al riordine e consegna, taglie del negozio nel conto vendita, frasi del feed di Controllo CEO e

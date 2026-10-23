@@ -3,7 +3,7 @@
 -- le quantità, controllate a mano sul file (totali 85 = 64 per noi + 17 per il negozio + 4 per il
 -- cliente, e 36).
 --
--- Da eseguire come proprietario del database, DOPO la migrazione 20261023160000_riassortimento.
+-- Da eseguire come proprietario del database, DOPO la migrazione 20261023164150_riassortimento.
 -- Idempotente: un riordine con lo stesso titolo (maiuscole a parte) non si inserisce di nuovo.
 -- Scrive solo restock_orders, restock_lines e restock_state_events, più le loro righe di audit.
 -- Nessun movimento di magazzino: i due riordini sono «Da Antonella», non ancora in mano nostra.
