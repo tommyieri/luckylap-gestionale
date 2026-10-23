@@ -1,3 +1,5 @@
+import { readFileSync } from "node:fs";
+import { join } from "node:path";
 import { describe, expect, it } from "vitest";
 import { renderToStaticMarkup } from "react-dom/server";
 import {
@@ -6,6 +8,7 @@ import {
   OPERATIONS,
   SECTION_TEXT,
   TAB_TEXT,
+  TODAY_TILES,
   type GuideAccess,
 } from "./guide-view";
 import { SECTIONS } from "../lib/navigation";
@@ -29,10 +32,11 @@ const hrefs = (markup: string) => [...markup.matchAll(/href="([^"]*)"/g)].map((m
 const financeBox = (markup: string) => markup.includes('data-guide="finance"');
 
 describe("«Come si usa»: struttura", () => {
-  it("ha le otto parti, nell'ordine dell'indice, ognuna con il suo titolo", () => {
+  it("ha le nove parti, nell'ordine dell'indice, ognuna con il suo titolo", () => {
     const markup = html(everyone);
     expect(GUIDE_PARTS.map((part) => part.title)).toEqual([
       "Entrare e uscire",
+      "Oggi",
       "Il menu",
       "Le operazioni più comuni",
       "Partner",
@@ -49,7 +53,7 @@ describe("«Come si usa»: struttura", () => {
       expect(markup).toContain(`<h2 id="${part.id}-titolo"`);
       expect(markup).toContain(`aria-labelledby="${part.id}-titolo"`);
     }
-    expect(markup.match(/<section /g)).toHaveLength(8);
+    expect(markup.match(/<section /g)).toHaveLength(9);
   });
 
   it("apre con l'h1 «Come si usa» e l'indice che porta a ogni parte", () => {
@@ -93,6 +97,31 @@ describe("«Come si usa»: struttura", () => {
     for (const word of ["RLS", "payload", "harness", "UUID", "Supabase"])
       expect(all).not.toContain(word);
     expect(all).toContain("Magadzino");
+  });
+});
+
+describe("Oggi", () => {
+  const part = (access: GuideAccess) => {
+    const markup = html(access);
+    return text(markup.slice(markup.indexOf('id="guida-oggi"'), markup.indexOf('id="guida-menu"')));
+  };
+
+  it("elenca i riquadri veri; il conto vendita solo a chi apre Finance", () => {
+    const tiles = readFileSync(join(__dirname, "today", "today-tiles.tsx"), "utf8");
+    for (const tile of TODAY_TILES) expect(tiles).toContain(`title: "${tile.title}"`);
+    expect(TODAY_TILES.filter((tile) => tile.finance).map((tile) => tile.title)).toEqual([
+      "Conto vendita da regolare",
+    ]);
+    for (const title of ["Agenda", "Contatti e solleciti", "Ordini da preparare", "Magazzino"])
+      for (const access of [everyone, finance, founder]) expect(part(access)).toContain(title);
+    expect(part(everyone)).not.toContain("Conto vendita da regolare");
+    expect(part(finance)).toContain("Conto vendita da regolare");
+    expect(part(founder)).toContain("Conto vendita da regolare");
+  });
+
+  it("spiega «Prima volta qui?» e «Ho capito»", () => {
+    expect(part(everyone)).toContain("«Prima volta qui?», che porta a questa guida");
+    expect(part(everyone)).toContain("Premi «Ho capito» e su questo browser non torna.");
   });
 });
 
@@ -194,14 +223,59 @@ describe("le operazioni più comuni", () => {
   });
 });
 
+describe("Partner", () => {
+  const part = (access: GuideAccess) => {
+    const markup = html(access);
+    return markup.slice(
+      markup.indexOf('id="guida-partner"'),
+      markup.indexOf('id="guida-conto-vendita"'),
+    );
+  };
+
+  it("dice chi riceve il sollecito, quando scade e cosa lo chiude", () => {
+    const copy = text(part(everyone));
+    expect(copy).toContain("«Segna inviato» e «Segna sollecito inviato» creano per te");
+    expect(copy).toContain("che scade dopo 7 giorni");
+    expect(copy).toContain("«Contatti e solleciti»");
+    for (const closing of ["«Ha risposto»", "«Chiuso»", "«Non interessato»"])
+      expect(copy).toContain(closing);
+    expect(copy).toContain("gli invii che arrivano dai file «Esporta» dei dispositivi non creano");
+  });
+
+  it("porta a «Partner nel Team» per tutti", () => {
+    for (const access of [everyone, finance, founder]) {
+      expect(hrefs(part(access))).toEqual(["/partner", "/team/partner"]);
+      expect(text(part(access))).toContain("«Partner nel Team»");
+    }
+  });
+});
+
 describe("Finance e Controllo CEO", () => {
   it("dice a tutti cosa sono e chi li apre", () => {
     for (const access of [everyone, finance, founder]) {
       const all = text(html(access));
       expect(all).toContain("La aprono Tommi, Gabriele e Gherardo, con la password Finance.");
       expect(all).toContain("Lo apre solo Tommi, con la password CEO.");
+      expect(all).toContain("per esempio «Luca ha aggiunto una call»");
       expect(all).toContain("Costi e margini dei prodotti invece sono nel Magazzino");
     }
+  });
+
+  it("spiega come si corregge e si ripristina un movimento solo a chi apre Finance", () => {
+    expect(text(html(everyone))).not.toContain("«Modifica / storico»");
+    for (const access of [finance, founder]) {
+      const copy = text(html(access));
+      expect(copy).toContain("ogni movimento ha «Modifica / storico»");
+      expect(copy).toContain("«Salva correzione»");
+      expect(copy).toContain("Serve sempre una motivazione");
+      expect(copy).toContain("«Eliminati · recuperabili» e premi «Ripristina / storico»");
+    }
+  });
+
+  it("i filtri del feed li legge solo chi apre Controllo CEO", () => {
+    expect(text(html(founder))).toContain("i filtri Persona e Area");
+    expect(text(html(founder))).toContain("Le tue compaiono solo se scegli il tuo nome.");
+    expect(text(html(finance))).not.toContain("i filtri Persona e Area");
   });
 
   it("il riquadro per aprire e chiudere Finance compare solo a chi può entrarci", () => {
@@ -262,5 +336,46 @@ describe("telefono, conto vendita e aiuto", () => {
   it("mostra l'avviso dell'anteprima locale solo in anteprima", () => {
     expect(text(html(founder, true))).toContain("Anteprima locale: la guida come la vede Tommi");
     expect(text(html(founder))).not.toContain("Anteprima locale");
+  });
+});
+
+/**
+ * La guida cita pulsanti e riquadri di altre pagine: se uno cambia nome, questo test lo dice
+ * e la guida si aggiorna insieme (docs: workspace-layout.md, «La guida»).
+ */
+describe("i nomi citati esistono davvero", () => {
+  const ROOT = join(__dirname, "..", "..");
+  const source = (path: string) => readFileSync(join(ROOT, path), "utf8");
+  const QUOTED: [string, string[]][] = [
+    ["src/components/auth-sensitive-area-form.tsx", ["Chiudi Finance", "Chiudi Controllo CEO"]],
+    ["src/components/today/guide-intro.tsx", ["Prima volta qui?", "Ho capito"]],
+    ["src/components/today/today-tiles.tsx", ["Non riesco a leggere"]],
+    ["src/components/refresh-button.tsx", ['"Riprova"']],
+    ["src/components/finance-movement-actions.tsx", ["Modifica / storico", "Ripristina / storico"]],
+    ["src/components/finance-revision-editor.tsx", ["Salva correzione"]],
+    ["src/components/finance-shop-payment-editor.tsx", ["Salva correzione"]],
+    ["src/components/finance-imports-view.tsx", ["Eliminati · recuperabili"]],
+    ["src/components/audit-view.tsx", ["Apri elemento", "Persona", "Area"]],
+    ["src/components/partner/partner-messages.tsx", ["Segna inviato", "Segna sollecito inviato"]],
+    ["src/components/partner/partner-activity.tsx", ["Ha risposto"]],
+    ["src/components/partner/partner-details.tsx", ["Metti tra i non contattare"]],
+    ["src/lib/partner/model.ts", ['"Chiuso"', '"Non interessato"']],
+    ["src/components/team-workspace.tsx", ["Partner nel Team"]],
+    ["src/components/partner-work-links.tsx", ["<h1>Partner nel Team</h1>"]],
+  ];
+
+  it("ogni pulsante, riquadro e stato citato è nel suo componente", () => {
+    const missing = QUOTED.flatMap(([path, labels]) =>
+      labels.filter((label) => !source(path).includes(label)).map((label) => `${path}: ${label}`),
+    );
+    expect(missing).toEqual([]);
+  });
+
+  it("la regola del sollecito è quella del database: invii del team, 7 giorni, a chi ha inviato", () => {
+    const sql = source("supabase/migrations/20261023091627_partner_work_links.sql");
+    expect(sql).toContain("if new.origin<>'team' then return new;end if;");
+    expect(sql).toContain("::date+7)");
+    expect(sql).toContain("'Sollecito · '||v_partner.name");
+    expect(sql).toMatch(/'todo',due,new\.created_by,new\.created_by\)/);
   });
 });

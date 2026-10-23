@@ -40,13 +40,13 @@ const ICONS: Record<IconName, LucideIcon> = {
 
 /** Una frase per sezione del menu (`SECTIONS`): il test vuole tutte le sezioni. */
 export const SECTION_TEXT: Record<SectionId, string> = {
-  oggi: "Il punto di partenza: cosa c’è in agenda e cosa manca in magazzino.",
+  oggi: "Il lavoro del giorno: agenda, contatti e solleciti, ordini da preparare e magazzino.",
   vendite: "Le vendite di LuckyLap, dirette e nei negozi.",
   magazzino: "Le magliette che abbiamo, quelle da correggere e il materiale per spedire.",
   partner: "Negozi, eventi, club, media e brand da contattare, con i messaggi già scritti.",
   team: "Il lavoro di tutti i giorni del team.",
   finance: "Conti, movimenti e documenti del brand.",
-  ceo: "Cosa viene fatto sui dati condivisi, e da chi.",
+  ceo: "Cosa fa il team, una frase per ogni azione, dalla più recente.",
 };
 
 /** Una frase per scheda: il test vuole tutte le schede della mappa. */
@@ -56,17 +56,19 @@ export const TAB_TEXT: Record<string, string> = {
   "/stock": "Ogni variante con le quantità del Magadzino e dei negozi, costi e prezzi.",
   "/stock/rettifiche": "Correggi una quantità in magazzino, sempre con la causale.",
   "/packaging": "Scatole e adesivi: una scatola e un adesivo per ogni T-shirt consegnata.",
-  "/team": "Call, consegne e momenti di lavoro, cose da fare, note e idee.",
+  "/team":
+    "Call, consegne, date Partner, cose da fare, note e idee. Qui c’è anche «Partner nel Team».",
   "/development": "I prodotti nuovi, dall’idea al campione fino al prodotto pronto.",
   "/assets": "Loghi, grafiche, foto e video del brand, da scaricare o da aggiungere.",
-  "/finance": "Conti e movimenti, con i saldi.",
+  "/finance": "Conti e movimenti, con i saldi. Ogni movimento si corregge e si ripristina.",
   "/finance/work": "Le voci aggiunte a mano, accanto a quelle che arrivano dalle vendite.",
   "/finance/documents": "I file originali ricevuti, in archivio privato.",
 };
 
-/** Le otto parti della guida, nell'ordine dell'indice. */
+/** Le nove parti della guida, nell'ordine dell'indice. */
 export const GUIDE_PARTS = [
   { id: "guida-accesso", title: "Entrare e uscire", short: "Entrare e uscire" },
+  { id: "guida-oggi", title: "Oggi", short: "Oggi" },
   { id: "guida-menu", title: "Il menu", short: "Il menu" },
   { id: "guida-operazioni", title: "Le operazioni più comuni", short: "Operazioni comuni" },
   { id: "guida-partner", title: "Partner", short: "Partner" },
@@ -153,6 +155,34 @@ export const OPERATIONS: { title: string; href: string; text: string; who?: stri
     href: "/partner",
     text: "Apri il contatto, premi «Copia il testo» e, dopo l’invio, «Segna inviato». I passi sono più sotto, in «Partner».",
     who: "Luca",
+  },
+];
+
+/**
+ * I riquadri di Oggi, con i titoli veri di `today-tiles.tsx`: il conto vendita solo a chi
+ * apre Finance, come in `today-sheet.tsx`.
+ */
+export const TODAY_TILES: { title: string; text: string; finance?: true }[] = [
+  {
+    title: "Agenda",
+    text: "Gli appuntamenti di oggi e le tue attività in scadenza oggi o in ritardo.",
+  },
+  {
+    title: "Contatti e solleciti",
+    text: "I contatti Partner da sentire entro questo mese o con la prossima azione scaduta, e i tuoi solleciti di oggi o in ritardo.",
+  },
+  {
+    title: "Ordini da preparare",
+    text: "Le vendite con capi ancora da consegnare, dalla meno recente.",
+  },
+  {
+    title: "Magazzino",
+    text: "Le varianti esaurite nel Magadzino e le quantità ancora da contare.",
+  },
+  {
+    title: "Conto vendita da regolare",
+    text: "I resoconti dei negozi da fatturare o da incassare. Con Finance chiusa ti chiede di aprirla.",
+    finance: true,
   },
 ];
 
@@ -257,6 +287,25 @@ export function GuideView({ access, preview = false }: { access: GuideAccess; pr
             </ul>
           </Part>
 
+          <Part id="guida-oggi">
+            <p className={styles.lead}>
+              Dopo l’accesso si apre Oggi: il lavoro del giorno, in riquadri. Ogni riquadro ha in
+              alto il link alla sua pagina.
+            </p>
+            <dl className={styles.terms}>
+              {TODAY_TILES.filter((tile) => !tile.finance || access.finance).map((tile) => (
+                <div key={tile.title}>
+                  <dt>{tile.title}</dt>
+                  <dd>{tile.text}</dd>
+                </div>
+              ))}
+            </dl>
+            <p className={styles.after}>
+              La prima volta, sopra i riquadri trovi «Prima volta qui?», che porta a questa guida.
+              Premi «Ho capito» e su questo browser non torna.
+            </p>
+          </Part>
+
           <Part id="guida-menu">
             <p className={styles.lead}>
               Sul computer il menu è a sinistra, sul telefono in basso. Le sezioni con più pagine
@@ -353,6 +402,26 @@ export function GuideView({ access, preview = false }: { access: GuideAccess; pr
                 Quando ti risponde, «Ha risposto». Lo stato si cambia dalla tendina della riga e si
                 salva subito.
               </li>
+              <li>
+                «Segna inviato» e «Segna sollecito inviato» creano per te un’attività «Sollecito ·
+                nome del contatto», che scade dopo 7 giorni. La trovi in Oggi, in «Contatti e
+                solleciti», e tra le attività del Team.
+              </li>
+              <li>
+                Il sollecito si chiude da solo con «Ha risposto», con un nuovo invio, con lo stato
+                «Chiuso» o «Non interessato» e con «Metti tra i non contattare». Vale per quello che
+                segni qui: gli invii che arrivano dai file «Esporta» dei dispositivi non creano
+                solleciti.
+              </li>
+              <li>
+                Le date di eventi e candidature delle schede compaiono da sole nel calendario del
+                Team, come giornate intere.
+              </li>
+              <li>
+                In Team, «Partner nel Team» porta un contatto nel lavoro del team: l’evento nel
+                calendario, un progetto per Produzione, l’attività per aprire un conto vendita e le
+                vendite fatte all’evento.
+              </li>
               <li>Tutti vedono e possono fare tutto. «Seguito da» dice chi se ne occupa.</li>
               <li>
                 In fondo alla pagina ci sono i lookbook da allegare e le regole per scrivere i
@@ -362,6 +431,9 @@ export function GuideView({ access, preview = false }: { access: GuideAccess; pr
             <p className={styles.actions}>
               <Link href="/partner" prefetch={false} className="button button-secondary">
                 Apri Partner
+              </Link>
+              <Link href="/team/partner" prefetch={false} className="button button-secondary">
+                Apri Partner nel Team
               </Link>
             </p>
           </Part>
@@ -407,8 +479,9 @@ export function GuideView({ access, preview = false }: { access: GuideAccess; pr
               <div>
                 <dt>Controllo CEO</dt>
                 <dd>
-                  Cosa viene fatto sui dati condivisi, e da chi. Lo apre solo Tommi, con la password
-                  CEO.
+                  Una frase per ogni azione sui dati condivisi, con chi l’ha fatta: per esempio
+                  «Luca ha aggiunto una call». Non registra le pagine aperte. Lo apre solo Tommi,
+                  con la password CEO.
                 </dd>
               </div>
             </dl>
@@ -419,16 +492,29 @@ export function GuideView({ access, preview = false }: { access: GuideAccess; pr
               <div className={styles.box} data-guide="finance">
                 <h3 className={styles.subTitle}>Aprire e chiudere Finance</h3>
                 <p>
-                  Tocca Finance nel menu e inserisci la password Finance. Resta aperta in questa
-                  sessione fino a 8 ore. Prima di lasciare un dispositivo condiviso, premi «Chiudi
-                  Finance» in cima alle pagine Finance, oppure chiudila da «Account e sicurezza».
+                  Tocca Finance nel menu e inserisci la password Finance. Resta aperta su questo
+                  dispositivo fino a 8 ore dall’apertura. Prima di lasciare un dispositivo
+                  condiviso, premi «Chiudi Finance» in cima alle pagine Finance, oppure chiudila da
+                  «Account e sicurezza».
                 </p>
                 {access.ceo && (
                   <p>
                     Controllo CEO funziona allo stesso modo, con la password CEO e «Chiudi Controllo
-                    CEO».
+                    CEO». Le attività sono divise per giorno, con «Apri elemento» e i filtri Persona
+                    e Area. Le tue compaiono solo se scegli il tuo nome.
                   </p>
                 )}
+                <h3 className={styles.subTitle}>Correggere un movimento</h3>
+                <p>
+                  In Panoramica e in Registrazioni ogni movimento ha «Modifica / storico». Lì
+                  correggi i dati con «Salva correzione», lo elimini o torni a una versione di prima
+                  dallo storico. Serve sempre una motivazione, e lo storico dice chi ha cambiato
+                  cosa e quando.
+                </p>
+                <p>
+                  Un movimento eliminato esce dai saldi ma non si perde: in Panoramica scegli lo
+                  stato «Eliminati · recuperabili» e premi «Ripristina / storico».
+                </p>
                 <p className={styles.actions}>
                   <Link
                     href="/auth/area/finance"
@@ -494,6 +580,10 @@ export function GuideView({ access, preview = false }: { access: GuideAccess; pr
                 niente: libera solo il modulo.
               </li>
               <li>Non vedi una modifica appena fatta da un collega: ricarica la pagina.</li>
+              <li>
+                Un riquadro di Oggi dice «Non riesco a leggere…»: premi «Riprova» in quel riquadro.
+                Gli altri riquadri restano.
+              </li>
               <li>
                 Una pagina dice «Qualcosa non ha funzionato.»: premi «Riprova». Se succede ancora,
                 manda a Tommi il codice scritto sotto e l’ora.

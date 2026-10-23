@@ -68,13 +68,16 @@ Una sola fonte: `src/lib/navigation.ts`, funzioni pure senza React né icone.
 
 ## La guida «Come si usa»
 
-`/guida` (`src/app/(workspace)/guida/page.tsx`) è la guida breve per i cinque del team: entrare e uscire, il menu, le operazioni più comuni, Partner, conto vendita e resoconto del mese, Finance e Controllo CEO, telefono, cosa fare se qualcosa non va e a chi chiedere. Non è un'ottava sezione: sta in `ACCOUNT_LINKS`, prima di «Account e sicurezza».
+`/guida` (`src/app/(workspace)/guida/page.tsx`) è la guida breve per i cinque del team, in nove parti: entrare e uscire, Oggi, il menu, le operazioni più comuni, Partner, conto vendita e resoconto del mese, Finance e Controllo CEO, telefono, cosa fare se qualcosa non va e a chi chiedere. Non è un'ottava sezione: sta in `ACCOUNT_LINKS`, prima di «Account e sicurezza». Su Oggi il riquadro «Prima volta qui?» (`src/components/today/guide-intro.tsx`) porta qui; «Ho capito» lo chiude e la scelta resta nel browser (chiave `luckylap-guida-vista-v1:<id utente>`, letta e scritta dentro `try/catch`: senza storage il riquadro torna alla visita dopo).
 
 - Il testo è fisso, in `src/components/guide-view.tsx`, e descrive l'app com'è oggi, con i nomi veri di sezioni, schede e pulsanti. Quando una pagina cambia nome, scopo o pulsanti, si aggiorna anche la guida.
+- «Oggi» elenca i riquadri con i loro titoli veri (`TODAY_TILES`): Agenda, Contatti e solleciti, Ordini da preparare, Magazzino e, solo per chi può aprire Finance, Conto vendita da regolare, come in `today-sheet.tsx`.
 - «Il menu» elenca le sezioni che la persona vede (`visibleSections`), con una frase per sezione (`SECTION_TEXT`) e per scheda (`TAB_TEXT`). Una sezione o una scheda nuova della mappa senza la sua frase fa fallire `guide-view.test.tsx`.
 - «Le operazioni più comuni» (`OPERATIONS`) unisce i punti 3 e 4 della spec 06: una riga per operazione, con il link alla pagina, i nomi veri dei pulsanti e chi la fa di solito («di solito Ettore»). Al posto di un riquadro per persona: così ognuno trova il suo lavoro nello stesso elenco. Quando cambia il nome di un pulsante citato, si aggiorna anche questa riga.
 - «Parole che trovi spesso» usa i nomi delle colonne di Giacenze e Rettifiche: Fisico, Riservato, Disponibile.
-- Finance e Controllo CEO: tutti leggono cosa sono e chi li apre. Il riquadro «Aprire e chiudere Finance», con i link a `/auth/area/finance` (e `/auth/area/audit` per Tommi), compare solo a chi può entrare, con la regola `isSensitiveAreaEligible`.
+- Partner: «Segna inviato» e «Segna sollecito inviato» creano un sollecito a 7 giorni per chi ha inviato, solo per gli invii segnati nell'app (il trigger di `20261023091627_partner_work_links.sql` guarda solo `origin = 'team'`); le date Partner entrano nel calendario; «Partner nel Team» (`/team/partner`).
+- Finance e Controllo CEO: tutti leggono cosa sono e chi li apre. Il riquadro «Aprire e chiudere Finance», con i link a `/auth/area/finance` (e `/auth/area/audit` per Tommi), compare solo a chi può entrare, con la regola `isSensitiveAreaEligible`. Dentro: «Chiudi Finance» in cima alle pagine Finance, «Correggere un movimento» («Modifica / storico», motivazione, storico, «Eliminati · recuperabili») e, solo per Tommi, i filtri del feed e «Chiudi Controllo CEO».
+- La guida cita pulsanti e riquadri di altre pagine. `guide-view.test.tsx` («i nomi citati esistono davvero») legge i componenti e la migrazione dei solleciti: se un nome citato cambia, il test fallisce e la guida si aggiorna insieme.
 - Il magazzino centrale si chiama «Magadzino» anche nella guida; «Magazzino» è la sezione.
 - Telefono: indice in cima su due colonne, parti una sotto l'altra. Computer: indice fermo a destra. Testo a 16 px, righe al massimo di 72 caratteri.
 
@@ -105,7 +108,7 @@ Con `npm run dev` l'anteprima locale (`isLocalPreviewEnabled()` in `src/lib/runt
 | Dove | Con anteprima locale |
 | --- | --- |
 | Menu | Tutte e 7 le sezioni, piede «Anteprima locale · Dati solo su questo browser» con «Come si usa» e «Account e sicurezza», niente «Esci». |
-| `/` | Avviso «Anteprima locale: Oggi legge solo dal database.» e riquadri «Non disponibile nell’anteprima locale.». Nessuna lettura. |
+| `/` | Avviso «Anteprima locale: Oggi legge solo dal database.», riquadro «Prima volta qui?» (chiave `luckylap-guida-vista-v1:anteprima`) e riquadri «Non disponibile nell’anteprima locale.». Nessuna lettura. |
 | `/stock` | Giacenze dallo snapshot `data/inventory-source.json`, con dettaglio prodotto ed export CSV. |
 | `/team` | `LocalPreviewWorkspace`: calendario, attività e note sul `localStorage` del browser. |
 | `/guida` | La guida come la vede Tommi, con l'avviso «Anteprima locale: la guida come la vede Tommi, con Finance e Controllo CEO.». |
@@ -119,7 +122,7 @@ Girano con `npm test`, senza browser:
 - `src/components/workspace-nav.test.tsx`: barra laterale, barra in basso e schede per percorso e per stato di accesso (`aria-current`, voci nascoste, piede, «Altro» con `aria-haspopup="dialog"`, nessun link esterno nel menu).
 - `src/lib/workspace-routes.test.ts`: ogni `page.tsx` sta nel gruppo, tranne login e conferma; ogni voce della mappa ha la sua pagina; nessun link indietro nelle pagine e nei componenti; nessun `AuthShell` nelle pagine del gruppo; `AuthShell` e le pagine radice `not-found` ed `error` senza moduli CSS; `<main>` solo nel guscio e in `AuthShell`, «Vai al contenuto» solo nel guscio; le ancore statiche (`evento-`, `attivita-`, `nota-` in Team, `contenuto-` in Grafica e foto, `progetto-` in Nuovi prodotti) esistono una volta sola.
 - `src/proxy.test.ts`: ogni primo segmento con una pagina, tolti i gruppi `(…)`, è nel `matcher`; anche `/`.
-- `src/components/guide-view.test.tsx` e `src/app/(workspace)/guida/page.test.tsx`: le otto parti della guida, una frase per ogni sezione e scheda della mappa, una riga e un link per ogni operazione comune, il riquadro Finance solo a chi può entrare, niente parole tecniche, anteprima spenta con `VERCEL=1` e `NODE_ENV=production`.
+- `src/components/guide-view.test.tsx` e `src/app/(workspace)/guida/page.test.tsx`: le nove parti della guida, i riquadri di Oggi (il conto vendita solo per Finance), una frase per ogni sezione e scheda della mappa, una riga e un link per ogni operazione comune, il riquadro Finance solo a chi può entrare, i nomi citati presenti nei loro componenti, niente parole tecniche, anteprima spenta con `VERCEL=1` e `NODE_ENV=production`.
 - `src/lib/design-floor.test.ts`: in tutti i `.css` di `src` nessun testo sotto 12 px, campi a 16 px, angoli ammessi, token dichiarati solo in `globals.css`, i sei `@font-face` di Barlow Condensed con i file in `public/fonts`, `.button` (altezza e larghezza minime) e `.icon-button` da 44 px, numeri e codici in Condensed.
 - `src/app/error-pages.test.tsx`, `src/components/pending-attempt.test.tsx`, `src/lib/auth/current-member.test.ts`, `src/lib/today/model.test.ts`: pagine di errore, invii da verificare, accesso corrente e regole di Oggi.
 
