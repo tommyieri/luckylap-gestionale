@@ -192,12 +192,12 @@ Ogni pagina per i membri vive nello stesso guscio (`src/components/workspace-fra
 
 **Key Characteristics:**
 
-- Testata verde fissa: barra laterale sul desktop, fascia verde e barra in basso sul telefono.
+- Barra laterale verde ferma sul desktop; sul telefono fascia verde che scorre e barra in basso fissa.
 - Righe quadrate, filetti sottili, nessuna ombra sui pannelli.
 - Due voci: Barlow Condensed per nomi, numeri, codici, titoli e menu; Barlow per frasi e controlli.
 - Testo leggibile sul telefono: minimo 12 px, corrente e campi a 16 px, bersagli da 44 px.
 
-I token normativi sono in `:root` di `src/app/globals.css`, ripresi nel frontmatter. `.impeccable/design.json` descrive ancora la versione del 21 ottobre: si aggiorna in un lavoro a parte.
+I token normativi sono in `:root` di `src/app/globals.css`, ripresi nel frontmatter. `.impeccable/design.json` estende questo documento con metadati, movimento e frammenti dei componenti, riallineati al codice dopo P7. Le rampe tonali del pannello Impeccable sono campioni sintetici dichiarati, non nuovi colori dell’interfaccia.
 
 ## Colors
 
@@ -205,7 +205,7 @@ Verde racing pieno solo per la testata e per ciò che è adesso o fatto; il rest
 
 ### Primary
 
-- **Verde racing** (`green`): fondo della barra laterale e della fascia del telefono, casella «adesso» delle righe roadbook, collegamenti, anello di focus. Altrove il verde è testo, filetto da 1 px o campitura chiara, mai un fondo pieno.
+- **Verde racing** (`green`): fondo della barra laterale e della fascia del telefono, casella «adesso» delle righe roadbook, collegamenti, anello di focus. Altrove il verde è testo, filetto da 1 px o campitura chiara, mai un fondo pieno. In Finance identifica anche gli importi in entrata, insieme al segno «+».
 - **Verde secondo** (`green-2`): filetti dentro la testata verde.
 - **Verde scuro** (`green-dark`): testo verde più scuro su fondi chiari, dove serve più contrasto.
 - **Verde chiaro** (`green-wash`): stato «fatto», filtri attivi e piccoli stati interattivi.
@@ -222,7 +222,7 @@ Verde racing pieno solo per la testata e per ciò che è adesso o fatto; il rest
 ### Stato
 
 - **Ambra** (`amber`, `amber-wash`): solo tempo e attenzione (in ritardo, dato da verificare, pannello di avviso), sempre con il suo wash.
-- **Rosso** (`red`): solo errori e impossibilità, per esempio un'operazione fallita o una variante esaurita. È una deviazione dal roadbook, che non usa il rosso: un gestionale deve dire quando un'operazione non è riuscita.
+- **Rosso** (`red`): errori e impossibilità, per esempio un'operazione fallita o una variante esaurita; nei movimenti Finance indica le uscite, insieme al segno «−». Trasferimenti e importi nulli restano neutri.
 
 **The Ink Inversion Rule.** La selezione è inversione d'inchiostro, non verde: voce attiva della barra laterale in carta sul verde, voce attiva del foglio «Altro», giorno scelto e pulsante principale in inchiostro su carta.
 
@@ -324,6 +324,10 @@ Stato di una pagina dentro il guscio: configurazione mancante, accesso negato, a
 
 `src/components/audit-view.tsx`: filtri Persona e Area in un modulo GET su fondo `tint`, con «Applica filtri» e «Rimuovi filtri»; sotto, una nota da 14 px in `muted` (le tue attività escluse all'inizio, orari di Roma). Il feed è un pannello con filetto: intestazione «Attività» con il numero di righe della pagina, giorni con il titolo su fondo `tint`, righe in griglia «ora | frase | Apri elemento». Ora in cifre tabellari da 14 px; frase a 16 px in inchiostro, al massimo 75 caratteri per riga; area sotto, 12 px in `muted`; «Apri elemento» con la freccia, bersaglio da 44 px (sul telefono va sotto la frase). 50 righe per pagina, «Più recenti» e «Attività precedenti» in fondo. Nessun colore di stato: il feed si legge, non chiede azioni.
 
+### Movimenti Finance
+
+`src/components/finance-imports-view.tsx` e `src/components/finance.module.css`: nel registro la categoria è in primo piano, la descrizione sotto e il conto in piccolo. Importi in entrata verdi con «+», uscite rosse con «−»; testo accessibile e segno rendono la distinzione leggibile anche senza colore. Trasferimenti e zero sono neutri. Fonte e stato generico non occupano una colonna delle righe; dettagli, filtri, revisioni, stati in sospeso ed eliminati restano consultabili.
+
 ### Finance movement editor
 
 `/finance/movimento?source_kind=…&source_id=…` (`src/components/finance-revision-editor.tsx`) e, per i pagamenti dei negozi, `/finance/incasso/<id>` (`finance-shop-payment-editor.tsx`). Pagina larga al massimo 1080 px: link «← Finance», `h1` «Movimento Finance» (o «Incasso conto vendita») e una riga di stato («Versione attiva · versione 2», «Eliminato dalla vista attiva»). Le sezioni si aprono con un filetto d'inchiostro da 2 px e il titolo in Condensed 24 px. «Correggi i dati»: campi su due colonne (una sotto 650 px), a 16 px e alti 44 px; «Motivazione della correzione» a tutta riga, obbligatoria; «Salva correzione» principale ed «Elimina movimento» secondario, con la conferma in linea su fondo `tint`. «Storico delle versioni»: una riga per versione, dalla più recente, titolo Condensed 18 px con «· attuale» o «· eliminata», autore e ora di Roma, riepilogo, motivazione e «Ripristina versione N» (a tutta larghezza sul telefono). Un invio incerto usa il riquadro «Invio da verificare». Nel registro della Panoramica ogni riga ha «Modifica / storico» (o «Ripristina / storico» tra gli eliminati), e una riga corretta dice «Versione N · Corretta»; le eliminate hanno la casella ambra «Eliminato · recuperabile».
@@ -374,5 +378,5 @@ Pannello laterale nativo `dialog`, largo 456 px sul desktop e contenuto entro la
 - **Don't** usare il corsivo, nemmeno nel marchio, o angoli arrotondati su pannelli e righe.
 - **Don't** applicare ombre a pannelli e righe o effetti decorativi che riducano la leggibilità dei dati.
 - **Don't** scendere sotto 12 px di testo o sotto 16 px nei campi.
-- **Don't** affidare al solo colore gli stati di magazzino o rappresentare un dato mancante come zero.
+- **Don't** affidare al solo colore gli stati di magazzino o il verso dei movimenti Finance, né rappresentare un dato mancante come zero.
 - **Don't** forzare tutte le colonne desktop dentro la larghezza del telefono riducendo la scala dell'intera pagina.

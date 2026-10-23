@@ -1,6 +1,6 @@
 {
   "schemaVersion": 2,
-  "generatedAt": "2026-10-21T11:05:11.283444+00:00",
+  "generatedAt": "2026-10-23T12:01:12.618194+00:00",
   "title": "Design System: LuckyLap Gestionale",
   "extensions": {
     "colorMeta": {
@@ -8,20 +8,41 @@
         "role": "primary",
         "displayName": "Verde racing",
         "canonical": "#1d4b07",
-        "description": "Azioni principali e stato disponibile.",
+        "description": "Testata e fascia verde, stato adesso, collegamenti, focus ed entrate Finance.",
         "tonalRamp": [
-          "oklch(15% 0.10707 138.18)",
+          "oklch(15.00% 0.10707 138.18)",
           "oklch(26.43% 0.10707 138.18)",
           "oklch(37.86% 0.10707 138.18)",
           "oklch(49.29% 0.10707 138.18)",
           "oklch(60.71% 0.10707 138.18)",
           "oklch(72.14% 0.10707 138.18)",
           "oklch(83.57% 0.10707 138.18)",
-          "oklch(95% 0.10707 138.18)"
+          "oklch(95.00% 0.10707 138.18)"
         ],
         "tonalRampMeta": {
           "source": "synthesized",
-          "method": "OKLCH: hue e chroma del token, otto passi di lightness dal 15% al 95%; il browser può ridurre i colori fuori gamut.",
+          "method": "Campioni OKLCH derivati dal token: otto passi dal 15% al 95% di lightness; il browser può ridurre i colori fuori gamut. Non sono token aggiunti al sito.",
+          "usedInUI": false
+        }
+      },
+      "green-2": {
+        "role": "primary",
+        "displayName": "Verde secondo",
+        "canonical": "#2b6311",
+        "description": "Filetti e scrollbar nella testata verde.",
+        "tonalRamp": [
+          "oklch(15.00% 0.12602 138.05)",
+          "oklch(26.43% 0.12602 138.05)",
+          "oklch(37.86% 0.12602 138.05)",
+          "oklch(49.29% 0.12602 138.05)",
+          "oklch(60.71% 0.12602 138.05)",
+          "oklch(72.14% 0.12602 138.05)",
+          "oklch(83.57% 0.12602 138.05)",
+          "oklch(95.00% 0.12602 138.05)"
+        ],
+        "tonalRampMeta": {
+          "source": "synthesized",
+          "method": "Campioni OKLCH derivati dal token: otto passi dal 15% al 95% di lightness; il browser può ridurre i colori fuori gamut. Non sono token aggiunti al sito.",
           "usedInUI": false
         }
       },
@@ -29,20 +50,20 @@
         "role": "primary",
         "displayName": "Verde scuro",
         "canonical": "#15370a",
-        "description": "Navigazione laterale.",
+        "description": "Testo verde scuro su fondi chiari.",
         "tonalRamp": [
-          "oklch(15% 0.08123 139.14)",
+          "oklch(15.00% 0.08123 139.14)",
           "oklch(26.43% 0.08123 139.14)",
           "oklch(37.86% 0.08123 139.14)",
           "oklch(49.29% 0.08123 139.14)",
           "oklch(60.71% 0.08123 139.14)",
           "oklch(72.14% 0.08123 139.14)",
           "oklch(83.57% 0.08123 139.14)",
-          "oklch(95% 0.08123 139.14)"
+          "oklch(95.00% 0.08123 139.14)"
         ],
         "tonalRampMeta": {
           "source": "synthesized",
-          "method": "OKLCH: hue e chroma del token, otto passi di lightness dal 15% al 95%; il browser può ridurre i colori fuori gamut.",
+          "method": "Campioni OKLCH derivati dal token: otto passi dal 15% al 95% di lightness; il browser può ridurre i colori fuori gamut. Non sono token aggiunti al sito.",
           "usedInUI": false
         }
       },
@@ -50,41 +71,83 @@
         "role": "primary",
         "displayName": "Verde chiaro",
         "canonical": "#e4ecdb",
-        "description": "Selezioni e filtri attivi.",
+        "description": "Stati fatti, filtri attivi e contatori.",
         "tonalRamp": [
-          "oklch(15% 0.02415 127.59)",
+          "oklch(15.00% 0.02415 127.59)",
           "oklch(26.43% 0.02415 127.59)",
           "oklch(37.86% 0.02415 127.59)",
           "oklch(49.29% 0.02415 127.59)",
           "oklch(60.71% 0.02415 127.59)",
           "oklch(72.14% 0.02415 127.59)",
           "oklch(83.57% 0.02415 127.59)",
-          "oklch(95% 0.02415 127.59)"
+          "oklch(95.00% 0.02415 127.59)"
         ],
         "tonalRampMeta": {
           "source": "synthesized",
-          "method": "OKLCH: hue e chroma del token, otto passi di lightness dal 15% al 95%; il browser può ridurre i colori fuori gamut.",
+          "method": "Campioni OKLCH derivati dal token: otto passi dal 15% al 95% di lightness; il browser può ridurre i colori fuori gamut. Non sono token aggiunti al sito.",
+          "usedInUI": false
+        }
+      },
+      "on-green": {
+        "role": "neutral",
+        "displayName": "Testo su verde",
+        "canonical": "#ffffff",
+        "description": "Marchio e testo principale sulla testata verde.",
+        "tonalRamp": [
+          "oklch(15.00% 0.00000 89.88)",
+          "oklch(26.43% 0.00000 89.88)",
+          "oklch(37.86% 0.00000 89.88)",
+          "oklch(49.29% 0.00000 89.88)",
+          "oklch(60.71% 0.00000 89.88)",
+          "oklch(72.14% 0.00000 89.88)",
+          "oklch(83.57% 0.00000 89.88)",
+          "oklch(95.00% 0.00000 89.88)"
+        ],
+        "tonalRampMeta": {
+          "source": "synthesized",
+          "method": "Campioni OKLCH derivati dal token: otto passi dal 15% al 95% di lightness; il browser può ridurre i colori fuori gamut. Non sono token aggiunti al sito.",
+          "usedInUI": false
+        }
+      },
+      "on-green-2": {
+        "role": "neutral",
+        "displayName": "Testo secondario su verde",
+        "canonical": "#cfdec2",
+        "description": "Voci inattive e testo secondario della testata.",
+        "tonalRamp": [
+          "oklch(15.00% 0.04097 130.35)",
+          "oklch(26.43% 0.04097 130.35)",
+          "oklch(37.86% 0.04097 130.35)",
+          "oklch(49.29% 0.04097 130.35)",
+          "oklch(60.71% 0.04097 130.35)",
+          "oklch(72.14% 0.04097 130.35)",
+          "oklch(83.57% 0.04097 130.35)",
+          "oklch(95.00% 0.04097 130.35)"
+        ],
+        "tonalRampMeta": {
+          "source": "synthesized",
+          "method": "Campioni OKLCH derivati dal token: otto passi dal 15% al 95% di lightness; il browser può ridurre i colori fuori gamut. Non sono token aggiunti al sito.",
           "usedInUI": false
         }
       },
       "paper": {
         "role": "neutral",
-        "displayName": "Bianco",
+        "displayName": "Carta",
         "canonical": "#ffffff",
-        "description": "Pannelli e superfici principali.",
+        "description": "Pagina, pannelli e selezione nella barra laterale.",
         "tonalRamp": [
-          "oklch(15% 0.00000 0.00)",
-          "oklch(26.43% 0.00000 0.00)",
-          "oklch(37.86% 0.00000 0.00)",
-          "oklch(49.29% 0.00000 0.00)",
-          "oklch(60.71% 0.00000 0.00)",
-          "oklch(72.14% 0.00000 0.00)",
-          "oklch(83.57% 0.00000 0.00)",
-          "oklch(95% 0.00000 0.00)"
+          "oklch(15.00% 0.00000 89.88)",
+          "oklch(26.43% 0.00000 89.88)",
+          "oklch(37.86% 0.00000 89.88)",
+          "oklch(49.29% 0.00000 89.88)",
+          "oklch(60.71% 0.00000 89.88)",
+          "oklch(72.14% 0.00000 89.88)",
+          "oklch(83.57% 0.00000 89.88)",
+          "oklch(95.00% 0.00000 89.88)"
         ],
         "tonalRampMeta": {
           "source": "synthesized",
-          "method": "OKLCH: hue e chroma del token, otto passi di lightness dal 15% al 95%; il browser può ridurre i colori fuori gamut.",
+          "method": "Campioni OKLCH derivati dal token: otto passi dal 15% al 95% di lightness; il browser può ridurre i colori fuori gamut. Non sono token aggiunti al sito.",
           "usedInUI": false
         }
       },
@@ -92,20 +155,41 @@
         "role": "neutral",
         "displayName": "Inchiostro",
         "canonical": "#121512",
-        "description": "Titoli, quantità e testo.",
+        "description": "Testo principale, pulsanti primari e selezioni in inversione.",
         "tonalRamp": [
-          "oklch(15% 0.00758 145.27)",
+          "oklch(15.00% 0.00758 145.27)",
           "oklch(26.43% 0.00758 145.27)",
           "oklch(37.86% 0.00758 145.27)",
           "oklch(49.29% 0.00758 145.27)",
           "oklch(60.71% 0.00758 145.27)",
           "oklch(72.14% 0.00758 145.27)",
           "oklch(83.57% 0.00758 145.27)",
-          "oklch(95% 0.00758 145.27)"
+          "oklch(95.00% 0.00758 145.27)"
         ],
         "tonalRampMeta": {
           "source": "synthesized",
-          "method": "OKLCH: hue e chroma del token, otto passi di lightness dal 15% al 95%; il browser può ridurre i colori fuori gamut.",
+          "method": "Campioni OKLCH derivati dal token: otto passi dal 15% al 95% di lightness; il browser può ridurre i colori fuori gamut. Non sono token aggiunti al sito.",
+          "usedInUI": false
+        }
+      },
+      "ink-2": {
+        "role": "neutral",
+        "displayName": "Inchiostro secondario",
+        "canonical": "#394037",
+        "description": "Paragrafi, schede inattive e hover del pulsante principale.",
+        "tonalRamp": [
+          "oklch(15.00% 0.01783 138.74)",
+          "oklch(26.43% 0.01783 138.74)",
+          "oklch(37.86% 0.01783 138.74)",
+          "oklch(49.29% 0.01783 138.74)",
+          "oklch(60.71% 0.01783 138.74)",
+          "oklch(72.14% 0.01783 138.74)",
+          "oklch(83.57% 0.01783 138.74)",
+          "oklch(95.00% 0.01783 138.74)"
+        ],
+        "tonalRampMeta": {
+          "source": "synthesized",
+          "method": "Campioni OKLCH derivati dal token: otto passi dal 15% al 95% di lightness; il browser può ridurre i colori fuori gamut. Non sono token aggiunti al sito.",
           "usedInUI": false
         }
       },
@@ -113,41 +197,62 @@
         "role": "neutral",
         "displayName": "Grigio verde",
         "canonical": "#5a6257",
-        "description": "Testo secondario.",
+        "description": "Metadati e testo secondario sul contenuto chiaro.",
         "tonalRamp": [
-          "oklch(15% 0.01990 137.09)",
+          "oklch(15.00% 0.01990 137.09)",
           "oklch(26.43% 0.01990 137.09)",
           "oklch(37.86% 0.01990 137.09)",
           "oklch(49.29% 0.01990 137.09)",
           "oklch(60.71% 0.01990 137.09)",
           "oklch(72.14% 0.01990 137.09)",
           "oklch(83.57% 0.01990 137.09)",
-          "oklch(95% 0.01990 137.09)"
+          "oklch(95.00% 0.01990 137.09)"
         ],
         "tonalRampMeta": {
           "source": "synthesized",
-          "method": "OKLCH: hue e chroma del token, otto passi di lightness dal 15% al 95%; il browser può ridurre i colori fuori gamut.",
+          "method": "Campioni OKLCH derivati dal token: otto passi dal 15% al 95% di lightness; il browser può ridurre i colori fuori gamut. Non sono token aggiunti al sito.",
           "usedInUI": false
         }
       },
       "rule": {
         "role": "neutral",
-        "displayName": "Bordo grigio verde",
+        "displayName": "Filetto",
         "canonical": "#c9cfc3",
-        "description": "Bordi e separatori.",
+        "description": "Bordi dei pannelli, campi e righe.",
         "tonalRamp": [
-          "oklch(15% 0.01762 128.69)",
+          "oklch(15.00% 0.01762 128.69)",
           "oklch(26.43% 0.01762 128.69)",
           "oklch(37.86% 0.01762 128.69)",
           "oklch(49.29% 0.01762 128.69)",
           "oklch(60.71% 0.01762 128.69)",
           "oklch(72.14% 0.01762 128.69)",
           "oklch(83.57% 0.01762 128.69)",
-          "oklch(95% 0.01762 128.69)"
+          "oklch(95.00% 0.01762 128.69)"
         ],
         "tonalRampMeta": {
           "source": "synthesized",
-          "method": "OKLCH: hue e chroma del token, otto passi di lightness dal 15% al 95%; il browser può ridurre i colori fuori gamut.",
+          "method": "Campioni OKLCH derivati dal token: otto passi dal 15% al 95% di lightness; il browser può ridurre i colori fuori gamut. Non sono token aggiunti al sito.",
+          "usedInUI": false
+        }
+      },
+      "rule-soft": {
+        "role": "neutral",
+        "displayName": "Filetto tenue",
+        "canonical": "#e1e5dc",
+        "description": "Separazioni secondarie e righe segnaposto.",
+        "tonalRamp": [
+          "oklch(15.00% 0.01277 126.38)",
+          "oklch(26.43% 0.01277 126.38)",
+          "oklch(37.86% 0.01277 126.38)",
+          "oklch(49.29% 0.01277 126.38)",
+          "oklch(60.71% 0.01277 126.38)",
+          "oklch(72.14% 0.01277 126.38)",
+          "oklch(83.57% 0.01277 126.38)",
+          "oklch(95.00% 0.01277 126.38)"
+        ],
+        "tonalRampMeta": {
+          "source": "synthesized",
+          "method": "Campioni OKLCH derivati dal token: otto passi dal 15% al 95% di lightness; il browser può ridurre i colori fuori gamut. Non sono token aggiunti al sito.",
           "usedInUI": false
         }
       },
@@ -155,20 +260,20 @@
         "role": "neutral",
         "displayName": "Fondo chiaro",
         "canonical": "#f3f5f0",
-        "description": "Sfondo dell’applicazione.",
+        "description": "Campiture neutre, hover e avvisi.",
         "tonalRamp": [
-          "oklch(15% 0.00693 124.45)",
+          "oklch(15.00% 0.00693 124.45)",
           "oklch(26.43% 0.00693 124.45)",
           "oklch(37.86% 0.00693 124.45)",
           "oklch(49.29% 0.00693 124.45)",
           "oklch(60.71% 0.00693 124.45)",
           "oklch(72.14% 0.00693 124.45)",
           "oklch(83.57% 0.00693 124.45)",
-          "oklch(95% 0.00693 124.45)"
+          "oklch(95.00% 0.00693 124.45)"
         ],
         "tonalRampMeta": {
           "source": "synthesized",
-          "method": "OKLCH: hue e chroma del token, otto passi di lightness dal 15% al 95%; il browser può ridurre i colori fuori gamut.",
+          "method": "Campioni OKLCH derivati dal token: otto passi dal 15% al 95% di lightness; il browser può ridurre i colori fuori gamut. Non sono token aggiunti al sito.",
           "usedInUI": false
         }
       },
@@ -176,62 +281,62 @@
         "role": "semantic",
         "displayName": "Ambra",
         "canonical": "#875800",
-        "description": "Dato da verificare.",
+        "description": "Tempo, attenzione, ritardi e invii da verificare.",
         "tonalRamp": [
-          "oklch(15% 0.10629 73.35)",
+          "oklch(15.00% 0.10629 73.35)",
           "oklch(26.43% 0.10629 73.35)",
           "oklch(37.86% 0.10629 73.35)",
           "oklch(49.29% 0.10629 73.35)",
           "oklch(60.71% 0.10629 73.35)",
           "oklch(72.14% 0.10629 73.35)",
           "oklch(83.57% 0.10629 73.35)",
-          "oklch(95% 0.10629 73.35)"
+          "oklch(95.00% 0.10629 73.35)"
         ],
         "tonalRampMeta": {
           "source": "synthesized",
-          "method": "OKLCH: hue e chroma del token, otto passi di lightness dal 15% al 95%; il browser può ridurre i colori fuori gamut.",
+          "method": "Campioni OKLCH derivati dal token: otto passi dal 15% al 95% di lightness; il browser può ridurre i colori fuori gamut. Non sono token aggiunti al sito.",
           "usedInUI": false
         }
       },
       "amber-wash": {
         "role": "semantic",
-        "displayName": "Ambra chiaro",
-        "canonical": "#f8f1df",
-        "description": "Campitura semantica dichiarata nel CSS.",
+        "displayName": "Fondo ambra",
+        "canonical": "#f6ead1",
+        "description": "Fondo degli avvisi ambra.",
         "tonalRamp": [
-          "oklch(15% 0.02491 89.21)",
-          "oklch(26.43% 0.02491 89.21)",
-          "oklch(37.86% 0.02491 89.21)",
-          "oklch(49.29% 0.02491 89.21)",
-          "oklch(60.71% 0.02491 89.21)",
-          "oklch(72.14% 0.02491 89.21)",
-          "oklch(83.57% 0.02491 89.21)",
-          "oklch(95% 0.02491 89.21)"
+          "oklch(15.00% 0.03543 85.41)",
+          "oklch(26.43% 0.03543 85.41)",
+          "oklch(37.86% 0.03543 85.41)",
+          "oklch(49.29% 0.03543 85.41)",
+          "oklch(60.71% 0.03543 85.41)",
+          "oklch(72.14% 0.03543 85.41)",
+          "oklch(83.57% 0.03543 85.41)",
+          "oklch(95.00% 0.03543 85.41)"
         ],
         "tonalRampMeta": {
           "source": "synthesized",
-          "method": "OKLCH: hue e chroma del token, otto passi di lightness dal 15% al 95%; il browser può ridurre i colori fuori gamut.",
+          "method": "Campioni OKLCH derivati dal token: otto passi dal 15% al 95% di lightness; il browser può ridurre i colori fuori gamut. Non sono token aggiunti al sito.",
           "usedInUI": false
         }
       },
       "red": {
         "role": "semantic",
-        "displayName": "Rosso",
+        "displayName": "Rosso operativo",
         "canonical": "#9b3b25",
-        "description": "Stato esaurito e azioni di rimozione.",
+        "description": "Errori, impossibilità, esauriti e uscite Finance con segno meno.",
         "tonalRamp": [
-          "oklch(15% 0.13338 34.34)",
+          "oklch(15.00% 0.13338 34.34)",
           "oklch(26.43% 0.13338 34.34)",
           "oklch(37.86% 0.13338 34.34)",
           "oklch(49.29% 0.13338 34.34)",
           "oklch(60.71% 0.13338 34.34)",
           "oklch(72.14% 0.13338 34.34)",
           "oklch(83.57% 0.13338 34.34)",
-          "oklch(95% 0.13338 34.34)"
+          "oklch(95.00% 0.13338 34.34)"
         ],
         "tonalRampMeta": {
           "source": "synthesized",
-          "method": "OKLCH: hue e chroma del token, otto passi di lightness dal 15% al 95%; il browser può ridurre i colori fuori gamut.",
+          "method": "Campioni OKLCH derivati dal token: otto passi dal 15% al 95% di lightness; il browser può ridurre i colori fuori gamut. Non sono token aggiunti al sito.",
           "usedInUI": false
         }
       }
@@ -239,28 +344,35 @@
     "typographyMeta": {
       "display": {
         "displayName": "Marchio",
-        "purpose": "Marchio e monogramma del brand.",
-        "style": "italic"
+        "purpose": "Marchio LuckyLap in Condensed diritto; 30 px sul desktop e 24 px sul telefono."
       },
       "headline": {
         "displayName": "Titolo di pagina",
-        "purpose": "Gerarchia principale delle sezioni."
+        "purpose": "Titolo principale di ogni pagina e pannello di stato."
       },
       "title": {
         "displayName": "Titolo pannello",
-        "purpose": "Intestazioni dei contenitori operativi."
+        "purpose": "Titoli dei riquadri, della guida e del foglio Altro."
+      },
+      "navigation": {
+        "displayName": "Navigazione",
+        "purpose": "Voci della barra laterale e del foglio Altro in Condensed 600."
+      },
+      "numeric": {
+        "displayName": "Numeri e codici",
+        "purpose": "Quantità, importi, date, ore e SKU in Condensed con cifre tabellari."
       },
       "body": {
         "displayName": "Testo base",
-        "purpose": "Testo generale del gestionale."
+        "purpose": "Frasi e controlli in Barlow; campi sempre a 16 px."
       },
       "table": {
         "displayName": "Testo tabella",
-        "purpose": "Righe inventario e dati operativi."
+        "purpose": "Righe inventario e dati operativi a 14 px."
       },
       "label": {
         "displayName": "Etichetta",
-        "purpose": "Metadati e stati compatti."
+        "purpose": "Metadati e stati da 12 px, mai sotto 12 px."
       }
     },
     "shadows": [
@@ -278,18 +390,18 @@
     "motion": [
       {
         "name": "state-transition",
-        "value": ".16s ease-out",
-        "purpose": "Cambi di colore dei controlli."
+        "value": "160ms cubic-bezier(0.16,1,0.3,1)",
+        "purpose": "Cambi di colore dei controlli e delle righe."
+      },
+      {
+        "name": "sheet-enter",
+        "value": "260ms cubic-bezier(0.16,1,0.3,1)",
+        "purpose": "Ingresso dal basso del foglio Altro sul telefono."
       },
       {
         "name": "detail-enter",
-        "value": ".2s cubic-bezier(.16,1,.3,1)",
-        "purpose": "Ingresso laterale del dettaglio, da translateX(28px) a zero."
-      },
-      {
-        "name": "sidebar-transition",
-        "value": ".2s cubic-bezier(.16,1,.3,1)",
-        "purpose": "Apertura e chiusura del menu mobile."
+        "value": "200ms cubic-bezier(0.16,1,0.3,1)",
+        "purpose": "Ingresso laterale del dettaglio prodotto."
       },
       {
         "name": "reduced-motion",
@@ -299,121 +411,134 @@
     ],
     "breakpoints": [
       {
-        "name": "wide-desktop",
-        "value": "1650px",
+        "name": "desktop-ampio",
+        "value": "1251px",
         "query": "min-width",
-        "purpose": "Più spazio laterale e sopra il contenuto."
+        "purpose": "Margini del contenuto a 32 px."
       },
       {
-        "name": "compact-desktop",
+        "name": "desktop-compatto",
         "value": "1250px",
         "query": "max-width",
-        "purpose": "Riduce barra laterale e porta calendario, agenda, attività e note su una colonna."
+        "purpose": "Barra laterale da 210 px."
       },
       {
-        "name": "narrow-desktop",
-        "value": "980px",
+        "name": "guida-compatta",
+        "value": "1100px",
         "query": "max-width",
-        "purpose": "Ricerca e filtri su righe distinte; pannelli dashboard in una colonna."
+        "purpose": "Indice della guida in cima, su due colonne."
       },
       {
-        "name": "mobile",
+        "name": "desktop-stretto",
+        "value": "1000px",
+        "query": "max-width",
+        "purpose": "Barra laterale da 200 px e Oggi su una colonna."
+      },
+      {
+        "name": "telefono",
         "value": "760px",
         "query": "max-width",
-        "purpose": "Menu apribile e tabella a colonne essenziali."
-      },
-      {
-        "name": "small-mobile",
-        "value": "430px",
-        "query": "max-width",
-        "purpose": "Padding laterale di 15px e strumenti che vanno a capo."
+        "purpose": "Fascia verde, schede e barra inferiore; righe roadbook con colonna di controllo da 56 px."
       }
     ]
   },
   "components": [
     {
-      "name": "Pulsante primario",
+      "name": "Pulsante principale",
       "kind": "button",
       "refersTo": "button-primary",
-      "description": "Azione principale nei moduli operativi.",
-      "html": "<button class=\"ds-button-primary\"><svg width=\"16\" height=\"16\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\" aria-hidden=\"true\"><path d=\"M12 5v14M5 12h14\"/></svg>Aggiungi appuntamento</button>",
-      "css": ".ds-button-primary{font-family:Barlow,Arial,sans-serif;display:inline-flex;align-items:center;justify-content:center;gap:8px;min-height:38px;padding:9px 14px;border-radius:5px;font-size:12px;font-weight:500;line-height:1.4;cursor:pointer;transition:background-color .16s ease-out,color .16s ease-out,border-color .16s ease-out;background:var(--green,#1d4b07);color:var(--paper,#fff);border:1px solid var(--green,#1d4b07)}.ds-button-primary:hover{background:#143706;border-color:#143706}.ds-button-primary:focus-visible{outline:3px solid #82a35c;outline-offset:3px;}.ds-button-primary:disabled{opacity:.5;cursor:not-allowed}@media(prefers-reduced-motion:reduce){.ds-button-primary{transition:none}}"
+      "description": "Controllo operativo da 44 px, angolo da 2 px; sorgente: globals.css, .button e relativa variante.",
+      "html": "<button class=\"ds-button-primary\">Salva</button>",
+      "css": ".ds-button-primary{font-family:var(--f-body,Barlow,\"Helvetica Neue\",Arial,sans-serif);display:inline-flex;align-items:center;justify-content:center;gap:8px;min-height:44px;min-width:44px;padding:10px 16px;border-radius:2px;font-size:14px;font-weight:500;line-height:1.4;cursor:pointer;transition:background-color 160ms var(--ease,cubic-bezier(.16,1,.3,1)),color 160ms var(--ease,cubic-bezier(.16,1,.3,1)),border-color 160ms var(--ease,cubic-bezier(.16,1,.3,1));background:var(--ink,#121512);color:var(--paper,#ffffff);border:1px solid var(--ink,#121512);}.ds-button-primary:hover{background:var(--ink-2,#394037);border-color:var(--ink-2,#394037);}.ds-button-primary:focus-visible{outline:2px solid var(--green,#1d4b07);outline-offset:2px;}.ds-button-primary:disabled{opacity:.5;cursor:not-allowed;}@media(prefers-reduced-motion:reduce){.ds-button-primary{transition:none}}"
     },
     {
       "name": "Pulsante secondario",
       "kind": "button",
       "refersTo": "button-secondary",
-      "description": "Azione complementare con bordo sottile.",
-      "html": "<button class=\"ds-button-secondary\">Esporta CSV</button>",
-      "css": ".ds-button-secondary{font-family:Barlow,Arial,sans-serif;display:inline-flex;align-items:center;justify-content:center;gap:8px;min-height:38px;padding:9px 14px;border-radius:5px;font-size:12px;font-weight:500;line-height:1.4;cursor:pointer;transition:background-color .16s ease-out,color .16s ease-out,border-color .16s ease-out;background:var(--paper,#fff);color:#2e3827;border:1px solid var(--rule,#c9cfc3)}.ds-button-secondary:hover{background:#edf1e7;border-color:#a6b398}.ds-button-secondary:focus-visible{outline:3px solid #82a35c;outline-offset:3px;}.ds-button-secondary:disabled{opacity:.5;cursor:not-allowed}@media(prefers-reduced-motion:reduce){.ds-button-secondary{transition:none}}"
+      "description": "Controllo operativo da 44 px, angolo da 2 px; sorgente: globals.css, .button e relativa variante.",
+      "html": "<button class=\"ds-button-secondary\">Chiudi</button>",
+      "css": ".ds-button-secondary{font-family:var(--f-body,Barlow,\"Helvetica Neue\",Arial,sans-serif);display:inline-flex;align-items:center;justify-content:center;gap:8px;min-height:44px;min-width:44px;padding:10px 16px;border-radius:2px;font-size:14px;font-weight:500;line-height:1.4;cursor:pointer;transition:background-color 160ms var(--ease,cubic-bezier(.16,1,.3,1)),color 160ms var(--ease,cubic-bezier(.16,1,.3,1)),border-color 160ms var(--ease,cubic-bezier(.16,1,.3,1));background:var(--paper,#ffffff);color:#2e3827;border:1px solid var(--rule,#c9cfc3);}.ds-button-secondary:hover{background:#edf1e7;border-color:#a6b398;}.ds-button-secondary:focus-visible{outline:2px solid var(--green,#1d4b07);outline-offset:2px;}.ds-button-secondary:disabled{opacity:.5;cursor:not-allowed;}@media(prefers-reduced-motion:reduce){.ds-button-secondary{transition:none}}"
     },
     {
       "name": "Ricerca inventario",
       "kind": "input",
       "refersTo": "search-input",
-      "description": "Campo di ricerca con focus sul contenitore.",
-      "html": "<label class=\"ds-search\"><svg width=\"17\" height=\"17\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\" aria-hidden=\"true\"><circle cx=\"11\" cy=\"11\" r=\"8\"/><path d=\"m21 21-4.3-4.3\"/></svg><input class=\"ds-search-field\" type=\"search\" aria-label=\"Cerca prodotto, SKU o colore\" placeholder=\"Cerca prodotto, SKU o colore…\"/></label>",
-      "css": ".ds-search{font-family:Barlow,Arial,sans-serif;display:flex;align-items:center;gap:9px;border:1px solid var(--rule,#c9cfc3);border-radius:5px;padding:0 11px;min-height:38px;max-width:365px;color:var(--muted,#5a6257);background:var(--paper,#fff)}.ds-search-field{font-family:Barlow,Arial,sans-serif;width:100%;min-width:0;border:0;outline:none;background:transparent;font-size:12px;padding:9px 0;color:var(--ink,#121512);caret-color:var(--green,#1d4b07)}.ds-search-field::placeholder{color:#686f63;opacity:1}.ds-search:focus-within{border-color:#718c5a;outline:2px solid #cbdabb;outline-offset:1px}"
+      "description": "Ricerca con icona, campo senza bordo interno e focus sul contenitore; sorgente: globals.css, .search-input.",
+      "html": "<div class=\"ds-search\"><svg width=\"17\" height=\"17\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\" aria-hidden=\"true\"><circle cx=\"11\" cy=\"11\" r=\"8\"/><path d=\"m21 21-4.3-4.3\"/></svg><input class=\"ds-search-field\" aria-label=\"Cerca prodotto, SKU o colore\" placeholder=\"Cerca prodotto, SKU o colore…\"/></div>",
+      "css": ".ds-search{font-family:var(--f-body,Barlow,\"Helvetica Neue\",Arial,sans-serif);display:flex;align-items:center;gap:9px;border:1px solid var(--rule,#c9cfc3);border-radius:2px;padding:0 11px;min-height:44px;max-width:365px;color:var(--muted,#5a6257);background:var(--paper,#ffffff)}.ds-search svg{flex-shrink:0}.ds-search-field{font-family:var(--f-body,Barlow,\"Helvetica Neue\",Arial,sans-serif);width:100%;min-width:0;border:0;outline:none;background:transparent;font-size:16px;padding:9px 0;color:var(--ink,#121512);caret-color:var(--green,#1d4b07)}.ds-search-field::placeholder{color:#686f63;opacity:1}.ds-search:focus-within{border-color:var(--green,#1d4b07);outline:2px solid var(--green,#1d4b07);outline-offset:2px}"
     },
     {
       "name": "Navigazione laterale",
       "kind": "nav",
       "refersTo": "navigation-item-active",
-      "description": "Voce corrente chiara sulla superficie verde scuro.",
-      "html": "<nav class=\"ds-nav\" aria-label=\"Operatività\"><p class=\"ds-nav-label\">OPERATIVITÀ</p><button class=\"ds-nav-item ds-nav-selected\" aria-current=\"page\"><svg width=\"18\" height=\"18\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"1.6\" aria-hidden=\"true\"><path d=\"m21 8-9 5-9-5M12 13v9M3 7l9-5 9 5v10l-9 5-9-5Z\"/></svg>Magazzino</button><button class=\"ds-nav-item\">Packaging</button></nav>",
-      "css": ".ds-nav{font-family:Barlow,Arial,sans-serif;width:204px;padding:16px 14px;background:var(--green-dark,#15370a);color:#d9e4d0}.ds-nav-label{font-size:9px;font-weight:600;letter-spacing:.1em;color:#b6c6a9;margin:0 0 8px;padding:0 13px}.ds-nav-item{font-family:Barlow,Arial,sans-serif;display:flex;align-items:center;gap:11px;width:100%;min-height:41px;padding:9px 12px;margin-top:3px;border:0;border-radius:5px;background:transparent;color:#d9e4d0;font-size:13px;text-align:left;cursor:pointer;transition:background-color .16s ease-out,color .16s ease-out}.ds-nav-item:hover{background:#ffffff0c;color:#fff}.ds-nav-selected,.ds-nav-selected:hover{background:var(--green-wash,#e4ecdb);color:var(--green-dark,#15370a);font-weight:600}.ds-nav-item:focus-visible{outline:3px solid #82a35c;outline-offset:3px;}@media(prefers-reduced-motion:reduce){.ds-nav-item{transition:none}}"
+      "description": "Marchio diritto, fondo verde racing e voce attiva carta/inchiostro; sorgente: workspace-shell.module.css.",
+      "html": "<nav class=\"ds-nav\" aria-label=\"Sezioni del gestionale\"><a class=\"ds-brand\" href=\"/\">LuckyLap<span>Gestionale</span></a><a class=\"ds-nav-item\" href=\"/\">Oggi</a><a class=\"ds-nav-item\" href=\"/stock\" aria-current=\"page\">Magazzino</a><a class=\"ds-nav-foot\" href=\"/guida\">Come si usa</a></nav>",
+      "css": ".ds-nav{width:232px;padding:20px 0 16px;background:var(--green,#1d4b07);color:var(--on-green,#ffffff)}.ds-brand{font-family:var(--f-cond,\"Barlow Condensed\",\"Arial Narrow\",\"Helvetica Neue\",Arial,sans-serif);display:grid;min-height:44px;padding:0 20px 16px;color:var(--on-green,#ffffff);text-decoration:none;font-size:30px;font-weight:700;font-style:normal;line-height:1;letter-spacing:.01em}.ds-brand span{font-size:16px;font-weight:500;line-height:1.1;letter-spacing:.02em;color:var(--on-green-2,#cfdec2);margin-top:3px}.ds-nav-item{font-family:var(--f-cond,\"Barlow Condensed\",\"Arial Narrow\",\"Helvetica Neue\",Arial,sans-serif);display:flex;align-items:center;min-height:48px;padding:0 20px;color:var(--on-green-2,#cfdec2);font-size:18px;font-weight:600;line-height:1.1;letter-spacing:.02em;text-decoration:none;transition:background-color 160ms var(--ease,cubic-bezier(.16,1,.3,1)),color 160ms var(--ease,cubic-bezier(.16,1,.3,1)),border-color 160ms var(--ease,cubic-bezier(.16,1,.3,1));}.ds-nav-item:hover{background:#ffffff14;color:var(--on-green,#ffffff)}.ds-nav-item[aria-current],.ds-nav-item[aria-current]:hover{background:var(--paper,#ffffff);color:var(--ink,#121512)}.ds-nav-item:focus-visible,.ds-brand:focus-visible,.ds-nav-foot:focus-visible{outline:2px solid var(--on-green,#ffffff);outline-offset:-3px}.ds-nav-item[aria-current]:focus-visible{outline-color:var(--green,#1d4b07)}.ds-nav-foot{font-family:var(--f-body,Barlow,\"Helvetica Neue\",Arial,sans-serif);display:inline-flex;align-items:center;min-height:44px;margin:16px 20px 0;color:var(--on-green-2,#cfdec2);font-size:14px;text-underline-offset:3px}.ds-nav-foot:hover{color:var(--on-green,#ffffff)}@media(prefers-reduced-motion:reduce){.ds-nav-item{transition:none}}"
     },
     {
       "name": "Stati di magazzino",
       "kind": "chip",
       "refersTo": "stock-status",
-      "description": "Etichette testuali con punto colorato; non dipendono dal solo colore.",
-      "html": "<div class=\"ds-statuses\"><span class=\"ds-status ds-available\"><span class=\"ds-status-dot\"></span>Disponibile</span><span class=\"ds-status ds-empty\"><span class=\"ds-status-dot\"></span>Esaurito</span><span class=\"ds-status ds-unknown\"><span class=\"ds-status-dot\"></span>Da verificare</span></div>",
-      "css": ".ds-statuses{font-family:Barlow,Arial,sans-serif;display:flex;flex-wrap:wrap;gap:16px}.ds-status{display:inline-flex;align-items:center;gap:5px;font-size:10px;white-space:nowrap}.ds-status-dot{width:5px;height:5px;border-radius:50%;background:currentColor}.ds-available{color:var(--green,#1d4b07)}.ds-empty{color:var(--red,#9b3b25)}.ds-unknown{color:var(--amber,#875800)}"
+      "description": "Dicitura da 12 px e pallino: colore e testo insieme; sorgente: globals.css, .stock-status.",
+      "html": "<div class=\"ds-statuses\"><span class=\"ds-status ds-available\"><span></span>Disponibile</span><span class=\"ds-status ds-empty\"><span></span>Esaurito</span><span class=\"ds-status ds-unknown\"><span></span>Da verificare</span></div>",
+      "css": ".ds-statuses{font-family:var(--f-body,Barlow,\"Helvetica Neue\",Arial,sans-serif);display:flex;flex-wrap:wrap;gap:16px}.ds-status{display:inline-flex;align-items:center;gap:5px;font-size:12px;white-space:nowrap}.ds-status>span{width:5px;height:5px;border-radius:50%;background:currentColor}.ds-available{color:var(--green,#1d4b07)}.ds-empty{color:var(--red,#9b3b25)}.ds-unknown{color:var(--amber,#875800)}"
     },
     {
-      "name": "Pannello operativo",
+      "name": "Pannello di stato",
       "kind": "card",
       "refersTo": "panel",
-      "description": "Contenitore piatto con titolo, metadati e azione testuale.",
-      "html": "<section class=\"ds-panel\"><div class=\"ds-panel-heading\"><h2 class=\"ds-panel-title\">Attività</h2><span class=\"ds-panel-meta\">0 aperte</span></div><p class=\"ds-panel-empty\">La prima attività parte da qui.</p><button class=\"ds-panel-action\">Apri attività</button></section>",
-      "css": ".ds-panel{font-family:Barlow,Arial,sans-serif;max-width:440px;background:var(--paper,#fff);color:var(--ink,#121512);border:1px solid var(--rule,#c9cfc3);border-radius:var(--radius,8px);padding:23px}.ds-panel-heading{display:flex;align-items:center;justify-content:space-between;gap:12px;margin-bottom:18px}.ds-panel-title{margin:0;font-size:16px;font-weight:600;letter-spacing:-.01em}.ds-panel-meta{font-size:10px;color:var(--muted,#5a6257)}.ds-panel-empty{margin:0;padding:18px 0;color:var(--muted,#5a6257);font-size:12px}.ds-panel-action{font-family:Barlow,Arial,sans-serif;padding:3px 0;border:0;background:transparent;color:var(--green,#1d4b07);font-size:12px;font-weight:500;cursor:pointer}.ds-panel-action:hover{text-decoration:underline;text-underline-offset:3px}.ds-panel-action:focus-visible{outline:3px solid #82a35c;outline-offset:3px;}"
+      "description": "Superficie piatta, titolo in Condensed e azione familiare; sorgente: workspace-shell.module.css, .panel.",
+      "html": "<section class=\"ds-panel\"><h2>Area chiusa</h2><p>Apri l’area per continuare.</p><button>Apri area</button></section>",
+      "css": ".ds-panel{font-family:var(--f-body,Barlow,\"Helvetica Neue\",Arial,sans-serif);max-width:640px;padding:24px;border:1px solid var(--rule,#c9cfc3);background:var(--paper,#ffffff);color:var(--ink,#121512)}.ds-panel h2{font-family:var(--f-cond,\"Barlow Condensed\",\"Arial Narrow\",\"Helvetica Neue\",Arial,sans-serif);margin:0;font-size:clamp(28px,4.2vw,38px);font-weight:700;line-height:1.05;letter-spacing:-.005em}.ds-panel p{margin:10px 0 20px;max-width:65ch;color:var(--ink-2,#394037);font-size:16px}.ds-panel button{font-family:var(--f-body,Barlow,\"Helvetica Neue\",Arial,sans-serif);display:inline-flex;align-items:center;justify-content:center;gap:8px;min-height:44px;min-width:44px;padding:10px 16px;border-radius:2px;font-size:14px;font-weight:500;line-height:1.4;cursor:pointer;transition:background-color 160ms var(--ease,cubic-bezier(.16,1,.3,1)),color 160ms var(--ease,cubic-bezier(.16,1,.3,1)),border-color 160ms var(--ease,cubic-bezier(.16,1,.3,1));background:var(--ink,#121512);color:var(--paper,#ffffff);border:1px solid var(--ink,#121512)}.ds-panel button:hover{background:var(--ink-2,#394037)}.ds-panel button:focus-visible{outline:2px solid var(--green,#1d4b07);outline-offset:2px;}@media(max-width:760px){.ds-panel{padding:20px 16px}.ds-panel button{width:100%}}@media(prefers-reduced-motion:reduce){.ds-panel button{transition:none}}"
     },
     {
       "name": "Riga inventario",
       "kind": "custom",
       "refersTo": "inventory-row",
-      "description": "Nome e SKU su due livelli, taglia centrale e quantità a destra.",
-      "html": "<table class=\"ds-inventory\"><thead><tr><th>Prodotto / SKU</th><th class=\"ds-size\">Taglia</th><th class=\"ds-numeric\">Centrale</th></tr></thead><tbody><tr class=\"ds-product-row\"><td><button class=\"ds-product-name\"><strong class=\"ds-product-model\">GT3RS</strong><span class=\"ds-product-sku\">LL-TS-GT3-NB-XS</span></button></td><td class=\"ds-size\"><span class=\"ds-size-tag\">XS</span></td><td class=\"ds-numeric ds-quantity\">2</td></tr></tbody></table>",
-      "css": ".ds-inventory{font-family:Barlow,Arial,sans-serif;width:100%;max-width:620px;border-collapse:collapse;background:var(--paper,#fff);color:var(--ink,#121512);font-size:12px;text-align:left}.ds-inventory th{font-size:10px;font-weight:500;background:#f1f4ed;color:#515c46;padding:12px 17px;border-top:1px solid #dce2d5;border-bottom:1px solid #dce2d5}.ds-product-row td{padding:11px 17px;border-bottom:1px solid #e7ebe2;line-height:1.4}.ds-product-row:hover{background:#f5f8f0}.ds-product-row:focus-within{background:#f0f5e9}.ds-product-name{font-family:Barlow,Arial,sans-serif;padding:0;border:0;background:transparent;color:inherit;text-align:left;cursor:pointer}.ds-product-name:focus-visible{outline:3px solid #82a35c;outline-offset:3px;}.ds-product-model{display:block;font-size:12px;font-weight:500}.ds-product-sku{display:block;margin-top:3px;font-size:9px;color:#66705d;letter-spacing:.025em}.ds-inventory .ds-size{text-align:center}.ds-size-tag{display:inline-flex;align-items:center;justify-content:center;min-width:27px;padding:2px 5px;border:1px solid #dde2d6;border-radius:3px;background:#fbfcfa;color:#4e5846;font-size:10px}.ds-inventory .ds-numeric{text-align:right;font-variant-numeric:tabular-nums}.ds-quantity{font-weight:500}"
+      "description": "Campione sintetico della tabella reale: prodotto e SKU, taglia quadrata, quantità in Condensed; sorgente: globals.css.",
+      "html": "<table class=\"ds-inventory\"><thead><tr><th>Prodotto / SKU</th><th>Taglia</th><th>Magadzino</th></tr></thead><tbody><tr><td><button class=\"ds-product\"><strong>T-shirt esempio</strong><span>DEMO-TS-M</span></button></td><td><span class=\"ds-size\">M</span></td><td class=\"ds-numeric\">2</td></tr></tbody></table>",
+      "css": ".ds-inventory{font-family:var(--f-body,Barlow,\"Helvetica Neue\",Arial,sans-serif);width:100%;border-collapse:collapse;font-size:14px;text-align:left;color:var(--ink,#121512);background:var(--paper,#ffffff)}.ds-inventory th{padding:12px 17px;background:#f1f4ed;border-top:1px solid #dce2d5;border-bottom:1px solid #dce2d5;font-size:12px;font-weight:500;color:#515c46}.ds-inventory td{padding:11px 17px;border-bottom:1px solid #e7ebe2;line-height:1.4}.ds-inventory tbody tr:hover{background:#f5f8f0}.ds-inventory tbody tr:focus-within{background:#f0f5e9}.ds-product{font-family:var(--f-body,Barlow,\"Helvetica Neue\",Arial,sans-serif);min-height:44px;padding:0;border:0;background:transparent;color:inherit;text-align:left;cursor:pointer}.ds-product strong{display:block;font-size:14px;font-weight:500}.ds-product span{font-family:var(--f-cond,\"Barlow Condensed\",\"Arial Narrow\",\"Helvetica Neue\",Arial,sans-serif);display:block;margin-top:3px;font-size:12px;font-weight:600;color:#66705d;letter-spacing:.04em}.ds-product:focus-visible{outline:2px solid var(--green,#1d4b07);outline-offset:2px;}.ds-size{font-family:var(--f-cond,\"Barlow Condensed\",\"Arial Narrow\",\"Helvetica Neue\",Arial,sans-serif);display:inline-flex;justify-content:center;min-width:27px;padding:2px 5px;border:1px solid #dde2d6;border-radius:0;background:#fbfcfa;color:#4e5846;font-size:12px;font-weight:600;letter-spacing:.02em}.ds-numeric{font-family:var(--f-cond,\"Barlow Condensed\",\"Arial Narrow\",\"Helvetica Neue\",Arial,sans-serif);text-align:right;font-size:14px;font-weight:600;font-variant-numeric:tabular-nums}"
     },
     {
       "name": "Giorno calendario",
       "kind": "button",
       "refersTo": "calendar-day-selected",
-      "description": "Giorno corrente sottolineato e selezione verde piena.",
-      "html": "<div class=\"ds-calendar-sample\"><button class=\"ds-calendar-day\" aria-label=\"20 ottobre 2026\"><span class=\"ds-day-number\">20</span></button><button class=\"ds-calendar-day ds-calendar-selected ds-calendar-today\" aria-label=\"21 ottobre 2026, oggi, selezionato\" aria-pressed=\"true\"><span class=\"ds-day-number\">21</span></button></div>",
-      "css": ".ds-calendar-sample{display:flex;gap:4px}.ds-calendar-day{font-family:Barlow,Arial,sans-serif;position:relative;display:flex;flex-direction:column;align-items:flex-start;width:86px;min-height:76px;border:1px solid #e1e6da;border-radius:5px;padding:7px 9px;background:var(--paper,#fff);color:var(--ink,#121512);text-align:left;font-size:12px;font-variant-numeric:tabular-nums;cursor:pointer;transition:background-color .16s ease-out,border-color .16s ease-out}.ds-calendar-day:hover{background:#edf2e6;border-color:#b8c7a9}.ds-calendar-selected,.ds-calendar-selected:hover{background:var(--green,#1d4b07);border-color:var(--green,#1d4b07);color:var(--paper,#fff)}.ds-calendar-today .ds-day-number{border-bottom:2px solid #d0debd;font-weight:600}.ds-calendar-day:focus-visible{outline:3px solid #82a35c;outline-offset:3px;}@media(prefers-reduced-motion:reduce){.ds-calendar-day{transition:none}}"
+      "description": "Giorno corrente sottolineato; selezione in inchiostro; sorgente: globals.css, .calendar-day.",
+      "html": "<div class=\"ds-calendar\"><button class=\"ds-day\"><span>20</span></button><button class=\"ds-day ds-day-selected ds-today\" aria-label=\"21 ottobre, oggi e selezionato\" aria-pressed=\"true\"><span>21</span></button></div>",
+      "css": ".ds-calendar{display:flex;gap:4px}.ds-day{font-family:var(--f-body,Barlow,\"Helvetica Neue\",Arial,sans-serif);position:relative;display:flex;flex-direction:column;align-items:flex-start;width:86px;min-height:76px;padding:7px 9px;border:1px solid #e1e6da;border-radius:0;background:var(--paper,#ffffff);color:var(--ink,#121512);font-size:14px;font-variant-numeric:tabular-nums;cursor:pointer;transition:background-color 160ms var(--ease,cubic-bezier(.16,1,.3,1)),color 160ms var(--ease,cubic-bezier(.16,1,.3,1)),border-color 160ms var(--ease,cubic-bezier(.16,1,.3,1));}.ds-day:hover{background:#edf2e6;border-color:#b8c7a9}.ds-today>span{border-bottom:2px solid var(--green,#1d4b07);font-weight:600}.ds-day-selected,.ds-day-selected:hover{background:var(--ink,#121512);border-color:var(--ink,#121512);color:var(--paper,#ffffff)}.ds-day-selected.ds-today>span{border-color:#d0debd}.ds-day:focus-visible{outline:2px solid var(--green,#1d4b07);outline-offset:2px;}@media(prefers-reduced-motion:reduce){.ds-day{transition:none}}"
     },
     {
-      "name": "Dettaglio prodotto",
+      "name": "Riga roadbook",
       "kind": "custom",
-      "refersTo": "product-detail",
-      "description": "Frammento del pannello prodotto aperto, con quantità e nota operativa.",
-      "html": "<aside class=\"ds-detail\" aria-label=\"Dettaglio prodotto\"><div class=\"ds-detail-topline\"><span>Dettaglio prodotto</span><button class=\"ds-detail-close\" aria-label=\"Chiudi dettaglio prodotto\"><svg width=\"21\" height=\"21\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\" aria-hidden=\"true\"><path d=\"m18 6-12 12M6 6l12 12\"/></svg></button></div><h2 class=\"ds-detail-title\">GT3RS</h2><p class=\"ds-detail-sku\">LL-TS-GT3-NB-XS</p><div class=\"ds-detail-quantities\"><div><span class=\"ds-detail-label\">Stock centrale</span><strong class=\"ds-detail-number\">2 <small>pezzi</small></strong></div><div><span class=\"ds-detail-label\">Conto vendita</span><strong class=\"ds-detail-number\">0 <small>pezzi</small></strong></div></div><p class=\"ds-detail-note\">Scorte in sola lettura</p></aside>",
-      "css": ".ds-detail{font-family:Barlow,Arial,sans-serif;max-width:396px;padding:22px 30px 30px;background:var(--paper,#fff);color:var(--ink,#121512);box-shadow:-12px 0 40px #12200720}.ds-detail-topline{display:flex;align-items:center;justify-content:space-between;margin-bottom:30px;color:var(--muted,#5a6257);font-size:11px}.ds-detail-close{display:inline-flex;align-items:center;justify-content:center;min-width:32px;min-height:32px;padding:6px;border:0;border-radius:5px;background:transparent;color:var(--muted,#5a6257);cursor:pointer}.ds-detail-close:hover{background:var(--green-wash,#e4ecdb);color:var(--green,#1d4b07)}.ds-detail-close:focus-visible{outline:3px solid #82a35c;outline-offset:3px;}.ds-detail-title{margin:5px 0 4px;font-size:29px;font-weight:600;letter-spacing:-.02em}.ds-detail-sku{margin:0 0 24px;color:var(--muted,#5a6257);font-size:12px}.ds-detail-quantities{display:grid;grid-template-columns:1fr 1fr;gap:15px}.ds-detail-quantities>div{padding:15px;border-radius:6px;background:var(--tint,#f3f5f0)}.ds-detail-label{display:block;margin-bottom:6px;color:var(--muted,#5a6257);font-size:11px}.ds-detail-number{font-size:25px;font-weight:500;letter-spacing:-.02em;font-variant-numeric:tabular-nums}.ds-detail-number small{font-size:10px;font-weight:400;color:var(--muted,#5a6257);letter-spacing:0}.ds-detail-note{margin:22px 0 0;padding:15px;border-radius:6px;background:#f4f5ef;font-size:11px;font-weight:500}"
+      "refersTo": "roadbook-row",
+      "description": "Colonna di controllo, contenuto e stato adesso; sorgente: roadbook.module.css, usata anche da Oggi e guida.",
+      "html": "<div class=\"ds-roadbook\"><div class=\"ds-road-row\"><div class=\"ds-spine\"><span class=\"ds-now\">Adesso</span></div><div class=\"ds-road-body\"><a class=\"ds-road-link\" href=\"/team\"><strong>Appuntamento esempio</strong></a><span>Calendario condiviso del team</span></div></div></div>",
+      "css": ".ds-roadbook{font-family:var(--f-body,Barlow,\"Helvetica Neue\",Arial,sans-serif);border-top:1.5px solid var(--ink,#121512)}.ds-road-row{position:relative;display:grid;grid-template-columns:76px minmax(0,1fr);min-height:56px;border-bottom:1px solid var(--rule,#c9cfc3);background:var(--paper,#ffffff)}.ds-spine{display:grid;align-content:center;justify-items:center;padding:12px 4px;border-right:1px solid var(--ink,#121512)}.ds-now{font-family:var(--f-cond,\"Barlow Condensed\",\"Arial Narrow\",\"Helvetica Neue\",Arial,sans-serif);padding:1px 6px;border:1px solid var(--green,#1d4b07);background:var(--green,#1d4b07);color:var(--on-green,#ffffff);font-size:13px;font-weight:600;line-height:1.25;letter-spacing:.08em;text-transform:uppercase}.ds-road-body{display:grid;gap:2px;min-width:0;padding:12px 16px}.ds-road-link{color:var(--ink,#121512);text-decoration:none}.ds-road-link strong{font-family:var(--f-cond,\"Barlow Condensed\",\"Arial Narrow\",\"Helvetica Neue\",Arial,sans-serif);font-size:20px;font-weight:700;line-height:1.15}.ds-road-link:after{position:absolute;inset:0;content:\"\"}.ds-road-link:hover strong{text-decoration:underline;text-underline-offset:3px}.ds-road-link:focus-visible{outline:none}.ds-road-link:focus-visible:after{outline:2px solid var(--green,#1d4b07);outline-offset:-2px}.ds-road-body>span{color:var(--ink-2,#394037);font-size:14px}@media(max-width:760px){.ds-road-row{grid-template-columns:56px minmax(0,1fr)}.ds-road-body{padding:12px}}"
+    },
+    {
+      "name": "Invio da verificare",
+      "kind": "custom",
+      "refersTo": "panel-warning",
+      "description": "Stato introdotto nel flusso condiviso P7: dati leggibili, stesso invio e codice chiuso; sorgente: pending-attempt.module.css.",
+      "html": "<section class=\"ds-attempt\"><strong>Invio da verificare</strong><p>Il salvataggio non ha ancora un esito confermato. Verifica lo stesso invio.</p><button>Verifica lo stesso invio</button><details><summary>Codice per l’assistenza</summary><span>Codice di esempio</span></details></section>",
+      "css": ".ds-attempt{font-family:var(--f-body,Barlow,\"Helvetica Neue\",Arial,sans-serif);display:grid;gap:10px;padding:16px;border:1px solid var(--amber,#875800);background:var(--amber-wash,#f6ead1);color:var(--ink,#121512)}.ds-attempt>strong{font-family:var(--f-cond,\"Barlow Condensed\",\"Arial Narrow\",\"Helvetica Neue\",Arial,sans-serif);color:var(--amber,#875800);font-size:18px;font-weight:700;letter-spacing:.02em}.ds-attempt p{margin:0;max-width:65ch;color:var(--ink-2,#394037);font-size:16px}.ds-attempt button{font-family:var(--f-body,Barlow,\"Helvetica Neue\",Arial,sans-serif);display:inline-flex;align-items:center;justify-content:center;gap:8px;min-height:44px;min-width:44px;padding:10px 16px;border-radius:2px;font-size:14px;font-weight:500;line-height:1.4;cursor:pointer;transition:background-color 160ms var(--ease,cubic-bezier(.16,1,.3,1)),color 160ms var(--ease,cubic-bezier(.16,1,.3,1)),border-color 160ms var(--ease,cubic-bezier(.16,1,.3,1));justify-self:start;background:var(--ink,#121512);color:var(--paper,#ffffff);border:1px solid var(--ink,#121512)}.ds-attempt button:hover{background:var(--ink-2,#394037)}.ds-attempt button:focus-visible{outline:2px solid var(--green,#1d4b07);outline-offset:2px;}.ds-attempt details{font-size:14px;color:var(--ink-2,#394037)}.ds-attempt summary{display:inline-flex;align-items:center;min-height:44px;cursor:pointer}.ds-attempt summary:focus-visible{outline:2px solid var(--green,#1d4b07);outline-offset:2px;}.ds-attempt details span{display:block;overflow-wrap:anywhere}@media(max-width:760px){.ds-attempt button{width:100%;white-space:normal}}@media(prefers-reduced-motion:reduce){.ds-attempt button{transition:none}}"
     }
   ],
   "narrative": {
     "northStar": "LuckyLap operativo",
-    "overview": "L'identità riprende il progetto partner del brand: verde racing, superfici chiare, inchiostro scuro e Barlow. La cultura automobilistica emerge nel marchio condensato e inclinato; l'interfaccia di lavoro usa caratteri regolari e una gerarchia misurata.\n\nIl gestionale privilegia quantità leggibili, separatori sottili e controlli familiari. Le superfici sono compatte e prevalentemente piatte. La navigazione scura dà un riferimento stabile, mentre il contenuto rimane chiaro e ordinato.",
+    "overview": "Il gestionale prende il mondo visivo del roadbook Partner: carta bianca, inchiostro verde-nero, filetti da 1 px, verde racing solo dove serve agire adesso, Barlow Condensed dritto per cifre, codici e titoli. È una superficie Operate: chi la usa deve fare un'operazione, spesso dal telefono, non leggere un racconto. Navigazione e controlli restano standard: barra laterale, schede, barra in basso, `dialog` nativo.\n\nOgni pagina per i membri vive nello stesso guscio (`src/components/workspace-frame.tsx`). La barra laterale verde è la testata del roadbook; le schede in alto sono la barra dei settori; il contenuto sta su carta. Dal guscio si arriva a ogni pagina in uno o due tocchi e si sa sempre dove si è. Struttura, mappa delle sezioni e regole per le pagine nuove: [layout condiviso](docs/workspace-layout.md).",
     "keyCharacteristics": [
-      "Verde racing come accento e riferimento di navigazione.",
-      "Dati compatti con gerarchia tipografica e numeri allineati.",
-      "Superfici chiare, bordi sottili e profondità limitata agli elementi sovrapposti.",
-      "Navigazione laterale su desktop e menu apribile su telefono."
+      "Barra laterale verde ferma sul desktop; sul telefono fascia verde che scorre e barra in basso fissa.",
+      "Righe quadrate, filetti sottili, nessuna ombra sui pannelli.",
+      "Due voci: Barlow Condensed per nomi, numeri, codici, titoli e menu; Barlow per frasi e controlli.",
+      "Testo leggibile sul telefono: minimo 12 px, corrente e campi a 16 px, bersagli da 44 px."
     ],
     "rules": [
+      {
+        "name": "The Ink Inversion Rule",
+        "body": "La selezione è inversione d'inchiostro, non verde: voce attiva della barra laterale in carta sul verde, voce attiva del foglio «Altro», giorno scelto e pulsante principale in inchiostro su carta.",
+        "section": "colors"
+      },
       {
         "name": "The State Labels Rule",
         "body": "Accompagnare il colore di stato con una dicitura leggibile; preservare la distinzione tra zero e dato mancante.",
@@ -421,27 +546,35 @@
       },
       {
         "name": "The Aligned Numbers Rule",
-        "body": "Quantità e importi usano cifre tabulari; le colonne numeriche della tabella sono allineate a destra.",
+        "body": "Quantità e importi usano cifre tabulari (`font-variant-numeric: tabular-nums` è già sul `body`); le colonne numeriche delle tabelle sono allineate a destra.",
+        "section": "typography"
+      },
+      {
+        "name": "The No Eyebrow Rule",
+        "body": "Niente sopratitoli in maiuscolo sopra i titoli: il menu dice già dove si è.",
         "section": "typography"
       },
       {
         "name": "The Flat Panels Rule",
-        "body": "Conservare bordi e campiture come separazione ordinaria dei pannelli; usare le ombre osservate per gli elementi sovrapposti.",
+        "body": "Bordi e campiture separano i pannelli; le ombre restano solo agli elementi sovrapposti.",
         "section": "elevation"
       }
     ],
     "dos": [
-      "**Do** riusare verde racing, Barlow e superfici chiare del brand.",
-      "**Do** allineare quantità e importi con cifre tabulari, mantenendo nome e SKU su due livelli.",
-      "**Do** accompagnare disponibilità e dati mancanti con testo leggibile oltre al colore.",
-      "**Do** mantenere focus visibile, Escape negli overlay e movimento riducibile.",
+      "**Do** usare il Condensed dritto per numeri, codici, date, ore, titoli e voci di menu, con cifre tabellari.",
+      "**Do** tenere il verde pieno per testata, adesso e fatto; selezionare con l'inversione d'inchiostro.",
+      "**Do** accompagnare disponibilità, ritardi e dati mancanti con testo leggibile oltre al colore.",
+      "**Do** usare `WorkspacePanel` per gli stati e `roadbook.module.css` per le righe, con i token di `globals.css`.",
+      "**Do** mantenere focus visibile, Escape negli overlay, bersagli da 44 px e movimento riducibile.",
       "**Do** adattare le colonne alla larghezza del telefono e lasciare i dettagli nel pannello prodotto."
     ],
     "donts": [
-      "**Don't** sostituire palette e tipografia esistenti con quelle generiche dei kit di dashboard.",
-      "**Don't** applicare ombre diffuse a ogni pannello o usare effetti decorativi che riducano la leggibilità dei dati.",
-      "**Don't** usare il font condensato inclinato del marchio per tabelle o testo operativo.",
-      "**Don't** affidare al solo colore gli stati di magazzino o rappresentare un dato mancante come zero.",
+      "**Don't** sostituire palette e tipografia con quelle generiche dei kit di dashboard, né ridichiarare i token in un modulo CSS.",
+      "**Don't** aggiungere testate proprie, link «Torna al workspace» o sopratitoli in maiuscolo: il guscio dice già dove si è.",
+      "**Don't** usare il corsivo, nemmeno nel marchio, o angoli arrotondati su pannelli e righe.",
+      "**Don't** applicare ombre a pannelli e righe o effetti decorativi che riducano la leggibilità dei dati.",
+      "**Don't** scendere sotto 12 px di testo o sotto 16 px nei campi.",
+      "**Don't** affidare al solo colore gli stati di magazzino o il verso dei movimenti Finance, né rappresentare un dato mancante come zero.",
       "**Don't** forzare tutte le colonne desktop dentro la larghezza del telefono riducendo la scala dell'intera pagina."
     ]
   }
