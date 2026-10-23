@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState, type ReactNode } from "react";
+import type { SalesReturnSummary } from "@/lib/sales-returns/model";
 import type { VerifiedMember } from "@/lib/auth/model";
 import {
   money,
@@ -22,6 +23,8 @@ import { SalesCommandForm } from "./sales-command-form";
 import { NewSaleFields, PaymentMethodField, SaleTimeField } from "./sales-new-sale";
 import { SalesPendingRecovery } from "./sales-pending-recovery";
 import { salesAttemptNames, type SalesAttemptNames } from "../lib/sales/attempt";
+import { SaleRegistrationCancellation } from "./sale-registration-cancellation";
+import { SaleReturnForm } from "./sale-return-form";
 import {
   listenForSalesOrderLinks,
   salesOrderDestination,
@@ -64,6 +67,8 @@ const fulfillmentLabel: Record<string, string> = {
   partial: "Consegna parziale",
   fulfilled: "Consegnata",
   cancelled: "Annullata",
+  partially_returned: "Reso parziale",
+  returned: "Reso totale",
 };
 function date(value: string) {
   return new Intl.DateTimeFormat("it-IT", {
@@ -78,14 +83,18 @@ export function SalesWorkspace({
   member,
   now,
   health,
+  cancelledRegistrationIds = [],
+  returnSummaries = [],
 }: {
   snapshot: SalesSnapshot;
   member: VerifiedMember;
   now: string;
   health?: ReactNode;
+  cancelledRegistrationIds?: string[];
+  returnSummaries?: SalesReturnSummary[];
 }) {
   const [search, setSearch] = useState(""),
-    [filter, setFilter] = useState("all"),
+    [filter, setFilter] = useState("active"),
     [page, setPage] = useState(0);
   const [linkedOrder, setLinkedOrder] = useState<{ id: string } | null>(null);
   useEffect(
@@ -105,8 +114,11 @@ export function SalesWorkspace({
   );
   const filtered = snapshot.orders.filter(
     (order) =>
+      (filter !== "active" || !cancelledRegistrationIds.includes(order.id)) &&
+      (filter !== "cancelled" || cancelledRegistrationIds.includes(order.id)) &&
+      (filter !== "returned" || ["partially_returned", "returned"].includes(order.orderState)) &&
       (filter !== "open" ||
-        !["fulfilled", "cancelled"].includes(order.fulfillmentState) ||
+        order.lines.some((line) => line.quantity > line.fulfilled + line.cancelled) ||
         hasCollectionDue(order)) &&
       `${order.id} ${order.reference ?? ""} ${order.lines.map((line) => line.sku).join(" ")}`
         .toLocaleLowerCase("it")
@@ -245,7 +257,10 @@ export function SalesWorkspace({
                 setPage(0);
               }}
             >
+              <option value="active">Registrazioni attive</option>
               <option value="all">Tutti gli ordini</option>
+              <option value="returned">Con resi</option>
+              <option value="cancelled">Registrazioni annullate</option>
               <option value="open">Da preparare o incassare</option>
             </select>
           </label>
@@ -254,7 +269,9 @@ export function SalesWorkspace({
           <div className={styles.empty}>
             <h3>
               {snapshot.orders.length
-                ? "Nessun ordine corrisponde alla ricerca."
+                ? filter === "active"
+                  ? "Nessuna registrazione attiva corrisponde alla ricerca."
+                  : "Nessun ordine corrisponde alla ricerca."
                 : "Il registro è pronto per i primi ordini."}
             </h3>
             <p>
@@ -275,6 +292,8 @@ export function SalesWorkspace({
                   now={now}
                   names={names}
                   opened={linkedOrder?.id === order.id}
+                  registrationCancelled={cancelledRegistrationIds.includes(order.id)}
+                  returnSummary={returnSummaries.find((row) => row.orderId === order.id)}
                 />
               ))}
           </div>
@@ -429,6 +448,8 @@ function OrderCard({
   now,
   names,
   opened = false,
+  registrationCancelled = false,
+  returnSummary,
 }: {
   order: SalesOrder;
   snapshot: SalesSnapshot;
@@ -436,12 +457,14 @@ function OrderCard({
   now: string;
   names: SalesAttemptNames;
   opened?: boolean;
+  registrationCancelled?: boolean;
+  returnSummary?: SalesReturnSummary;
 }) {
   const pendingLines = order.lines.filter(
     (line) => line.quantity > line.fulfilled + line.cancelled,
   );
   const external = isExternalSalesOrder(order);
-  const payable = !external && hasCollectionDue(order);
+  const payable = !external && !registrationCancelled && hasCollectionDue(order);
   return (
     <details id={`order-${order.id}`} className={styles.order} open={opened || undefined}>
       <summary>
@@ -460,10 +483,30 @@ function OrderCard({
                 ? "Annullata"
                 : declaredPaymentLabel[order.paymentState]}
           </span>
-          <strong>{money(order.totalCents - order.cancelledCents)}</strong>
+          <strong>
+            {money(order.totalCents - order.cancelledCents - (returnSummary?.refundCents ?? 0))}
+          </strong>
         </div>
       </summary>
       <div className={styles.orderBody}>
+        {!external && (
+          <>
+            <SaleRegistrationCancellation
+              userId={member.userId}
+              orderId={order.id}
+              enabled={snapshot.enabled}
+              alreadyCancelled={registrationCancelled}
+            />
+            {!registrationCancelled && order.lines.some((line) => line.fulfilled > 0) && (
+              <SaleReturnForm
+                userId={member.userId}
+                orderId={order.id}
+                enabled={snapshot.enabled}
+                now={now}
+              />
+            )}
+          </>
+        )}
         {external && (
           <div className={styles.info}>
             <strong>Fonte: {salesChannelLabel[order.channel]} · Importazione automatica</strong>
@@ -475,7 +518,7 @@ function OrderCard({
             <p>Il totale ordine può includere spedizione e imposte oltre al valore dei capi.</p>
           </div>
         )}
-        {order.paymentCorrected && (
+        {order.paymentCorrected && !registrationCancelled && (
           <div className={styles.notice}>
             <strong>Incassi rettificati in Finance</strong>
             <p>
@@ -489,6 +532,13 @@ function OrderCard({
           <p className={styles.help}>
             Valore originario {money(order.totalCents)} · Annullato {money(order.cancelledCents)} ·
             Residuo {money(order.totalCents - order.cancelledCents)}
+          </p>
+        )}
+        {returnSummary && (
+          <p className={styles.help}>
+            Resi {returnSummary.productQuantity} capi · Valore reso{" "}
+            {money(returnSummary.refundCents)} · Valore residuo{" "}
+            {money(order.totalCents - order.cancelledCents - returnSummary.refundCents)}
           </p>
         )}
         {order.refundDueCents > 0 && (

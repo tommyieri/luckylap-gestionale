@@ -41,6 +41,8 @@ export default async function SalesPage() {
       member={access.member}
       now={new Date().toISOString()}
       health={<ShopifySyncHealth status={syncStatus} />}
+      cancelledRegistrationIds={access.cancelledRegistrationIds}
+      returnSummaries={access.returnSummaries}
     />
   );
 }
