@@ -1,6 +1,6 @@
 # Controllo CEO: il feed di cosa fa il team
 
-`/audit` («Controllo CEO») mostra un feed in sola lettura delle **ultime 24 ore**: una frase per ogni azione sui dati condivisi, con chi l'ha fatta, dalla più recente. Per esempio «Luca ha aggiunto una call: …», «Il sistema ha ricevuto un ordine (2 unità · Shopify online).» o «Il sistema ha importato 207 contatti in Partner.». Il registro tecnico dei trigger (`audit_logs`, con prima e dopo) resta tutto nel database e non si mostra nella pagina; il feed non legge le righe più vecchie di 24 ore (decisione di Tommi del 23 ottobre 2026). Il feed è arrivato con la pull request #3 di Codex (P6) e corretto con la migrazione `20261023150000_ceo_feed_fixes.sql`.
+`/audit` («Controllo CEO») mostra un feed in sola lettura delle **ultime 24 ore**: una frase per ogni azione sui dati condivisi, con chi l'ha fatta, dalla più recente. Per esempio «Luca ha aggiunto una call: …», «Il sistema ha ricevuto un ordine (2 unità · Shopify online).» o «Il sistema ha importato 207 contatti in Partner.». Il registro tecnico dei trigger (`audit_logs`, con prima e dopo) resta tutto nel database e non si mostra nella pagina; il feed non legge le righe più vecchie di 24 ore (decisione di Tommi del 23 ottobre 2026). Il feed è arrivato con la pull request #3 di Codex (P6) e corretto con la migrazione `20261023143400_ceo_feed_fixes.sql`.
 
 ## Chi lo vede
 
@@ -27,7 +27,7 @@ Nota in fondo alla pagina: «Ogni riga riassume un’azione. Il feed non registr
 
 ## Come è fatto
 
-- Migrazione `20261023091605_ceo_activity_feed.sql` (P6) e correzione `20261023150000_ceo_feed_fixes.sql`: solo funzioni di lettura e tre indici su `audit_logs`, nessuna tabella, trigger o riga toccata. `public.ceo_activity_feed(p_actor, p_area, p_before_at, p_before_id, p_limit)` è il wrapper `security invoker`; `private.ceo_activity_feed` (`security definer`, `search_path` vuoto) controlla `private.can_audit()`; `EXECUTE` solo a `authenticated`.
+- Migrazione `20261023091605_ceo_activity_feed.sql` (P6) e correzione `20261023143400_ceo_feed_fixes.sql`: solo funzioni di lettura e tre indici su `audit_logs`, nessuna tabella, trigger o riga toccata. `public.ceo_activity_feed(p_actor, p_area, p_before_at, p_before_id, p_limit)` è il wrapper `security invoker`; `private.ceo_activity_feed` (`security definer`, `search_path` vuoto) controlla `private.can_audit()`; `EXECUTE` solo a `authenticated`.
 - Lettura: solo righe con `occurred_at >= now() - 24 ore`, calcolato nel database. Dentro le 24 ore `private.ceo_activity_feed` legge blocchi dal più recente (400, poi fino a 1.600 righe) e passa ogni blocco, completo delle sue transazioni, a `private.activity_feed_window`; si ferma a 51 frasi o dopo circa 4.000 righe. In quel caso il cursore è il confine del blocco (id `00000000-…`) e la pagina successiva riprende da lì.
 - `private.activity_feed_window` estrae solo le chiavi ammesse (`private.activity_feed_keys`), risale all'elemento principale con le righe del blocco e, solo per un elemento padre fuori dal blocco, legge per chiave la sua storia (indice `audit_logs_feed_entity`). Poi sceglie la frase, raggruppa per transazione e unisce le azioni dello stesso tipo.
 - Indici nuovi: `audit_logs_feed_entity` (tabella e id dell'elemento), `audit_logs_actor_time` (filtro Persona) e `audit_logs_follow_up_task` (solleciti Partner chiusi dall'invio).
