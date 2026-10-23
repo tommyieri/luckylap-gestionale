@@ -13,7 +13,7 @@ Dal branch `claude/foto-nuovi-prodotti` (base `origin/main` a `1687d20`), con da
 
 | Comando | Esito |
 | --- | --- |
-| `npm test` | 2.173 test in 191 file, tutti superati |
+| `npm test` | 2.207 test in 195 file, tutti superati (dopo il merge di `origin/main` a `a843a6c`) |
 | `npm run test:db` senza `LUCKYLAP_PG_BIN` | 21 harness PGlite superati, 3.720 controlli; i 16 harness su PostgreSQL 17 risultano saltati |
 | `npm run test:db` con `LUCKYLAP_PG_BIN` (PostgreSQL 17 locale) | in più 16 harness PostgreSQL 17 superati, 1.985 controlli: 37 harness, 5.705 controlli in tutto |
 
