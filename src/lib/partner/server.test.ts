@@ -467,6 +467,87 @@ describe("comandi del team", () => {
   });
 });
 
+describe("«Segna inviato»: la conferma dice quando scade il sollecito", () => {
+  const activity = partnerFixtureId(2),
+    task = partnerFixtureId(3);
+  const sent = (kind = "inviato") => ({
+    kind: "record_partner_activity",
+    operationId: partnerFixtureId(77),
+    payload: {
+      schema_version: 1,
+      partner_id: partnerFixtureId(1),
+      kind,
+      ...(kind === "inviato" ? { message_kind: "primo", channel: "email" } : {}),
+    },
+    retry: false,
+  });
+  const rpc = () => ({
+    data: {
+      id: partnerFixtureId(1),
+      version: 6,
+      stage: "contattato",
+      activity_id: activity,
+      occurred_at: "2026-10-22T10:00:00.000Z",
+      replayed: false,
+    },
+    error: null,
+  });
+  // Invio del 22 ottobre: sollecito alla mezzanotte di Roma del 29 (ora solare, UTC+1).
+  const followUp = (extra: Partial<Row> = {}) => ({
+    partner_work_links: [{ kind: "follow_up", activity_id: activity, task_id: task }],
+    tasks: [
+      {
+        id: task,
+        due_at: "2026-10-28T23:00:00+00:00",
+        assigned_to: MEMBER,
+        status: "todo",
+        ...extra,
+      },
+    ],
+  });
+
+  it("legge il sollecito creato dall'invio e lo scrive nella conferma", async () => {
+    const fake = fakeSupabase(tables(followUp()), { rpc });
+    const result = await executePartnerCommand(fake.client, sent(), NOW);
+    expect(result).toMatchObject({
+      status: "success",
+      message: "Registrato. Stato: Contattato. Sollecito per te giovedì 29 ottobre.",
+    });
+    expect(fake.order[0]).toBe("getUser");
+    expect(fake.order[1]).toBe("rpc:record_partner_activity");
+    const link = fake.calls.find((call) => call.table === "partner_work_links")!;
+    expect(link.ops).toContainEqual(["eq", "activity_id", activity]);
+    expect(link.ops).toContainEqual(["eq", "kind", "follow_up"]);
+  });
+
+  it("senza sollecito (contatto chiuso o da non contattare) la conferma resta quella", async () => {
+    const none = fakeSupabase(tables(), { rpc });
+    expect((await executePartnerCommand(none.client, sent(), NOW)).message).toBe(
+      "Registrato. Stato: Contattato.",
+    );
+    const closed = fakeSupabase(tables(followUp({ status: "done" })), { rpc });
+    expect((await executePartnerCommand(closed.client, sent(), NOW)).message).toBe(
+      "Registrato. Stato: Contattato.",
+    );
+  });
+
+  it("se la lettura non riesce l'invio resta confermato, senza data", async () => {
+    const broken = fakeSupabase(tables(followUp()), { rpc, failTable: "tasks" });
+    expect(await executePartnerCommand(broken.client, sent(), NOW)).toMatchObject({
+      status: "success",
+      message: "Registrato. Stato: Contattato.",
+    });
+    const strange = fakeSupabase(tables(followUp({ due_at: "domani" })), { rpc });
+    expect((await executePartnerCommand(strange.client, sent(), NOW)).status).toBe("success");
+  });
+
+  it("«Ha risposto» e le altre attività non leggono solleciti", async () => {
+    const fake = fakeSupabase(tables(followUp()), { rpc });
+    await executePartnerCommand(fake.client, sent("risposta"), NOW);
+    expect(fake.calls.some((call) => call.table === "partner_work_links")).toBe(false);
+  });
+});
+
 describe("anteprima del file del dispositivo", () => {
   const payload = {
     schema_version: 1,

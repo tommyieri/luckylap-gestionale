@@ -233,7 +233,10 @@ describe("Partner", () => {
     expect(copy).toContain("«Contatti e solleciti»");
     for (const closing of ["«Ha risposto»", "«Accordo fatto»", "«Non interessato»"])
       expect(copy).toContain(closing);
-    expect(copy).toContain("gli invii che arrivano dai file «Esporta» dei dispositivi non creano");
+    expect(copy).toContain("un «Contattato» del file crea il sollecito per chi carica il file");
+    expect(copy).toContain("la conferma ti dice il giorno");
+    expect(copy).toContain("«Ha risposto», qui o in Oggi");
+    expect(copy).toContain("il riquadro «Esito»");
   });
 
   it("porta a «Partner nel Team» per tutti", () => {
@@ -367,6 +370,9 @@ describe("i nomi citati esistono davvero", () => {
     ["src/components/partner/partner-messages.tsx", ["Segna inviato", "Segna sollecito inviato"]],
     ["src/components/partner/partner-activity.tsx", ["Ha risposto"]],
     ["src/components/partner/partner-details.tsx", ["Metti tra i non contattare"]],
+    ["src/components/partner/partner-outcome-panel.tsx", [">Esito<", "Apri in Partner nel Team"]],
+    ["src/components/today/today-reply-button.tsx", ['"Ha risposto"']],
+    ["src/components/partner-work-links.tsx", ["Collega l’evento"]],
     ["src/lib/partner/model.ts", ['"Accordo fatto"', '"Non interessato"']],
     ["src/components/team-workspace.tsx", ["Partner nel Team"]],
     ["src/components/partner-work-links.tsx", ["<h1>Partner nel Team</h1>"]],
@@ -379,11 +385,12 @@ describe("i nomi citati esistono davvero", () => {
     expect(missing).toEqual([]);
   });
 
-  it("la regola del sollecito è quella del database: invii del team, 7 giorni, a chi ha inviato", () => {
-    const sql = source("supabase/migrations/20261023091627_partner_work_links.sql");
-    expect(sql).toContain("if new.origin<>'team' then return new;end if;");
+  it("la regola del sollecito è quella del database: invii del team e dei file, 7 giorni", () => {
+    const sql = source("supabase/migrations/20261023140414_partner_oggi_fixes.sql");
+    expect(sql).toContain("if new.origin not in('team','file')then return new;end if;");
+    expect(sql).toContain("select d.imported_by into v_owner from public.partner_device_imports d");
     expect(sql).toContain("::date+7)");
     expect(sql).toContain("'Sollecito · '||v_partner.name");
-    expect(sql).toMatch(/'todo',due,new\.created_by,new\.created_by\)/);
+    expect(sql).toMatch(/'todo',due,v_owner,v_owner\)/);
   });
 });

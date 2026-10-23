@@ -4,13 +4,37 @@ import { redirect } from "next/navigation";
 import { PartnerWorkLinks } from "@/components/partner-work-links";
 import { PanelActions, WorkspacePanel } from "@/components/workspace-panel";
 import { readPartnerWorkLinks } from "@/lib/work-links/server";
+import { partnerWorkPreview } from "@/lib/work-links/preview";
+import { isPartnerCo } from "@/lib/partner/model";
 import { getSupabasePublicConfig } from "@/lib/supabase/config";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 
 export const dynamic = "force-dynamic";
 export const metadata: Metadata = { title: "Partner nel Team" };
 
-export default async function PartnerWorkPage() {
+type SearchParams = Promise<Record<string, string | string[] | undefined>>;
+
+/** `?co=12` sceglie il contatto (blocco «Esito» della scheda Partner); altrimenti il primo. */
+function coFrom(params: Record<string, string | string[] | undefined>): number | null {
+  const value = Array.isArray(params.co) ? params.co[0] : params.co;
+  if (typeof value !== "string" || !/^[1-9][0-9]{0,4}$/.test(value)) return null;
+  const co = Number(value);
+  return isPartnerCo(co) ? co : null;
+}
+
+export default async function PartnerWorkPage({ searchParams }: { searchParams: SearchParams }) {
+  const co = coFrom(await searchParams);
+  const preview = partnerWorkPreview();
+  if (preview)
+    return (
+      <PartnerWorkLinks
+        key={co ?? "primo"}
+        snapshot={preview.snapshot}
+        member={preview.member}
+        initialCo={co}
+        preview
+      />
+    );
   try {
     getSupabasePublicConfig();
   } catch {
@@ -43,5 +67,12 @@ export default async function PartnerWorkPage() {
         </PanelActions>
       </WorkspacePanel>
     );
-  return <PartnerWorkLinks snapshot={result.snapshot} member={result.member} />;
+  return (
+    <PartnerWorkLinks
+      key={co ?? "primo"}
+      snapshot={result.snapshot}
+      member={result.member}
+      initialCo={co}
+    />
+  );
 }

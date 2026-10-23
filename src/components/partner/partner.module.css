@@ -1549,3 +1549,19 @@
     display: none;
   }
 }
+
+/* «Esito»: l'accordo fatto diventa lavoro del team. Filetto verde, nessun riempimento. */
+.outcome {
+  padding: 12px 14px;
+  border-left: 3px solid var(--green);
+  background: var(--tint);
+}
+.outcomeLink {
+  justify-self: start;
+  text-decoration: none;
+}
+@media (max-width: 760px) {
+  .outcomeLink {
+    justify-self: stretch;
+  }
+}

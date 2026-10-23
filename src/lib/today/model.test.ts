@@ -198,6 +198,17 @@ describe("agendaFor: attività", () => {
     expect(agenda.tasks.map((row) => row.task.title)).toEqual(["Oggi a tarda sera"]);
   });
 
+  it("lascia fuori i solleciti Partner: stanno in «Contatti e solleciti»", () => {
+    const tasks = [
+      task(1, "Sollecito · Club sintetico", { dueAt: "2026-10-20T22:00:00.000Z" }),
+      task(2, "Preparare lo stand"),
+      task(3, "Sollecito · Altro club"),
+    ];
+    const agenda = agendaFor([], tasks, me, now, new Set([id(1), id(3)]));
+    expect(agenda.tasks.map((row) => row.task.title)).toEqual(["Preparare lo stand"]);
+    expect(agendaFor([], tasks, me, now).tasks).toHaveLength(3);
+  });
+
   it("non cambia gli elenchi ricevuti", () => {
     const events = [
       event(1, "B", "2026-10-22T14:00:00.000Z"),

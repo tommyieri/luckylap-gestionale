@@ -7,6 +7,7 @@ import { RefreshCw } from "lucide-react";
 import { createPartnerWork } from "../app/team/partner/actions";
 import type { VerifiedMember } from "../lib/auth/model";
 import { formatRomeDate, formatRomeDateTime } from "../lib/team/model";
+import { romeDay } from "../lib/partner/dates";
 import {
   partnerHref,
   workKindLabel,
@@ -33,13 +34,21 @@ const targetId = (link: PartnerWorkLink) => link.calendarEventId ?? link.project
 export function PartnerWorkLinks({
   snapshot,
   member,
+  initialCo = null,
+  preview = false,
 }: {
   snapshot: PartnerWorkSnapshot;
   member: VerifiedMember;
+  /** `/team/partner?co=12`: il contatto già scelto (dalla scheda Partner, blocco «Esito»). */
+  initialCo?: number | null;
+  /** Anteprima locale: dati sintetici, nessun invio. */
+  preview?: boolean;
 }) {
   const router = useRouter();
   const [search, setSearch] = useState("");
-  const [selectedId, setSelectedId] = useState("");
+  const [selectedId, setSelectedId] = useState(
+    snapshot.partners.find((item) => item.co === initialCo)?.id ?? "",
+  );
   const [command, setCommand] = useState<PartnerWorkCommand | null>(null);
   const [loaded, setLoaded] = useState(false);
   const [blocked, setBlocked] = useState(false);
@@ -48,7 +57,8 @@ export function PartnerWorkLinks({
   const [pending, startSend] = useTransition();
   const [refreshing, startRefresh] = useTransition();
   const sending = useRef(false);
-  const locked = !loaded || blocked || command !== null || pending;
+  const locked = preview || !loaded || blocked || command !== null || pending;
+  const romeToday = romeDay(new Date());
   const normalized = search.trim().toLocaleLowerCase("it-IT");
   const partners = snapshot.partners.filter((partner) =>
     `${partner.co} ${partner.name}`.toLocaleLowerCase("it-IT").includes(normalized),
@@ -211,9 +221,14 @@ export function PartnerWorkLinks({
         </Link>
       </nav>
       <p className={styles.explanation}>
-        Gli invii registrati dal team generano un sollecito a sette giorni; una risposta chiude il
-        sollecito collegato. Gli import storici non generano solleciti.
+        Ogni invio, segnato nella scheda o arrivato dai file «Esporta» dei dispositivi, genera un
+        sollecito a sette giorni; una risposta chiude il sollecito collegato.
       </p>
+      {preview && (
+        <p role="status" className={styles.notice}>
+          Anteprima locale: dati sintetici, nessun salvataggio.
+        </p>
+      )}
       {!loaded && (
         <p role="status" className={styles.notice}>
           Verifica degli invii conservati…
@@ -427,12 +442,22 @@ export function PartnerWorkLinks({
                 >
                   Collega l’evento
                 </button>
-                {(!partner.eventStartsOn || partner.stage !== "chiuso") && (
+                {partner.stage !== "chiuso" ? (
                   <span className={styles.help}>
-                    {partner.stage !== "chiuso"
-                      ? "In calendario vanno solo gli eventi a cui partecipiamo: segna prima «Accordo fatto» nella scheda Partner."
-                      : "Inserisci prima le date nella scheda Partner."}
+                    Prima segna l’accordo fatto nella scheda Partner: in calendario vanno solo gli
+                    eventi a cui partecipiamo.
                   </span>
+                ) : !partner.eventStartsOn ? (
+                  <span className={styles.help}>
+                    Mancano le date dell’evento: aggiungile nella scheda Partner.
+                  </span>
+                ) : (
+                  (partner.eventEndsOn ?? partner.eventStartsOn) < romeToday && (
+                    <span className={styles.help}>
+                      L’evento è già passato: entra lo stesso nel calendario, così puoi collegare le
+                      vendite.
+                    </span>
+                  )
                 )}
               </div>
             )}

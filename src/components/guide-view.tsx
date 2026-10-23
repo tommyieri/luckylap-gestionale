@@ -158,11 +158,11 @@ export const OPERATIONS: { title: string; href: string; text: string; who?: stri
 export const TODAY_TILES: { title: string; text: string; finance?: true }[] = [
   {
     title: "Agenda",
-    text: "Gli appuntamenti di oggi e le tue attività in scadenza oggi o in ritardo.",
+    text: "Gli appuntamenti di oggi e le tue attività in scadenza oggi o in ritardo. I solleciti Partner non sono qui: stanno nel riquadro accanto.",
   },
   {
     title: "Contatti e solleciti",
-    text: "I contatti Partner da sentire entro questo mese o con la prossima azione scaduta, e i tuoi solleciti di oggi o in ritardo.",
+    text: "I contatti Partner da sentire, gli stessi di «Adesso» in Partner: «Da contattare» entro il mese prossimo, più quelli con la prossima azione di oggi o già passata. Sotto, i tuoi solleciti di oggi o in ritardo, ognuno con «Ha risposto».",
   },
   {
     title: "Ordini da preparare",
@@ -394,14 +394,15 @@ export function GuideView({ access, preview = false }: { access: GuideAccess; pr
               </li>
               <li>
                 «Segna inviato» e «Segna sollecito inviato» creano per te un’attività «Sollecito ·
-                nome del contatto», che scade dopo 7 giorni. La trovi in Oggi, in «Contatti e
-                solleciti», e tra le attività del Team.
+                nome del contatto», che scade dopo 7 giorni: la conferma ti dice il giorno. La trovi
+                in Oggi, in «Contatti e solleciti», e tra le attività del Team.
               </li>
               <li>
-                Il sollecito si chiude da solo con «Ha risposto», con un nuovo invio, con lo stato
-                «Accordo fatto» o «Non interessato» e con «Metti tra i non contattare». Vale per
-                quello che segni qui: gli invii che arrivano dai file «Esporta» dei dispositivi non
-                creano solleciti.
+                Il sollecito si chiude da solo con «Ha risposto», qui o in Oggi, con un nuovo invio,
+                con lo stato «Accordo fatto» o «Non interessato» e con «Metti tra i non contattare».
+                Vale anche per i file «Esporta» dei dispositivi: un «Contattato» del file crea il
+                sollecito per chi carica il file, 7 giorni dopo la data dell’esportazione (può
+                essere già in ritardo); «Risposto» o «Accordo fatto» lo chiudono.
               </li>
               <li>
                 Quando una scheda passa ad «Accordo fatto», le sue date di evento e candidatura
@@ -412,7 +413,9 @@ export function GuideView({ access, preview = false }: { access: GuideAccess; pr
               <li>
                 In Team, «Partner nel Team» porta un contatto nel lavoro del team: l’evento nel
                 calendario, un progetto per Produzione, l’attività per aprire un conto vendita e le
-                vendite fatte all’evento.
+                vendite fatte all’evento. Con «Accordo fatto» la scheda ha il riquadro «Esito»:
+                «Apri in Partner nel Team» apre quel contatto. «Collega l’evento» funziona anche se
+                l’evento è già passato.
               </li>
               <li>Tutti vedono e possono fare tutto. «Seguito da» dice chi se ne occupa.</li>
               <li>

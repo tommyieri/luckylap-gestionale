@@ -4,10 +4,20 @@ import { loadPartnerWorkTile, loadPreparationTile } from "../../lib/today/work-s
 import { partnerWorkHref } from "../../lib/today/work-model";
 import { formatRomeDate } from "../../lib/team/model";
 import { TileFrame, TileProblem } from "./today-tiles";
+import { TodayReplyButton } from "./today-reply-button";
 import roadbook from "../roadbook.module.css";
 import styles from "./today.module.css";
 const countLabel = (n: number, one: string, many: string) => `${n} ${n === 1 ? one : many}`;
-export async function PartnerWorkTile({ supabase, now }: { supabase: SupabaseClient; now: Date }) {
+export async function PartnerWorkTile({
+  supabase,
+  now,
+  userId,
+}: {
+  supabase: SupabaseClient;
+  now: Date;
+  /** Chi guarda: i solleciti sono i suoi, «Ha risposto» conserva qui i tentativi incerti. */
+  userId: string;
+}) {
   const tile = await loadPartnerWorkTile(supabase, now);
   return (
     <TileFrame
@@ -48,6 +58,15 @@ export async function PartnerWorkTile({ supabase, now }: { supabase: SupabaseCli
                     </Link>
                   </span>
                 </div>
+                {item.partnerId && (
+                  <div className={roadbook.side}>
+                    <TodayReplyButton
+                      partnerId={item.partnerId}
+                      partnerLabel={`CO ${item.co}`}
+                      userId={userId}
+                    />
+                  </div>
+                )}
               </li>
             ))}
             {tile.data.contacts.map((item) => (

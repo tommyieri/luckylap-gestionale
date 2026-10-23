@@ -234,4 +234,60 @@ describe("Partner collegati al lavoro del team", () => {
       descendants(tree).some((node) => node.props.href === `/development#progetto-${orderId}`),
     ).toBe(true);
   });
+
+  const second = {
+    id: orderId,
+    co: 43,
+    name: "Raduno sintetico con accordo",
+    sections: ["eventi"],
+    eventStartsOn: "2026-05-02",
+    eventEndsOn: "2026-05-03",
+    applicationDeadline: null,
+    stage: "chiuso",
+  };
+  const two = { ...snapshot, partners: [...snapshot.partners, second], links: [] };
+  const eventButton = (tree: unknown) =>
+    descendants(tree).find((node) => node.type === "button" && text(node) === "Collega l’evento")!;
+  it("con ?co=43 apre il contatto scelto dal blocco «Esito»", () => {
+    const tree = PartnerWorkLinks({ snapshot: two, member, initialCo: 43 });
+    expect(descendants(tree).find((node) => node.type === "h2")?.props.children).toBe(
+      "Raduno sintetico con accordo",
+    );
+    expect(
+      descendants(tree).find((node) => node.type === "select" && node.props.value !== undefined)
+        ?.props.value,
+    ).toBe(orderId);
+    expect(text(PartnerWorkLinks({ snapshot: two, member, initialCo: 999 }))).toContain(
+      "Partner sintetico",
+    );
+  });
+  it("accordo fatto con l’evento passato: «Collega l’evento» attivo e spiegato", () => {
+    const tree = PartnerWorkLinks({ snapshot: two, member, initialCo: 43 });
+    expect(eventButton(tree).props.disabled).toBe(false);
+    expect(text(tree)).toContain("L’evento è già passato: entra lo stesso nel calendario");
+    (eventButton(tree).props.onClick as () => void)();
+    expect(mocks.execute).toHaveBeenCalledWith({
+      operationId,
+      actorId,
+      payload: { schema_version: 1, kind: "event", partner_id: orderId },
+    });
+  });
+  it("senza accordo o senza date dice cosa manca", () => {
+    const tree = PartnerWorkLinks({ snapshot: { ...snapshot, links: [] }, member });
+    expect(eventButton(tree).props.disabled).toBe(true);
+    expect(text(tree)).toContain("Prima segna l’accordo fatto nella scheda Partner");
+    const undated = {
+      ...two,
+      partners: [{ ...second, eventStartsOn: null, eventEndsOn: null }],
+    };
+    const empty = PartnerWorkLinks({ snapshot: undated, member, initialCo: 43 });
+    expect(eventButton(empty).props.disabled).toBe(true);
+    expect(text(empty)).toContain("Mancano le date dell’evento");
+  });
+  it("anteprima locale: dati sintetici e nessun invio", () => {
+    const tree = PartnerWorkLinks({ snapshot: two, member, initialCo: 43, preview: true });
+    expect(text(tree)).toContain("Anteprima locale: dati sintetici, nessun salvataggio.");
+    expect(eventButton(tree).props.disabled).toBe(true);
+    expect(text(tree)).toContain("dai file «Esporta» dei dispositivi");
+  });
 });
