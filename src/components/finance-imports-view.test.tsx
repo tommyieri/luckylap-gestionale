@@ -1,13 +1,153 @@
-import { describe, expect, it, vi } from "vitest";
+import { beforeEach, describe, expect, it, vi } from "vitest";
 import { renderToStaticMarkup } from "react-dom/server";
+const view = vi.hoisted(() => ({ filter: "dated" }));
+vi.mock("react", async () => {
+  const actual = await vi.importActual<typeof import("react")>("react");
+  return {
+    ...actual,
+    useState: (value: unknown) => actual.useState(value === "dated" ? view.filter : value),
+  };
+});
 vi.mock("@/lib/finance/model", () => import("../lib/finance/model"));
 vi.mock("@/lib/finance/dashboard", () => import("../lib/finance/dashboard"));
 vi.mock("@/lib/finance/categories", () => import("../lib/finance/categories"));
 import { FinanceImportsView } from "./finance-imports-view";
 import type { FinanceSnapshot } from "../lib/finance/model";
 import type { FinanceWorkSnapshot } from "../lib/finance-work/model";
+import styles from "./finance.module.css";
+
+beforeEach(() => {
+  view.filter = "dated";
+});
+
+const transaction = (
+  index: number,
+  overrides: Partial<FinanceSnapshot["transactions"][number]> = {},
+): FinanceSnapshot["transactions"][number] => ({
+  id: `96000000-0000-4000-8000-${String(index).padStart(12, "0")}`,
+  batchId: "96000000-0000-4000-8000-000000000100",
+  sourceRow: index + 1,
+  occurredAt: "2026-06-10T10:00:00Z",
+  sourceDate: "2026-06-10",
+  sourceTimestamp: "2026-06-10T10:00:00Z",
+  sourceAmount: "12.34",
+  formattedAmount: "12,34 €",
+  account: "Conto sintetico A",
+  targetAccount: null,
+  category: "Vendite",
+  payee: "Entrata sintetica descritta",
+  folder: "",
+  tags: "",
+  notes: "",
+  pending: false,
+  ...overrides,
+});
+
+/** Scope assertions to the operative rows; original sources keep their own detail. */
+function movementTable(html: string) {
+  const section = html.slice(html.indexOf('id="finance-transactions"'));
+  const table = section.match(/<table\b[^>]*>[\s\S]*?<\/table>/)?.[0];
+  expect(table, "Tabella Movimenti presente").toBeDefined();
+  return table!;
+}
+const movementRows = (table: string) =>
+  [
+    ...(table.match(/<tbody>([\s\S]*?)<\/tbody>/)?.[1] ?? "").matchAll(
+      /<tr\b[^>]*>[\s\S]*?<\/tr>/g,
+    ),
+  ].map((match) => match[0]);
 
 describe("Finance overview source separation", () => {
+  it("rende leggibili categoria e descrizione, con importi e direzioni comprensibili anche senza colore", () => {
+    const html = renderToStaticMarkup(
+      <FinanceImportsView
+        snapshot={{
+          batches: [],
+          transactions: [
+            transaction(1),
+            transaction(2, {
+              sourceAmount: "-7.89",
+              formattedAmount: "−7,89 €",
+              category: "Software",
+              payee: "Spesa sintetica descritta",
+            }),
+            transaction(3, {
+              sourceAmount: "-20.00",
+              formattedAmount: "−20,00 €",
+              category: "Spostamento sintetico",
+              targetAccount: "Conto sintetico B",
+              payee: "Giroconto sintetico descritto",
+            }),
+            transaction(4, {
+              sourceAmount: "0.00",
+              formattedAmount: "0,00 €",
+              payee: "",
+              notes: "",
+            }),
+          ],
+        }}
+        reportDate="2026-06-15"
+        displayName="Sintetico"
+      />,
+    );
+    const table = movementTable(html),
+      rows = movementRows(table);
+    expect(rows).toHaveLength(4);
+    expect(table).toContain('scope="col">Categoria / conto');
+    expect(table).not.toContain("Fonte / stato");
+    expect(table).not.toContain("BudgetFlow");
+    expect(table).not.toContain("Registrato · Da verificare");
+    const income = rows.find((row) => row.includes("Entrata sintetica descritta"))!;
+    expect(income).toMatch(/<strong\b[^>]*>Vendite<\/strong>/);
+    expect(income.indexOf(">Vendite</strong>")).toBeLessThan(income.indexOf("Conto sintetico A"));
+    expect(income).toContain(styles.incomeAmount);
+    expect(income).toContain("+12,34 €");
+    expect(income).toContain('class="sr-only">Entrata: ');
+    expect(income).toContain('aria-label="Dettagli Vendite,');
+    const expense = rows.find((row) => row.includes("Spesa sintetica descritta"))!;
+    expect(expense).toMatch(/<strong\b[^>]*>Software<\/strong>/);
+    expect(expense).toContain(styles.expenseAmount);
+    expect(expense).toContain("−7,89 €");
+    expect(expense).toContain('class="sr-only">Uscita: ');
+    for (const [description, label] of [
+      ["Giroconto sintetico descritto", "Trasferimento"],
+      ["Descrizione da aggiungere", "Importo nullo"],
+    ]) {
+      const neutral = rows.find((row) => row.includes(description))!;
+      expect(neutral).not.toContain(styles.incomeAmount);
+      expect(neutral).not.toContain(styles.expenseAmount);
+      expect(neutral).toContain(`class="sr-only">${label}: `);
+    }
+    const transfer = rows.find((row) => row.includes("Giroconto sintetico descritto"))!;
+    expect(transfer).toMatch(/<strong\b[^>]*>Trasferimento<\/strong>/);
+    expect(transfer).toContain("Conto sintetico A → Conto sintetico B");
+    expect(transfer).not.toContain("Uscita:");
+  });
+
+  it("conserva i segnali testuali pending e data futura quando sono visibili tutti gli stati", () => {
+    view.filter = "all";
+    const html = renderToStaticMarkup(
+      <FinanceImportsView
+        snapshot={{
+          batches: [],
+          transactions: [
+            transaction(1, { pending: true, payee: "Movimento sintetico in attesa" }),
+            transaction(2, { sourceDate: "2026-07-10", payee: "Movimento sintetico pianificato" }),
+          ],
+        }}
+        reportDate="2026-06-15"
+        displayName="Sintetico"
+      />,
+    );
+    const rows = movementRows(movementTable(html));
+    expect(rows).toHaveLength(2);
+    expect(rows.find((row) => row.includes("Movimento sintetico in attesa"))).toContain("Pending");
+    expect(rows.find((row) => row.includes("Movimento sintetico pianificato"))).toContain(
+      "Data futura",
+    );
+    expect(rows.join("")).not.toContain("Registrato · Da verificare");
+  });
+
   it("renders account balances and a chart with exact accessible data, keeping future, pending and unallocated flows separate", () => {
     const snapshot: FinanceSnapshot = {
       batches: [],
