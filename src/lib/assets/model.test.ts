@@ -2,8 +2,10 @@ import { createHash } from "node:crypto";
 import { describe, expect, it, vi } from "vitest";
 vi.mock("server-only", () => ({}));
 import {
+  DEVELOPMENT_PHOTO_FILTER,
   assetStoragePath,
   isBrandStoragePath,
+  parseStoredFileDescriptor,
   MAX_ASSET_BYTES,
   parseAssetArchiveInput,
   parseBrandLink,
@@ -126,5 +128,76 @@ describe("archivio dei contenuti", () => {
       ids(visibleBrandAssets(assets, { type: "logo", query: " PISTA ", archived: false })),
     ).toEqual(["3"]);
     expect(visibleBrandAssets(assets, { type: "photo", query: "", archived: true })).toEqual([]);
+  });
+});
+
+describe("foto dei progetti di Nuovi prodotti nella libreria", () => {
+  const heic = Uint8Array.from([
+    0,
+    0,
+    0,
+    24,
+    ...Buffer.from("ftypheic"),
+    0,
+    0,
+    0,
+    0,
+    ...Buffer.from("mif1heic"),
+  ]);
+  it("la libreria non accetta HEIC; i file già archiviati sì, con la firma ftyp", () => {
+    const input = descriptor("IMG_1.HEIC", "image/heic", heic);
+    expect(() => parseUploadDescriptor(input)).toThrow(/PNG, JPEG, WebP, MP4, WebM o SVG/);
+    expect(parseStoredFileDescriptor(input).mime).toBe("image/heic");
+    expect(() => verifyAssetBytes(heic, input)).not.toThrow();
+    const heif = Uint8Array.from([
+      0,
+      0,
+      0,
+      20,
+      ...Buffer.from("ftypmif1"),
+      0,
+      0,
+      0,
+      0,
+      ...Buffer.from("heix"),
+    ]);
+    expect(() => verifyAssetBytes(heif, descriptor("foto.heif", "image/heif", heif))).not.toThrow();
+    const mp4 = Uint8Array.of(0, 0, 0, 16, 102, 116, 121, 112, 105, 115, 111, 109, 0, 0, 0, 0);
+    expect(() => verifyAssetBytes(mp4, descriptor("finto.heic", "image/heic", mp4))).toThrow(
+      /formato dichiarato/,
+    );
+    expect(isBrandStoragePath(`${uid}/${op}/img_1.heic`)).toBe(true);
+  });
+  it("stanno fuori dall'elenco principale e compaiono con il filtro «Nuovi prodotti»", () => {
+    const base = {
+      assetType: "photo" as const,
+      description: "",
+      externalUrl: null,
+      storagePath: null,
+      originalName: null,
+      contentType: null,
+      size: null,
+      createdAt: "2026-10-22T08:00:00Z",
+      archivedAt: null,
+    };
+    const assets: BrandAsset[] = [
+      { ...base, id: "1", name: "Foto della libreria" },
+      { ...base, id: "2", name: "Campione dal telefono", developmentPhoto: true },
+      {
+        ...base,
+        id: "3",
+        name: "Foto tolta dal progetto",
+        developmentPhoto: true,
+        archivedAt: "2026-10-23T08:00:00Z",
+      },
+    ];
+    const ids = (type: string, archived = false, query = "") =>
+      visibleBrandAssets(assets, { type, query, archived }).map((asset) => asset.id);
+    expect(ids("")).toEqual(["1"]);
+    expect(ids("photo")).toEqual(["1"]);
+    expect(ids("", true)).toEqual([]);
+    expect(ids(DEVELOPMENT_PHOTO_FILTER)).toEqual(["2"]);
+    expect(ids(DEVELOPMENT_PHOTO_FILTER, true)).toEqual(["3"]);
+    expect(ids(DEVELOPMENT_PHOTO_FILTER, false, "telefono")).toEqual(["2"]);
   });
 });

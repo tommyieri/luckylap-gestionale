@@ -373,3 +373,12 @@
     font-size: var(--text-md);
   }
 }
+.developmentNote {
+  margin-top: 12px;
+  font-size: var(--text-sm);
+  line-height: 1.6;
+  color: var(--muted);
+}
+.developmentNote a {
+  color: var(--green);
+}

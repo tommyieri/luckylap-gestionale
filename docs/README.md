@@ -68,7 +68,7 @@ Alcuni documenti scritti prima del modello attuale chiedono ancora una sessione 
 - [Layout condiviso e navigazione](workspace-layout.md): guscio comune a tutte le pagine, mappa delle sezioni, token di stile e regole per le pagine nuove.
 - [Guida «Come si usa»](workspace-layout.md#la-guida-come-si-usa): pagina `/guida` per i cinque del team e regole per tenerla allineata all'app.
 - [Workspace condiviso del team](team-workspace.md): route `/team` con il calendario a mese (pallino sui giorni con impegni), attività e note nel database, date e solleciti Partner, «Partner nel Team» (`/team/partner`).
-- [Libreria del brand e sviluppo prodotti](assets-development.md): route `/assets` e `/development`, con bucket privato per gli originali.
+- [Libreria del brand e sviluppo prodotti](assets-development.md): route `/assets` e `/development`, con bucket privato per gli originali e le foto dei progetti di Nuovi prodotti.
 - [Ricerca UI UX Pro Max](ui-ux-pro-max-research.md): fonte, licenza e comandi della ricerca usata per l'interfaccia.
 
 ## Verifiche

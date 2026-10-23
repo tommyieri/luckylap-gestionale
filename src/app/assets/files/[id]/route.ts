@@ -5,7 +5,7 @@ import {
   ASSET_BUCKET,
   MAX_ASSET_BYTES,
   isBrandStoragePath,
-  parseUploadDescriptor,
+  parseStoredFileDescriptor,
 } from "../../../../lib/assets/model";
 import { verifyAssetBytes } from "../../../../lib/assets/file-validation";
 
@@ -31,7 +31,8 @@ export async function GET(request: Request, { params }: { params: Promise<{ id: 
     if (asset.error || !isBrandStoragePath(asset.data?.storage_path))
       return new Response("Contenuto non disponibile.", { status: 404, headers });
     const row = asset.data;
-    const descriptor = parseUploadDescriptor({
+    // Anche le foto HEIC dei progetti di Nuovi prodotti, che stanno nello stesso bucket.
+    const descriptor = parseStoredFileDescriptor({
       operationId: row.id,
       originalName: row.original_file_name,
       mime: row.content_type,
@@ -53,6 +54,19 @@ export async function GET(request: Request, { params }: { params: Promise<{ id: 
         status: 503,
         headers,
       });
+    // HEIC/HEIF entrano nel bucket come application/octet-stream (il bucket non elenca image/heic):
+    // in anteprima il browser prova a decodificarle, altrimenti la pagina mostra il nome del file.
+    if (
+      (descriptor.mime === "image/heic" || descriptor.mime === "image/heif") &&
+      file.data.type !== "application/octet-stream"
+    )
+      return new Response(
+        "Il formato di archiviazione HEIC richiede una verifica amministrativa.",
+        {
+          status: 503,
+          headers,
+        },
+      );
     // Vercel also limits response bodies. Keep the response small: after byte
     // verification the immutable object is served directly by private Storage.
     const signed = await supabase.storage

@@ -11,6 +11,10 @@ import {
   type DevelopmentState,
 } from "../lib/development/model";
 import type { TeamMember } from "../lib/team/model";
+import type { DevelopmentPhoto } from "../lib/development/photos";
+import { PREVIEW_DEVELOPMENT_NOTICE } from "../lib/development/fixtures";
+import type { SupabasePublicConfig } from "../lib/supabase/config";
+import { DevelopmentPhotos } from "./development-photos";
 import shared from "./team-workspace.module.css";
 import styles from "./development.module.css";
 
@@ -36,10 +40,13 @@ function ProjectForm({
   project,
   members,
   initialOperationId,
+  disabled = false,
 }: {
   project?: DevelopmentProject;
   members: TeamMember[];
   initialOperationId?: string;
+  /** Anteprima locale: il modulo si vede, ma non invia niente. */
+  disabled?: boolean;
 }) {
   const [state, action, pending] = useActionState(saveDevelopment, initialState);
   const submitLock = useRef(false);
@@ -65,7 +72,7 @@ function ProjectForm({
       className={styles.form}
       aria-label={project ? `Modifica ${project.name}` : "Nuovo progetto prodotto"}
     >
-      <fieldset disabled={pending}>
+      <fieldset disabled={pending || disabled}>
         <legend>{project ? "Modifica scheda" : "Nuovo prodotto"}</legend>
         <input type="hidden" name="id" value={project?.id ?? value("id", operationId)} />
         <input type="hidden" name="version" value={project ? String(project.version) : ""} />
@@ -132,7 +139,13 @@ function ProjectForm({
     </form>
   );
 }
-function ArchiveProject({ project }: { project: DevelopmentProject }) {
+function ArchiveProject({
+  project,
+  disabled = false,
+}: {
+  project: DevelopmentProject;
+  disabled?: boolean;
+}) {
   const [state, action, pending] = useActionState(saveDevelopment, initialState);
   const submitLock = useRef(false);
   useEffect(() => {
@@ -162,7 +175,7 @@ function ArchiveProject({ project }: { project: DevelopmentProject }) {
         <input type="hidden" name="targetDate" value={project.targetDate ?? ""} />
         <input type="hidden" name="ownerId" value={project.ownerId ?? ""} />
         <p>La scheda resta salvata e sarà visibile filtrando i progetti archiviati.</p>
-        <button type="submit" className="button button-secondary" disabled={pending}>
+        <button type="submit" className="button button-secondary" disabled={pending || disabled}>
           {pending ? "Archiviazione…" : "Archivia scheda"}
         </button>
       </form>
@@ -175,12 +188,22 @@ export function DevelopmentView({
   projects,
   members,
   operationId,
+  photos = [],
+  userId,
+  config,
+  preview = false,
 }: {
   projects: DevelopmentProject[];
   members: TeamMember[];
   /** Non più mostrato qui: il nome del membro sta nel menu del guscio. */
   displayName: string;
   operationId: string;
+  /** Foto di tutti i progetti, in ordine di progetto e posizione. */
+  photos?: DevelopmentPhoto[];
+  userId: string;
+  config: SupabasePublicConfig;
+  /** Anteprima locale: dati sintetici, le foto restano nella pagina. */
+  preview?: boolean;
 }) {
   const [stage, setStage] = useState("active"),
     [owner, setOwner] = useState(""),
@@ -211,6 +234,11 @@ export function DevelopmentView({
           {refreshing ? "Aggiornamento…" : "Aggiorna"}
         </button>
       </div>
+      {preview && (
+        <p className={styles.previewNotice} role="status">
+          {PREVIEW_DEVELOPMENT_NOTICE}
+        </p>
+      )}
       <p className={styles.notice}>
         Le schede sono condivise con il team. Il passaggio a “Pronto” descrive lo sviluppo del
         prodotto: non crea SKU o quantità di magazzino.
@@ -291,12 +319,22 @@ export function DevelopmentView({
                       </time>
                     </p>
                   )}
+                  <DevelopmentPhotos
+                    projectId={project.id}
+                    projectName={project.name}
+                    photos={photos.filter((photo) => photo.projectId === project.id)}
+                    userId={userId}
+                    config={config}
+                    preview={preview}
+                  />
                   <div className={styles.projectActions}>
                     <details className={styles.edit}>
                       <summary>Modifica scheda</summary>
-                      <ProjectForm project={project} members={members} />
+                      <ProjectForm project={project} members={members} disabled={preview} />
                     </details>
-                    {project.stage !== "archived" && <ArchiveProject project={project} />}
+                    {project.stage !== "archived" && (
+                      <ArchiveProject project={project} disabled={preview} />
+                    )}
                   </div>
                 </li>
               ))}
@@ -304,7 +342,7 @@ export function DevelopmentView({
           )}
         </section>
         <aside className={styles.newProject}>
-          <ProjectForm members={members} initialOperationId={operationId} />
+          <ProjectForm members={members} initialOperationId={operationId} disabled={preview} />
         </aside>
       </div>
       <footer className={shared.footer}>

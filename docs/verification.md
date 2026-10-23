@@ -7,6 +7,20 @@ Stato del 23 ottobre 2026, dal branch `claude/revisione-pre-invio` (P7, revision
 
 Prove applicative, SQL sintetico, PostgreSQL concorrente e Auth cloud sono conteggiati separatamente. Le sezioni «Avvio del 21 ottobre 2026» restano come verbale dell'avvio: i numeri di allora non sono quelli di oggi.
 
+## Foto dei nuovi prodotti, 23 ottobre 2026
+
+Dal branch `claude/foto-nuovi-prodotti` (base `origin/main` a `1687d20`), con dati sintetici e senza accessi al cloud. Dettagli in [assets-development.md](assets-development.md), «Foto dei nuovi prodotti».
+
+| Comando | Esito |
+| --- | --- |
+| `npm test` | 2.173 test in 191 file, tutti superati |
+| `npm run test:db` senza `LUCKYLAP_PG_BIN` | 21 harness PGlite superati, 3.720 controlli; i 16 harness su PostgreSQL 17 risultano saltati |
+| `npm run test:db` con `LUCKYLAP_PG_BIN` (PostgreSQL 17 locale) | in più 16 harness PostgreSQL 17 superati, 1.985 controlli: 37 harness, 5.705 controlli in tutto |
+
+Harness nuovo: `foto-nuovi-prodotti.mjs` (PGlite, 208 controlli). Con la migrazione nuova `finance-ecosystem-integration.mjs` passa a 108, `manual-sale-cancellation.mjs` a 110, `manual-sale-returns.mjs` a 125, `sensitive-area-members.mjs` a 177 (righe in testa aggiornate). `riassortimento-concurrency.mjs` controllava che il riassortimento fosse l'ultima migrazione: ora controlla che sia nella catena (stesso numero di controlli). `npm run typecheck`, `npm run build` e `npm run format:check` passano.
+
+Prova visiva sull'anteprima sintetica, a 1280 × 800 e 390 × 844: schede con la striscia «Foto», miniature e riquadro HEIC con il nome, foto in grande con precedente, successiva, frecce della tastiera, «Sposta prima» e «Sposta dopo», «Rimuovi» con la conferma, «Aggiungi foto» con un file valido, uno oltre 25 MB e un PDF (avanzamento, poi i due motivi in italiano), «Grafica e foto» con e senza il filtro «Nuovi prodotti». In ogni pagina nessuno scorrimento orizzontale della pagina, nessun testo sotto 12 px, campi a 16 px, bersagli da almeno 44 px, nessun errore nella console.
+
 ## Riassortimento, 23 ottobre 2026
 
 Dal branch `claude/riassortimento` (base `origin/main` a `e187934`), con dati sintetici e senza accessi al cloud. Dettagli in [riassortimento.md](riassortimento.md).

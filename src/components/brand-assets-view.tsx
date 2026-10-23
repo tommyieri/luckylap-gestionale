@@ -4,6 +4,7 @@ import { useState } from "react";
 import { Download, ExternalLink, FileImage } from "lucide-react";
 import {
   ASSET_TYPES,
+  DEVELOPMENT_PHOTO_FILTER,
   assetTypeLabels,
   parseBrandLink,
   visibleBrandAssets,
@@ -36,8 +37,11 @@ export function BrandAssetsView({
   const [query, setQuery] = useState("");
   const [showArchived, setShowArchived] = useState(false);
   const [notice, setNotice] = useState("");
-  const archivedCount = assets.filter((asset) => asset.archivedAt !== null).length;
-  const listed = showArchived ? archivedCount : assets.length - archivedCount;
+  // Le foto dei progetti di Nuovi prodotti contano solo con il loro filtro.
+  const development = filter === DEVELOPMENT_PHOTO_FILTER;
+  const inScope = assets.filter((asset) => Boolean(asset.developmentPhoto) === development);
+  const archivedCount = inScope.filter((asset) => asset.archivedAt !== null).length;
+  const listed = showArchived ? archivedCount : inScope.length - archivedCount;
   const visible = visibleBrandAssets(assets, { type: filter, query, archived: showArchived });
   return (
     <div className={shared.main}>
@@ -81,6 +85,7 @@ export function BrandAssetsView({
                       {assetTypeLabels[type]}
                     </option>
                   ))}
+                  <option value={DEVELOPMENT_PHOTO_FILTER}>Nuovi prodotti</option>
                 </select>
               </label>
             </div>
@@ -113,9 +118,11 @@ export function BrandAssetsView({
                     : "Uno spazio per il brand."}
               </h3>
               <p>
-                {showArchived
-                  ? "Qui compaiono i contenuti tolti dalla libreria. «Ripristina» li riporta per tutti."
-                  : "Carica un originale o aggiungi un link a una grafica, un logo, una foto o un video."}
+                {development
+                  ? "Qui compaiono le foto dei progetti di Nuovi prodotti: si aggiungono e si tolgono dalla scheda del progetto."
+                  : showArchived
+                    ? "Qui compaiono i contenuti tolti dalla libreria. «Ripristina» li riporta per tutti."
+                    : "Carica un originale o aggiungi un link a una grafica, un logo, una foto o un video."}
               </p>
             </div>
           ) : (
@@ -159,7 +166,10 @@ export function BrandAssetsView({
                               ? "Link"
                               : asset.contentType === "image/svg+xml"
                                 ? "SVG · solo download"
-                                : "Originale"}
+                                : asset.contentType === "image/heic" ||
+                                    asset.contentType === "image/heif"
+                                  ? "HEIC · solo download"
+                                  : "Originale"}
                           </span>
                         </div>
                       )}
@@ -193,14 +203,23 @@ export function BrandAssetsView({
                           <ExternalLink size={13} aria-hidden="true" />
                         </a>
                       )}
-                      <BrandAssetArchive
-                        key={asset.archivedAt ?? "attivo"}
-                        assetId={asset.id}
-                        assetName={asset.name}
-                        archivedAt={asset.archivedAt}
-                        disabled={localPreview}
-                        onDone={setNotice}
-                      />
+                      {asset.developmentPhoto ? (
+                        <p className={styles.developmentNote}>
+                          {asset.archivedAt
+                            ? "Tolta da un progetto di "
+                            : "Foto di un progetto: si aggiunge e si toglie da "}
+                          <a href="/development">Nuovi prodotti</a>.
+                        </p>
+                      ) : (
+                        <BrandAssetArchive
+                          key={asset.archivedAt ?? "attivo"}
+                          assetId={asset.id}
+                          assetName={asset.name}
+                          archivedAt={asset.archivedAt}
+                          disabled={localPreview}
+                          onDone={setNotice}
+                        />
+                      )}
                     </div>
                   </li>
                 );

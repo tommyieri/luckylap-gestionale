@@ -68,9 +68,51 @@ Produzione: applicata il 23 ottobre 2026 come versione cloud `20261023115001`, c
 
 `public.save_development_project` ricontrolla membership e referente. Creare con UUID e `expected_version = NULL` è idempotente per autore e stesso payload iniziale. Ogni aggiornamento richiede la versione letta; se un altro membro ha modificato la scheda, il database rifiuta la sovrascrittura con `40001`. Il modulo conserva il testo e richiede di aggiornare/controllare i dati correnti. L’archiviazione è un aggiornamento versionato, registrato nell’audit. La fase “Pronto” non crea SKU, movimenti o scorte.
 
+## Foto dei nuovi prodotti
+
+Ogni scheda di `/development` ha la parte «Foto»: miniature quadrate in una striscia che scorre in orizzontale, «Aggiungi foto» e la foto in grande. Tutti i membri attivi aggiungono, spostano e tolgono le foto, come per il resto delle schede.
+
+- **Aggiungere.** «Aggiungi foto» apre la scelta dei file (`accept="image/*"`, più file insieme): sul telefono offre fotocamera e galleria, sul computer i file. JPEG, PNG, WebP e HEIC fino a 25 MB l’una, al massimo 10 per volta e 60 per progetto. I file che non vanno restano in elenco con il motivo («supera 25 MB», «non è una foto in un formato accettato»); gli altri partono, ognuno con la sua percentuale.
+- **Vedere.** Toccando una miniatura la foto si apre in grande in un `dialog` nativo: «Chiudi» (anche Esc o lo sfondo), precedente e successiva (anche con le frecce), «Scarica originale», «Sposta prima» e «Sposta dopo».
+- **Togliere.** «Rimuovi», poi «Sì, rimuovi la foto». La foto sparisce dal progetto per tutti; il file resta nell’archivio privato del team.
+
+### Dove stanno
+
+Una foto è un contenuto di `public.assets`, nello stesso bucket privato `brand-assets`, con gli stessi limiti, lo stesso percorso `utente/operazione/nome-sicuro.estensione` e la stessa route `/assets/files/[id]` (redirect a un URL firmato per 60 secondi). Il collegamento al progetto è una riga di `public.product_development_photos(id, project_id, asset_id, position, created_by, created_at)`: un contenuto sta in un solo progetto (`asset_id` unico), le posizioni sono uniche per progetto. Così le foto contano come contenuti del team, ma non si mescolano alla libreria: il contenuto porta `source = {"kind": "development_photo", "development_project_id": …}` e «Grafica e foto» lo tiene fuori dall’elenco principale. Le foto dei progetti compaiono solo con il filtro Tipo «Nuovi prodotti», senza «Archivia»: si aggiungono e si tolgono dalla scheda.
+
+### Caricamento
+
+Lo stesso percorso dei caricamenti della libreria. Il browser calcola l’SHA-256, la Server Action `prepareDevelopmentPhotoUploads` firma un caricamento per foto (senza sovrascrittura) e i byte vanno direttamente a Storage, con l’avanzamento letto da `XMLHttpRequest`. Poi `finalizeDevelopmentPhotos` rilegge ogni oggetto, controlla dimensione, SHA-256 e firma del formato, e registra tutte le foto dell’invio con un solo comando. Se una foto non supera la verifica non parte niente: quella foto resta fuori con il motivo, le altre ripartono con un operation ID nuovo. Dopo una risposta incerta compare il riquadro «Foto da verificare» (`pending-attempt.tsx`): l’invio è conservato in `sessionStorage` (solo i descrittori, mai file o token) e «Verifica lo stesso invio» lo ripete con lo stesso ID. Una rimozione incerta mostra «Rimozione da verificare» nella foto in grande, con lo stesso ID.
+
+### HEIC
+
+Il bucket accetta oggi PNG, JPEG, WebP, MP4, WebM e `application/octet-stream`, non `image/heic`. Sul telefono il problema di solito non si pone: con `accept="image/*"` Safari per iPhone converte in JPEG le foto della galleria e della fotocamera. Da un Mac, o da un browser che non converte, arriva un file `.heic`: si accetta e si conserva com’è, caricato come `application/octet-stream` (come gli SVG), con `content_type` `image/heic` nei metadati. Non serve cambiare il bucket. La verifica dei byte controlla la scatola `ftyp` con una marca HEIF (`heic`, `heix`, `mif1`…). In pagina il browser prova a mostrarla: Safari ci riesce, Chrome e Firefox no, e al posto dell’immagine rotta compare un riquadro con il nome del file; nella foto in grande, il riquadro invita a scaricare l’originale. La libreria resta senza HEIC: `register_brand_asset` non cambia.
+
+### Migrazione `20261023180000_foto_nuovi_prodotti.sql`
+
+Nessuna riga esistente viene scritta. Di esistente cambiano solo il vincolo dei tipi di `public.assets` (allargato) e tre funzioni del feed; il resto è nuovo:
+
+- `public.assets`: il vincolo `assets_content_type_check` accetta anche `image/heic` e `image/heif`; le righe di oggi lo rispettano già. Un trigger `development_photo_archive_guard` impedisce di archiviare un contenuto finché è collegato a un progetto: si toglie con il comando del progetto.
+- `storage.objects`: la policy di inserimento `development_photos_heic_insert` per i percorsi `.heic` e `.heif` del bucket, con lo stesso schema delle altre. Nessun update o delete: valgono le policy restrittive di oggi.
+- `public.product_development_photos`: RLS, sola lettura ai membri attivi, nessuna scrittura per i client, `audit_change`. Il trigger `development_photo_guard` vuole un contenuto attivo, di tipo foto, con il segno di quel progetto; progetto e contenuto di una riga non cambiano.
+- `private.development_photo_receipts`: ricevute append-only per operation ID.
+- Tre comandi `security definer` con `search_path` vuoto e wrapper `security invoker` (EXECUTE solo ad `authenticated`): `add_development_photos(operation_id, {"schema_version": 1, "project_id", "photos": [{"asset_id", "storage_path", "original_file_name", "content_type", "file_size_bytes", "sha256"}]})`, `remove_development_photo(operation_id, {"schema_version": 1, "project_id", "asset_id"})` e `move_development_photo(operation_id, {"schema_version": 1, "project_id", "asset_id", "position"})`. Ricontrollano membership (`42501 development_access_required`), payload, percorso dell’utente, oggetto nel bucket con MIME e dimensione firmati, limite di 60 foto. Lo stesso invio ripetuto restituisce l’esito di allora con `replayed: true`; lo stesso ID con un altro payload, un altro membro o un altro comando dà `23505 development_photo_idempotency_conflict`. Il progetto bloccato mette in fila gli invii concorrenti.
+- Togliere una foto cancella il collegamento e archivia il contenuto (`archived_at`, `archived_by`): nome, percorso, file nel bucket e metadati restano. Non si cancella niente da Storage. Il contenuto archiviato si vede in «Grafica e foto» con «Nuovi prodotti» e «Mostra archiviati».
+- Controllo CEO: `activity_feed_keys`, `activity_feed_parent` e `activity_feed_window` di `20261023164150_riassortimento` con `create or replace`, cambiate solo dove serve. Le righe delle foto e dei loro contenuti hanno per padre il progetto e diventano una frase per transazione: «Gabriele ha aggiunto 2 foto al progetto «Collab X»», «… ha tolto una foto dal progetto …», «… ha riordinato le foto del progetto …», area Nuovi prodotti, link alla scheda. Stesse 24 ore e stessa privacy: il nome del progetto passa da `activity_feed_text`.
+
+Per tornare indietro: la migrazione non tocca righe esistenti; le foto aggiunte restano contenuti normali del bucket.
+
+### Anteprima locale
+
+Con `npm run dev` la pagina mostra tre progetti sintetici e cinque immagini segnaposto disegnate per l’anteprima (`public/anteprima/nuovi-prodotti`, nessuna foto vera; il file `.heic` contiene solo l’intestazione del formato e mostra il riquadro con il nome). «Aggiungi foto», «Rimuovi» e lo spostamento funzionano solo nella pagina, con un avanzamento simulato: niente rete e niente Supabase. I moduli delle schede restano spenti. Il ramo non si attiva su Vercel né con `NODE_ENV=production` (lo controlla `src/app/(workspace)/development/page.test.tsx`).
+
 ## Verifica e limiti
 
 La suite `supabase/tests/review-handoff.mjs` (PGlite, minimo 51 controlli) prova l’archivio: migrazione sopra contenuti esistenti senza toccarli, archivio e ripristino per ogni ruolo attivo, rifiuto di esterni, account non attivi e anonimi, payload non validi, ricevute e replay, scritture dirette rifiutate, audit con autore.
+
+La suite `supabase/tests/foto-nuovi-prodotti.mjs` (PGlite, minimo 208 controlli) prova le foto dei progetti: migrazione sopra contenuti e progetti esistenti senza toccarli, policy HEIC, aggiunta per ogni ruolo attivo, rifiuto di esterni, account non attivi e anonimi, payload non validi, oggetti mancanti o con MIME diverso, limite di 60, ricevute e replay, spostamento, rimozione con archivio, guardie sui collegamenti, scritture dirette, audit con autore, libreria senza le foto dei progetti e frasi del feed di Controllo CEO.
+
+Le foto si leggono dalla route privata, che a ogni lettura riscarica e riverifica il file: per una striscia di foto pesanti la prima apertura può essere lenta. Le miniature sono pigre (`loading="lazy"`); non ci sono miniature ridotte lato server.
 
 La suite `supabase/tests/assets-development.mjs` esegue PostgreSQL locale con Auth e metadata Storage simulati: ruoli, RLS, percorsi, no-upsert/no-delete, replay, autore, referente attivo, aggiornamenti concorrenti e audit. I test Vitest coprono estensioni/MIME/firme, hash/dimensioni, azioni e download privati. Il test di download sopra 4,5 MB conferma una risposta di redirect senza corpo binario.
 

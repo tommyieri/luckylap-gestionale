@@ -88,4 +88,30 @@ describe("private asset delivery", () => {
     expect(response.status).toBe(503);
     expect(storage.createSignedUrl).not.toHaveBeenCalled();
   });
+  it("una foto HEIC di un progetto: anteprima in linea solo se archiviata come octet-stream", async () => {
+    const heic = Uint8Array.from([
+      0,
+      0,
+      0,
+      24,
+      ...Buffer.from("ftypheic"),
+      0,
+      0,
+      0,
+      0,
+      ...Buffer.from("mif1heic"),
+    ]);
+    const { storage } = client(heic, "image/heic", "img_1.heic", "application/octet-stream");
+    const response = await GET(new Request(`https://example.test/assets/files/${id}?preview=1`), {
+      params: Promise.resolve({ id }),
+    });
+    expect(response.status).toBe(303);
+    expect(storage.createSignedUrl).toHaveBeenCalledWith(`system/${id}/img_1.heic`, 60, {});
+    const stored = client(heic, "image/heic", "img_1.heic", "image/heic");
+    const refused = await GET(new Request(`https://example.test/assets/files/${id}?preview=1`), {
+      params: Promise.resolve({ id }),
+    });
+    expect(refused.status).toBe(503);
+    expect(stored.storage.createSignedUrl).not.toHaveBeenCalled();
+  });
 });

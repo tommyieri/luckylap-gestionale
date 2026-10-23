@@ -149,7 +149,7 @@ export const OPERATIONS: { title: string; href: string; text: string; who?: stri
   {
     title: "Seguire un prodotto nuovo",
     href: "/development",
-    text: "In Team, Nuovi prodotti: «Crea scheda prodotto» per un’idea nuova, «Modifica scheda» per cambiarne la fase.",
+    text: "In Team, Nuovi prodotti: «Crea scheda prodotto» per un’idea nuova, «Modifica scheda» per cambiarne la fase, «Aggiungi foto» per le foto dei campioni dal telefono o dal computer.",
     who: "Gabriele",
   },
   {
