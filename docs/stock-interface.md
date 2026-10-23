@@ -2,6 +2,8 @@
 
 La pagina `/stock/rettifiche` (scheda «Rettifiche» della sezione Magazzino) consente a tutti i membri attivi di consultare le quantità fisiche, riservate e disponibili e di registrare variazioni di scorta motivate. Fino al 22 ottobre 2026 stava su `/stock`, che ora è la scheda «Giacenze» con l'inventario completo (vedi [layout condiviso](workspace-layout.md)). Riprende Barlow, verde racing e componenti compatti del sistema visivo LuckyLap, con modulo e disponibilità affiancati sul desktop e in una colonna sul telefono.
 
+In cima a Giacenze, «Magliette disponibili» somma lo stesso disponibile del Magadzino per ognuna delle sei grafiche: vedi [Magliette disponibili](magliette-disponibili.md).
+
 ## Operazione
 
 Si scelgono esplicitamente uno SKU e un magazzino. Si scelgono solo le sedi di tipo «Magazzino»: la merce del negozio si conta e si cambia da [Conto vendita](consignment.md), e una rettifica da qui falserebbe il resoconto mensile. La lettura tiene solo i magazzini e non legge le disponibilità delle altre sedi; la Server Action rifiuta ogni altra sede con il codice `shop_location` («Le quantità del negozio si cambiano da Conto vendita.») prima della RPC, e il database rifiuta comunque i movimenti `adjustment` sulle sedi «Negozio Conto Vendita» (trigger `reject_shop_adjustment`). Nella colonna «In negozio» delle Giacenze (`/stock`) c'è la somma dei negozi attivi già contati, «—» finché nessun negozio è stato contato. La tabella del luogo scelto permette ricerca e selezione dell'articolo; la stessa scelta è disponibile nel menu nativo. Le tre quantità restano distinte. Saldo assente o NULL è mostrato come «Da verificare» e blocca le rettifiche: non viene convertito in zero e non si inventa una conta iniziale.

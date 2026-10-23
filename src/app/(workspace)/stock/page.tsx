@@ -5,17 +5,38 @@ import { RefreshButton } from "@/components/refresh-button";
 import { PanelActions, WorkspacePanel } from "@/components/workspace-panel";
 import { requireMember } from "@/lib/auth/current-member";
 import { loadAuthenticatedInventory } from "@/lib/auth/server";
+import { loadMagadzinoAvailability } from "@/lib/inventory/magadzino-availability";
+import { MODEL_PARAM, parseModelParam } from "@/lib/inventory/model-filter";
+import { countTshirtLines, type TshirtLineCount } from "@/lib/inventory/tshirt-lines";
 
 export const dynamic = "force-dynamic";
 export const metadata: Metadata = { title: "Magazzino" };
 
-/** Giacenze: prima scheda di Magazzino (prima era la vista predefinita di `/`). */
-export default async function StockPage() {
-  const current = await requireMember();
+type SearchParams = Promise<Record<string, string | string[] | undefined>>;
+
+/**
+ * Giacenze: prima scheda di Magazzino (prima era la vista predefinita di `/`). In cima
+ * «Magliette disponibili»; `?modello=` filtra la tabella su un modello del catalogo.
+ */
+export default async function StockPage({ searchParams }: { searchParams: SearchParams }) {
+  const [params, current] = await Promise.all([searchParams, requireMember()]);
+  const model = parseModelParam(params[MODEL_PARAM]);
   if (current.status === "preview") {
-    const { loadInventory } = await import("@/lib/inventory");
+    const [{ loadInventory }, { previewMagadzinoAvailability }] = await Promise.all([
+      import("@/lib/inventory"),
+      import("@/lib/inventory/tshirt-fixtures"),
+    ]);
     const { items, sourceMeta } = await loadInventory();
-    return <InventoryWorkspace items={items} sourceMeta={sourceMeta} shared={false} />;
+    const lines = countTshirtLines(items, previewMagadzinoAvailability(items));
+    return (
+      <InventoryWorkspace
+        items={items}
+        sourceMeta={sourceMeta}
+        shared={false}
+        model={model}
+        tshirts={{ lines, preview: true }}
+      />
+    );
   }
   if (current.status !== "member")
     return (
@@ -28,6 +49,8 @@ export default async function StockPage() {
         }}
       />
     );
+  // Le magliette disponibili hanno una lettura a parte: se non riesce, la tabella resta.
+  const availability = loadMagadzinoAvailability(current.supabase).catch(() => null);
   let inventory;
   try {
     inventory = await loadAuthenticatedInventory(current.supabase);
@@ -43,5 +66,20 @@ export default async function StockPage() {
       </WorkspacePanel>
     );
   }
-  return <InventoryWorkspace items={inventory.items} sourceMeta={inventory.sourceMeta} shared />;
+  const rows = await availability;
+  let lines: TshirtLineCount[] | null = null;
+  try {
+    lines = rows ? countTshirtLines(inventory.items, rows) : null;
+  } catch {
+    // Disponibilità duplicate: meglio nessun numero che un numero sbagliato.
+  }
+  return (
+    <InventoryWorkspace
+      items={inventory.items}
+      sourceMeta={inventory.sourceMeta}
+      shared
+      model={model}
+      tshirts={{ lines, preview: false }}
+    />
+  );
 }

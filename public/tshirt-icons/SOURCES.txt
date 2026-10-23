@@ -1,0 +1,34 @@
+Icone delle grafiche delle magliette (riquadri «Magliette disponibili» in Magazzino › Giacenze).
+
+Fonte: negozio Shopify pubblico di LuckyLap (qrtmdm-i1.myshopify.com), solo pagine pubbliche
+lette con GET da /products.json, nessuna API amministrativa e nessuna credenziale.
+Scaricate il 23 ottobre 2026. Le foto private di «Grafica e foto» non sono state usate.
+
+Lavorazione (Pillow in un ambiente temporaneo): ritaglio quadrato centrato sulla grafica,
+linee ispessite di pochi pixel perché si leggano a 44 px, fondo bianco ripulito, 96 e 192 px
+in WebP. Nell'app il chip ottagonale è un clip-path CSS con un filetto da 1 px.
+
+964        964-96.webp, 964-192.webp
+           prodotto: sticker-964 («Sticker 964»), immagine 1
+           https://cdn.shopify.com/s/files/1/0919/5483/9882/files/Adesivi-8.png?v=1779227666
+
+GT3RS      gt3rs-96.webp, gt3rs-192.webp
+           prodotto: sticker-gt3-rs («Sticker GT3RS»), immagine 1
+           https://cdn.shopify.com/s/files/1/0919/5483/9882/files/Adesivi-1_1.png?v=1779227039
+
+Project'88 project-88-96.webp, project-88-192.webp
+           prodotto: sticker-project-88 («Sticker Project’ 88»), immagine 1
+           https://cdn.shopify.com/s/files/1/0919/5483/9882/files/Adesivi-5.png?v=1779227411
+
+F40        f40-96.webp, f40-192.webp
+           prodotto: sticker-f40 («Sticker F40»), immagine 1
+           https://cdn.shopify.com/s/files/1/0919/5483/9882/files/Adesivi-3.png?v=1779227297
+
+512TR      512tr-96.webp, 512tr-192.webp
+           prodotto: sticker-512-tr («Sticker 512 TR»), immagine 1
+           https://cdn.shopify.com/s/files/1/0919/5483/9882/files/Adesivi-4_1.png?v=1779227373
+
+300SL      300sl-96.webp, 300sl-192.webp
+           prodotto: 300-sl-t-shirt («300 SL T-Shirt»), immagine 1: ritaglio del ricamo sul petto,
+           con un po' di contrasto in più (non c'è uno sticker 300 SL)
+           https://cdn.shopify.com/s/files/1/0919/5483/9882/files/17.png?v=1784991237
