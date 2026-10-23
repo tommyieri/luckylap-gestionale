@@ -160,12 +160,8 @@ export function visibleSections(access: NavAccess): NavSection[] {
     case "preview":
       return [...SECTIONS];
     case "member":
-      return SECTIONS.filter(
-        (section) =>
-          !section.requires ||
-          (section.requires === "finance" && access.finance) ||
-          (section.requires === "ceo" && access.ceo),
-      );
+      // Tutti i membri vedono le aree: l’apertura richiede la relativa password.
+      return [...SECTIONS];
     default:
       // "pending" e "unavailable": solo le sezioni aperte a tutti.
       return SECTIONS.filter((section) => !section.requires);

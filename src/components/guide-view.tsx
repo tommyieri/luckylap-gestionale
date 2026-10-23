@@ -24,7 +24,7 @@ import styles from "./guide-view.module.css";
 /**
  * «Come si usa» (docs: workspace-layout.md, «La guida»). Testo fisso, scritto sull'app
  * com'è oggi: quando una pagina cambia nome, scopo o pulsanti, si aggiorna anche qui.
- * Il menu descritto è quello della persona: Finance e Controllo CEO solo a chi li apre.
+ * Il menu è uguale per tutti i membri; Finance e Controllo CEO richiedono la propria password.
  */
 export type GuideAccess = { finance: boolean; ceo: boolean };
 
@@ -257,7 +257,7 @@ export function GuideView({ access, preview = false }: { access: GuideAccess; pr
       </div>
       {preview && (
         <p className={styles.notice} role="status">
-          Anteprima locale: la guida come la vede Tommi, con Finance e Controllo CEO.
+          Anteprima locale: la guida del team, con Finance e Controllo CEO.
         </p>
       )}
       <div className={styles.layout}>
@@ -349,14 +349,10 @@ export function GuideView({ access, preview = false }: { access: GuideAccess; pr
                 );
               })}
             </ul>
-            {!access.finance && (
-              <p className={styles.after}>
-                Finance e Controllo CEO non sono nel tuo menu: il tuo account non li apre.
-              </p>
-            )}
-            {access.finance && !access.ceo && (
-              <p className={styles.after}>Controllo CEO non è nel tuo menu: lo apre solo Tommi.</p>
-            )}
+            <p className={styles.after}>
+              Finance e Controllo CEO sono visibili a tutti i membri. Per entrare serve la password
+              corretta della relativa area.
+            </p>
             <h3 className={styles.subTitle}>Parole che trovi spesso</h3>
             <dl className={styles.terms}>
               {WORDS.map(([word, meaning]) => (
@@ -474,16 +470,16 @@ export function GuideView({ access, preview = false }: { access: GuideAccess; pr
               <div>
                 <dt>Finance</dt>
                 <dd>
-                  Conti, movimenti, registrazioni e documenti del brand. La aprono Tommi, Gabriele e
-                  Gherardo, con la password Finance.
+                  Conti, movimenti, registrazioni e documenti del brand. La apre chi conosce la
+                  password Finance.
                 </dd>
               </div>
               <div>
                 <dt>Controllo CEO</dt>
                 <dd>
                   Una frase per ogni azione sui dati condivisi, con chi l’ha fatta: per esempio
-                  «Luca ha aggiunto una call». Non registra le pagine aperte. Lo apre solo Tommi,
-                  con la password CEO.
+                  «Luca ha aggiunto una call». Non registra le pagine aperte. Lo apre chi conosce la
+                  password CEO.
                 </dd>
               </div>
             </dl>
@@ -547,7 +543,8 @@ export function GuideView({ access, preview = false }: { access: GuideAccess; pr
               </div>
             ) : (
               <p className={styles.after}>
-                Il tuo account non apre Finance. Se ti serve un dato, chiedi a Gherardo o a Tommi.
+                Per aprire Finance serve la password Finance; per Controllo CEO serve la password
+                CEO.
               </p>
             )}
           </Part>

@@ -10,6 +10,8 @@ beforeEach(() => {
 afterEach(() => vi.useRealTimers());
 function fixture({
   member = true,
+  active = true,
+  signedIn = true,
   role = "finance",
   aal = "aal1",
   finance = true,
@@ -29,7 +31,7 @@ function fixture({
   const auth = {
     getUser: vi.fn().mockResolvedValue({
       error: null,
-      data: { user: { id: workId(10), user_metadata: { role: "founder" } } },
+      data: { user: signedIn ? { id: workId(10), user_metadata: { role: "founder" } } : null },
     }),
     mfa: {
       getAuthenticatorAssuranceLevel: vi
@@ -46,7 +48,7 @@ function fixture({
       data:
         table === "memberships"
           ? member
-            ? { user_id: workId(10), role, active: true, finance_access: finance }
+            ? { user_id: workId(10), role, active, finance_access: finance }
             : null
           : { user_id: workId(10), display_name: "Synthetic Finance" },
     }),
@@ -70,12 +72,15 @@ function fixture({
 describe("Finance authorization and command receipts", () => {
   it.each([
     { member: false },
-    { role: "logistics", finance: false },
-    { role: "consultant", finance: false },
-    { role: "production", finance: false },
-    { unlocked: false },
+    { signedIn: false },
+    { active: false },
+    ...["founder", "production", "finance", "logistics", "consultant"].map((role) => ({
+      role,
+      finance: false,
+      unlocked: false,
+    })),
   ])(
-    "does not query protected Finance or mutate without DB role and an area grant",
+    "does not query protected Finance or mutate without current membership and a fresh area grant",
     async (options) => {
       const f = fixture(options);
       expect((await readFinanceWork(f.client)).status).not.toBe("ready");
@@ -88,6 +93,28 @@ describe("Finance authorization and command receipts", () => {
       );
     },
   );
+  it.each(["founder", "production", "finance", "logistics", "consultant"])(
+    "allows %s to read and register only after checking its current Finance grant",
+    async (role) => {
+      const f = fixture({ role, finance: false });
+      expect((await readFinanceWork(f.client)).status).toBe("ready");
+      expect((await executeFinanceWork(f.client, manualCommand())).status).toBe("success");
+      expect(f.rpc.mock.calls.filter(([name]) => name === "sensitive_area_status")).toHaveLength(2);
+      expect(f.rpc).toHaveBeenCalledWith("sensitive_area_status", { p_area: "finance" });
+      expect(f.rpc).toHaveBeenCalledWith("record_finance_entry", {
+        p_operation_id: manualCommand().operationId,
+        p_payload: manualCommand().payload,
+      });
+    },
+  );
+  it("rechecks a revoked grant for the next operation instead of trusting a successful read", async () => {
+    const f = fixture({ role: "logistics", finance: false });
+    expect((await readFinanceWork(f.client)).status).toBe("ready");
+    f.rpc.mockResolvedValue({ data: false, error: null });
+    expect((await executeFinanceWork(f.client, manualCommand())).status).toBe("rejected");
+    expect(f.rpc.mock.calls.filter(([name]) => name === "record_finance_entry")).toHaveLength(0);
+    expect(f.rpc.mock.calls.filter(([name]) => name === "sensitive_area_status")).toHaveLength(2);
+  });
   it("reads sales facts/payments and manual sources only after current member and fresh area grant checks", async () => {
     const f = fixture(),
       result = await readFinanceWork(f.client);

@@ -30,14 +30,33 @@ beforeEach(() => {
   rpc.mockResolvedValue({ data: payload, error: null });
 });
 describe("confine server del feed CEO", () => {
-  it("non interroga dati per ruolo diverso o area bloccata", async () => {
-    await expect(
-      loadActivityFeed(client as never, { ...member, role: "consultant" }, true, query),
-    ).rejects.toThrow();
-    await expect(loadActivityFeed(client as never, member, false, query)).rejects.toThrow();
-    expect(rpc).not.toHaveBeenCalled();
-    expect(client.from).not.toHaveBeenCalled();
-  });
+  it.each(["founder", "production", "finance", "logistics", "consultant"] as const)(
+    "non interroga il feed per %s senza la password verificata nella sessione",
+    async (role) => {
+      await expect(
+        loadActivityFeed(client as never, { ...member, role }, false, query),
+      ).rejects.toThrow();
+      expect(rpc).not.toHaveBeenCalled();
+      expect(client.from).not.toHaveBeenCalled();
+    },
+  );
+  it.each(["founder", "production", "finance", "logistics", "consultant"] as const)(
+    "legge il feed per %s solo tramite la RPC che riconferma il gate database",
+    async (role) => {
+      expect(
+        (await loadActivityFeed(client as never, { ...member, role }, true, query)).items[0]
+          .message,
+      ).toBe(row.message);
+      expect(rpc).toHaveBeenCalledExactlyOnceWith("ceo_activity_feed", {
+        p_actor: null,
+        p_area: null,
+        p_before_at: null,
+        p_before_id: null,
+        p_limit: 50,
+      });
+      expect(client.from).not.toHaveBeenCalled();
+    },
+  );
   it("usa solo la RPC soggetta al gate database corrente", async () => {
     const result = await loadActivityFeed(client as never, member, true, query);
     expect(result.items[0].actorId).toBeNull();

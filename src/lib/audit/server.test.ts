@@ -44,22 +44,36 @@ function client(...replies: Reply[]) {
   return { supabase: db as unknown as SupabaseClient, calls, from: db.from };
 }
 
-describe("founder audit read boundary", () => {
-  it.each(["production", "finance", "logistics", "consultant"] as const)(
-    "does not query logs or actor profiles for role %s",
+describe("audit metadata boundary with the session password grant", () => {
+  it.each(["founder", "production", "finance", "logistics", "consultant"] as const)(
+    "does not query logs or actor profiles for %s without the CEO area grant",
     async (role) => {
       const db = client();
       await expect(
-        loadAuditMetadata(db.supabase, { ...founder, role }, true, null),
-      ).rejects.toThrow(/founder/);
+        loadAuditMetadata(db.supabase, { ...founder, role, financeAccess: false }, false, null),
+      ).rejects.toThrow();
       expect(db.from).not.toHaveBeenCalled();
     },
   );
-  it("does not query without a verified CEO area grant", async () => {
-    const db = client();
-    await expect(loadAuditMetadata(db.supabase, founder, false, null)).rejects.toThrow();
-    expect(db.from).not.toHaveBeenCalled();
-  });
+  it.each(["founder", "production", "finance", "logistics", "consultant"] as const)(
+    "reads only audit metadata for %s once the caller has verified its CEO grant",
+    async (role) => {
+      const db = client({ data: [row(1)], error: null, count: 1 });
+      const result = await loadAuditMetadata(
+        db.supabase,
+        { ...founder, role, financeAccess: false },
+        true,
+        null,
+      );
+      expect(result.entries).toHaveLength(1);
+      expect(result.entries[0].actorName).toBe("Operazione di sistema");
+      expect(db.calls[0].methods.find((method) => method.name === "select")?.args).toEqual([
+        "id,occurred_at,actor_id,table_name,operation,record_key",
+        { count: "exact" },
+      ]);
+      expect(JSON.stringify(db.calls)).not.toMatch(/old_data|new_data/);
+    },
+  );
   it("selects metadata only and labels null actors as system operations", async () => {
     const db = client({ data: [row(1)], error: null, count: 1 });
     const result = await loadAuditMetadata(db.supabase, founder, true, null);

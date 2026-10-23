@@ -1,4 +1,4 @@
-import { describe, expect, it, vi } from "vitest";
+import { beforeEach, describe, expect, it, vi } from "vitest";
 import { renderToStaticMarkup } from "react-dom/server";
 import { ConsignmentTile } from "./consignment-tile";
 import { loadConsignmentTile } from "../../lib/today/consignment-server";
@@ -12,42 +12,54 @@ const member = {
   financeAccess: true,
 };
 const supabase = {} as never;
+beforeEach(() => vi.resetAllMocks());
 describe("Oggi Finance markup", () => {
-  it("contains neither heading nor Finance data for other roles", async () => {
-    expect(
-      renderToStaticMarkup(
-        await ConsignmentTile({ supabase, member: { ...member, role: "consultant" } }),
-      ),
-    ).toBe("");
-    expect(loadConsignmentTile).not.toHaveBeenCalled();
-  });
-  it("contains no money while locked and has an actionable canonical link", async () => {
-    vi.mocked(loadConsignmentTile).mockResolvedValue({ status: "locked" });
-    const html = renderToStaticMarkup(await ConsignmentTile({ supabase, member }));
-    expect(html).toContain("Apri Finance per leggere");
-    expect(html).toContain("/finance#conto-vendita-da-incassare");
-    expect(html).not.toContain("€");
-    expect(html).not.toContain("password");
-  });
-  it("links a posted excess to the report and labels it for repayment", async () => {
-    vi.mocked(loadConsignmentTile).mockResolvedValue({
-      status: "ok",
-      count: 9,
-      rows: [
-        {
-          id: "r1",
-          shopName: "Negozio sintetico",
-          period: "Ottobre",
-          href: "/consignment/NEG01/resoconto/2026-10",
-          amountCents: 350,
-          state: "da_restituire",
-        },
-      ],
-    });
-    const html = renderToStaticMarkup(await ConsignmentTile({ supabase, member }));
-    expect(html).toContain("Da restituire");
-    expect(html).toContain("9 conti da regolare");
-    expect(html).toContain("/consignment/NEG01/resoconto/2026-10");
-    expect(html).toContain("Prime otto");
-  });
+  it.each(["founder", "production", "finance", "logistics", "consultant"] as const)(
+    "contains neither heading nor Finance data for %s when current membership is denied by the loader",
+    async (role) => {
+      vi.mocked(loadConsignmentTile).mockResolvedValue({ status: "denied" });
+      const current = { ...member, role, financeAccess: false };
+      expect(renderToStaticMarkup(await ConsignmentTile({ supabase, member: current }))).toBe("");
+      expect(loadConsignmentTile).toHaveBeenCalledExactlyOnceWith(supabase, current);
+    },
+  );
+  it.each(["founder", "production", "finance", "logistics", "consultant"] as const)(
+    "contains no money for %s while locked and has an actionable canonical link",
+    async (role) => {
+      vi.mocked(loadConsignmentTile).mockResolvedValue({ status: "locked" });
+      const html = renderToStaticMarkup(
+        await ConsignmentTile({ supabase, member: { ...member, role, financeAccess: false } }),
+      );
+      expect(html).toContain("Apri Finance per leggere");
+      expect(html).toContain("/finance#conto-vendita-da-incassare");
+      expect(html).not.toContain("€");
+      expect(html).not.toContain("password");
+    },
+  );
+  it.each(["founder", "production", "finance", "logistics", "consultant"] as const)(
+    "shows the verified monetary tile for %s and links a posted excess for repayment",
+    async (role) => {
+      vi.mocked(loadConsignmentTile).mockResolvedValue({
+        status: "ok",
+        count: 9,
+        rows: [
+          {
+            id: "r1",
+            shopName: "Negozio sintetico",
+            period: "Ottobre",
+            href: "/consignment/NEG01/resoconto/2026-10",
+            amountCents: 350,
+            state: "da_restituire",
+          },
+        ],
+      });
+      const html = renderToStaticMarkup(
+        await ConsignmentTile({ supabase, member: { ...member, role, financeAccess: false } }),
+      );
+      expect(html).toContain("Da restituire");
+      expect(html).toContain("9 conti da regolare");
+      expect(html).toContain("/consignment/NEG01/resoconto/2026-10");
+      expect(html).toContain("Prime otto");
+    },
+  );
 });

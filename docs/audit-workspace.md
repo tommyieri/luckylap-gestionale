@@ -4,7 +4,7 @@
 
 ## Chi lo vede
 
-- Solo il founder, con la password CEO aperta in questa sessione (fino a 8 ore dall'apertura). La pagina (`src/app/(workspace)/audit/page.tsx`) verifica utente, membership attiva, ruolo (`isSensitiveAreaEligible(member, "audit")`) e area aperta (`verifiedSensitiveAccess`); se l'area è chiusa porta a `/auth/area/audit`.
+- Ogni membro attivo può aprire Controllo CEO con la relativa password corretta in questa sessione (fino a 8 ore dall’apertura), indipendentemente dal ruolo. La pagina (`src/app/(workspace)/audit/page.tsx`) verifica utente, membership attiva e area aperta (`verifiedSensitiveAccess`); se l’area è chiusa porta a `/auth/area/audit`.
 - Il loader (`loadActivityFeed` in `src/lib/audit/feed-server.ts`) rifiuta prima della query chi non può leggere l'area. La funzione `private.ceo_activity_feed` ripete il controllo nel database (`private.can_audit()`): resta lei l'autorità.
 - In cima alla pagina, dopo la verifica, la striscia «Controllo CEO aperto su questo dispositivo, fino a 8 ore dall’apertura.» con «Chiudi Controllo CEO» (06 R12). La pagina non ha un ramo dell'anteprima locale: senza Supabase mostra lo stato «da collegare».
 - Il proxy copre `/audit/:path*` (cookie aggiornati e `no-store`).

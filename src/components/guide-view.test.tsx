@@ -140,23 +140,17 @@ describe("il menu della persona", () => {
     expect(text(menu).match(/con password/g)).toHaveLength(2);
   });
 
-  it("chi non apre Finance non ha voci né link di Finance e Controllo CEO", () => {
-    const markup = html(everyone);
-    for (const href of hrefs(markup)) expect(href).not.toMatch(/^\/(finance|audit|auth\/area)/);
-    const all = text(markup);
-    expect(all).toContain(
-      "Finance e Controllo CEO non sono nel tuo menu: il tuo account non li apre.",
-    );
-    expect(all).not.toContain("con password");
-  });
-
-  it("chi apre Finance ma non Controllo CEO vede solo Finance", () => {
-    const markup = html(finance);
-    expect(hrefs(markup)).toContain("/finance/work");
-    expect(hrefs(markup)).not.toContain("/audit");
-    expect(hrefs(markup)).not.toContain("/auth/area/audit");
-    expect(text(markup)).toContain("Controllo CEO non è nel tuo menu: lo apre solo Tommi.");
-  });
+  it.each([everyone, finance, founder])(
+    "mostra le aree nel menu anche prima di aprirle: %j",
+    (access) => {
+      const markup = html(access);
+      for (const href of ["/finance", "/finance/work", "/audit"])
+        expect(hrefs(markup)).toContain(href);
+      expect(text(markup)).toContain("Finance e Controllo CEO sono visibili a tutti i membri.");
+      expect(text(markup)).toContain("Per entrare serve la password corretta della relativa area.");
+      expect(text(markup)).not.toContain("non sono nel tuo menu");
+    },
+  );
 });
 
 describe("le operazioni più comuni", () => {
@@ -254,8 +248,8 @@ describe("Finance e Controllo CEO", () => {
   it("dice a tutti cosa sono e chi li apre", () => {
     for (const access of [everyone, finance, founder]) {
       const all = text(html(access));
-      expect(all).toContain("La aprono Tommi, Gabriele e Gherardo, con la password Finance.");
-      expect(all).toContain("Lo apre solo Tommi, con la password CEO.");
+      expect(all).toContain("La apre chi conosce la password Finance.");
+      expect(all).toContain("Lo apre chi conosce la password CEO.");
       expect(all).toContain("per esempio «Luca ha aggiunto una call»");
       expect(all).toContain("Costi e margini dei prodotti invece sono nel Magazzino");
     }
@@ -292,9 +286,11 @@ describe("Finance e Controllo CEO", () => {
     expect(text(html(finance))).not.toContain("i filtri Persona e Area");
   });
 
-  it("il riquadro per aprire e chiudere Finance compare solo a chi può entrarci", () => {
+  it("il riquadro dell’apertura segue l’idoneità ricevuta dal server", () => {
     expect(financeBox(html(everyone))).toBe(false);
-    expect(text(html(everyone))).toContain("Il tuo account non apre Finance.");
+    expect(text(html(everyone))).toContain(
+      "Per aprire Finance serve la password Finance; per Controllo CEO serve la password CEO.",
+    );
     for (const access of [finance, founder]) {
       const markup = html(access);
       expect(financeBox(markup)).toBe(true);
@@ -312,7 +308,7 @@ describe("Finance e Controllo CEO", () => {
 describe("telefono, conto vendita e aiuto", () => {
   it("elenca la barra in basso e «Altro» secondo il menu della persona", () => {
     expect(text(html(everyone))).toContain(
-      "In basso trovi Oggi, Vendite, Magazzino e Partner. In «Altro» ci sono Team, questa guida, «Account e sicurezza» e «Esci».",
+      "In basso trovi Oggi, Vendite, Magazzino e Partner. In «Altro» ci sono Team, Finance, Controllo CEO, questa guida, «Account e sicurezza» e «Esci».",
     );
     expect(text(html(founder))).toContain(
       "In «Altro» ci sono Team, Finance, Controllo CEO, questa guida, «Account e sicurezza» e «Esci».",
@@ -348,7 +344,7 @@ describe("telefono, conto vendita e aiuto", () => {
   });
 
   it("mostra l'avviso dell'anteprima locale solo in anteprima", () => {
-    expect(text(html(founder, true))).toContain("Anteprima locale: la guida come la vede Tommi");
+    expect(text(html(founder, true))).toContain("Anteprima locale: la guida del team");
     expect(text(html(founder))).not.toContain("Anteprima locale");
   });
 });

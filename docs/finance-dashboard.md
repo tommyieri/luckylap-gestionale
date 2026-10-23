@@ -1,6 +1,6 @@
 # Finance: conti, andamento e categorie
 
-La panoramica `/finance` legge le importazioni BudgetFlow, il lavoro Finance, gli incassi vecchi del conto vendita, i resoconti mensili dei negozi con i loro pagamenti e le revisioni Finance, con la sessione dell’utente. Mantiene i controlli esistenti di identità, membership, ruolo e password Finance; ogni query usa RLS. Una lettura fallita o incompleta impedisce la visualizzazione dell’intera panoramica. Non usa chiavi amministrative, dati locali o cache condivise.
+La panoramica `/finance` legge le importazioni BudgetFlow, il lavoro Finance, gli incassi vecchi del conto vendita, i resoconti mensili dei negozi con i loro pagamenti e le revisioni Finance, con la sessione dell’utente. Mantiene i controlli esistenti di identità, membership attiva e password Finance nella sessione corrente; ogni query usa RLS. Una lettura fallita o incompleta impedisce la visualizzazione dell’intera panoramica. Non usa chiavi amministrative, dati locali o cache condivise.
 
 ## Regole del calcolo
 

@@ -79,10 +79,10 @@ describe("/guida", () => {
   });
 
   it.each([
-    ["consultant", false, { finance: false, ceo: false }],
-    ["logistics", false, { finance: false, ceo: false }],
-    ["production", true, { finance: true, ceo: false }],
-    ["finance", true, { finance: true, ceo: false }],
+    ["consultant", false, { finance: true, ceo: true }],
+    ["logistics", false, { finance: true, ceo: true }],
+    ["production", true, { finance: true, ceo: true }],
+    ["finance", true, { finance: true, ceo: true }],
     ["founder", false, { finance: true, ceo: true }],
   ] as const)(
     "%s con finance_access=%s: Finance e Controllo CEO come nel menu",

@@ -28,24 +28,68 @@ beforeEach(() => {
   vi.mocked(loadConsignmentToSettle).mockResolvedValue({ status: "ready", rows: [] });
 });
 describe("Oggi conto vendita", () => {
-  it("does not read money for ineligible roles or changed identities", async () => {
-    expect(await loadConsignmentTile(db, { ...member, role: "logistics" })).toEqual({
-      status: "denied",
-    });
-    expect(verifiedMember).not.toHaveBeenCalled();
+  it.each(["founder", "production", "finance", "logistics", "consultant"] as const)(
+    "allows %s with its current Finance grant, using the just-verified membership",
+    async (role) => {
+      const current = { ...member, role, financeAccess: false };
+      vi.mocked(verifiedMember).mockResolvedValue({ status: "member", member: current });
+      expect(await loadConsignmentTile(db, { ...member, role })).toEqual({
+        status: "ok",
+        rows: [],
+        count: 0,
+      });
+      expect(verifiedMember).toHaveBeenCalledExactlyOnceWith(db);
+      expect(verifiedSensitiveAccess).toHaveBeenCalledExactlyOnceWith(db, current, "finance");
+      expect(loadConsignmentToSettle).toHaveBeenCalledExactlyOnceWith(db, current);
+      expect(readConsignmentFinance).toHaveBeenCalledExactlyOnceWith(db, current);
+      expect(vi.mocked(verifiedMember).mock.invocationCallOrder[0]).toBeLessThan(
+        vi.mocked(verifiedSensitiveAccess).mock.invocationCallOrder[0],
+      );
+      expect(vi.mocked(verifiedSensitiveAccess).mock.invocationCallOrder[0]).toBeLessThan(
+        vi.mocked(loadConsignmentToSettle).mock.invocationCallOrder[0],
+      );
+    },
+  );
+  it.each(["signed-out", "denied", "unavailable"] as const)(
+    "does not read money or trust an old grant when current membership is %s",
+    async (status) => {
+      vi.mocked(verifiedMember).mockResolvedValue({ status });
+      expect(await loadConsignmentTile(db, member)).toEqual({ status: "denied" });
+      expect(verifiedSensitiveAccess).not.toHaveBeenCalled();
+      expect(loadConsignmentToSettle).not.toHaveBeenCalled();
+      expect(readConsignmentFinance).not.toHaveBeenCalled();
+    },
+  );
+  it("does not use another identity's Finance grant", async () => {
     vi.mocked(verifiedMember).mockResolvedValue({
       status: "member",
       member: { ...member, userId: "other" },
     });
     expect(await loadConsignmentTile(db, member)).toEqual({ status: "denied" });
+    expect(verifiedSensitiveAccess).not.toHaveBeenCalled();
     expect(loadConsignmentToSettle).not.toHaveBeenCalled();
     expect(readConsignmentFinance).not.toHaveBeenCalled();
   });
-  it("shows a locked state without reading projections when the Finance grant expires", async () => {
+  it.each(["founder", "production", "finance", "logistics", "consultant"] as const)(
+    "shows no projections for %s while its Finance password grant is locked",
+    async (role) => {
+      const current = { ...member, role, financeAccess: false };
+      vi.mocked(verifiedMember).mockResolvedValue({ status: "member", member: current });
+      vi.mocked(verifiedSensitiveAccess).mockResolvedValue(false);
+      expect(await loadConsignmentTile(db, current)).toEqual({ status: "locked" });
+      expect(verifiedSensitiveAccess).toHaveBeenCalledExactlyOnceWith(db, current, "finance");
+      expect(readConsignmentFinance).not.toHaveBeenCalled();
+      expect(loadConsignmentToSettle).not.toHaveBeenCalled();
+    },
+  );
+  it("checks the grant again after a successful read instead of caching the unlocked tile", async () => {
+    expect((await loadConsignmentTile(db, member)).status).toBe("ok");
     vi.mocked(verifiedSensitiveAccess).mockResolvedValue(false);
     expect(await loadConsignmentTile(db, member)).toEqual({ status: "locked" });
-    expect(readConsignmentFinance).not.toHaveBeenCalled();
-    expect(loadConsignmentToSettle).not.toHaveBeenCalled();
+    expect(verifiedMember).toHaveBeenCalledTimes(2);
+    expect(verifiedSensitiveAccess).toHaveBeenCalledTimes(2);
+    expect(readConsignmentFinance).toHaveBeenCalledOnce();
+    expect(loadConsignmentToSettle).toHaveBeenCalledOnce();
   });
   it("counts all monthly items, includes refunds, and limits only visible rows", async () => {
     vi.mocked(loadConsignmentToSettle).mockResolvedValue({

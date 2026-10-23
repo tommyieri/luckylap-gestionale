@@ -125,16 +125,16 @@ describe("mappa delle sezioni", () => {
   });
 });
 
-describe("visibleSections per ruolo", () => {
+describe("visibleSections per tutti i membri", () => {
   const cases: [VerifiedMember["role"], boolean, number][] = [
-    ["consultant", false, 5],
-    ["consultant", true, 5],
-    ["logistics", false, 5],
-    ["logistics", true, 5],
-    ["production", false, 5],
-    ["production", true, 6],
-    ["finance", false, 5],
-    ["finance", true, 6],
+    ["consultant", false, 7],
+    ["consultant", true, 7],
+    ["logistics", false, 7],
+    ["logistics", true, 7],
+    ["production", false, 7],
+    ["production", true, 7],
+    ["finance", false, 7],
+    ["finance", true, 7],
     ["founder", false, 7],
     ["founder", true, 7],
   ];
@@ -148,7 +148,7 @@ describe("visibleSections per ruolo", () => {
     const visible = ids(access);
     expect(visible).toHaveLength(count);
     expect(visible.slice(0, 5)).toEqual(["oggi", "vendite", "magazzino", "partner", "team"]);
-    if (count === 6) expect(visible[5]).toBe("finance");
+    expect(visible.slice(5)).toEqual(["finance", "ceo"]);
   });
 
   it.each(cases)(
@@ -161,10 +161,21 @@ describe("visibleSections per ruolo", () => {
         finance: isSensitiveAreaEligible(verified, "finance"),
         ceo: isSensitiveAreaEligible(verified, "audit"),
       });
-      expect(ids(access).includes("finance")).toBe(isSensitiveAreaEligible(verified, "finance"));
-      expect(ids(access).includes("ceo")).toBe(isSensitiveAreaEligible(verified, "audit"));
+      expect(ids(access)).toContain("finance");
+      expect(ids(access)).toContain("ceo");
     },
   );
+
+  it.each([
+    [false, false],
+    [false, true],
+    [true, false],
+    [true, true],
+  ])("il menu non dipende dai flag delle aree %s/%s", (finance, ceo) => {
+    expect(ids({ status: "member", displayName: "Membro di prova", finance, ceo })).toEqual(
+      SECTIONS.map((section) => section.id),
+    );
+  });
 
   it("in attesa e con verifica non disponibile mostra le 5 sezioni aperte a tutti", () => {
     expect(ids({ status: "pending" })).toEqual(["oggi", "vendite", "magazzino", "partner", "team"]);
@@ -278,10 +289,10 @@ describe("mobileSplit", () => {
     expect(altro.map((section) => section.id)).toEqual(["team", "finance", "ceo"]);
   });
 
-  it("lascia in «Altro» solo Team a chi non entra in Finance e Controllo CEO", () => {
+  it("mette anche Finance e Controllo CEO in «Altro» per un consulente", () => {
     const access = navAccessFrom({ status: "member", member: member("consultant", true) });
     const { bar, altro } = mobileSplit(visibleSections(access));
     expect(bar).toHaveLength(4);
-    expect(altro.map((section) => section.id)).toEqual(["team"]);
+    expect(altro.map((section) => section.id)).toEqual(["team", "finance", "ceo"]);
   });
 });
