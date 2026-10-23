@@ -99,6 +99,8 @@ export type ShopConfig = {
   /** Riga creata dalla migrazione per un negozio già esistente. */
   migrated: boolean;
   createdAt: string;
+  /** Taglie che il negozio tiene (la libreria di Milano: S, M, L, XL); `null` = tutte. */
+  sizes: string[] | null;
 };
 export type ShopItem = {
   id: string;
@@ -292,8 +294,22 @@ export function shopConfigFrom(raw: unknown, locations: ShopLocation[]): ShopCon
     version: int(r.version, 1),
     migrated: nullable(r.created_by, id) === null,
     createdAt: date(r.created_at),
+    sizes: shopSizesFrom(r.sizes),
   };
 }
+/** Taglie del negozio dalla riga: `null` (anche se la colonna non è letta) vuol dire tutte. */
+function shopSizesFrom(v: unknown): string[] | null {
+  if (v === null || v === undefined) return null;
+  if (!Array.isArray(v) || v.length < 1 || v.length > 20) fail();
+  const sizes = v.map((size) =>
+    typeof size === "string" && /^[A-Z0-9]{1,10}$/.test(size) ? size : fail(),
+  );
+  unique(sizes);
+  return sizes;
+}
+/** La taglia è tra quelle del negozio (o il negozio le tiene tutte). */
+export const shopTakesSize = (shop: Pick<ShopConfig, "sizes">, size: string) =>
+  shop.sizes === null || shop.sizes.includes(size);
 
 /** Primo mese che il negozio deve rendicontare: avvio delle vendite, o creazione del negozio se successiva. */
 export function shopStartMonth(shop: ShopConfig, settings: ShopSettings): string | null {
@@ -981,8 +997,9 @@ export type StockGrid = {
   groups: GridGroup[];
 };
 /**
- * Griglia per modello, colore e taglia (XS–XXL), nell'ordine del Magazzino.
- * Mostra le T-shirt attive e quelle disattivate che sono ancora in negozio o in arrivo.
+ * Griglia per modello, colore e taglia (XS–XXL, o solo le taglie del negozio), nell'ordine del
+ * Magazzino. Mostra le T-shirt attive nelle taglie del negozio e quelle che sono ancora in negozio
+ * o in arrivo.
  */
 export function shopStockGrid(
   page: Pick<ShopPage, "shop" | "shopStock" | "items" | "orders">,
@@ -990,9 +1007,12 @@ export function shopStockGrid(
   const counted = page.shop.firstCountedAt !== null,
     incoming = incomingByItem(page.orders),
     visible = page.items.filter(
-      (item) => item.active || (page.shopStock[item.id] ?? 0) > 0 || (incoming[item.id] ?? 0) > 0,
+      (item) =>
+        (item.active && shopTakesSize(page.shop, item.size)) ||
+        (page.shopStock[item.id] ?? 0) > 0 ||
+        (incoming[item.id] ?? 0) > 0,
     );
-  const sizes: string[] = [...SIZES];
+  const sizes: string[] = SIZES.filter((size) => shopTakesSize(page.shop, size));
   for (const item of visible) if (!sizes.includes(item.size)) sizes.push(item.size);
   const groups: GridGroup[] = [];
   for (const item of visible) {
@@ -1038,7 +1058,7 @@ export type CountDraft = {
 /**
  * Righe della conta con la quantità letta (`expected_quantity`), per far
  * rifiutare al database una conta superata da una consegna o da un resoconto.
- * Prima conta: tutte le T-shirt attive, un campo vuoto vale 0. Correzione: solo
+ * Prima conta: tutte le T-shirt attive nelle taglie del negozio, un campo vuoto vale 0. Correzione: solo
  * le varianti in `entries`. `null` se un valore non è valido o non c'è nessuna riga.
  */
 export function countDraft(
@@ -1047,7 +1067,7 @@ export function countDraft(
 ): CountDraft | null {
   const first = page.shop.firstCountedAt === null,
     itemIds = first
-      ? page.items.filter((i) => i.active).map((i) => i.id)
+      ? page.items.filter((i) => i.active && shopTakesSize(page.shop, i.size)).map((i) => i.id)
       : Object.keys(entries).filter((itemId) => page.items.some((i) => i.id === itemId));
   if (Object.keys(entries).some((itemId) => !page.items.some((i) => i.id === itemId))) return null;
   const lines: CountLine[] = [];
@@ -1165,7 +1185,12 @@ export function reportFormRows(
   return page.items.flatMap((item) => {
     const line = report?.lines.find((l) => l.itemId === item.id) ?? null,
       inShop = shopQuantity(page, item.id);
-    if (!line && !((inShop ?? 0) > 0) && !(showAll && item.active)) return [];
+    if (
+      !line &&
+      !((inShop ?? 0) > 0) &&
+      !(showAll && item.active && shopTakesSize(page.shop, item.size))
+    )
+      return [];
     const price = line
       ? {
           webPriceCents: line.webPriceCents,

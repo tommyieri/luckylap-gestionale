@@ -6,6 +6,10 @@ import { ShopFrame } from "../../../../../../components/consignment-shop";
 import { shopOrderParam } from "../../../../../../lib/consignment/links";
 import { periodMonth } from "../../../../../../lib/consignment/shop-model";
 import { orderLinesFromReport } from "../../../../../../lib/consignment/shop-read";
+import { requireMember } from "../../../../../../lib/auth/current-member";
+import { previewRestockPage } from "../../../../../../lib/restock/fixtures";
+import { shopOrderPrefill, shopPart, type RestockOrder } from "../../../../../../lib/restock/read";
+import { readRestockOrder } from "../../../../../../lib/restock/server";
 import { loadShop, shopTitle, SHOP_SETUP } from "../../../load";
 
 export const dynamic = "force-dynamic";
@@ -27,7 +31,25 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
   };
 }
 
-/** Ordine del negozio: nuovo (anche dalle magliette vendute in un mese) o esistente. */
+/**
+ * Riordine da cui parte un ordine nuovo (`?riordine=<id>`): solo se è in mano nostra, per questo
+ * negozio, con magliette ancora da consegnare e senza un altro ordine aperto. Altrimenti `null`.
+ */
+async function restockFor(value: unknown, shopLocationId: string): Promise<RestockOrder | null> {
+  if (typeof value !== "string") return null;
+  const current = await requireMember();
+  const order =
+    current.status === "preview"
+      ? (previewRestockPage(value.toLowerCase())?.order ?? null)
+      : current.status === "member"
+        ? await readRestockOrder(current.supabase, value)
+        : null;
+  if (!order || order.shop?.locationId !== shopLocationId) return null;
+  const part = shopPart(order);
+  return part.status === "todo" && shopOrderPrefill(order).length ? order : null;
+}
+
+/** Ordine del negozio: nuovo (dalle magliette vendute in un mese o da un riordine) o esistente. */
 export default async function OrderPage({ params, searchParams }: Props) {
   const { code, order } = await params;
   const wanted = shopOrderParam(order);
@@ -37,10 +59,12 @@ export default async function OrderPage({ params, searchParams }: Props) {
   if (load.status !== "ready") return <AccessPanel status={load.status} setup={SHOP_SETUP} />;
   const { page } = load;
   const now = new Date().toISOString();
+  const query = await searchParams;
   if (wanted === "nuovo") {
-    const from = (await searchParams).da;
+    const from = query.da;
     const month = typeof from === "string" ? periodMonth(from) : null;
     const report = month ? page.reports.find((r) => r.month === month) : undefined;
+    const restock = await restockFor(query.riordine, page.shop.locationId);
     return (
       <ShopFrame
         page={page}
@@ -52,7 +76,10 @@ export default async function OrderPage({ params, searchParams }: Props) {
         <ConsignmentOrder
           page={page}
           order={null}
-          prefill={report ? orderLinesFromReport(report) : null}
+          prefill={
+            restock ? shopOrderPrefill(restock) : report ? orderLinesFromReport(report) : null
+          }
+          restock={restock ? { id: restock.id, title: restock.title } : null}
           now={now}
         />
       </ShopFrame>
@@ -68,7 +95,12 @@ export default async function OrderPage({ params, searchParams }: Props) {
       title={`Ordine n. ${found.number}`}
       linkShop
     >
-      <ConsignmentOrder page={page} order={found} now={now} />
+      <ConsignmentOrder
+        page={page}
+        order={found}
+        startDelivery={query.consegna === "1"}
+        now={now}
+      />
     </ShopFrame>
   );
 }

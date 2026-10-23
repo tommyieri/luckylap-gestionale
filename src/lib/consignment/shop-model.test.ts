@@ -352,6 +352,33 @@ describe("parseShopCommand", () => {
     expect(parseShopCommand(withPayload(shopCommands.close, { reason: "" }))).toBeNull();
     expect(parseShopCommand(withPayload(shopCommands.ship, { expected_version: 0 }))).toBeNull();
   });
+  it("ordine nuovo da un riordine: chiave facoltativa restock_order_id, solo per gli ordini nuovi", () => {
+    const restock = "95000000-0000-4000-8000-000000000902";
+    const linked = parseShopCommand(
+      withPayload(shopCommands.order, { restock_order_id: restock.toUpperCase() }),
+    );
+    expect(linked?.payload).toMatchObject({ restock_order_id: restock });
+    // Senza la chiave il comando resta quello di prima, senza chiavi in più.
+    expect(Object.keys(parseShopCommand(shopCommands.order())!.payload)).not.toContain(
+      "restock_order_id",
+    );
+    expect(parseShopCommand(withPayload(shopCommands.order, { restock_order_id: "x" }))).toBeNull();
+    expect(
+      parseShopCommand(withPayload(shopCommands.order, { restock_order_id: null })),
+    ).toBeNull();
+    expect(
+      parseShopCommand(
+        withPayload(shopCommands.order, {
+          order_id: sx.openOrder,
+          expected_version: 2,
+          restock_order_id: restock,
+        }),
+      ),
+    ).toBeNull();
+    expect(
+      parseShopCommand(withPayload(shopCommands.ship, { restock_order_id: restock })),
+    ).toBeNull();
+  });
   it("istanti con fuso e date al cambio dell'ora", () => {
     expect(
       parseShopCommand(

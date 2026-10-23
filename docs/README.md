@@ -29,6 +29,7 @@ Alcuni documenti scritti prima del modello attuale chiedono ancora una sessione 
 - [Rettifiche del magazzino condiviso](stock-interface.md): pagina `/stock/rettifiche` per consultare le quantità e registrare variazioni motivate.
 - [Packaging T-shirt nel database](packaging-backend.md): scatole e adesivi, prenotazioni, consumo alla consegna e rettifiche.
 - [Interfaccia packaging](packaging-interface.md): pagina `/packaging` semplificata, con due materiali, carenze e modifica della quantità.
+- [Riassortimento](riassortimento.md): scheda `/stock/riassortimento` con i riordini di magliette per noi, per il negozio e per il cliente, cinque stati, arrivo nel Magadzino una volta sola con annullo, consegna al negozio già compilata, import dei due riordini in corso.
 
 ## Vendite e Shopify
 
@@ -56,7 +57,7 @@ Alcuni documenti scritti prima del modello attuale chiedono ancora una sessione 
 
 ## Conto vendita
 
-- [Conto vendita](consignment.md): modulo `/consignment` con negozi, conta in negozio, resoconto mensile da fatturare (60% LuckyLap, 40% negozio), pagamenti in Finance e ordini del negozio.
+- [Conto vendita](consignment.md): modulo `/consignment` con negozi, conta in negozio, resoconto mensile da fatturare (60% LuckyLap, 40% negozio), pagamenti in Finance e ordini del negozio; taglie del negozio (Milano S–XL).
 
 ## Partner
 

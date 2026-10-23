@@ -170,6 +170,7 @@ describe("le operazioni più comuni", () => {
       "Segnare i capi prodotti",
       "Correggere una quantità in magazzino",
       "Aggiornare scatole e adesivi",
+      "Riordinare le magliette",
       "Conto vendita: resoconto del mese e nuovo ordine",
       "Aggiungere una call o un’attività",
       "Caricare una foto",
@@ -375,6 +376,10 @@ describe("i nomi citati esistono davvero", () => {
     ["src/components/partner-work-links.tsx", ["Collega l’evento"]],
     ["src/lib/partner/model.ts", ['"Accordo fatto"', '"Non interessato"']],
     ["src/components/team-workspace.tsx", ["Partner nel Team"]],
+    ["src/components/restock-list.tsx", ["Nuovo riordine"]],
+    ["src/components/restock-grid.tsx", ["Modifica quantità", "Proponi quantità"]],
+    ["src/components/restock-detail.tsx", ["In mano nostra", "Prepara la consegna a"]],
+    ["src/components/consignment-order.tsx", ["Consegnato"]],
     ["src/components/partner-work-links.tsx", ["<h1>Partner nel Team</h1>"]],
   ];
 

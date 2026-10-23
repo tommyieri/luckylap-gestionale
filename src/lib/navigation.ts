@@ -71,6 +71,7 @@ export const SECTIONS: readonly NavSection[] = deepFreeze<NavSection[]>([
       { href: "/stock", label: "Giacenze" },
       { href: "/stock/rettifiche", label: "Rettifiche" },
       { href: "/packaging", label: "Packaging" },
+      { href: "/stock/riassortimento", label: "Riassortimento" },
     ],
     mobile: "bar",
   },

@@ -28,7 +28,7 @@ Una sola fonte: `src/lib/navigation.ts`, funzioni pure senza React né icone.
 | --- | --- | --- | --- | --- |
 | Oggi | `/` | — | tutti | barra |
 | Vendite | `/sales` | Ordini `/sales`, Conto vendita `/consignment` | tutti | barra |
-| Magazzino | `/stock` | Giacenze `/stock`, Rettifiche `/stock/rettifiche`, Packaging `/packaging` | tutti | barra |
+| Magazzino | `/stock` | Giacenze `/stock`, Rettifiche `/stock/rettifiche`, Packaging `/packaging`, Riassortimento `/stock/riassortimento` | tutti | barra |
 | Partner | `/partner` | — | tutti | barra |
 | Team | `/team` | Calendario e attività `/team`, Nuovi prodotti `/development`, Grafica e foto `/assets` | tutti | «Altro» |
 | Finance | `/finance` | Panoramica `/finance`, Registrazioni `/finance/work`, Documenti `/finance/documents` | tutti | «Altro» |
@@ -110,6 +110,7 @@ Con `npm run dev` l'anteprima locale (`isLocalPreviewEnabled()` in `src/lib/runt
 | Menu | Tutte e 7 le sezioni, piede «Anteprima locale · Dati solo su questo browser» con «Come si usa» e «Account e sicurezza», niente «Esci». |
 | `/` | Avviso «Anteprima locale: Oggi legge solo dal database.», riquadro «Prima volta qui?» (chiave `luckylap-guida-vista-v1:anteprima`) e riquadri «Non disponibile nell’anteprima locale.». Nessuna lettura. |
 | `/stock` | Giacenze dallo snapshot `data/inventory-source.json`, con dettaglio prodotto ed export CSV. |
+| `/stock/riassortimento` | Riordini sintetici di `src/lib/restock/fixtures.ts` (uno per ogni momento: discussione, «Da Antonella», arrivato con la consegna al negozio da fare, consegnato), salvataggio disattivato. |
 | `/team` | Calendario a mese, attività e note sintetici di `src/lib/team/fixtures.ts`, con l'avviso «Anteprima locale: dati sintetici, salvataggio disattivato.». Le Server Action rispondono «Anteprima locale: salvataggio disattivato.» senza chiamare Supabase. |
 | `/guida` | La guida come la vede Tommi, con l'avviso «Anteprima locale: la guida come la vede Tommi, con Finance e Controllo CEO.». |
 | Altre pagine | Senza configurazione Supabase mostrano lo stato «da collegare», dentro il guscio. |

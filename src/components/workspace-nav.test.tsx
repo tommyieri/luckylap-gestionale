@@ -163,13 +163,25 @@ describe("la guida sul telefono", () => {
 });
 
 describe("schede della sezione", () => {
-  it("su /stock/rettifiche: tre schede di Magazzino, Rettifiche corrente", () => {
+  it("su /stock/rettifiche: quattro schede di Magazzino, Rettifiche corrente", () => {
     pathname = "/stock/rettifiche";
     const html = tabs();
     expect(html).toContain('aria-label="Pagine di Magazzino"');
-    expect(count(html, /<a /g)).toBe(3);
-    expect(hrefs(html)).toEqual(["/stock", "/stock/rettifiche", "/packaging"]);
+    expect(count(html, /<a /g)).toBe(4);
+    expect(hrefs(html)).toEqual([
+      "/stock",
+      "/stock/rettifiche",
+      "/packaging",
+      "/stock/riassortimento",
+    ]);
     expect(linkTo(html, "/stock/rettifiche")).toContain('aria-current="page"');
+    expect(count(html, /aria-current/g)).toBe(1);
+  });
+
+  it("su un riordine: la scheda Riassortimento è quella corrente", () => {
+    pathname = "/stock/riassortimento/95000000-0000-4000-8000-000000000001";
+    const html = tabs();
+    expect(linkTo(html, "/stock/riassortimento")).toContain('aria-current="page"');
     expect(count(html, /aria-current/g)).toBe(1);
   });
 
@@ -194,8 +206,8 @@ describe("schede della sezione", () => {
     expect(tabs({ status: "unavailable" })).toBe("");
     expect(tabs({ status: "outside" })).toBe("");
     pathname = "/stock/rettifiche";
-    expect(count(tabs({ status: "pending" }), /<a /g)).toBe(3);
-    expect(count(tabs(consultant), /<a /g)).toBe(3);
+    expect(count(tabs({ status: "pending" }), /<a /g)).toBe(4);
+    expect(count(tabs(consultant), /<a /g)).toBe(4);
     expect(tabs({ status: "outside" })).toBe("");
   });
 

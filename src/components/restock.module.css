@@ -1,0 +1,839 @@
+/*
+ * Riassortimento (docs/riassortimento.md). Righe roadbook da roadbook.module.css; qui i passi,
+ * le quantità per taglia, le conferme e la barra «Salva quantità» in basso. Verde pieno solo per
+ * il passo di adesso e il fatto, ambra per le taglie sotto l'obiettivo e ciò che resta da fare.
+ */
+.page {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: 28px;
+  max-width: 1040px;
+}
+.head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 12px 20px;
+}
+.title {
+  font-family: var(--f-cond);
+  font-size: var(--text-title);
+  font-weight: 700;
+  line-height: 1.05;
+  letter-spacing: -0.005em;
+  text-wrap: balance;
+  overflow-wrap: anywhere;
+}
+.lead {
+  max-width: 72ch;
+  margin-top: 6px;
+  color: var(--ink-2);
+  font-size: var(--text-md);
+  overflow-wrap: anywhere;
+}
+.backLink {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  min-height: var(--tap);
+  color: var(--ink);
+  font-weight: 600;
+  text-decoration: none;
+}
+.backLink:hover {
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+
+/* Avvisi, anteprima ed esiti. */
+.pendingSlot {
+  display: grid;
+  gap: 12px;
+}
+.previewNotice {
+  max-width: 72ch;
+  padding: 12px 16px;
+  border: 1px solid var(--rule);
+  background: var(--tint);
+  color: var(--ink-2);
+}
+.success,
+.error,
+.warning {
+  max-width: 72ch;
+  padding: 10px 14px;
+  border: 1px solid var(--rule);
+  font-size: var(--text-md);
+}
+.success {
+  border-color: var(--green);
+  background: var(--green-wash);
+  color: var(--green-dark);
+}
+.error {
+  border-color: var(--red);
+  color: var(--red);
+  font-weight: 500;
+}
+.warning {
+  border-color: var(--amber);
+  background: var(--amber-wash);
+  color: var(--ink);
+}
+
+/* Sezioni. */
+.section {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: 12px;
+  min-width: 0;
+}
+.sectionHead {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px 16px;
+}
+.sectionTitle {
+  flex: 1 1 auto;
+  font-family: var(--f-cond);
+  font-size: var(--text-xl);
+  font-weight: 700;
+  line-height: 1.1;
+}
+.sectionNote {
+  max-width: 72ch;
+  color: var(--ink-2);
+  font-size: var(--text-md);
+}
+.muted {
+  color: var(--muted);
+  font-size: var(--text-sm);
+}
+.empty {
+  max-width: 72ch;
+  color: var(--ink-2);
+}
+.emptyState {
+  display: grid;
+  gap: 6px;
+  padding: 18px 0;
+  border-top: 1.5px solid var(--ink);
+}
+.emptyTitle {
+  font-family: var(--f-cond);
+  font-size: var(--text-lg);
+  font-weight: 700;
+}
+.inlineLink {
+  display: inline-flex;
+  align-items: center;
+  min-height: var(--tap);
+  color: var(--ink);
+  font-weight: 600;
+}
+.notes {
+  max-width: 72ch;
+  white-space: pre-line;
+  overflow-wrap: anywhere;
+}
+
+/* Elenco: filtri e righe. */
+.filters {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+.filter {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  min-height: var(--tap);
+  padding: 0 14px;
+  border: 1px solid var(--rule);
+  border-radius: var(--radius-control);
+  background: var(--paper);
+  color: var(--ink-2);
+  font-size: var(--text-sm);
+  font-weight: 500;
+  cursor: pointer;
+}
+.filter:hover {
+  background: var(--tint);
+}
+.filterOn {
+  border-color: var(--green);
+  background: var(--green-wash);
+  color: var(--green-dark);
+}
+.spineNote {
+  color: var(--muted);
+  font-family: var(--f-cond);
+  font-size: var(--text-xs);
+  font-weight: 600;
+  letter-spacing: 0.04em;
+}
+.rowSide {
+  align-items: center;
+}
+.track {
+  display: inline-grid;
+  grid-template-columns: repeat(5, 12px);
+  gap: 3px;
+}
+.trackStep {
+  height: 12px;
+  border: 1px solid var(--rule);
+  background: var(--paper);
+}
+.trackDone {
+  border-color: var(--green);
+  background: var(--green-wash);
+}
+.trackNow {
+  border-color: var(--green);
+  background: var(--green);
+}
+
+/* Moduli. */
+.form {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: 16px;
+  min-width: 0;
+}
+.fieldset {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: 20px;
+  min-width: 0;
+  margin: 0;
+  padding: 0;
+  border: 0;
+}
+.subform {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: 14px;
+  padding: 16px;
+  border: 1px solid var(--rule);
+  background: var(--tint);
+}
+.fields {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(min(100%, 260px), 1fr));
+  gap: 12px 16px;
+  max-width: 760px;
+}
+.field {
+  display: grid;
+  gap: 4px;
+  min-width: 0;
+}
+.field > span {
+  color: var(--ink-2);
+  font-size: var(--text-sm);
+  font-weight: 500;
+}
+.fieldWide {
+  grid-column: 1 / -1;
+}
+.field input,
+.field select,
+.field textarea {
+  width: 100%;
+  min-height: var(--tap);
+  padding: 8px 10px;
+  border: 1px solid var(--rule);
+  border-radius: var(--radius-control);
+  background: var(--paper);
+  color: var(--ink);
+  font-size: var(--text-md);
+}
+.field textarea {
+  resize: vertical;
+}
+.field input:focus,
+.field select:focus,
+.field textarea:focus {
+  border-color: var(--green);
+  outline: 2px solid var(--green);
+  outline-offset: 0;
+}
+.actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px 12px;
+}
+.confirm {
+  display: grid;
+  gap: 12px;
+  padding: 16px;
+  border: 1px solid var(--ink);
+  background: var(--paper);
+  scroll-margin-bottom: calc(var(--ws-fixed-bottom) + 16px);
+}
+.confirmText {
+  font-family: var(--f-cond);
+  font-size: var(--text-lg);
+  font-weight: 600;
+  line-height: 1.3;
+}
+.confirmBlock {
+  display: grid;
+  gap: 8px;
+}
+.blockTitle {
+  font-family: var(--f-cond);
+  font-size: var(--text-lg);
+  font-weight: 700;
+}
+
+/* Passi: cinque colonne sul computer, una lista sul telefono. */
+.steps {
+  display: grid;
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  border-top: 1.5px solid var(--ink);
+  border-bottom: 1px solid var(--rule);
+}
+.step {
+  min-width: 0;
+  border-left: 1px solid var(--rule);
+}
+.step:first-child {
+  border-left: 0;
+}
+.stepButton {
+  display: grid;
+  grid-template-columns: 30px minmax(0, 1fr);
+  align-items: start;
+  gap: 8px;
+  width: 100%;
+  min-height: 64px;
+  padding: 12px 10px;
+  border: 0;
+  background: transparent;
+  color: var(--ink-2);
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+.stepButton:hover:not(:disabled) {
+  background: var(--tint);
+}
+.stepButton:disabled {
+  cursor: default;
+  opacity: 1;
+}
+.stepNumber {
+  display: grid;
+  place-items: center;
+  width: 30px;
+  height: 30px;
+  border: 1px solid var(--ink);
+  font-family: var(--f-cond);
+  font-size: var(--text-md);
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+}
+.stepLabel {
+  display: grid;
+  gap: 2px;
+  font-family: var(--f-cond);
+  font-size: var(--text-md);
+  font-weight: 600;
+  line-height: 1.2;
+  overflow-wrap: anywhere;
+}
+.stepSince {
+  color: var(--ink-2);
+  font-family: var(--f-body);
+  font-size: var(--text-xs);
+  font-weight: 500;
+}
+.stepDone .stepNumber {
+  border-color: var(--green);
+  background: var(--green-wash);
+  color: var(--green);
+}
+.stepNow .stepNumber {
+  border-color: var(--green);
+  background: var(--green);
+  color: var(--on-green);
+}
+.stepNow .stepButton {
+  color: var(--ink);
+}
+.stepNow .stepLabel {
+  font-weight: 700;
+}
+
+/* Quattro numeri su una riga di filetti. */
+.figures {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
+  margin: 0;
+  border-top: 1.5px solid var(--ink);
+  border-bottom: 1px solid var(--rule);
+}
+.figure {
+  display: grid;
+  align-content: start;
+  gap: 6px;
+  padding: 12px 16px 14px;
+  border-left: 1px solid var(--rule);
+}
+.figure:first-child {
+  padding-left: 0;
+  border-left: 0;
+}
+.figure dt {
+  color: var(--muted);
+  font-family: var(--f-cond);
+  font-size: var(--text-sm);
+  font-weight: 600;
+  letter-spacing: 0.04em;
+}
+.figureValue {
+  margin: 0;
+  font-family: var(--f-cond);
+  font-size: 34px;
+  font-weight: 700;
+  line-height: 1;
+  font-variant-numeric: tabular-nums;
+}
+.figureMain .figureValue {
+  color: var(--green-dark);
+}
+.arrivalLine {
+  max-width: 72ch;
+  font-size: var(--text-md);
+}
+
+/* Pezzi per taglia, in testo: arrivo e negozio. */
+.pieces {
+  display: grid;
+  max-width: 640px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  border-top: 1px solid var(--rule);
+}
+.piecesRow {
+  display: grid;
+  grid-template-columns: minmax(120px, 180px) minmax(0, 1fr) 40px;
+  align-items: baseline;
+  gap: 6px 12px;
+  padding: 8px 0;
+  border-bottom: 1px solid var(--rule);
+}
+.piecesName {
+  font-family: var(--f-cond);
+  font-size: var(--text-md);
+  font-weight: 700;
+}
+.piecesSizes {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px 14px;
+}
+.piecesSize {
+  white-space: nowrap;
+}
+.sizeTag {
+  padding: 0 4px;
+  border: 1px solid var(--rule);
+  color: var(--ink-2);
+  font-family: var(--f-cond);
+  font-size: var(--text-xs);
+  font-weight: 600;
+  letter-spacing: 0.06em;
+}
+.piecesTotal {
+  font-weight: 700;
+  text-align: right;
+}
+
+/* Quantità in lettura: tabella per gruppo, prima colonna ferma se serve scorrere. */
+.viewGroups {
+  display: grid;
+  gap: 20px;
+  min-width: 0;
+  max-width: 760px;
+}
+.tableScroll {
+  max-width: 100%;
+  overflow-x: auto;
+}
+.viewTable {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: var(--text-sm);
+}
+.tableCaption {
+  padding: 0 0 6px;
+  font-family: var(--f-cond);
+  font-size: var(--text-lg);
+  font-weight: 700;
+  text-align: left;
+}
+.viewTable thead th {
+  padding: 6px 4px;
+  border-top: 1.5px solid var(--ink);
+  border-bottom: 1px solid var(--rule);
+  color: var(--muted);
+  font-family: var(--f-cond);
+  font-size: var(--text-xs);
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  text-align: right;
+  white-space: nowrap;
+}
+.viewTable th:first-child {
+  position: sticky;
+  left: 0;
+  z-index: 1;
+  min-width: 72px;
+  background: var(--paper);
+  text-align: left;
+}
+.viewTable tbody th {
+  padding: 6px 8px 6px 0;
+  border-bottom: 1px solid var(--rule-soft);
+  color: var(--ink-2);
+  font-family: var(--f-cond);
+  font-size: var(--text-sm);
+  font-weight: 600;
+  text-align: left;
+  white-space: nowrap;
+}
+.viewTable thead th:not(:first-child) {
+  width: 52px;
+}
+.viewTable td {
+  min-width: 30px;
+  padding: 6px 4px;
+  border-bottom: 1px solid var(--rule-soft);
+  font-family: var(--f-cond);
+  font-size: var(--text-md);
+  font-weight: 600;
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+}
+.viewTable .modelRow th {
+  padding: 10px 0 4px;
+  border-bottom: 1px solid var(--rule);
+  color: var(--ink);
+  font-size: var(--text-md);
+  font-weight: 700;
+}
+.zero {
+  color: var(--muted);
+  font-weight: 500;
+}
+.rowTotal {
+  font-weight: 700;
+}
+.legend {
+  color: var(--muted);
+  font-size: var(--text-sm);
+}
+
+/* Modifica: destinazione, gruppi, una riga per modello e colore, le taglie in colonna. */
+.switch {
+  display: grid;
+  grid-template-columns: repeat(var(--choices, 3), minmax(0, 1fr));
+  gap: 0;
+  border: 1px solid var(--ink);
+  border-radius: var(--radius-control);
+  max-width: 640px;
+}
+.switchButton {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  min-height: var(--tap);
+  padding: 6px 10px;
+  border: 0;
+  border-left: 1px solid var(--ink);
+  background: var(--paper);
+  color: var(--ink-2);
+  font: inherit;
+  font-size: var(--text-sm);
+  font-weight: 600;
+  line-height: 1.2;
+  text-align: center;
+  cursor: pointer;
+}
+.switchButton:first-child {
+  border-left: 0;
+}
+.switchButton:hover {
+  background: var(--tint);
+}
+.switchOn,
+.switchOn:hover {
+  background: var(--ink);
+  color: var(--paper);
+}
+.proposeBar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px 14px;
+}
+.editGroup {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  border-top: 1.5px solid var(--ink);
+  max-width: 900px;
+}
+.editGroupTitle {
+  padding: 8px 0 6px;
+  font-family: var(--f-cond);
+  font-size: var(--text-lg);
+  font-weight: 700;
+}
+.editRow {
+  display: grid;
+  grid-template-columns: 150px minmax(0, 1fr);
+  align-items: stretch;
+  border-top: 1px solid var(--rule);
+}
+.editName {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0 6px;
+  padding: 8px 12px 8px 0;
+  font-family: var(--f-cond);
+  font-size: var(--text-md);
+  font-weight: 700;
+  overflow-wrap: anywhere;
+}
+.editName span {
+  color: var(--ink-2);
+  font-weight: 600;
+}
+.editCells {
+  display: grid;
+  grid-template-columns: repeat(var(--sizes, 7), minmax(0, 1fr));
+  border-left: 1px solid var(--rule);
+}
+.cell,
+.cellOff {
+  display: grid;
+  align-content: start;
+  justify-items: center;
+  gap: 2px;
+  min-width: 0;
+  min-height: 84px;
+  padding: 6px 3px;
+  border-right: 1px solid var(--rule);
+  text-align: center;
+}
+.cellOff {
+  background: var(--tint);
+  color: var(--muted);
+}
+.cellSize {
+  color: var(--muted);
+  font-family: var(--f-cond);
+  font-size: var(--text-xs);
+  font-weight: 600;
+  letter-spacing: 0.08em;
+}
+.cellInput {
+  width: 100%;
+  min-width: 0;
+  max-width: 64px;
+  height: var(--tap);
+  padding: 0 4px;
+  border: 1px solid var(--rule);
+  border-radius: var(--radius-control);
+  background: var(--paper);
+  color: var(--ink);
+  font-family: var(--f-cond);
+  font-size: var(--text-md);
+  font-weight: 600;
+  text-align: center;
+  font-variant-numeric: tabular-nums;
+}
+.cellInput:focus {
+  border-color: var(--green);
+  outline: 2px solid var(--green);
+  outline-offset: 0;
+}
+.cellInput[aria-invalid="true"] {
+  border-color: var(--red);
+}
+.cellHint {
+  display: grid;
+  color: var(--ink-2);
+  font-family: var(--f-cond);
+  font-size: var(--text-xs);
+  font-weight: 600;
+  line-height: 1.25;
+}
+.cellExtra {
+  color: var(--muted);
+  font-weight: 500;
+}
+.cellLow {
+  background: var(--amber-wash);
+}
+.cellLow .cellHint {
+  color: var(--amber);
+}
+.cellMarked {
+  box-shadow: inset 0 0 0 2px var(--red);
+}
+
+/* Barra ferma in basso, sopra la barra di navigazione del telefono. */
+.actionBar {
+  position: sticky;
+  bottom: var(--ws-fixed-bottom);
+  z-index: 35;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px 16px;
+  margin: 0 -12px;
+  padding: 12px;
+  border-top: 1.5px solid var(--ink);
+  background: var(--paper);
+}
+.barMessage {
+  flex: 1 1 100%;
+}
+.barSummary {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 2px 12px;
+  font-size: var(--text-md);
+  font-variant-numeric: tabular-nums;
+}
+.barSummary :global(.num) {
+  font-size: var(--text-lg);
+}
+.barDetail {
+  color: var(--ink-2);
+  font-size: var(--text-sm);
+}
+.barDetail :global(.num) {
+  font-size: var(--text-sm);
+}
+.barActions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+/* Storico. */
+.history {
+  display: grid;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  border-top: 1.5px solid var(--ink);
+}
+.historyItem {
+  display: grid;
+  gap: 2px;
+  padding: 10px 0;
+  border-bottom: 1px solid var(--rule);
+}
+.historyText {
+  font-family: var(--f-cond);
+  font-size: var(--text-md);
+  font-weight: 600;
+}
+.historyWhen {
+  color: var(--muted);
+  font-size: var(--text-sm);
+}
+.historyNote {
+  color: var(--ink-2);
+  font-size: var(--text-sm);
+  overflow-wrap: anywhere;
+}
+
+@media (max-width: 760px) {
+  .steps {
+    grid-template-columns: minmax(0, 1fr);
+  }
+  .step {
+    border-left: 0;
+    border-top: 1px solid var(--rule);
+  }
+  .step:first-child {
+    border-top: 0;
+  }
+  .stepButton {
+    align-items: center;
+    min-height: 52px;
+    padding: 8px 4px;
+  }
+  .stepLabel {
+    grid-auto-flow: column;
+    justify-content: start;
+    align-items: baseline;
+    gap: 8px;
+  }
+  .figures {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+  .figure:nth-child(3) {
+    padding-left: 0;
+    border-left: 0;
+  }
+  .figure:nth-child(n + 3) {
+    border-top: 1px solid var(--rule);
+  }
+  .figureValue {
+    font-size: 28px;
+  }
+  .editRow {
+    grid-template-columns: minmax(0, 1fr);
+  }
+  .editName {
+    padding: 8px 0 4px;
+  }
+  .editCells {
+    border-left: 1px solid var(--rule);
+    border-top: 1px solid var(--rule-soft);
+  }
+  .piecesRow {
+    grid-template-columns: minmax(0, 1fr) 40px;
+  }
+  .piecesSizes {
+    grid-column: 1 / -1;
+    grid-row: 2;
+  }
+  .actionBar {
+    margin: 0 calc(-1 * var(--gutter, 16px));
+    padding: 10px var(--gutter, 16px);
+  }
+  .track {
+    grid-template-columns: repeat(5, 8px);
+    gap: 2px;
+  }
+  .trackStep {
+    height: 10px;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .stepButton,
+  .switchButton,
+  .filter {
+    transition: none;
+  }
+}
