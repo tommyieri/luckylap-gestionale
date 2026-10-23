@@ -89,12 +89,16 @@ const fingerprint = async () =>
        from public.assets`,
     )
   ).rows[0].h;
+// Due comandi di seguito possono avere lo stesso occurred_at (now() della transazione) e l'id
+// è casuale: a parità di istante l'archivio viene prima del ripristino, il resto non conta
+// sull'ordine (vedi il controllo per ruolo più sotto).
 const auditRows = async (assetId) =>
   (
     await db.query(
       `select actor_id, operation, old_data->>'archived_at' old_at, new_data->>'archived_at' new_at,
          new_data->>'archived_by' new_by from public.audit_logs
-       where table_name = 'assets' and record_key->>'id' = $1 and operation = 'UPDATE' order by occurred_at, id`,
+       where table_name = 'assets' and record_key->>'id' = $1 and operation = 'UPDATE'
+       order by occurred_at, old_data->>'archived_at' is not null, id`,
       [assetId],
     )
   ).rows;
@@ -382,9 +386,18 @@ try {
     "Ogni cambio lascia una riga di audit con autore, prima e dopo; i comandi senza effetto no",
   );
   eq(trail[0].new_by, ids.logistics, "L'audit registra chi ha archiviato");
+  const linkTrail = await auditRows(linkAsset);
   eq(
-    (await auditRows(linkAsset)).map((entry) => entry.actor_id),
-    activeRoles.flatMap((role) => [ids[role], ids[role]]),
+    [
+      linkTrail.length,
+      activeRoles.map((role) =>
+        linkTrail
+          .filter((entry) => entry.actor_id === ids[role])
+          .map((entry) => (entry.old_at === null ? "archiviato" : "ripristinato"))
+          .sort(),
+      ),
+    ],
+    [activeRoles.length * 2, activeRoles.map(() => ["archiviato", "ripristinato"])],
     "Archivio e ripristino di ogni ruolo sono nell'audit",
   );
   eq(await fingerprint(), before, "Nome, percorso, file e metadati restano come prima");
