@@ -1,12 +1,14 @@
-import { describe, expect, it, vi } from "vitest";
+import { beforeEach, describe, expect, it, vi } from "vitest";
 import type { ReactElement } from "react";
-import type { TeamSnapshot } from "../lib/team/model";
+import type { TeamEvent, TeamSnapshot } from "../lib/team/model";
 
+/** `showPast` è l'unico stato: `undefined` lascia il valore iniziale del componente. */
+const state = vi.hoisted(() => ({ showPast: undefined as boolean | undefined }));
 vi.mock("react", async () => {
   const actual = await vi.importActual<typeof import("react")>("react");
   return {
     ...actual,
-    useState: (value: unknown) => [value, vi.fn()],
+    useState: (value: unknown) => [state.showPast ?? value, vi.fn()],
     useTransition: () => [false, vi.fn()],
   };
 });
@@ -28,7 +30,11 @@ function visibleText(node: unknown): string {
 }
 
 describe("team workspace shared overview", () => {
-  it("shows past and unassigned work by default, together with persisted event labels", () => {
+  beforeEach(() => {
+    state.showPast = undefined;
+  });
+
+  it("shows unassigned work and persisted event labels, with past events behind the switch", () => {
     const snapshot: TeamSnapshot = {
       members: [],
       events: [
@@ -69,9 +75,14 @@ describe("team workspace shared overview", () => {
         },
       ],
     };
-    const text = visibleText(
-      TeamWorkspace({ snapshot, displayName: "Membro corrente", loadedAt: "2026-10-21T10:00:00Z" }),
-    );
+    const props = { snapshot, displayName: "Membro corrente", loadedAt: "2026-10-21T10:00:00Z" };
+    const hidden = visibleText(TeamWorkspace(props)).replace(/\s+/g, " ");
+    expect(hidden).not.toContain("Evento già trascorso");
+    expect(hidden).toContain("1 passato nascosto");
+    expect(hidden).toContain("Nessun appuntamento in programma.");
+    state.showPast = true;
+    const text = visibleText(TeamWorkspace(props));
+    expect(text).not.toContain("passato nascosto");
     expect(text).toContain("Evento già trascorso");
     expect(text).toContain("Shooting fotografico");
     expect(text).toContain("Attività senza assegnatario");
@@ -112,4 +123,67 @@ describe("team workspace shared overview", () => {
       else expect(text).not.toContain("Fino al");
     },
   );
+
+  const event = (
+    id: string,
+    title: string,
+    startsAt: string,
+    endsAt: string,
+    allDay = false,
+  ): TeamEvent => ({
+    id,
+    title,
+    startsAt,
+    endsAt,
+    eventType: "other",
+    details: { summary: "", participantIds: [], callUrl: null, ...(allDay ? { allDay } : {}) },
+    createdBy: "member",
+  });
+  const calendar = (events: TeamEvent[], loadedAt: string) =>
+    visibleText(
+      TeamWorkspace({
+        snapshot: { members: [], tasks: [], notes: [], events },
+        displayName: "Membro",
+        loadedAt,
+      }),
+    ).replace(/\s+/g, " ");
+
+  it("all'inizio mostra solo i prossimi e conta i passati nascosti (06 R16)", () => {
+    const events = [
+      event("a", "Call di settembre", "2026-09-30T08:00:00Z", "2026-09-30T09:00:00Z"),
+      event("b", "Call di ieri", "2026-10-22T08:00:00Z", "2026-10-22T09:00:00Z"),
+      event("c", "Call finita adesso", "2026-10-23T09:00:00Z", "2026-10-23T10:00:00Z"),
+      event("d", "Call in corso", "2026-10-23T09:30:00Z", "2026-10-23T10:30:00Z"),
+      event("e", "Call di domani", "2026-10-24T08:00:00Z", "2026-10-24T09:00:00Z"),
+    ];
+    const text = calendar(events, "2026-10-23T10:00:00Z");
+    expect(text).toContain("3 passati nascosti");
+    for (const title of ["Call di settembre", "Call di ieri", "Call finita adesso"])
+      expect(text).not.toContain(title);
+    expect(text).toContain("Call in corso");
+    expect(text).toContain("Call di domani");
+    expect(text).toContain("Calendario e call 5");
+    expect(calendar(events.slice(3), "2026-10-23T10:00:00Z")).not.toContain("nascost");
+  });
+
+  it("con le date Partner a giornata intera: oggi resta in vista fino a mezzanotte di Roma", () => {
+    // Come le scrive partner_work_links: inizio e fine a mezzanotte di Roma, fine esclusa.
+    const events = [
+      event("p1", "Evento · Partner di ieri", "2026-10-21T22:00:00Z", "2026-10-22T22:00:00Z", true),
+      event("p2", "Evento · Partner di oggi", "2026-10-22T22:00:00Z", "2026-10-23T22:00:00Z", true),
+      event("p3", "Candidatura · Partner", "2026-10-21T22:00:00Z", "2026-10-24T22:00:00Z", true),
+    ];
+    const morning = calendar(events, "2026-10-23T06:00:00Z");
+    expect(morning).toContain("1 passato nascosto");
+    expect(morning).not.toContain("Partner di ieri");
+    expect(morning).toContain("Evento · Partner di oggi");
+    expect(morning).toContain("Candidatura · Partner");
+    expect(morning).toContain("Fino al 24 ott 2026");
+    const lateEvening = calendar(events, "2026-10-23T21:59:00Z");
+    expect(lateEvening).toContain("Evento · Partner di oggi");
+    const midnight = calendar(events, "2026-10-23T22:00:00Z");
+    expect(midnight).toContain("2 passati nascosti");
+    expect(midnight).not.toContain("Partner di oggi");
+    expect(midnight).toContain("Candidatura · Partner");
+  });
 });

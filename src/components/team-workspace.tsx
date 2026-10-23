@@ -29,15 +29,17 @@ export function TeamWorkspace({
   displayName: string;
   loadedAt: string;
 }) {
-  const [showPast, setShowPast] = useState(true);
+  const [showPast, setShowPast] = useState(false);
   const [refreshing, startRefresh] = useTransition();
   const router = useRouter();
   const memberName = (id: string | null) =>
     snapshot.members.find((member) => member.id === id)?.name ??
     (id ? "Membro non disponibile" : "Da assegnare");
-  const events = snapshot.events.filter(
-    (event) => showPast || Date.parse(event.endsAt) >= Date.parse(loadedAt),
-  );
+  // Passato = finito alla lettura. Le giornate intere (anche le date Partner) finiscono alla
+  // mezzanotte successiva di Roma: restano in vista per tutto il giorno.
+  const upcoming = (event: { endsAt: string }) => Date.parse(event.endsAt) > Date.parse(loadedAt);
+  const pastCount = snapshot.events.filter((event) => !upcoming(event)).length;
+  const events = showPast ? snapshot.events : snapshot.events.filter(upcoming);
   return (
     <div className={styles.main}>
       <div className={styles.heading}>
@@ -74,14 +76,21 @@ export function TeamWorkspace({
           <h2 id="calendar-title">
             Calendario e call <span>{snapshot.events.length}</span>
           </h2>
-          <label className={styles.filter}>
-            <input
-              type="checkbox"
-              checked={showPast}
-              onChange={(event) => setShowPast(event.target.checked)}
-            />
-            Mostra anche passati
-          </label>
+          <div className={styles.filterGroup}>
+            {!showPast && pastCount > 0 && (
+              <span className={styles.hiddenCount}>
+                {pastCount} {pastCount === 1 ? "passato nascosto" : "passati nascosti"}
+              </span>
+            )}
+            <label className={styles.filter}>
+              <input
+                type="checkbox"
+                checked={showPast}
+                onChange={(event) => setShowPast(event.target.checked)}
+              />
+              Mostra anche passati
+            </label>
+          </div>
         </div>
         <div className={styles.columns}>
           <div className={styles.list}>

@@ -79,6 +79,17 @@
   font-size: var(--text-sm);
   color: var(--muted);
 }
+.filterGroup {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 0 16px;
+}
+.hiddenCount {
+  font-size: var(--text-sm);
+  color: var(--muted);
+}
 .filter {
   display: flex;
   align-items: center;
@@ -437,6 +448,7 @@
     font-size: var(--text-lg);
   }
   .sectionHeading > span,
+  .hiddenCount,
   .filter {
     font-size: var(--text-xs);
   }
