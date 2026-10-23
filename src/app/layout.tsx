@@ -5,6 +5,8 @@ export const metadata: Metadata = {
   title: { default: "LuckyLap · Gestionale", template: "%s · LuckyLap" },
   description: "La base operativa di LuckyLap. Inventario, appuntamenti e attività.",
   robots: { index: false, follow: false },
+  /* Sulla schermata Home di iPhone il nome è «LuckyLap», non il titolo della pagina aperta. */
+  appleWebApp: { capable: true, title: "LuckyLap", statusBarStyle: "default" },
 };
 
 /* `viewportFit: "cover"` rende disponibili env(safe-area-inset-*) per fascia e barra in basso. */
