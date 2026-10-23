@@ -84,11 +84,8 @@ Valgono già:
 - Hosting e backup restano come sono finché Tommi non decide.
 - Nel modulo Partner (`/partner`) tutti vedono e fanno tutto, Luca compreso.
 - Il magazzino centrale (`MAG01`) si chiama «Magadzino»: è il nome voluto, non un refuso, e non si rinomina. «Magazzino» resta la parola generica: sezione del menu, tipo di sede, «il nostro magazzino».
-
-Da fare, ognuna in un lavoro dedicato e solo con l'OK di Tommi. Oggi il codice fa ancora diversamente: non correggerlo di passaggio in altri lavori.
-
-- Finance: ogni operazione dovrà essere modificabile, conservando lo storico. Oggi il registro è immutabile e si corregge con `void_finance_entry` (vedi `docs/finance-work.md`). `npm run test:db` verifica che resti immutabile.
-- «Controllo CEO» dovrà mostrare solo un feed leggibile di cosa fanno i colleghi (per esempio «Luca ha aggiunto una call»). Oggi `/audit` mostra il registro tecnico dei trigger (vedi `docs/audit-workspace.md`).
+- Finance: ogni movimento si corregge, si elimina e si ripristina, con lo storico (fatto con la pull request #3, 23 ottobre 2026). Le fonti restano immutabili; le modifiche sono revisioni append-only con storico (vedi `docs/finance-revisions.md`). `npm run test:db` verifica che le fonti restino immutabili. `void_finance_entry` resta solo per compatibilità.
+- «Controllo CEO» (`/audit`) è il feed leggibile di cosa fanno i colleghi (per esempio «Luca ha aggiunto una call»), fatto con la pull request #3. Il registro tecnico dei trigger resta nel database e non si mostra nella pagina (vedi `docs/audit-workspace.md`).
 
 ## Lingua e documenti
 
