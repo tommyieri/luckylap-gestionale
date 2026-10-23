@@ -272,7 +272,7 @@ export function FinanceWorkRecovery({
     <section className={styles.recovery} aria-label="Invii Finance da verificare">
       <strong>Invii Finance da verificare</strong>
       <p>
-        Questi tentativi restano recuperabili anche quando la voce è stata annullata o non compare
+        Questi tentativi restano recuperabili anche quando la voce è stata eliminata o non compare
         nella pagina corrente.
       </p>
       {message && <p role="status">{message}</p>}

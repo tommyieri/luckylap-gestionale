@@ -205,6 +205,17 @@ describe("«Invii Finance da verificare» fuori dal modulo", () => {
     ...overrides,
   });
 
+  it("dice «eliminata», come il filtro «Eliminate · recuperabili» del registro", () => {
+    mocks.states[0] = saved();
+    mocks.stateIndex = 0;
+    const text = descendants(FinanceWorkRecovery({ userId, activeScopes: ["manual"] }))
+      .filter((node) => node.type === "p")
+      .map((node) => [node.props.children].flat().join(""))
+      .join(" ");
+    expect(text).toContain("anche quando la voce è stata eliminata o non compare");
+    expect(text).not.toContain("annullata");
+  });
+
   it("un esito incerto lascia il tentativo com'è, con lo stesso operation_id", async () => {
     mocks.states[0] = saved();
     mocks.run.mockResolvedValue({ status: "uncertain", message: "Esito sintetico incerto." });
