@@ -420,17 +420,17 @@ export function PartnerWorkLinks({
                 <button
                   type="button"
                   className="button button-secondary"
-                  disabled={locked || !partner.eventStartsOn || partner.stage === "no"}
+                  disabled={locked || !partner.eventStartsOn || partner.stage !== "chiuso"}
                   onClick={() =>
                     begin({ schema_version: 1, kind: "event", partner_id: partner.id })
                   }
                 >
                   Collega l’evento
                 </button>
-                {(!partner.eventStartsOn || partner.stage === "no") && (
+                {(!partner.eventStartsOn || partner.stage !== "chiuso") && (
                   <span className={styles.help}>
-                    {partner.stage === "no"
-                      ? "La scheda è chiusa senza seguito."
+                    {partner.stage !== "chiuso"
+                      ? "In calendario vanno solo gli eventi a cui partecipiamo: segna prima «Accordo fatto» nella scheda Partner."
                       : "Inserisci prima le date nella scheda Partner."}
                   </span>
                 )}

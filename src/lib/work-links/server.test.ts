@@ -69,6 +69,7 @@ describe("accesso e invii dei collegamenti Partner", () => {
     for (const [code, message] of [
       ["40001", "partner_work_changed"],
       ["23505", "partner_work_idempotency_conflict"],
+      ["22023", "partner_work_not_agreed"],
     ]) {
       const result = await executePartnerWork(
         client(null, { code, message, details: "private SQL" }) as never,

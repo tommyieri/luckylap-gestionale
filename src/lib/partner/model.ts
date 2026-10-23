@@ -19,7 +19,8 @@ export const PARTNER_STAGE_LABELS: Record<PartnerStage, string> = {
   contattato: "Contattato",
   risposto: "Ha risposto",
   trattativa: "In trattativa",
-  chiuso: "Chiuso",
+  // Esito positivo: ci andiamo, c'è una collab o un accordo. Le date entrano nel calendario.
+  chiuso: "Accordo fatto",
   no: "Non interessato",
 };
 

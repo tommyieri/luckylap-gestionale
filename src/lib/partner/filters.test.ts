@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import { partnerFixtureId, partnerSummaryFixture } from "./fixtures";
 import {
   DEFAULT_PARTNER_VIEW,
+  agreedCount,
   buildPartnerIndex,
   coQuery,
   filterPartners,
@@ -14,6 +15,7 @@ import {
   rememberView,
   sectionCounts,
   totalsLine,
+  upcomingEventStart,
   viewShowing,
   withoutFilters,
   type PartnerFilterContext,
@@ -103,7 +105,7 @@ describe("filtri della lista", () => {
     expect(cos({ periodo: 5, sezione: "eventi" })).toEqual([21]);
   });
 
-  it("«da fare» esclude Chiuso e Non interessato; uno stato preciso tiene solo quello", () => {
+  it("«da fare» esclude Accordo fatto e Non interessato; uno stato preciso tiene solo quello", () => {
     expect(cos({ stato: "da_fare" })).toEqual([1, 12]);
     expect(cos({ stato: "tutti" })).toEqual([1, 2, 3, 12]);
     expect(cos({ stato: "chiuso" })).toEqual([2]);
@@ -184,6 +186,7 @@ describe("filtri della lista", () => {
       chi: "tutti",
       q: "",
       co: 20,
+      accordi: false,
     });
     expect(viewShowing(view({ sezione: "collab" }), list[2], context)).toMatchObject({
       sezione: "collab",
@@ -191,6 +194,85 @@ describe("filtri della lista", () => {
       co: 3,
     });
     expect(withoutFilters(start)).toEqual({ ...start, stato: "da_fare", chi: "tutti", q: "" });
+  });
+});
+
+describe("«Ci siamo»: gli accordi fatti", () => {
+  const agreed: PartnerSummary[] = [
+    partnerSummaryFixture({ co: 30, stage: "chiuso", contactMonth: "2027-05-01" }),
+    partnerSummaryFixture({
+      co: 31,
+      stage: "chiuso",
+      sections: ["eventi"],
+      eventStartsOn: "2026-12-05",
+      eventEndsOn: "2026-12-06",
+    }),
+    partnerSummaryFixture({
+      co: 32,
+      stage: "chiuso",
+      sections: ["eventi"],
+      eventStartsOn: "2026-11-02",
+      eventEndsOn: null,
+    }),
+    partnerSummaryFixture({
+      co: 33,
+      stage: "chiuso",
+      sections: ["eventi"],
+      eventStartsOn: "2026-09-01",
+      eventEndsOn: "2026-09-02",
+    }),
+    partnerSummaryFixture({
+      co: 34,
+      stage: "trattativa",
+      sections: ["eventi"],
+      eventStartsOn: "2026-11-01",
+    }),
+    partnerSummaryFixture({ co: 35, stage: "chiuso", ownerId: ME, name: "Garage Accordo" }),
+  ];
+  const agreedContext: PartnerFilterContext = {
+    index: buildPartnerIndex({ contacts: [], variants: [], differences: [], blocks: [] }),
+    today: TODAY,
+    memberId: ME,
+  };
+  const cos = (fields: Partial<PartnerView>) =>
+    filterPartners(agreed, view({ accordi: true, ...fields }), agreedContext).map((p) => p.co);
+
+  it("solo lo stato «Accordo fatto», di ogni periodo, sezione e stato scelto", () => {
+    expect(cos({ periodo: 5, sezione: "vendita", stato: "no" })).toEqual([32, 31, 30, 33, 35]);
+    expect(agreedCount(agreed)).toBe(5);
+  });
+
+  it("prima gli eventi in arrivo per data, poi gli altri per CO (anche gli eventi passati)", () => {
+    expect(cos({})).toEqual([32, 31, 30, 33, 35]);
+    expect(upcomingEventStart(agreed[2], TODAY)).toBe("2026-11-02");
+    expect(upcomingEventStart(agreed[3], TODAY)).toBeNull();
+    expect(upcomingEventStart(agreed[3], "2026-09-02")).toBe("2026-09-01");
+  });
+
+  it("«Seguito da» e ricerca valgono anche qui", () => {
+    expect(cos({ chi: "io" })).toEqual([35]);
+    expect(cos({ q: "accordo" })).toEqual([35]);
+  });
+
+  it("nell'indirizzo è vista=ci_siamo, andata e ritorno", () => {
+    const original = view({ accordi: true, periodo: 2, sezione: "eventi" });
+    const query = partnerViewQuery(original);
+    expect(query).toBe("periodo=2&sezione=eventi&vista=ci_siamo");
+    expect(parsePartnerView(new URLSearchParams(query)).view).toEqual(original);
+    expect(parsePartnerView({ vista: "altro" }).view.accordi).toBe(false);
+  });
+
+  it("un link a un contatto senza accordo esce da «Ci siamo»", () => {
+    const start = view({ accordi: true, q: "nessuno" });
+    expect(viewShowing(start, agreed[4], agreedContext)).toMatchObject({
+      accordi: false,
+      co: 34,
+    });
+    expect(viewShowing(start, agreed[1], agreedContext)).toMatchObject({
+      accordi: true,
+      q: "",
+      co: 31,
+    });
   });
 });
 
@@ -206,6 +288,7 @@ describe("stato nell'indirizzo", () => {
       chi: "io",
       q: "porsche",
       co: 12,
+      accordi: false,
     });
     expect(explicit).toEqual({ periodo: true, sezione: true });
   });

@@ -10,6 +10,7 @@ import {
   PARTNER_STATUS_FILTERS,
   PARTNER_STATUS_FILTER_LABELS,
   PARTNER_VIEW_SECTIONS,
+  agreedCount,
   buildPartnerIndex,
   filterPartners,
   parsePartnerView,
@@ -149,8 +150,10 @@ function WorkspaceBody({
   const answeredCo = useRef(queryCo);
 
   const periods = useMemo(() => partnerPeriods(today), [today]);
-  const counts = periodCounts(workspace.partners, view, context);
+  // Le celle contano sempre la vista dei periodi, anche mentre «Ci siamo» è scelto.
+  const counts = periodCounts(workspace.partners, { ...view, accordi: false }, context);
   const sections = sectionCounts(workspace.partners);
+  const agreed = agreedCount(workspace.partners);
   const visible = filterPartners(workspace.partners, view, context);
   const period = periods[view.periodo - 1];
   const openDetail = detail && view.co !== null && detail.partner.co === view.co ? detail : null;
@@ -331,13 +334,23 @@ function WorkspaceBody({
             key={section}
             type="button"
             className={styles.sectionTab}
-            aria-pressed={view.sezione === section}
-            onClick={() => changeView({ sezione: section })}
+            aria-pressed={!view.accordi && view.sezione === section}
+            onClick={() => changeView({ sezione: section, accordi: false })}
           >
             {SECTION_BUTTON_LABELS[section]}
             <span className={styles.sectionCount}>{sections[section]}</span>
           </button>
         ))}
+        <button
+          type="button"
+          className={`${styles.sectionTab} ${styles.agreedTab}`}
+          aria-pressed={view.accordi}
+          onClick={() => changeView({ accordi: true })}
+        >
+          <span className={styles.agreedDot} aria-hidden="true" />
+          Ci siamo
+          <span className={styles.sectionCount}>{agreed}</span>
+        </button>
       </nav>
 
       <div className={styles.periodBar} ref={barRef}>
@@ -348,8 +361,10 @@ function WorkspaceBody({
               type="button"
               className={styles.period}
               data-now={item.number === 1 || undefined}
-              aria-pressed={view.periodo === item.number}
-              onClick={() => changeView({ periodo: item.number as PartnerPeriodNumber })}
+              aria-pressed={!view.accordi && view.periodo === item.number}
+              onClick={() =>
+                changeView({ periodo: item.number as PartnerPeriodNumber, accordi: false })
+              }
             >
               <span className={styles.periodLabel}>{item.cell}</span>
               <span className={styles.periodCount}>
@@ -395,7 +410,9 @@ function WorkspaceBody({
           <span>Stato</span>
           <select
             value={view.stato}
-            onChange={(event) => changeView({ stato: event.target.value as PartnerStatusFilter })}
+            onChange={(event) =>
+              changeView({ stato: event.target.value as PartnerStatusFilter, accordi: false })
+            }
           >
             {PARTNER_STATUS_FILTERS.map((status) => (
               <option key={status} value={status}>
@@ -454,9 +471,26 @@ function WorkspaceBody({
       )}
 
       <div className={styles.periodHead}>
-        <h2>{period.title}</h2>
-        <p className={styles.periodNote}>{period.note}</p>
-        {view.sezione !== "tutti" && (
+        {view.accordi ? (
+          <>
+            <h2>Ci siamo</h2>
+            <p className={styles.periodNote}>
+              Accordi fatti: eventi, collab e negozi dove ci saremo davvero. Prima gli eventi in
+              arrivo; le loro date sono nel calendario del team.
+            </p>
+            <p>
+              <Link href="/team#calendario" prefetch={false} className="text-button">
+                Apri il calendario del team
+              </Link>
+            </p>
+          </>
+        ) : (
+          <>
+            <h2>{period.title}</h2>
+            <p className={styles.periodNote}>{period.note}</p>
+          </>
+        )}
+        {!view.accordi && view.sezione !== "tutti" && (
           <p className={styles.sectionNote}>
             {PARTNER_SECTION_NOTES[view.sezione as PartnerSection]}
           </p>
@@ -477,6 +511,13 @@ function WorkspaceBody({
             >
               Aggiungi un contatto
             </button>
+          </p>
+        </div>
+      ) : visible.length === 0 && view.accordi ? (
+        <div className={styles.empty}>
+          <p>
+            Nessun accordo fatto con questi filtri. Quando un contatto dice sì, scegli «Accordo
+            fatto» nello stato: le sue date entrano nel calendario del team.
           </p>
         </div>
       ) : visible.length === 0 ? (
@@ -512,7 +553,7 @@ function WorkspaceBody({
               differences={index.differences.get(partner.id)?.length ?? 0}
               block={index.blocks.get(partner.id) ?? null}
               period={partnerPeriod(partner, today)}
-              section={view.sezione}
+              section={view.accordi ? "tutti" : view.sezione}
               open={view.co === partner.co}
               dimmed={view.co !== null && view.co !== partner.co}
               detail={view.co === partner.co ? openDetail : null}

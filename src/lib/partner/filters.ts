@@ -52,6 +52,11 @@ export type PartnerView = {
   q: string;
   /** Contatto con i dettagli aperti. */
   co: number | null;
+  /**
+   * «Ci siamo»: solo gli accordi fatti (stato `chiuso`), di ogni periodo e sezione, con gli
+   * eventi in arrivo per primi. Nell'indirizzo è `vista=ci_siamo`.
+   */
+  accordi: boolean;
 };
 export const DEFAULT_PARTNER_VIEW: PartnerView = {
   periodo: 1,
@@ -60,7 +65,10 @@ export const DEFAULT_PARTNER_VIEW: PartnerView = {
   chi: "tutti",
   q: "",
   co: null,
+  accordi: false,
 };
+/** Valore di `vista` nell'indirizzo per «Ci siamo». */
+export const PARTNER_AGREED_VIEW = "ci_siamo";
 
 type Params =
   URLSearchParams | Record<string, string | string[] | undefined> | ReadonlyMap<string, string>;
@@ -109,6 +117,7 @@ export function parsePartnerView(
       chi,
       q,
       co: co !== null && isPartnerCo(co) ? co : null,
+      accordi: param(params, "vista") === PARTNER_AGREED_VIEW,
     },
     explicit: { periodo: periodo !== null, sezione: sezione !== null },
   };
@@ -125,6 +134,7 @@ export function partnerViewQuery(view: PartnerView): string {
   if (view.stato !== DEFAULT_PARTNER_VIEW.stato) params.set("stato", view.stato);
   if (view.chi !== DEFAULT_PARTNER_VIEW.chi) params.set("chi", view.chi);
   if (view.q !== "") params.set("q", view.q);
+  if (view.accordi) params.set("vista", PARTNER_AGREED_VIEW);
   if (view.co !== null) params.set("co", String(view.co));
   return params.toString();
 }
@@ -256,6 +266,12 @@ export function partnerMatches(
   context: PartnerFilterContext,
   options: { ignorePeriod?: boolean } = {},
 ): boolean {
+  if (view.accordi)
+    return (
+      partner.stage === "chiuso" &&
+      ownerMatch(partner, view.chi, context.memberId) &&
+      partnerSearchMatch(partner, view.q)
+    );
   if (view.sezione !== "tutti" && !partner.sections.includes(view.sezione as PartnerSection))
     return false;
   if (!options.ignorePeriod && partnerPeriod(partner, context.today) !== view.periodo) return false;
@@ -266,16 +282,31 @@ export function partnerMatches(
   );
 }
 
-/** Contatti della vista, per CO. */
+/** Evento non ancora finito, giorno di Roma «AAAA-MM-GG»: è (o sarà) nel calendario del team. */
+export function upcomingEventStart(partner: PartnerSummary, today: string): string | null {
+  const start = partner.eventStartsOn;
+  if (start === null) return null;
+  return (partner.eventEndsOn ?? start) >= today ? start : null;
+}
+
+/**
+ * Contatti della vista, per CO. In «Ci siamo» prima gli eventi in arrivo, per data, poi gli
+ * altri accordi per CO.
+ */
 export function filterPartners(
   partners: readonly PartnerSummary[],
   view: PartnerView,
   context: PartnerFilterContext,
 ): PartnerSummary[] {
-  return partners
-    .filter((partner) => partnerMatches(partner, view, context))
-    .sort((a, b) => a.co - b.co);
+  const visible = partners.filter((partner) => partnerMatches(partner, view, context));
+  if (!view.accordi) return visible.sort((a, b) => a.co - b.co);
+  const key = (partner: PartnerSummary) => upcomingEventStart(partner, context.today) ?? "9999";
+  return visible.sort((a, b) => key(a).localeCompare(key(b)) || a.co - b.co);
 }
+
+/** Accordi fatti: il numero sul pulsante «Ci siamo». */
+export const agreedCount = (partners: readonly PartnerSummary[]): number =>
+  partners.filter((partner) => partner.stage === "chiuso").length;
 
 /** Conteggi delle cinque celle: tutti i filtri tranne il periodo. */
 export function periodCounts(
@@ -319,6 +350,14 @@ export function viewShowing(
   context: PartnerFilterContext,
 ): PartnerView {
   const next: PartnerView = { ...view, co: partner.co };
+  if (next.accordi) {
+    if (partner.stage === "chiuso") {
+      if (!ownerMatch(partner, next.chi, context.memberId)) next.chi = "tutti";
+      if (!partnerSearchMatch(partner, next.q)) next.q = "";
+      return next;
+    }
+    next.accordi = false;
+  }
   next.periodo = partnerPeriod(partner, context.today);
   if (next.sezione !== "tutti" && !partner.sections.includes(next.sezione as PartnerSection))
     next.sezione = "tutti";
