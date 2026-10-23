@@ -10,7 +10,7 @@ Alcuni documenti scritti prima del modello attuale chiedono ancora una sessione 
 
 ## Piano e aggiornamenti
 
-- [P4–P6: specifica](superpowers/specs/2026-10-22-p4-p6-design.md) e [piano Codex](superpowers/plans/2026-10-22-p4-p6-implementation.md): Finance modificabile, collegamenti e Oggi, feed CEO; sviluppo separato da P2/P3 di Claude.
+- [P4–P6: specifica](superpowers/specs/2026-10-22-p4-p6-design.md) e [piano Codex](superpowers/plans/2026-10-22-p4-p6-implementation.md): Finance modificabile, collegamenti e Oggi, feed CEO. Rilasciati con la pull request #3 il 23 ottobre 2026: in parte superati, lo stato attuale è nei documenti delle aree.
 
 - [Piano approvato, versione 0.3](2026-10-21-piano-gestionale-luckylap.md): decisioni iniziali del founder, 21 ottobre 2026. In parte superato: vendite e Shopify sono attivi dal 21 ottobre e l'app è pubblicata su Vercel Hobby. Stato attuale in [deployment.md](deployment.md).
 - [Aggiornamenti operativi del 21 ottobre](aggiornamenti-operativi-2026-10-21.md): ordinamento dell'inventario, condivisione, packaging, Finance e verifiche di rilascio.
@@ -22,7 +22,7 @@ Alcuni documenti scritti prima del modello attuale chiedono ancora una sessione 
 - [Accesso del team e password delle aree](authentication.md): login con la password comune del workspace e password separate per Finance e CEO.
 - [Inviti e password del team](inviti-account.md): conferma degli inviti e scelta della password per gli account creati dal founder.
 - [Password delle aree riservate](area-passwords-backend.md): migrazione e funzioni RPC delle password per le aree Finance e audit (CEO).
-- [Controllo riservato al founder](audit-workspace.md): pagina `/audit`, registro in sola lettura delle modifiche salvate nel database. In parte superato: chiede ancora una sessione `aal2`. Per l'accesso vale [authentication.md](authentication.md).
+- [Controllo CEO](audit-workspace.md): pagina `/audit`, feed leggibile di cosa fa il team, solo per il founder con la password CEO, e i suoi limiti noti.
 
 ## Magazzino e packaging
 
@@ -49,8 +49,8 @@ Alcuni documenti scritti prima del modello attuale chiedono ancora una sessione 
 
 - [Import Finance da BudgetFlow](finance-import.md): import riservato delle righe sorgente, tutte da revisionare, con il contratto di provenienza.
 - [Conti, andamento e categorie](finance-dashboard.md): panoramica `/finance` e regole del calcolo dei saldi.
-- [Fatti collegati e lavoro manuale](finance-work.md): pagina `/finance/work` con fatti delle vendite e registrazioni manuali.
-- [Nucleo delle revisioni Finance](finance-revisions.md): fonti immutabili, correzioni complete, residui condivisi con Vendite e vecchio conto vendita; integrazione P3 richiesta prima del rilascio.
+- [Fatti collegati e lavoro manuale](finance-work.md): pagina `/finance/work` con fatti delle vendite e registrazioni manuali, correggibili con le revisioni.
+- [Nucleo delle revisioni Finance](finance-revisions.md): fonti immutabili, correzioni complete, residui condivisi con Vendite e vecchio conto vendita; in produzione dal 23 ottobre 2026.
 
 ## Conto vendita
 
@@ -64,13 +64,13 @@ Alcuni documenti scritti prima del modello attuale chiedono ancora una sessione 
 
 - [Layout condiviso e navigazione](workspace-layout.md): guscio comune a tutte le pagine, mappa delle sezioni, token di stile e regole per le pagine nuove.
 - [Guida «Come si usa»](workspace-layout.md#la-guida-come-si-usa): pagina `/guida` per i cinque del team e regole per tenerla allineata all'app.
-- [Workspace condiviso del team](team-workspace.md): route `/team` con calendario e call, attività e note nel database.
+- [Workspace condiviso del team](team-workspace.md): route `/team` con calendario e call, attività e note nel database, date e solleciti Partner, «Partner nel Team» (`/team/partner`).
 - [Libreria del brand e sviluppo prodotti](assets-development.md): route `/assets` e `/development`, con bucket privato per gli originali.
 - [Ricerca UI UX Pro Max](ui-ux-pro-max-research.md): fonte, licenza e comandi della ricerca usata per l'interfaccia.
 
 ## Verifiche
 
-- [Verifiche LuckyLap](verification.md): riepilogo delle prove su dati reali, applicazione e SQL, Auth cloud e pubblicazione.
+- [Verifiche LuckyLap](verification.md): riepilogo delle prove su dati reali, applicazione e SQL, Auth cloud e pubblicazione; stato della revisione prima dell'invio e problemi noti dopo P4–P6.
 - [Verifica Auth, MFA e REST](verifica-auth-cloud.md): 52 prove reali sul progetto Supabase con un account QA temporaneo. Riguardano la prima implementazione, non il modello attuale: vedi [authentication.md](authentication.md).
 - [Verifica della concorrenza](verifica-concorrenza.md): 39 controlli in 7 casi su PostgreSQL reale con connessioni distinte.
 - [Verifica delle importazioni](verifica-import-cloud.md): controllo in sola lettura di inventario e BudgetFlow importati in Supabase.
@@ -83,4 +83,4 @@ Alcuni documenti scritti prima del modello attuale chiedono ancora una sessione 
 - [Backend Supabase](backend.md): schema iniziale, import dell'inventario e permessi di accesso ai dati.
 - [Collegamento cloud](deployment.md): GitHub, Vercel e Supabase, import, accessi e avvio operativo del 21 ottobre 2026.
 
-- [Stato e integrazioni residue P4–P6](p4-p6-stato.md): parti indipendenti Codex, dipendenze da P2/P3 e verifiche prima della consegna.
+- [Stato di P4–P6](p4-p6-stato.md): resoconto di Codex prima del merge della pull request #3. In parte superato: il rilascio è del 23 ottobre 2026, verifiche e problemi noti in [verification.md](verification.md).

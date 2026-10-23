@@ -256,6 +256,8 @@ Regole, mai sopra il lavoro del team:
 
 Quando: dopo il rilascio di P5, così gli invii importati creano i solleciti (decisione 30). Claude chiede a Tommi di premere «Esporta» su ogni dispositivo e browser e di caricare i file in `/partner/dati`.
 
+**Attenzione (23 ottobre 2026).** P5 è in produzione, ma il suo trigger dei solleciti guarda solo le righe `origin = 'team'`: le righe dei file (`origin = 'file'`) oggi non creano né chiudono solleciti, contro la decisione 30. Va deciso con Tommi **prima** di caricare i file ([verifiche](verification.md), «Problemi noti dopo P4-P6», punto 5).
+
 ## Lookbook
 
 - I cinque PDF stanno in `data/partner-lookbooks/` (`negozi.pdf`, `eventi.pdf`, `collab.pdf`, `porsche_club.pdf`, `club.pdf`), copiati da `luckylap-partner/site/lookbook/`. Titoli fissi: Stockists, Events, Collaborations, Porsche Clubs, Clubs.
