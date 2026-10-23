@@ -29,10 +29,10 @@ Tommi ha confermato la conclusione P2/P3 e autorizzato il completamento dell’i
 
 Le migrazioni applicate P2 `20261022215908_partner_module.sql` e P3 `20261022215046_consignment_monthly.sql` sono invariate. Le migrazioni nuove, generate con Supabase CLI, seguono queste dipendenze nell’ordine:
 
-1. `20261022220000_ceo_activity_feed.sql`
-2. `20261022220001_finance_revisions.sql`
-3. `20261022220002_partner_work_links.sql`
-4. `20261022225608_shop_payment_finance.sql`
+1. `20261023091605_ceo_activity_feed.sql`
+2. `20261023091616_finance_revisions.sql`
+3. `20261023091627_partner_work_links.sql`
+4. `20261023091633_shop_payment_finance.sql`
 
 Le tre migrazioni precedentemente in bozza sono state ordinate dopo le versioni definitive P2/P3, prima di qualunque applicazione al cloud. Gli harness di integrazione applicano l’intera catena effettiva; gli isolati restano utili per casi limite e concorrenza.
 
@@ -40,4 +40,4 @@ Le tre migrazioni precedentemente in bozza sono state ordinate dopo le versioni 
 
 Controlli completi superati sul ramo integrato: typecheck, build di produzione, 1.543 test in 140 file e formattazione. Tutti i 27 harness SQL sono passati senza salti: 2.967 controlli PGlite e 1.299 PostgreSQL 17, per un totale di 4.266. Il controllo combinato su PostgreSQL 17 include 92 verifiche con utenti e dati sintetici: immutabilità Shopify, residui corretti, retry, gate, conto vendita canonico, pianificati/futuri, feed CEO e automazioni Partner. Il nuovo test di concorrenza P3 copre anche la scadenza naturale Finance durante un’attesa; lo stesso controllo dell’orologio protegge le revisioni P4. Revisione indipendente senza difetti aperti; controllo visivo desktop e 390 px completato, nessun difetto rilevato dal detector Impeccable.
 
-Nessuna modifica Drive, abbonamento o comunicazione esterna. Stato cloud e merge saranno aggiornati dopo i controlli finali.
+Le quattro migrazioni sono state applicate al progetto Supabase LuckyLap il 23 ottobre 2026, dopo l’OK esplicito di Tommi. I file riportano le versioni cloud effettive; il loro contenuto SQL verificato è invariato. Verificati gate senza sessione, wrapper pubblici, helper privati e RLS. Nessuna modifica Drive, abbonamento o comunicazione esterna. Merge e deploy seguono la verifica CI del ramo finale.
