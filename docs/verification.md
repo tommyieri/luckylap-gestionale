@@ -1,6 +1,11 @@
 # Verifiche LuckyLap
 
-Stato del 23 ottobre 2026, dal branch `claude/revisione-pre-invio` (P7, revisione prima dell'invio). Il branch contiene la parte A, il merge di `origin/main` a `b24690f` (commit `5af0f1a`: la pull request #3 di Codex, cioè P4 Finance modificabile, P5 collegamenti e Oggi, P6 feed di Controllo CEO) e la parte B fino alla guida e ai documenti. Da allora `origin/main` è andato avanti a `da96128`, la pull request #6 di Codex («Finance: movimenti più leggibili»: solo `finance-imports-view.tsx`, il suo test e `finance.module.css`), che questo branch non contiene ancora. Prove applicative, SQL sintetico, PostgreSQL concorrente e Auth cloud sono conteggiati separatamente. Le sezioni «Avvio del 21 ottobre 2026» restano come verbale dell'avvio: i numeri di allora non sono quelli di oggi.
+Stato del 23 ottobre 2026, dal branch `claude/revisione-pre-invio` (P7, revisione prima dell'invio). Il branch contiene la parte A, il merge di `origin/main` a `b24690f` (commit `5af0f1a`: la pull request #3 di Codex, cioè P4 Finance modificabile, P5 collegamenti e Oggi, P6 feed di Controllo CEO) e la parte B fino alla guida e ai documenti. Da allora `origin/main` è andato avanti a `3acbad3`, con due pull request che questo branch non contiene ancora:
+
+- **#6** di Codex (`da96128`, «Finance: movimenti più leggibili»): solo `finance-imports-view.tsx`, il suo test e `finance.module.css`, che P7 non tocca.
+- **#7** di un'altra sessione Claude (`claude/calendario-partecipiamo`, merge `3acbad3` alle 11:36 UTC): calendario del Team a mese, che sostituisce la lista con «Mostra anche passati»; lo stato Partner `chiuso` si chiama «Accordo fatto»; le date Partner entrano nel calendario solo con «Accordo fatto», con la migrazione `20261023113212_partner_dates_only_agreed.sql`, già applicata in produzione con questa versione cloud. Tocca nove file che anche questo branch cambia: `README.md`, `docs/README.md`, `docs/partner.md`, `docs/team-workspace.md`, `docs/workspace-layout.md`, `src/components/team-workspace.tsx`, `team-workspace.module.css`, `team-workspace.test.tsx` e `supabase/tests/finance-ecosystem-integration.mjs`.
+
+Prove applicative, SQL sintetico, PostgreSQL concorrente e Auth cloud sono conteggiati separatamente. Le sezioni «Avvio del 21 ottobre 2026» restano come verbale dell'avvio: i numeri di allora non sono quelli di oggi.
 
 ## Test di oggi
 
@@ -80,6 +85,8 @@ Dopo le quattro migrazioni:
 - `finance_movement_revisions` ha zero righe: nessuna correzione Finance è stata fatta;
 - le sole righe nuove sono 54 appuntamenti del calendario e 54 righe di `partner_work_links`, create dal riporto delle date Partner, con le loro 108 righe di audit.
 
+Più tardi, lo stesso giorno, la migrazione della pull request #7 (`20261023113212_partner_dates_only_agreed`) ha tolto in produzione i 54 appuntamenti automatici delle schede senza «Accordo fatto»; restano i 3 eventi inseriti a mano (esiti nel `docs/partner.md` di `main`, «Accordo fatto e calendario»). Oggi l'ultima versione in cloud è `20261023113212`.
+
 ## Revisione prima dell'invio (P7): fatto e da fare
 
 Parte A (prima del merge di P4–P6): guida «Come si usa» in `ACCOUNT_LINKS`, «Magadzino» rimesso dove era stato cambiato, migrazione dell'archivio dei contenuti (`20261022220100_archivio_contenuti.sql`, **non ancora applicata in produzione**), «Invio da verificare» con `pending-attempt.tsx` nei moduli manuali di Vendite, Rettifiche, Packaging e Finance, testi senza gergo, guardia `ui-copy.test.ts`. Poi il merge di `origin/main` a `b24690f` (`5af0f1a`) al posto del rebase previsto: stesso risultato, nessun commit riscritto.
@@ -88,16 +95,19 @@ Parte B, fatto (ogni commit con tutti i controlli verdi):
 
 - Oggi: riquadro «Prima volta qui?» verso «Come si usa» (`a3ef382`).
 - «Chiudi Finance» in cima a tutte le pagine Finance e «Chiudi Controllo CEO» in `/audit`, solo dopo la verifica dell'area aperta (`beffa36`).
-- Calendario del Team: all'inizio solo i prossimi, con «N passati nascosti» (`1727c02`).
+- Calendario del Team: all'inizio solo i prossimi, con «N passati nascosti» (`1727c02`). Superato dal calendario a mese della pull request #7, che arriva con il merge di `main`.
 - Vendite: gli invii da verificare dicono ordine e articolo, testi senza gergo, guardia dei testi completa (`42a5d09`, `bbbbb9e`); «eliminata» negli invii Finance da verificare (`e5dbcd3`); due correzioni degli harness (`8d6f694`, `8465fcc`).
 - Guida aggiornata a P4–P6: Oggi, solleciti Partner e «Partner nel Team», correzioni Finance, feed CEO; test che controlla i nomi citati (`9d38b88`).
 - Documenti: `AGENTS.md` («Decisioni del founder»), `README.md`, `PRODUCT.md`, `DESIGN.md` (`598ad10`); `audit-workspace.md`, `finance-work.md`, `finance-dashboard.md`, `team-workspace.md`, indice e avviso in `partner.md` (`187549e`); questo documento.
 
 Da fare prima del merge, in quest'ordine:
 
-1. Merge di `origin/main` (oggi `da96128`, pull request #6) in questo branch, poi tutti i controlli e la CI di nuovo verdi. La pull request #6 tocca solo tre file di Finance che P7 non modifica.
+1. Merge di `origin/main` (oggi `3acbad3`, pull request #6 e #7) in questo branch, poi tutti i controlli e la CI di nuovo verdi. La #6 tocca solo tre file di Finance che P7 non modifica. La #7 dà conflitti nei nove file elencati in cima e cambia cose che questo branch descrive. Nel merge:
+   - `team-workspace.tsx` e il suo test: il calendario a mese della #7 sostituisce la lista; il commit `1727c02` («N passati nascosti», 06 R16) non serve più, perché i passati non spingono più in basso i prossimi.
+   - Guida (`guide-view.tsx`): le date Partner entrano nel calendario solo con «Accordo fatto»; tra gli stati che chiudono un sollecito «Chiuso» diventa «Accordo fatto»; `TAB_TEXT` di `/team` con il calendario a mese. Il test «i nomi citati esistono davvero» fallisce finché la guida dice «Chiuso»: è voluto.
+   - Documenti: `README.md`, `PRODUCT.md`, `docs/team-workspace.md`, `docs/workspace-layout.md` e `docs/partner.md` con la regola nuova; questo documento con il numero degli harness (la #7 aggiunge `partner-dates-agreed.mjs`, PGlite) e i numeri dei test dopo il merge.
 2. Prove visive della parte B a 1280 × 800 e 390 × 844 (piano di lavoro, §1.4): `/guida`, «Prima volta qui?» su `/`, `/finance` con «Chiudi Finance», `/team` con i passati nascosti, `/assets` con «Mostra archiviati», un invio da verificare su `/sales`, `/auth/account`.
-3. Applicare in produzione `archivio_contenuti`, con l'impronta di `assets` prima e dopo. Oggi l'ultima versione in cloud e nel repository è `20261023091633`: la nuova versione sarà successiva e il file prende quel nome. La tabella «Produzione» riceve la sua riga ([archivio](assets-development.md), «Archivio dei contenuti»).
+3. Applicare in produzione `archivio_contenuti`, con l'impronta di `assets` prima e dopo. Oggi l'ultima versione in cloud è `20261023113212`, che il repository ha solo dopo il merge del punto 1: la nuova versione sarà successiva e il file prende quel nome. La tabella «Produzione» riceve la sua riga ([archivio](assets-development.md), «Archivio dei contenuti»).
 4. Pull request con gli esiti, CI verde compreso il job «Concorrenza (PostgreSQL 17)», poi merge.
 5. Messaggio di benvenuto per WhatsApp pronto per Tommi, senza password.
 
