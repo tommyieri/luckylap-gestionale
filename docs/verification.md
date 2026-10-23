@@ -13,7 +13,7 @@ Dal branch `claude/riassortimento` (base `origin/main` a `e187934`), con dati si
 
 | Comando | Esito |
 | --- | --- |
-| `npm test` | 2.059 test in 183 file, tutti superati |
+| `npm test` | 2.122 test in 184 file, tutti superati (dopo il merge di `origin/main` a `6f72c2e`) |
 | `npm run test:db` senza `LUCKYLAP_PG_BIN` | 20 harness PGlite superati, 3.512 controlli; i 16 harness su PostgreSQL 17 risultano saltati |
 | `npm run test:db` con `LUCKYLAP_PG_BIN` (PostgreSQL 17 locale) | in più 16 harness PostgreSQL 17 superati, 1.981 controlli: 36 harness, 5.493 controlli in tutto |
 
