@@ -267,8 +267,22 @@ describe("Finance e Controllo CEO", () => {
       const copy = text(html(access));
       expect(copy).toContain("ogni movimento ha «Modifica / storico»");
       expect(copy).toContain("«Salva correzione»");
-      expect(copy).toContain("Serve sempre una motivazione");
+      expect(copy).toContain("La motivazione è facoltativa");
+      expect(copy).not.toContain("Serve sempre una motivazione");
+      expect(copy).toContain("lo stato «Modificati» mostra i movimenti corretti");
       expect(copy).toContain("«Eliminati · recuperabili» e premi «Ripristina / storico»");
+    }
+  });
+
+  it("dice che gli incassi delle vendite non si eliminano e dove si annulla una vendita", () => {
+    expect(text(html(everyone))).not.toContain("non si eliminano da Finance");
+    for (const access of [finance, founder]) {
+      const copy = text(html(access));
+      expect(copy).toContain(
+        "Gli incassi delle vendite e i rimborsi Shopify non si eliminano da Finance",
+      );
+      expect(copy).toContain("annullala in Vendite con «Annulla registrazione»");
+      expect(copy).toContain("«Registra reso»");
     }
   });
 

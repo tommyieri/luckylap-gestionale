@@ -17,6 +17,7 @@ import { readDashboardSettlements } from "@/lib/finance/dashboard-server";
 import { localReportDate } from "@/lib/finance/model";
 import { buildFinanceDashboard } from "@/lib/finance/dashboard";
 import { loadFinanceRevisionContext } from "@/lib/finance-revisions/context-server";
+import { readFinanceProfileNames } from "@/lib/finance-revisions/names-server";
 import {
   dashboardShopPaymentsFromRows,
   monthlyFinanceFromRows,
@@ -124,11 +125,13 @@ export default async function FinancePage() {
   // No preview/staging imports, service key, cached rows or client-side bypass.
   // All reads use this user's session and the database Finance RLS policies.
   // The consignment panel and the shop payments in the balances share one read.
-  const [snapshot, work, settlements, consignment] = await Promise.all([
+  // Names only label «Modificato da …»: without them the line says «un membro del team».
+  const [snapshot, work, settlements, consignment, names] = await Promise.all([
     loadFinanceImports(supabase).catch(() => null),
     readFinanceWork(supabase).catch(() => null),
     readDashboardSettlements(supabase).catch(() => null),
     readConsignmentMonthlyFinance(supabase, access.member).catch(() => null),
+    readFinanceProfileNames(supabase).catch(() => ({})),
   ]);
   const reportDate = localReportDate(new Date());
   if (
@@ -172,6 +175,7 @@ export default async function FinancePage() {
         displayName={access.member.displayName}
         revisionHeads={revisions.heads}
         revisionOriginals={revisions.originals}
+        names={names}
       />
     </>
   );

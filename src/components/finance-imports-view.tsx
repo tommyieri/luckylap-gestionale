@@ -25,13 +25,14 @@ import type {
   FinanceRevisionOriginal,
 } from "../lib/finance-revisions/model";
 import type { RevisedMovement } from "../lib/finance-revisions/projection";
+import { formatRomeDate } from "../lib/team/model";
 import { FinanceMovementActions } from "./finance-movement-actions";
 import { CONSIGNMENT_FINANCE_ANCHOR, shopPaymentAnchor } from "../lib/consignment/links";
 import type { FinanceWorkSnapshot } from "@/lib/finance-work/model";
 import { FinanceAccountChart, FINANCE_MONTHS, financeAccountColor } from "./finance-account-chart";
 import styles from "./finance.module.css";
 
-type Filter = "all" | "pending" | "future" | "dated" | "unallocated" | "deleted";
+type Filter = "all" | "pending" | "future" | "dated" | "unallocated" | "edited" | "deleted";
 const sourceLabels = {
   budgetflow: "BudgetFlow",
   manual: "Voce manuale",
@@ -52,22 +53,40 @@ const emptyWork: FinanceWorkSnapshot = {
   shopifyFinancials: [],
   shopifyTransactions: [],
 };
-function Timing({ row, deleted = false }: { row: FinanceMovement; deleted?: boolean }) {
+function Timing({
+  row,
+  deleted = false,
+  edited = false,
+}: {
+  row: FinanceMovement;
+  deleted?: boolean;
+  edited?: boolean;
+}) {
   if (deleted)
     return (
       <span className={styles.badges}>
         <span className={styles.attention}>Eliminato · recuperabile</span>
       </span>
     );
-  if (!row.pending && !row.future) return null;
+  if (!row.pending && !row.future && !edited) return null;
   return (
     <span className={styles.badges}>
+      {edited && <span className={styles.attention}>Modificato</span>}
       {row.pending && <span className={styles.attention}>Pending</span>}
       {row.future && <span className={styles.attention}>Data futura</span>}
     </span>
   );
 }
 
+/** «Modificato da Gherardo · 22 ott 2026»: autore e giorno (Roma) dell'ultima revisione. */
+export function revisionAuthorLine(
+  revision: NonNullable<RevisedMovement["revision"]>,
+  names: Record<string, string>,
+) {
+  return `${revision.deleted ? "Eliminato" : "Modificato"} da ${
+    names[revision.actorId] ?? "un membro del team"
+  } · ${formatRomeDate(revision.occurredAt)}`;
+}
 const movementCategory = (row: FinanceMovement) =>
   row.transfer ? "Trasferimento" : row.category || "Senza categoria";
 const movementAmountClass = (row: FinanceMovement) =>
@@ -106,6 +125,7 @@ export function FinanceImportsView({
   reportDate,
   revisionHeads = [],
   revisionOriginals = [],
+  names = {},
   readOnly = false,
 }: {
   snapshot: FinanceSnapshot;
@@ -120,6 +140,8 @@ export function FinanceImportsView({
   reportDate: string;
   revisionHeads?: FinanceRevisionRecord[];
   revisionOriginals?: FinanceRevisionOriginal[];
+  /** Nomi dei profili del team, per «Modificato da …». */
+  names?: Record<string, string>;
   readOnly?: boolean;
   /** Non più mostrato qui: il nome del membro sta nel menu del guscio. */
   displayName: string;
@@ -217,7 +239,8 @@ export function FinanceImportsView({
       (filter === "pending" && !row.pending) ||
       (filter === "future" && (!row.future || row.pending)) ||
       (filter === "dated" && (row.pending || row.future)) ||
-      (filter === "unallocated" && (row.account || row.pending || row.future))
+      (filter === "unallocated" && (row.account || row.pending || row.future)) ||
+      (filter === "edited" && !row.revision)
     )
       return false;
     if (
@@ -508,6 +531,7 @@ export function FinanceImportsView({
                     setUsePeriod(false);
                     setBatchId("");
                   }
+                  if (value === "edited") setUsePeriod(false);
                 }}
               >
                 <option value="dated">Registrati, non pending</option>
@@ -515,6 +539,7 @@ export function FinanceImportsView({
                 <option value="pending">Pending</option>
                 <option value="future">Data futura, non pending</option>
                 <option value="unallocated">Conto da attribuire</option>
+                <option value="edited">Modificati</option>
                 <option value="deleted">Eliminati · recuperabili</option>
               </select>
             </label>
@@ -578,7 +603,9 @@ export function FinanceImportsView({
             <p className={styles.noResults}>
               {dashboard.movements.length === 0
                 ? "Nessun movimento disponibile."
-                : "Nessun movimento corrisponde ai filtri."}
+                : filter === "edited"
+                  ? "Nessun movimento modificato con questi filtri."
+                  : "Nessun movimento corrisponde ai filtri."}
             </p>
           ) : (
             <div className={styles.tableScroll}>
@@ -608,13 +635,16 @@ export function FinanceImportsView({
                           {row.account || "Da attribuire"}
                           {row.targetAccount && ` → ${row.targetAccount}`}
                         </span>
+                        <Timing
+                          row={row}
+                          deleted={filter === "deleted"}
+                          edited={Boolean(row.revision && !row.revision.deleted)}
+                        />
                         {row.revision && (
                           <span className={styles.rowCategory}>
-                            Versione {row.revision.version}
-                            {row.revision.deleted ? " · Eliminato" : " · Corretta"}
+                            {revisionAuthorLine(row.revision, names)}
                           </span>
                         )}
-                        <Timing row={row} deleted={filter === "deleted"} />
                         <div className={styles.rowActions}>
                           <FinanceMovementActions
                             source={row.source}
@@ -721,7 +751,14 @@ export function FinanceImportsView({
               <span className="sr-only">{movementDirection(selected)}: </span>
               {movementAmountLabel(selected)}
             </p>
-            <Timing row={selected} deleted={filter === "deleted" || selected.revision?.deleted} />
+            <Timing
+              row={selected}
+              deleted={filter === "deleted" || selected.revision?.deleted}
+              edited={Boolean(selected.revision && !selected.revision.deleted)}
+            />
+            {selected.revision && (
+              <p className={styles.rowCategory}>{revisionAuthorLine(selected.revision, names)}</p>
+            )}
             <FinanceMovementActions
               source={selected.source}
               sourceId={selected.sourceId}

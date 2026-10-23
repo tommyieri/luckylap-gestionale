@@ -4,6 +4,7 @@ import { useEffect, useRef, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { reviseMovement } from "../app/finance/movimento/actions";
 import {
+  financeRevisionDeletable,
   parseFinanceRevisionCommand,
   type FinanceRevisionCommand,
   type FinanceRevisionHistory,
@@ -33,6 +34,7 @@ export function FinanceRevisionEditor({
   const current = latest?.values ?? history.original.values;
   const deleted = latest?.deleted ?? history.original.deleted;
   const version = latest?.version ?? 0;
+  const deletable = financeRevisionDeletable(history.original.sourceKind);
   const [busy, start] = useTransition();
   const [attempt, setAttempt] = useState<FinanceRevisionCommand | null>(null);
   const [broken, setBroken] = useState(false);
@@ -121,7 +123,9 @@ export function FinanceRevisionEditor({
     if (action === "restore") payload.restore_version = restoreVersion;
     const command = parseFinanceRevisionCommand({ operationId: crypto.randomUUID(), payload });
     if (!command) {
-      setMessage("Controlla i campi e inserisci una motivazione di almeno tre caratteri.");
+      setMessage(
+        "Controlla i campi. La motivazione è facoltativa: se la scrivi, almeno tre caratteri.",
+      );
       reason.current?.focus();
       return;
     }
@@ -299,17 +303,19 @@ export function FinanceRevisionEditor({
             </label>
           </fieldset>
           <label className={styles.reason}>
-            Motivazione della correzione
+            Motivazione, facoltativa
             <input
               ref={reason}
               name="reason"
-              minLength={3}
               maxLength={500}
-              required
+              aria-describedby="revision-reason-help"
               disabled={busy || Boolean(attempt) || broken}
-              placeholder="Spiega il motivo al team"
+              placeholder="Correzione"
             />
           </label>
+          <p id="revision-reason-help" className={styles.help}>
+            Se la lasci vuota, nello storico resta «Correzione» («Eliminazione» o «Ripristino»).
+          </p>
           <div className={styles.actions}>
             <button
               type="submit"
@@ -318,7 +324,7 @@ export function FinanceRevisionEditor({
             >
               {busy ? "Salvataggio…" : "Salva correzione"}
             </button>
-            {!deleted && (
+            {!deleted && deletable && (
               <button
                 type="button"
                 className="button button-secondary"
@@ -329,12 +335,18 @@ export function FinanceRevisionEditor({
               </button>
             )}
           </div>
+          {!deletable && (
+            <UndoInSales
+              kind={history.original.sourceKind === "refund" ? "refund" : "payment"}
+              orderId={history.original.orderId}
+            />
+          )}
         </form>
         {confirmDelete && (
           <div className={styles.notice} role="group" aria-label="Conferma eliminazione">
             <p>
-              Eliminare questo movimento dalla vista attiva? Potrai ripristinarlo dallo storico.
-              Indica prima la motivazione.
+              Eliminare questo movimento dalla vista attiva? Potrai ripristinarlo dallo storico. Se
+              vuoi, scrivi prima la motivazione.
             </p>
             <div className={styles.actions}>
               <button
@@ -389,6 +401,36 @@ export function FinanceRevisionEditor({
           ))}
         </ol>
       </section>
+    </div>
+  );
+}
+/** Incassi e rimborsi delle vendite: dove si annullano, al posto di «Elimina movimento». */
+function UndoInSales({ kind, orderId }: { kind: "payment" | "refund"; orderId: string | null }) {
+  return (
+    <div className={styles.notice} data-undo-in-sales={kind}>
+      {kind === "payment" ? (
+        <p>
+          Un incasso di una vendita non si elimina da Finance: qui puoi solo correggerlo. Per
+          annullarlo apri la vendita in Vendite e usa «Annulla registrazione» o «Registra reso». Gli
+          ordini Shopify si gestiscono in Shopify.
+        </p>
+      ) : (
+        <p>
+          Un rimborso Shopify non si elimina da Finance: arriva da Shopify. Qui puoi solo
+          correggerlo.
+        </p>
+      )}
+      {orderId && (
+        <p className={styles.undoAction}>
+          <Link
+            href={`/sales#order-${orderId}`}
+            prefetch={false}
+            className="button button-secondary"
+          >
+            Vai alla vendita in Vendite
+          </Link>
+        </p>
+      )}
     </div>
   );
 }
