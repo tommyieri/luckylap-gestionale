@@ -147,7 +147,7 @@ create table private.partner_assistant_events (
 );
 create index partner_assistant_events_created on private.partner_assistant_events(created_at desc);
 
--- Ricevute dei comandi dell'assistente, con l'attore esplicito.
+-- Ricevute dei comandi dell'assistente, con l'attore esplicito. Append-only.
 create table private.partner_assistant_receipts (
   operation_id uuid primary key,
   command_kind text not null,
@@ -156,6 +156,8 @@ create table private.partner_assistant_receipts (
   result jsonb not null,
   created_at timestamptz not null default now()
 );
+create trigger partner_assistant_receipts_append_only before update or delete on private.partner_assistant_receipts
+  for each row execute function private.reject_ledger_mutation();
 
 -- Audit dell'interruttore senza il motivo.
 create trigger audit_change after insert or update or delete on public.partner_assistant_contacts for each row
@@ -299,7 +301,7 @@ end
 $$;
 
 -- Interruttore per contatto. Riattivarlo ridà all'assistente un lavoro passato a Tommi: riparte
--- dalla ricerca.
+-- dalla ricerca, senza i riferimenti a ricerca, scelta e bozza vecchie.
 create function private.set_partner_assistant_contact(p_operation_id uuid, p_payload jsonb) returns jsonb
 language plpgsql security definer set search_path = '' as $$
 declare
@@ -323,7 +325,8 @@ begin
     returning s.id, s.version into v_id, v_version;
   if v_active then
     update public.partner_assistant_jobs set status = 'in_coda', step = 'ricerca', attempts = 0, rewrites = 0,
-        reason = null, lease_token = null, lease_expires_at = null, next_attempt_at = now(), updated_at = now()
+        reason = null, lease_token = null, lease_expires_at = null, research_note_id = null, choice_note_id = null,
+        draft_id = null, next_attempt_at = now(), updated_at = now()
       where partner_id = v_partner and status = 'serve_tommaso';
   end if;
   result := jsonb_build_object('id', v_id, 'partner_id', v_partner, 'version', v_version, 'replayed', false);

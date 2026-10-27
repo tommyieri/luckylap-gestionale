@@ -1,4 +1,4 @@
-// test-db: pglite minimo 298
+// test-db: pglite minimo 306
 // Assistente Partner, compito 1 (_assistente_partner.sql): configurazione a riga unica, regole
 // versionate, interruttore per contatto, lavori, note e bozze append-only, cancellazione dei dati
 // con il recapito, comandi del team, lettura dello stato e permessi. Migrazioni applicate in ordine
@@ -560,12 +560,16 @@ try {
     { active: true, reason: "Ripreso dal team", updated_by: consultant },
   );
   eq((await statusAs(consultant)).counts.ferma, 0);
+  const n952old = await note(p952);
   await addJob(p952, {
     status: "serve_tommaso",
     step: "controllo",
     attempts: 3,
     rewrites: 1,
     reason: "troppi_tentativi",
+    research_note_id: n952old,
+    choice_note_id: await note(p952, "scelta"),
+    draft_id: await draft(p952, n952old),
     next_attempt_at: new Date(Date.now() + 3600000).toISOString(),
   });
   await addJob(p953, {
@@ -579,6 +583,11 @@ try {
     pick(await job(p952.id), REQUEUE_KEYS),
     requeued("ricerca"),
     "Serve Tommi: il contatto torna all'assistente",
+  );
+  eq(
+    pick(await job(p952.id), ["research_note_id", "choice_note_id", "draft_id"]),
+    { research_note_id: null, choice_note_id: null, draft_id: null },
+    "Riattivato: ricerca, scelta e bozza vecchie non sono più del lavoro",
   );
   await contact(founder, { partner_id: p953.id, active: false, reason: "Rapporto già in corso" });
   eq(
@@ -766,6 +775,19 @@ try {
     1,
     "Con il flag acceso la bozza si cancella",
   );
+  // Le ricevute dei comandi sono append-only come quelle dei comandi Partner, flag compreso.
+  ok(
+    (await value("select count(*)::int as v from private.partner_assistant_receipts")) > 0,
+    "Ricevute presenti",
+  );
+  await rejects(
+    () => asOwner("update private.partner_assistant_receipts set result = '{}'::jsonb"),
+    "42501",
+  );
+  await rejects(() => asOwner("delete from private.partner_assistant_receipts"), "42501");
+  await withEraseFlag(() =>
+    rejects(() => asOwner("delete from private.partner_assistant_receipts"), "42501"),
+  );
 
   // 7. Cancellazione definitiva del recapito: note e bozze del contatto spariscono, il lavoro riparte.
   const n951 = await note(p951);
@@ -797,7 +819,7 @@ try {
     { ...requeued("ricerca"), research_note_id: null, choice_note_id: null, draft_id: null },
     "Lavoro di nuovo in coda, senza riferimenti",
   );
-  eq(await countNotesAndDrafts(p952.id), 2, "Gli altri contatti non cambiano");
+  eq(await countNotesAndDrafts(p952.id), 5, "Gli altri contatti non cambiano");
   ok(
     (await value("select current_setting('luckylap.partner_assistant.erase', true) as v")) !== "on",
     "Il flag non resta acceso",
