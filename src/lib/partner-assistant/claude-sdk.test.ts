@@ -45,6 +45,24 @@ const hangingStream = async (_url: unknown, init?: RequestInit) => {
     headers: { "content-type": "text/event-stream", "request-id": "req_synthetic" },
   });
 };
+/** Uno stream che manda message_start e poi cade (`reset`) o si chiude senza message_stop. */
+const brokenStream = (mode: "reset" | "close") => async () => {
+  const body = new ReadableStream<Uint8Array>({
+    start(controller) {
+      controller.enqueue(
+        new TextEncoder().encode(`event: message_start\ndata: ${JSON.stringify(messageStart)}\n\n`),
+      );
+      setTimeout(() => {
+        if (mode === "reset") controller.error(new TypeError("terminated"));
+        else controller.close();
+      }, 5);
+    },
+  });
+  return new Response(body, {
+    status: 200,
+    headers: { "content-type": "text/event-stream", "request-id": "req_synthetic" },
+  });
+};
 const call: ClaudeCall = {
   system: "Regole sintetiche di scrittura.",
   messages: [{ role: "user", content: "Studia il contatto sintetico CO 951." }],
@@ -103,5 +121,40 @@ describe("timeout del client Claude con l'SDK vero", () => {
       ],
     });
     expect(worker.signal.aborted).toBe(false);
+  });
+});
+
+describe("connessione che cade a metà stream, con l'SDK vero", () => {
+  it("la connessione cade dopo message_start: attesa, con l'usage arrivato", async () => {
+    vi.stubGlobal("fetch", brokenStream("reset"));
+    const result = await createPartnerAssistantClaude("sk-ant-synthetic-0000000000000000").call(
+      call,
+      new AbortController().signal,
+      2_000,
+    );
+    expect(result).toEqual({
+      ok: false,
+      code: "attesa",
+      usages: [
+        {
+          inputTokens: 300,
+          outputTokens: 1,
+          cacheWrite5mTokens: 0,
+          cacheWrite1hTokens: 0,
+          cacheReadTokens: 0,
+          webSearches: 0,
+        },
+      ],
+    });
+  });
+
+  it("lo stream si chiude senza message_stop: attesa", async () => {
+    vi.stubGlobal("fetch", brokenStream("close"));
+    const result = await createPartnerAssistantClaude("sk-ant-synthetic-0000000000000000").call(
+      call,
+      new AbortController().signal,
+      2_000,
+    );
+    expect(result).toMatchObject({ ok: false, code: "attesa" });
   });
 });

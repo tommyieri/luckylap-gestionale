@@ -3,15 +3,18 @@ import Anthropic, {
   APIConnectionError,
   APIError,
   AuthenticationError,
+  BadRequestError,
   InternalServerError,
+  NotFoundError,
   PermissionDeniedError,
   RateLimitError,
 } from "@anthropic-ai/sdk";
 import { PARTNER_ASSISTANT_MODEL, usageFromMessage, type PartnerAssistantUsage } from "./cost";
 
-/** `credito`: credito finito, pausa di tutto l'assistente. `attesa`: API non disponibile, si
- * riprova più tardi senza consumare tentativi. `errore`: chiave sbagliata o permessi, pausa di
- * tutto. `fallito`: il resto, un tentativo consumato. */
+/** `credito`: credito finito, pausa di tutto l'assistente. `attesa`: API non disponibile o
+ * connessione caduta, si riprova più tardi senza consumare tentativi. `errore`: chiave sbagliata,
+ * permessi o configurazione (modello, strumenti), uguale per tutti i contatti: pausa di tutto.
+ * `fallito`: il resto, un tentativo consumato. */
 export type PartnerAssistantErrorCode = "credito" | "attesa" | "errore" | "fallito";
 
 export type ClaudeCall = {
@@ -37,14 +40,29 @@ export type ClaudeResult =
       usages: PartnerAssistantUsage[];
     };
 
-/** Dopo `pause_turn` si riprende al massimo quattro volte: è il limite di web_fetch, che non ha
- * un `max_uses` documentato. */
+/** Dopo `pause_turn` si riprende al massimo quattro volte. Il `max_uses` di web_search e web_fetch
+ * vale per singola richiesta, quindi per ogni continuazione: il tetto di tutta la ricerca lo danno
+ * le continuazioni e il timer. */
 const MAX_CONTINUATIONS = 4;
 
+/** Un 400 che dice un problema di configurazione (strumento spento, modello, parametro), non del
+ * singolo contatto come «prompt is too long». */
+const CONFIGURATION =
+  /not enabled|not available|not supported|unsupported|does not support|invalid model|model:/i;
+/** Una connessione caduta: la fetch la dà come TypeError, l'SDK la avvolge in un AnthropicError. */
+const NETWORK = /terminated|ECONNRESET|socket|stream ended/i;
+
 /** Il timeout del nostro timer non arriva qui: lo segnala l'abort del segnale, e lo gestisce il
- * worker. Gli errori a metà stream arrivano come `APIError` senza stato, con il solo `type`. */
+ * worker. Gli eventi `error` a metà stream arrivano come `APIError` senza stato, con il solo
+ * `type`; una connessione che cade a metà stream arriva invece come errore qualsiasi, con la causa
+ * di rete. */
 export function classifyClaudeError(err: unknown): PartnerAssistantErrorCode {
-  if (!(err instanceof APIError)) return "fallito";
+  if (!(err instanceof APIError)) {
+    const network =
+      err instanceof TypeError ||
+      (err instanceof Error && (err.cause instanceof TypeError || NETWORK.test(err.message)));
+    return network ? "attesa" : "fallito";
+  }
   if (
     err.status === 402 ||
     err.type === "billing_error" ||
@@ -55,7 +73,9 @@ export function classifyClaudeError(err: unknown): PartnerAssistantErrorCode {
     err instanceof AuthenticationError ||
     err instanceof PermissionDeniedError ||
     err.type === "authentication_error" ||
-    err.type === "permission_error"
+    err.type === "permission_error" ||
+    err instanceof NotFoundError ||
+    (err instanceof BadRequestError && CONFIGURATION.test(err.message))
   )
     return "errore";
   if (
@@ -195,6 +215,8 @@ export function partnerAssistantResearchText(contents: Anthropic.ContentBlock[])
   const sources = [...new Set([...cited, ...found])]
     .filter((url) => url.length <= SOURCE_MAX_LENGTH && SOURCE_URL.test(url))
     .slice(0, RESEARCH_MAX_SOURCES);
-  const text = runs.join("\n\n").replace(CONTROL_CHARACTERS, "");
+  const cleaned = runs.join("\n\n").replace(CONTROL_CHARACTERS, "");
+  // Un surrogato isolato non entra in jsonb: il testo si ricodifica, con U+FFFD al suo posto.
+  const text = cleaned.isWellFormed() ? cleaned : cleaned.toWellFormed();
   return { text: truncateUtf8(text, RESEARCH_MAX_BYTES), sources };
 }

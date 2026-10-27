@@ -109,15 +109,16 @@ export function partnerAssistantEventMerch(
   return null;
 }
 
-/** Senza un fatto vero da citare o senza il fuso del destinatario il contatto passa a Tommi;
- * se il momento giusto è più avanti si aspetta fino a quel giorno; altrimenti si scrive. */
+/** Se il momento giusto è più avanti si aspetta fino a quel giorno, quando la ricerca si rifà;
+ * altrimenti, senza un fatto vero da citare o senza il fuso del destinatario, il contatto passa a
+ * Tommi; altrimenti si scrive. Fatto e fuso servono per scrivere, non per aspettare. */
 export function partnerAssistantDecision(
   choice: Pick<PartnerAssistantChoice, "factText" | "timezone" | "writeNow" | "writeOn">,
   today: string,
 ): PartnerAssistantDecision {
-  if (choice.factText.trim() === "") return { kind: "blocca", reason: "fatto_mancante" };
-  if (choice.timezone === "") return { kind: "blocca", reason: "fuso_mancante" };
   if (!choice.writeNow && choice.writeOn > today)
     return { kind: "attendi", writeOn: choice.writeOn };
+  if (choice.factText.trim() === "") return { kind: "blocca", reason: "fatto_mancante" };
+  if (choice.timezone === "") return { kind: "blocca", reason: "fuso_mancante" };
   return { kind: "scrivi" };
 }

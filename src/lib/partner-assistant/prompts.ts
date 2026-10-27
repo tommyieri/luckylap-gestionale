@@ -5,6 +5,7 @@
 // controllo condividono quello delle regole. Il numero di Tommaso non arriva mai al modello: la
 // firma la aggiunge il codice.
 import type Anthropic from "@anthropic-ai/sdk";
+import type { PartnerAssistantCheckCode } from "./checks";
 import { partnerAssistantEventMerch } from "./choice";
 import type { ClaudeCall } from "./claude";
 import { PARTNER_ASSISTANT_CHOICE_KEYS } from "./choice-fields";
@@ -21,11 +22,12 @@ import type {
 // Strumenti e schemi
 // ---------------------------------------------------------------------------
 
-/** Solo nella ricerca. web_fetch senza max_uses, che non è documentato: il limite lo danno le
- * quattro continuazioni al massimo del client. */
+/** Solo nella ricerca. Senza max_uses web_fetch non ha limiti: la documentazione e l'SDK
+ * prevedono max_uses e max_content_tokens anche per lui. Entrambi i max_uses valgono per singola
+ * richiesta, quindi per ogni continuazione; max_content_tokens non vale per i PDF. */
 const RESEARCH_TOOLS: Anthropic.Messages.ToolUnion[] = [
   { type: "web_search_20260209", name: "web_search", max_uses: 8 },
-  { type: "web_fetch_20260209", name: "web_fetch" },
+  { type: "web_fetch_20260209", name: "web_fetch", max_uses: 5, max_content_tokens: 20000 },
 ];
 
 type ChoiceKey = (typeof PARTNER_ASSISTANT_CHOICE_KEYS)[number];
@@ -146,11 +148,22 @@ function choiceData(choice: PartnerAssistantChoice) {
   };
 }
 
-function required<T>(value: T | null, missing: string): T {
-  // Il database dà ricerca, scelta e bozza ai passi che le usano: qui mancano solo per un errore.
-  if (value === null) throw new Error(missing);
+/** I dati che un passo usa e che il database dà sempre: mancano solo per uno stato incoerente. */
+export type PartnerAssistantMissing =
+  "ricerca_mancante" | "scelta_mancante" | "bozza_mancante" | "email_mancante";
+/** L'unica eccezione prevista dei costruttori: il worker ne fa una risposta non valida. Ogni altra
+ * eccezione è un errore nel codice. */
+export class PartnerAssistantMissingError extends Error {
+  constructor(readonly code: PartnerAssistantMissing) {
+    super(code);
+    this.name = "PartnerAssistantMissingError";
+  }
+}
+export function partnerAssistantRequired<T>(value: T | null, missing: PartnerAssistantMissing): T {
+  if (value === null) throw new PartnerAssistantMissingError(missing);
   return value;
 }
+const required = partnerAssistantRequired;
 const research = (context: PartnerAssistantContext): PartnerAssistantResearch =>
   required(context.research, "ricerca_mancante");
 const choiceOf = (context: PartnerAssistantContext): PartnerAssistantChoice =>
@@ -213,7 +226,9 @@ export function researchCall(context: PartnerAssistantContext): ClaudeCall {
     ]),
     tools: RESEARCH_TOOLS,
     effort: "high",
-    maxTokens: 32000,
+    // Il thinking adattivo conta nei token di output anche quando non si vede: in ogni passo il
+    // limite lascia spazio al ragionamento. Si pagano solo i token generati.
+    maxTokens: 64000,
   };
 }
 
@@ -244,10 +259,32 @@ export function extractCall(context: PartnerAssistantContext): ClaudeCall {
       dataBlock("ricerca", research(context).text),
     ]),
     effort: "low",
-    maxTokens: 8000,
+    maxTokens: 16000,
     format: PARTNER_ASSISTANT_CHOICE_SCHEMA,
   };
 }
+
+/** I codici dei controlli nel codice (e regole_superate del worker), detti a chi riscrive. */
+const CHECK_SENTENCES: Record<PartnerAssistantCheckCode, string> = {
+  parola_vietata: "c'è una parola dell'elenco Mai, anche dentro un'altra parola",
+  segnaposto:
+    "c'è un segnaposto da riempire, per esempio tra parentesi quadre o graffe, oppure XXX o TODO",
+  domande: "serve esattamente un punto interrogativo nel corpo",
+  esclamativo: "niente punti esclamativi, né nell'oggetto né nel corpo",
+  emoji: "niente emoji, né nell'oggetto né nel corpo",
+  link: "l'unico link ammesso è la home https://luckylap.com, senza pagine interne né altri siti",
+  telefono: "niente numeri di telefono nel corpo: il numero di Tommaso lo aggiunge il sistema",
+  firma: "niente firma: la aggiunge il sistema, e il corpo finisce con la formula di chiusura",
+  modello_porsche:
+    "con i Porsche Club e le comunità Porsche si nominano solo la 964 e la GT3 RS, nessun altro modello",
+  lunghezza:
+    "il corpo deve stare tra 110 e 160 parole, senza saluto iniziale e formula di chiusura",
+  oggetto: "l'oggetto deve stare su una riga",
+  regole_superate: "le regole sono cambiate: scrivi la bozza di nuovo con le regole in vigore",
+};
+/** Un codice dei controlli diventa la sua frase; un problema scritto dal revisore resta com'è. */
+const problemLine = (problem: string) =>
+  `- ${Object.hasOwn(CHECK_SENTENCES, problem) ? CHECK_SENTENCES[problem as PartnerAssistantCheckCode] : problem}`;
 
 /** La prima email: oggetto e corpo, senza firma. Con i problemi dell'ultima lettura, se c'è. */
 export function writeCall(context: PartnerAssistantContext, today: string): ClaudeCall {
@@ -261,7 +298,7 @@ export function writeCall(context: PartnerAssistantContext, today: string): Clau
           review.problems.length
             ? "La bozza precedente non è passata. Correggi questi problemi:"
             : "La bozza precedente non è passata.",
-          ...review.problems.map((problem) => `- ${problem}`),
+          ...review.problems.map(problemLine),
         ]
       : [];
   return {
@@ -276,7 +313,7 @@ export function writeCall(context: PartnerAssistantContext, today: string): Clau
       "Rispondi con l'oggetto (subject) e il corpo (body). Il corpo comincia con il saluto e finisce con la formula di chiusura, senza la firma: la firma, con il numero di Tommaso, la aggiunge il sistema.",
     ]),
     effort: "high",
-    maxTokens: 8000,
+    maxTokens: 32000,
     format: DRAFT_SCHEMA,
   };
 }
@@ -298,7 +335,7 @@ export function reviewCall(context: PartnerAssistantContext): ClaudeCall {
       dataBlock("bozza", `Oggetto: ${draft.subject}\n\n${draft.body}`),
     ]),
     effort: "high",
-    maxTokens: 4000,
+    maxTokens: 16000,
     format: REVIEW_SCHEMA,
   };
 }

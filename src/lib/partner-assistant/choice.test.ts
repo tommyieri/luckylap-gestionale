@@ -300,11 +300,25 @@ describe("partnerAssistantDecision", () => {
       kind: "attendi",
       writeOn: "2027-03-01",
     });
-    // Anche un'attesa vale solo con il fatto e il fuso.
-    expect(partnerAssistantDecision({ ...later, timezone: "" }, today)).toEqual({
-      kind: "blocca",
-      reason: "fuso_mancante",
+  });
+
+  // Il fatto e il fuso servono per scrivere, non per aspettare: a quel giorno la ricerca si rifà.
+  it.each([
+    ["senza fatto", { factText: "" }],
+    ["senza fuso", { timezone: "" }],
+    ["senza fatto e senza fuso", { factText: "", timezone: "" }],
+  ])("%s ma da scrivere più avanti: attendi", (_, missing) => {
+    const later = { ...validChoice, ...missing, writeNow: false, writeOn: "2027-03-01" };
+    expect(partnerAssistantDecision(later, today)).toEqual({
+      kind: "attendi",
+      writeOn: "2027-03-01",
     });
+  });
+
+  it("senza fatto e con un giorno già passato: blocca", () => {
+    expect(
+      partnerAssistantDecision({ ...noFact, writeNow: false, writeOn: "2026-10-01" }, today),
+    ).toEqual({ kind: "blocca", reason: "fatto_mancante" });
   });
 
   it.each([

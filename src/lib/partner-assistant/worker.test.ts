@@ -211,19 +211,26 @@ const answer = (
 });
 const json = (value: unknown) => answer([text(JSON.stringify(value))]);
 /** Un errore vero dell'SDK, classificato dal client vero. */
-const apiFailure = (status: number, type: string, usages: PartnerAssistantUsage[] = []) =>
+const apiFailure = (
+  status: number,
+  type: string,
+  usages: PartnerAssistantUsage[] = [],
+  detail = type,
+) =>
   ({
     ok: false,
     code: classifyClaudeError(
       APIError.generate(
         status,
-        { type: "error", error: { type, message: type } },
+        { type: "error", error: { type, message: detail } },
         undefined,
         new Headers(),
       ),
     ),
     usages,
   }) as ClaudeResult;
+/** Un consumo senza token di output: la richiesta non è arrivata a generare niente. */
+const unpaid = (input: number): PartnerAssistantUsage => ({ ...usage(input), outputTokens: 0 });
 
 const NEXT: Record<PartnerAssistantStep, PartnerAssistantStep> = {
   ricerca: "estrazione",
@@ -556,10 +563,56 @@ describe("un passo dell'assistente Partner", () => {
     const operations = state.recordCall.mock.calls.map((c) => c[1]);
     expect(new Set([...operations, operationId]).size).toBe(3);
     for (const value of operations) expect(value).toMatch(UUID);
-    expect(state.recordCall.mock.invocationCallOrder[1]!).toBeLessThan(
+    // I costi dopo l'esito: non consumano la riserva di tempo del passo.
+    expect(state.recordCall.mock.invocationCallOrder[0]!).toBeGreaterThan(
       state.completeResearch.mock.invocationCallOrder[0]!,
     );
     expect(state.fail).not.toHaveBeenCalled();
+  });
+
+  it.each<[PartnerAssistantStep, ClaudeResult]>([
+    ["ricerca", answer([text("Il club ha un raduno.")], [usage(100), usage(200)])],
+    ["estrazione", answer([text(JSON.stringify(extracted))], [usage(100), usage(200)])],
+    [
+      "scrittura",
+      answer(
+        [text(JSON.stringify({ subject: "Club Sintetico e LuckyLap", body: cleanBody }))],
+        [usage(100), usage(200)],
+      ),
+    ],
+    [
+      "controllo",
+      answer([text(JSON.stringify({ approved: true, problems: [] }))], [usage(100), usage(200)]),
+    ],
+  ])(
+    "%s concluso: i costi si registrano dopo la complete, a esito ricevuto",
+    async (step, result) => {
+      const state = setup(step);
+      state.call.mockResolvedValue(result);
+      const recordedBeforeAnswer: number[] = [];
+      for (const complete of state.completes) {
+        const reply = complete.getMockImplementation();
+        complete.mockImplementation(async (...args: unknown[]) => {
+          recordedBeforeAnswer.push(state.recordCall.mock.calls.length);
+          return reply ? reply(...args) : { ok: false };
+        });
+      }
+      expect(await run(state)).toEqual({ status: "complete", step });
+      expect(recordedBeforeAnswer).toEqual([0]);
+      expect(state.recordCall).toHaveBeenCalledTimes(2);
+      expect(state.recordCall.mock.calls.map((c) => c[0].outcome)).toEqual(["ok", "ok"]);
+    },
+  );
+
+  it("complete senza risposta certa: i costi si registrano lo stesso, dopo", async () => {
+    const state = setup("ricerca");
+    state.call.mockResolvedValue(answer([text("Il club ha un raduno.")]));
+    state.completeResearch.mockResolvedValue({ ok: false });
+    expect(await run(state)).toEqual({ status: "uncertain", step: "ricerca" });
+    expect(state.recordCall).toHaveBeenCalledOnce();
+    expect(state.recordCall.mock.invocationCallOrder[0]!).toBeGreaterThan(
+      state.completeResearch.mock.invocationCallOrder[0]!,
+    );
   });
 
   it("ricerca vuota dopo la pulizia: fail riprova, niente complete_research", async () => {
@@ -811,6 +864,10 @@ describe("un passo dell'assistente Partner", () => {
     });
     expect(state.fail).not.toHaveBeenCalled();
     expect(state.completeResearch).not.toHaveBeenCalled();
+    // Negli errori i costi prima della pausa.
+    expect(state.recordCall.mock.invocationCallOrder[0]!).toBeLessThan(
+      state.pause.mock.invocationCallOrder[0]!,
+    );
   });
 
   it("401: pause errore_claude", async () => {
@@ -830,14 +887,52 @@ describe("un passo dell'assistente Partner", () => {
     expect(state.fail).not.toHaveBeenCalled();
   });
 
-  it("529: fail attesa", async () => {
+  it("529 senza consumo pagato: fail attesa", async () => {
     const state = setup("controllo");
-    state.call.mockResolvedValue(apiFailure(529, "overloaded_error", [usage(50)]));
+    state.call.mockResolvedValue(apiFailure(529, "overloaded_error", [unpaid(50)]));
     expect(await run(state)).toEqual({ status: "complete", step: "controllo" });
     expect(failedWith(state)).toEqual([[state.lease, "attesa", "claude_attesa"]]);
     expect(state.pause).not.toHaveBeenCalled();
     expect(state.recordCall.mock.calls[0]![0]).toMatchObject({ outcome: "attesa" });
   });
+
+  it("attesa senza nessun consumo: fail attesa, nessun tentativo", async () => {
+    const state = setup("ricerca");
+    state.call.mockResolvedValue(apiFailure(529, "overloaded_error"));
+    await run(state);
+    expect(failedWith(state)).toEqual([[state.lease, "attesa", "claude_attesa"]]);
+    expect(state.recordCall).not.toHaveBeenCalled();
+  });
+
+  // Un contatto non può spendere all'infinito: dopo consumo pagato l'attesa consuma un tentativo.
+  it.each<[string, PartnerAssistantUsage[]]>([
+    ["token di output già generati", [usage(300, 2)]],
+    ["una continuazione", [unpaid(100), unpaid(200)]],
+  ])("attesa dopo consumo pagato (%s): fail riprova", async (_, usages) => {
+    const state = setup("ricerca");
+    state.call.mockResolvedValue({ ok: false, code: "attesa", usages });
+    expect(await run(state)).toEqual({ status: "complete", step: "ricerca" });
+    expect(failedWith(state)).toEqual([[state.lease, "riprova", "claude_attesa"]]);
+    expect(state.pause).not.toHaveBeenCalled();
+    expect(state.recordCall).toHaveBeenCalledTimes(usages.length);
+    expect(state.recordCall.mock.invocationCallOrder.at(-1)!).toBeLessThan(
+      state.fail.mock.invocationCallOrder[0]!,
+    );
+  });
+
+  it.each([
+    [404, "not_found_error", "model: claude-sintetico"],
+    [400, "invalid_request_error", "web fetch is not enabled"],
+  ])(
+    "%i di configurazione (%s): pause errore_claude, nessun tentativo",
+    async (status, type, detail) => {
+      const state = setup("ricerca");
+      state.call.mockResolvedValue(apiFailure(status, type, [], detail));
+      expect(await run(state)).toEqual({ status: "paused", step: "ricerca" });
+      expect(state.pause).toHaveBeenCalledWith("errore_claude", expect.any(AbortSignal));
+      expect(state.fail).not.toHaveBeenCalled();
+    },
+  );
 
   it.each<[string, ClaudeResult, string]>([
     [
@@ -969,6 +1064,55 @@ describe("un passo dell'assistente Partner", () => {
     expect(JSON.stringify(state.call.mock.calls[0]![0])).not.toContain("000 000");
   });
 
+  it("nome del contatto e dell'evento con un modello: i controlli passano", async () => {
+    const porsche: PartnerAssistantContext = {
+      ...context,
+      partner: { ...context.partner, name: "Porsche 356 Club Sintetico" },
+      choice: {
+        noteId: id(7),
+        content: {
+          ...club,
+          porscheCommunity: true,
+          eventName: "Raduno 911 Sintetico",
+          decision: { kind: "scrivi" },
+        },
+      },
+    };
+    const subject = "Porsche 356 Club Sintetico e LuckyLap";
+    const body = cleanBody.replace(
+      "Vi andrebbe di parlarne?",
+      "Ci vediamo al Raduno 911 Sintetico. Vi andrebbe di parlarne?",
+    );
+    const named = setup("scrittura", porsche);
+    named.call.mockResolvedValue(json({ subject, body }));
+    await run(named);
+    expect(named.completeDraft.mock.calls[0]![1]).toMatchObject({ checksOk: true, failures: [] });
+    // Un modello fuori dai nomi resta vietato.
+    const model = setup("scrittura", porsche);
+    model.call.mockResolvedValue(
+      json({ subject, body: body.replace("Ci vediamo", "La 993. Ci vediamo") }),
+    );
+    await run(model);
+    expect(model.completeDraft.mock.calls[0]![1]).toMatchObject({
+      checksOk: false,
+      failures: ["modello_porsche"],
+    });
+  });
+
+  it.each([
+    ["a capo", "Club Sintetico\ne LuckyLap"],
+    ["ritorno a capo", "Club Sintetico\re LuckyLap"],
+  ])("oggetto con un %s: bozza salvata con il controllo oggetto", async (_, subject) => {
+    const state = setup("scrittura");
+    state.call.mockResolvedValue(json({ subject, body: cleanBody }));
+    expect(await run(state)).toEqual({ status: "complete", step: "scrittura" });
+    expect(state.completeDraft.mock.calls[0]![1]).toMatchObject({
+      checksOk: false,
+      failures: ["oggetto"],
+    });
+    expect(state.fail).not.toHaveBeenCalled();
+  });
+
   it("scrittura e controllo usano la data del contesto", async () => {
     const event: PartnerAssistantChoice = {
       ...club,
@@ -1040,6 +1184,34 @@ describe("un passo dell'assistente Partner", () => {
       model: PARTNER_ASSISTANT_MODEL,
       rulesVersion: 1,
     });
+  });
+
+  it.each([
+    ["solo regole_superate", ["regole_superate"]],
+    ["regole_superate tra altri problemi", ["La domanda è doppia.", "regole_superate"]],
+  ])("controllo con %s dal modello: fail riprova risposta_non_valida", async (_, problems) => {
+    const state = setup("controllo");
+    state.call.mockResolvedValue(json({ approved: false, problems }));
+    expect(await run(state)).toEqual({ status: "complete", step: "controllo" });
+    expect(state.completeReview).not.toHaveBeenCalled();
+    expect(failedWith(state)).toEqual([[state.lease, "riprova", "risposta_non_valida"]]);
+  });
+
+  it("controllo approvato ma con problemi: si salva non approvato", async () => {
+    const state = setup("controllo");
+    const problems = ["Il complimento cita un fatto di due anni fa."];
+    state.call.mockResolvedValue(json({ approved: true, problems }));
+    expect(await run(state)).toEqual({ status: "complete", step: "controllo" });
+    expect(state.completeReview.mock.calls[0]![1]).toMatchObject({ approved: false, problems });
+    expect(state.fail).not.toHaveBeenCalled();
+  });
+
+  it("un problema con un ritorno a capo si salva com'è, come lo accetta il database", async () => {
+    const state = setup("controllo");
+    const problems = ["La domanda è doppia.\r\nManca il vantaggio."];
+    state.call.mockResolvedValue(json({ approved: false, problems }));
+    await run(state);
+    expect(state.completeReview.mock.calls[0]![1]).toMatchObject({ approved: false, problems });
   });
 
   it("controllo non approvato: i problemi passano com'erano", async () => {
@@ -1121,6 +1293,61 @@ describe("un passo dell'assistente Partner", () => {
     expect(state.call).not.toHaveBeenCalled();
     for (const complete of state.completes) expect(complete).not.toHaveBeenCalled();
     expect(failedWith(state)).toEqual([[state.lease, "riprova", "risposta_non_valida"]]);
+  });
+
+  // Solo i dati mancanti sono previsti; ogni altra eccezione è un errore nel codice.
+  it("eccezione inattesa nei costruttori: uncertain, lavoro intatto, log senza testi", async () => {
+    const error = vi.spyOn(console, "error").mockImplementation(() => undefined);
+    try {
+      const broken: PartnerAssistantContext = {
+        ...context,
+        partner: {
+          ...context.partner,
+          research: { nota: "Appunto riservato sintetico", valore: BigInt(1) },
+        },
+      };
+      const state = setup("ricerca", broken);
+      expect(await run(state)).toEqual({ status: "uncertain", step: "ricerca" });
+      expect(state.call).not.toHaveBeenCalled();
+      expect(state.fail).not.toHaveBeenCalled();
+      for (const complete of state.completes) expect(complete).not.toHaveBeenCalled();
+      expect(state.pause).not.toHaveBeenCalled();
+      expect(error).toHaveBeenCalledOnce();
+      const logged = JSON.stringify(error.mock.calls[0]);
+      expect(logged).toContain("ricerca");
+      expect(logged).not.toMatch(/Appunto|riservato|BigInt|serialize/);
+    } finally {
+      error.mockRestore();
+    }
+  });
+
+  it("eccezione inattesa leggendo la risposta: uncertain, costi registrati, nessun fail", async () => {
+    const error = vi.spyOn(console, "error").mockImplementation(() => undefined);
+    try {
+      const state = setup("ricerca");
+      state.call.mockResolvedValue(
+        answer([block({ type: "text", text: "Testo riservato sintetico", citations: 5 })]),
+      );
+      expect(await run(state)).toEqual({ status: "uncertain", step: "ricerca" });
+      expect(state.completeResearch).not.toHaveBeenCalled();
+      expect(state.fail).not.toHaveBeenCalled();
+      expect(state.recordCall).toHaveBeenCalledOnce();
+      expect(error).toHaveBeenCalledOnce();
+      expect(JSON.stringify(error.mock.calls[0])).not.toMatch(/riservato|iterable|citations/);
+    } finally {
+      error.mockRestore();
+    }
+  });
+
+  it("ricerca con un surrogato isolato: a complete_research arriva il testo ricodificato", async () => {
+    const state = setup("ricerca");
+    const broken = "Il club \ud800 ha un raduno.";
+    state.call.mockResolvedValue(answer([text(broken)]));
+    expect(await run(state)).toEqual({ status: "complete", step: "ricerca" });
+    const saved = state.completeResearch.mock.calls[0]![1].text;
+    expect(saved).not.toBe(broken);
+    expect(saved.isWellFormed()).toBe(true);
+    expect(saved).toBe("Il club \ufffd ha un raduno.");
   });
 
   it.each<[PartnerAssistantStep, ClaudeResult]>([

@@ -1,5 +1,7 @@
+import { readFileSync } from "node:fs";
 import { describe, expect, it } from "vitest";
 import {
+  PARTNER_ASSISTANT_CHECK_CODES,
   checkPartnerAssistantDraft,
   partnerAssistantBodyWords,
   partnerAssistantDraftSha256,
@@ -17,86 +19,72 @@ type CheckedDraft = Pick<
   "language" | "subject" | "body" | "signature" | "rulesVersion"
 >;
 
-// Le tre prime email dell'Appendice A (regole v1, «Esempi di tono»), carattere per carattere:
-// oggetto senza etichetta, corpo dal saluto alla formula di chiusura, firma nella loro lingua.
-const autoClassica: CheckedDraft = {
-  language: "it",
-  subject: "LuckyLap a Milano AutoClassica",
-  body: [
-    "Buongiorno,",
-    "complimenti per il programma della sedicesima edizione: ci ha fatto davvero piacere scoprire il MAC Next Generation Hub, che avvicina la nostra generazione alle auto classiche.",
-    "Sono Tommaso di LuckyLap: siamo un gruppo di giovani appassionati di auto, a Milano. Disegniamo noi ogni maglietta e ogni auto che ricamiamo in Italia su cotone biologico, in puro stile quiet luxury.",
-    "Le nostre magliette sono già in vendita in centro, a un minuto dal Duomo, e su https://luckylap.com. Tra chi le indossa ci sono piloti di Formula 1.",
-    "Abbiamo tanta voglia di esserci con uno stand dedicato, curato nei dettagli e in linea con l'evento.",
-    "Sarebbe un'offerta in più per i vostri visitatori, e il ricamo si apprezza dal vivo.",
-    "Avreste ancora spazio per noi in fiera?",
-    "Vi chiedo gentilmente un recapito telefonico per approfondire insieme: il mio numero lo trovate qui sotto.",
-    "Grazie mille e buon lavoro per queste settimane.",
-    "Un cordiale saluto,",
-  ].join("\n"),
-  signature: [
-    "Tommaso",
-    "Fondatore, LuckyLap",
-    PHONE,
-    "https://luckylap.com | Instagram @lucky.lap",
-  ].join("\n"),
-  rulesVersion: 1,
+// Le tre prime email d'esempio delle regole v1 (sezione «Esempi di tono»), lette dalla migrazione e
+// mai copiate qui: hanno nomi veri. Oggetto senza etichetta, corpo dal saluto alla formula di
+// chiusura, firma nella loro lingua. I casi costruiti a mano usano solo nomi sintetici.
+const migration = readFileSync(
+  new URL("../../../supabase/migrations/20261027133105_assistente_partner.sql", import.meta.url),
+  "utf8",
+);
+const rulesV1 = /\$regole\$([\s\S]*?)\$regole\$/u.exec(migration)?.[1] ?? "";
+const LANGUAGES: Record<string, PartnerAssistantLanguage> = {
+  italiano: "it",
+  inglese: "en",
+  tedesco: "de",
 };
-const porscheClubGb: CheckedDraft = {
-  language: "en",
-  subject: "Porsche Club GB and LuckyLap",
-  body: [
-    "Good morning,",
-    "Many congratulations on the Club's 65th anniversary. The members-only watch, limited to 100, was a lovely touch.",
-    "I'm Tommaso from LuckyLap – we're a group of young car enthusiasts in Milan. We design every T-shirt and draw every car ourselves, the 964 and the GT3 RS among them, and have them embroidered in Italy on organic cotton, in true quiet-luxury style.",
-    "Our T-shirts have travelled to more than ten countries, and for the Porsche Club Toscana we made 150 bespoke ones with the club's crest on the sleeve. The collection is at https://luckylap.com.",
-    "We'd love to do the same with the Club: co-branded T-shirts with your crest embroidered alongside our cars.",
-    "It would give you an exclusive piece to offer or sell to your members and at events, and we'd look after design, embroidery and delivery.",
-    "Would the Club be open to that?",
-    "I'd be grateful for a number so we can talk it through; mine is just below.",
-    "Many thanks, and warm wishes from Milan,",
-  ].join("\n"),
-  signature: [
-    "Tommaso",
-    "Founder, LuckyLap",
-    PHONE,
-    "https://luckylap.com | Instagram @lucky.lap",
-  ].join("\n"),
-  rulesVersion: 1,
-};
-const elferspot: CheckedDraft = {
-  language: "de",
-  subject: "Elferspot und LuckyLap",
-  body: [
-    "Guten Tag,",
-    "Ihre Capsule „Clubsport“ mit Jay Blanc hat uns wirklich gefallen: Man spürt darin, wie sehr Sie die Porsche-Kultur leben.",
-    "Ich bin Tommaso von LuckyLap: Wir sind eine Gruppe junger Autobegeisterter aus Mailand. Wir entwerfen jedes Shirt und zeichnen jedes Auto selbst, etwa den 964 oder den GT3 RS, und lassen sie in Italien auf Bio-Baumwolle sticken, ganz im Quiet-Luxury-Stil.",
-    "Für den Porsche Club Toscana haben wir eigens 150 Shirts mit dem Clublogo am Ärmel angefertigt. Unsere Kollektion finden Sie unter https://luckylap.com.",
-    "Wir hätten große Lust, gemeinsam mit Elferspot eine limitierte Capsule zu entwerfen.",
-    "Für Ihren Shop und Ihre Community wäre das ein neues Produkt, das Ihren Namen auch zu denen bringt, die unsere Shirts in mehr als zehn Ländern tragen.",
-    "Wäre das grundsätzlich etwas für Sie?",
-    "Gern bespreche ich das mit Ihnen am Telefon; über Ihre Nummer würde ich mich freuen, meine finden Sie unten.",
-    "Herzlichen Dank für Ihre Zeit.",
-    "Freundliche Grüße aus Mailand",
-  ].join("\n"),
-  signature: [
-    "Tommaso",
-    "Gründer, LuckyLap",
-    PHONE,
-    "https://luckylap.com | Instagram @lucky.lap",
-  ].join("\n"),
-  rulesVersion: 1,
-};
+type RuleExample = { label: string; draft: CheckedDraft; porsche: boolean };
+const ruleExamples: RuleExample[] = (rulesV1.split("\n## Esempi di tono")[1] ?? "")
+  .split("\n## ")[0]!
+  .split("\n### ")
+  .slice(1)
+  .map((section) => {
+    const [heading = "", ...rest] = section.split("\n");
+    const [subjectLine = "", ...body] = rest.join("\n").trim().split("\n");
+    const language = LANGUAGES[/in (\p{L}+)$/u.exec(heading)?.[1] ?? ""] ?? "it";
+    const request = /`([a-z_]+)`/u.exec(heading)?.[1] ?? "";
+    return {
+      label: `${request}, ${language}`,
+      draft: {
+        language,
+        subject: subjectLine.replace(/^(?:Oggetto|Subject|Betreff): /u, ""),
+        body: body.join("\n"),
+        signature: partnerAssistantSignature(language, PHONE),
+        rulesVersion: 1,
+      },
+      // «comunità Porsche», «shop Porsche»: il titolo dell'esempio dice se lo è.
+      porsche: /Porsche/u.test(heading),
+    };
+  });
+const example = (index: number): CheckedDraft => ruleExamples[index]!.draft;
 
-/** Nome, bozza, comunità Porsche, parole del corpo. */
-const EXAMPLES: [string, CheckedDraft, boolean, number][] = [
-  ["Milano AutoClassica", autoClassica, false, 149],
-  ["Porsche Club GB", porscheClubGb, true, 158],
-  ["Elferspot", elferspot, true, 150],
-];
+/** Proposta e lingua, comunità Porsche, parole del corpo, nell'ordine delle regole. */
+const EXAMPLES: [string, CheckedDraft, boolean, number][] = ruleExamples.map(
+  ({ label, draft, porsche }, index) => [label, draft, porsche, [149, 158, 150][index]!],
+);
 
-const valid = autoClassica;
-const context = { porscheCommunity: false, currentRulesVersion: 1, phone: PHONE };
+describe("gli esempi delle regole, letti dalla migrazione", () => {
+  it("sono tre, con oggetto, corpo e lingua", () => {
+    expect(ruleExamples.map(({ label, porsche }) => [label, porsche])).toEqual([
+      ["stand_evento, it", false],
+      ["merch_cobranding, en", true],
+      ["collab_capsule, de", true],
+    ]);
+    for (const { draft } of ruleExamples) {
+      expect(draft.subject).not.toMatch(/^(?:Oggetto|Subject|Betreff)/u);
+      expect(draft.subject).toContain("LuckyLap");
+      expect(draft.body.split("\n").length).toBeGreaterThan(5);
+      expect(draft.body).not.toContain("###");
+    }
+  });
+});
+
+const valid = example(0);
+const context = {
+  porscheCommunity: false,
+  currentRulesVersion: 1,
+  phone: PHONE,
+  names: [] as string[],
+};
 function fails(
   draft: CheckedDraft,
   overrides: Partial<typeof context> = {},
@@ -128,6 +116,7 @@ describe("bozze dell'assistente Partner: i casi validi", () => {
         porscheCommunity: porsche,
         currentRulesVersion: 1,
         phone: PHONE,
+        names: [],
       }),
     ).toEqual({ ok: true }),
   );
@@ -187,7 +176,7 @@ describe("parole vietate", () => {
     expect(fails(withBody(`… ${w} …`))).toEqual(["parola_vietata"]),
   );
   it("rifiuta il composto anche nell'oggetto", () =>
-    expect(fails({ ...valid, subject: "Mitgliederrabatt für Porsche Club GB" })).toEqual([
+    expect(fails({ ...valid, subject: "Mitgliederrabatt für Club Sintetico" })).toEqual([
       "parola_vietata",
     ]));
   it.each([
@@ -243,16 +232,12 @@ describe("punteggiatura e simboli", () => {
     expect(fails(withBody("🏁"))).toEqual(["emoji"]);
   });
   it("nessuna domanda", () =>
-    expect(fails({ ...valid, body: valid.body.replace("in fiera?", "in fiera.") })).toEqual([
-      "domande",
-    ]));
+    expect(fails({ ...valid, body: valid.body.replace("?", ".") })).toEqual(["domande"]));
   it("¿ non conta come domanda", () =>
-    expect(fails({ ...valid, body: valid.body.replace("Avreste", "¿Avreste") })).toEqual([]));
+    expect(fails({ ...valid, body: valid.body.replace(/^(.*\?)$/mu, "¿$1") })).toEqual([]));
   it("esclamativo ed emoji nell'oggetto", () => {
-    expect(fails({ ...valid, subject: "LuckyLap a Milano AutoClassica!" })).toEqual([
-      "esclamativo",
-    ]);
-    expect(fails({ ...valid, subject: "LuckyLap a Milano AutoClassica 🏎️" })).toEqual(["emoji"]);
+    expect(fails({ ...valid, subject: "LuckyLap a Fiera Sintetica!" })).toEqual(["esclamativo"]);
+    expect(fails({ ...valid, subject: "LuckyLap a Fiera Sintetica 🏎️" })).toEqual(["emoji"]);
   });
 });
 
@@ -360,7 +345,7 @@ describe("modelli Porsche", () => {
   it("anche nell'oggetto", () =>
     expect(
       fails(
-        { ...porscheClubGb, subject: "Porsche Club GB, the 911 and LuckyLap" },
+        { ...example(1), subject: "Club Sintetico, the 911 and LuckyLap" },
         {
           porscheCommunity: true,
         },
@@ -380,6 +365,52 @@ describe("modelli Porsche", () => {
   );
   it("senza comunità Porsche i modelli non contano", () =>
     expect(fails(withBody("… la 993 e la Carrera …"))).toEqual([]));
+});
+
+describe("nome del contatto e modelli Porsche", () => {
+  const club = { porscheCommunity: true, names: ["Porsche 356 Club Sintetico"] };
+  const named = { ...valid, subject: "Porsche 356 Club Sintetico e LuckyLap" };
+  it("il nome della scheda nell'oggetto passa, anche con un modello dentro", () =>
+    expect(fails(named, club)).toEqual([]));
+  it("il nome dell'evento nel corpo passa", () =>
+    expect(
+      fails(withBody("… al Raduno Carrera Sintetico …"), {
+        porscheCommunity: true,
+        names: ["Club Sintetico", "Raduno Carrera Sintetico"],
+      }),
+    ).toEqual([]));
+  it("un modello fuori dal nome resta vietato", () =>
+    expect(fails({ ...withBody("… la 993 …"), subject: named.subject }, club)).toEqual([
+      "modello_porsche",
+    ]));
+  it("solo le occorrenze esatte del nome", () =>
+    expect(fails({ ...valid, subject: "Porsche 356 club sintetico e LuckyLap" }, club)).toEqual([
+      "modello_porsche",
+    ]));
+  it("senza nomi il nome con un modello non passa", () =>
+    expect(fails(named, { porscheCommunity: true })).toEqual(["modello_porsche"]));
+  it("un nome vuoto non toglie niente", () =>
+    expect(fails(named, { porscheCommunity: true, names: ["", " "] })).toEqual([
+      "modello_porsche",
+    ]));
+  it("il nome non vale per gli altri controlli", () =>
+    expect(
+      fails(
+        { ...valid, subject: "Club Sintetico Rabatt e LuckyLap" },
+        { names: ["Club Sintetico Rabatt"] },
+      ),
+    ).toEqual(["parola_vietata"]));
+});
+
+describe("oggetto su una riga", () => {
+  it.each([
+    ["a capo", "LuckyLap\na Fiera Sintetica"],
+    ["ritorno a capo", "LuckyLap\ra Fiera Sintetica"],
+    ["tab", "LuckyLap\ta Fiera Sintetica"],
+  ])("oggetto con un %s", (_, subject) =>
+    expect(fails({ ...valid, subject })).toEqual(["oggetto"]),
+  );
+  it("il corpo va a capo come sempre", () => expect(fails(valid)).toEqual([]));
 });
 
 describe("lunghezza", () => {
@@ -405,7 +436,11 @@ describe("regole e insieme dei controlli", () => {
   it("riporta ogni controllo fallito, una volta, nell'ordine dei codici", () =>
     expect(
       fails(
-        { ...withBody("Tommi! Tommi! 🏁 [nome]"), signature: "Tommi" },
+        {
+          ...withBody("Tommi! Tommi! 🏁 [nome]"),
+          subject: "LuckyLap\na Fiera Sintetica",
+          signature: "Tommi",
+        },
         { currentRulesVersion: 2 },
       ),
     ).toEqual([
@@ -414,6 +449,22 @@ describe("regole e insieme dei controlli", () => {
       "esclamativo",
       "emoji",
       "firma",
+      "oggetto",
+      "regole_superate",
+    ]));
+  it("l'elenco dei codici", () =>
+    expect(PARTNER_ASSISTANT_CHECK_CODES).toEqual([
+      "parola_vietata",
+      "segnaposto",
+      "domande",
+      "esclamativo",
+      "emoji",
+      "link",
+      "telefono",
+      "firma",
+      "modello_porsche",
+      "lunghezza",
+      "oggetto",
       "regole_superate",
     ]));
 });

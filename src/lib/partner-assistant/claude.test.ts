@@ -1,6 +1,7 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 vi.mock("server-only", () => ({}));
 import Anthropic, {
+  AnthropicError,
   APIConnectionError,
   APIConnectionTimeoutError,
   APIError,
@@ -393,10 +394,79 @@ describe("classificazione degli errori di Claude", () => {
     ],
     ["403", apiError(403, "permission_error", ""), "errore"],
     ["400 con billing_error", apiError(400, "billing_error", ""), "credito"],
-    ["404", apiError(404, "not_found_error", ""), "fallito"],
     ["errore qualsiasi", new Error("sintetico"), "fallito"],
     ["valore non errore", "sintetico", "fallito"],
   ])("%s → %s", (_, error, code) => expect(classifyClaudeError(error)).toBe(code));
+
+  // Un errore di configurazione è uguale per tutti i contatti: pausa, non tentativi.
+  it.each<[string, unknown, string]>([
+    [
+      "404, modello non trovato",
+      apiError(404, "not_found_error", "model: claude-sintetico"),
+      "errore",
+    ],
+    ["404 senza dettagli", apiError(404, "not_found_error", ""), "errore"],
+    [
+      "400, web fetch spento",
+      apiError(400, "invalid_request_error", "web fetch is not enabled"),
+      "errore",
+    ],
+    [
+      "400, strumento non disponibile",
+      apiError(400, "invalid_request_error", "Web search is not available for this organization"),
+      "errore",
+    ],
+    [
+      "400, non supportato",
+      apiError(400, "invalid_request_error", "effort is not supported"),
+      "errore",
+    ],
+    ["400, unsupported", apiError(400, "invalid_request_error", "Unsupported tool type"), "errore"],
+    [
+      "400, il modello non lo supporta",
+      apiError(400, "invalid_request_error", "This model does not support thinking"),
+      "errore",
+    ],
+    [
+      "400, modello non valido",
+      apiError(400, "invalid_request_error", "Invalid model name"),
+      "errore",
+    ],
+    ["400, model:", apiError(400, "invalid_request_error", "model: claude-sintetico"), "errore"],
+    [
+      "400, prompt troppo lungo",
+      apiError(400, "invalid_request_error", "prompt is too long: 250000 tokens > 200000 maximum"),
+      "fallito",
+    ],
+    [
+      "400 qualsiasi",
+      apiError(400, "invalid_request_error", "messages: text content blocks must be non-empty"),
+      "fallito",
+    ],
+    [
+      "413",
+      apiError(413, "request_too_large", "Request exceeds the maximum allowed size"),
+      "fallito",
+    ],
+  ])("configurazione: %s → %s", (_, error, code) => expect(classifyClaudeError(error)).toBe(code));
+
+  // La connessione che cade a metà stream non è un APIError: l'SDK la avvolge in un AnthropicError.
+  it.each<[string, unknown, string]>([
+    ["TypeError della fetch", new TypeError("fetch failed"), "attesa"],
+    [
+      "connessione chiusa a metà stream",
+      new AnthropicError("terminated", { cause: new TypeError("terminated") }),
+      "attesa",
+    ],
+    ["ECONNRESET", new Error("read ECONNRESET"), "attesa"],
+    ["socket", new Error("other side closed the socket"), "attesa"],
+    [
+      "stream finito senza messaggio",
+      new AnthropicError("stream ended without producing a Message with role=assistant"),
+      "attesa",
+    ],
+    ["un AnthropicError qualsiasi", new AnthropicError("sintetico"), "fallito"],
+  ])("rete: %s → %s", (_, error, code) => expect(classifyClaudeError(error)).toBe(code));
 });
 
 describe("testo e fonti della ricerca", () => {
@@ -432,6 +502,12 @@ describe("testo e fonti della ricerca", () => {
         text("\u0001Altro."),
       ]).text,
     ).toBe("Riga uno\n\tdue fine\n\nAltro."));
+
+  it("un surrogato isolato si ricodifica: il testo è ben formato", () => {
+    const { text: saved } = partnerAssistantResearchText([text("Il club \udc00 ha un raduno.")]);
+    expect(saved.isWellFormed()).toBe(true);
+    expect(saved).toBe("Il club \ufffd ha un raduno.");
+  });
 
   it("fonti senza doppioni e al massimo 40", () => {
     const urls = Array.from({ length: 50 }, (_, i) => `https://club${i}.example.test/`);

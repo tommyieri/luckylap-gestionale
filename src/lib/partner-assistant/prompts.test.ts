@@ -3,6 +3,7 @@ import { describe, expect, it, vi } from "vitest";
 vi.mock("server-only", () => ({}));
 import type Anthropic from "@anthropic-ai/sdk";
 import { parsePartnerAssistantChoice, partnerAssistantEventMerch } from "./choice";
+import { PARTNER_ASSISTANT_CHECK_CODES } from "./checks";
 import type { ClaudeCall } from "./claude";
 import {
   PARTNER_ASSISTANT_CHOICE_SCHEMA,
@@ -180,12 +181,13 @@ describe("researchCall", () => {
   const call = researchCall(ctx);
   const text = userText(call);
 
-  it("effort high, 32000 token, i due strumenti server", () => {
+  // Il thinking adattivo conta nei token di output anche quando non si vede.
+  it("effort high, 64000 token, i due strumenti server con i loro limiti", () => {
     expect(call.effort).toBe("high");
-    expect(call.maxTokens).toBe(32000);
+    expect(call.maxTokens).toBe(64000);
     expect(call.tools).toEqual([
       { type: "web_search_20260209", name: "web_search", max_uses: 8 },
-      { type: "web_fetch_20260209", name: "web_fetch" },
+      { type: "web_fetch_20260209", name: "web_fetch", max_uses: 5, max_content_tokens: 20000 },
     ]);
     expect(call.format).toBeUndefined();
   });
@@ -232,9 +234,9 @@ describe("extractCall", () => {
   const call = extractCall(ctx);
   const text = userText(call);
 
-  it("effort low, 8000 token, nessuno strumento, lo schema dell'Appendice C", () => {
+  it("effort low, 16000 token, nessuno strumento, lo schema dell'Appendice C", () => {
     expect(call.effort).toBe("low");
-    expect(call.maxTokens).toBe(8000);
+    expect(call.maxTokens).toBe(16000);
     expect(call.tools).toBeUndefined();
     expect(call.format).toBe(PARTNER_ASSISTANT_CHOICE_SCHEMA);
   });
@@ -353,9 +355,9 @@ describe("writeCall", () => {
   const call = writeCall(evCtx, "2026-10-27");
   const text = userText(call);
 
-  it("effort high, 8000 token, nessuno strumento, oggetto e corpo", () => {
+  it("effort high, 32000 token, nessuno strumento, oggetto e corpo", () => {
     expect(call.effort).toBe("high");
-    expect(call.maxTokens).toBe(8000);
+    expect(call.maxTokens).toBe(32000);
     expect(call.tools).toBeUndefined();
     expect(call.format).toEqual({
       type: "object",
@@ -412,15 +414,49 @@ describe("writeCall", () => {
     expect(text).toContain("senza la firma");
   });
 
-  it("i problemi dell'ultima lettura da correggere", () => {
-    const rewrite = {
-      ...evCtx,
-      lastReview: { approved: false, problems: ["parola_vietata", "La domanda è doppia"] },
-    };
-    const rewriteText = userText(writeCall(rewrite, "2026-10-27"));
-    expect(rewriteText).toContain("parola_vietata");
-    expect(rewriteText).toContain("La domanda è doppia");
-    expect(text).not.toContain("parola_vietata");
+  const rewriteOf = (problems: string[]) =>
+    userText(writeCall({ ...evCtx, lastReview: { approved: false, problems } }, "2026-10-27"));
+
+  it("i problemi dell'ultima lettura da correggere: i codici dei controlli in frasi fisse", () => {
+    const rewriteText = rewriteOf([
+      "lunghezza",
+      "parola_vietata",
+      "domande",
+      "oggetto",
+      "La domanda è doppia",
+    ]);
+    expect(rewriteText.split("\n")).toEqual(
+      expect.arrayContaining([
+        "La bozza precedente non è passata. Correggi questi problemi:",
+        "- il corpo deve stare tra 110 e 160 parole, senza saluto iniziale e formula di chiusura",
+        "- c'è una parola dell'elenco Mai, anche dentro un'altra parola",
+        "- serve esattamente un punto interrogativo nel corpo",
+        "- l'oggetto deve stare su una riga",
+        "- La domanda è doppia",
+      ]),
+    );
+    for (const code of ["lunghezza", "parola_vietata", "domande", "oggetto"])
+      expect(rewriteText).not.toContain(`- ${code}`);
+    expect(text).not.toContain("Correggi questi problemi");
+  });
+
+  it("una frase per ogni codice dei controlli, mai il codice", () => {
+    const sentences = PARTNER_ASSISTANT_CHECK_CODES.map((code) => {
+      const lines = rewriteOf([code]).split("\n");
+      const line =
+        lines[lines.indexOf("La bozza precedente non è passata. Correggi questi problemi:") + 1];
+      // Una frase, non il codice: «oggetto» e «link» possono stare dentro la frase.
+      expect(line).toMatch(/^- \p{Ll}.* /u);
+      expect(line).not.toBe(`- ${code}`);
+      return line;
+    });
+    expect(new Set(sentences).size).toBe(PARTNER_ASSISTANT_CHECK_CODES.length);
+  });
+
+  it("un problema scritto dal revisore resta com'era, anche se somiglia a un codice", () => {
+    const rewriteText = rewriteOf(["Lunghezza", "lunghezza del corpo"]);
+    expect(rewriteText).toContain("- Lunghezza");
+    expect(rewriteText).toContain("- lunghezza del corpo");
   });
 
   it("una lettura non approvata senza problemi elencati chiede comunque di riscrivere", () => {
@@ -448,9 +484,9 @@ describe("reviewCall", () => {
   const call = reviewCall(evCtx);
   const text = userText(call);
 
-  it("effort high, 4000 token, nessuno strumento, approved e problems", () => {
+  it("effort high, 16000 token, nessuno strumento, approved e problems", () => {
     expect(call.effort).toBe("high");
-    expect(call.maxTokens).toBe(4000);
+    expect(call.maxTokens).toBe(16000);
     expect(call.tools).toBeUndefined();
     expect(call.format).toEqual({
       type: "object",

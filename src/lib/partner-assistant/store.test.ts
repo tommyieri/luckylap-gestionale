@@ -457,6 +457,28 @@ const keyMutations = (row: unknown): [string, unknown][] =>
     ];
   });
 const store = () => createPartnerAssistantStore(config);
+/** Lo store con un'altra lease o un'altra operazione per le quattro conclusioni. */
+const completes = [
+  "completeResearch",
+  "completeChoice",
+  "completeDraft",
+  "completeReview",
+] as const;
+const rewired = (
+  s: PartnerAssistantStore,
+  change: (args: unknown[]) => unknown[],
+): PartnerAssistantStore => {
+  const copy = { ...s };
+  for (const name of completes) {
+    const original = s[name] as (...args: unknown[]) => Promise<unknown>;
+    (copy as Record<string, unknown>)[name] = (...args: unknown[]) => original(...change(args));
+  }
+  return copy;
+};
+const withLease = (s: PartnerAssistantStore, other: typeof lease) =>
+  rewired(s, ([, input, operation, abort]) => [other, input, operation, abort]);
+const withOperation = (s: PartnerAssistantStore, other: string) =>
+  rewired(s, ([job, input, , abort]) => [job, input, other, abort]);
 const replying = (data: unknown) => mocks.abortSignal.mockResolvedValue({ data, error: null });
 const signal = () => new AbortController().signal;
 
@@ -681,6 +703,24 @@ describe("store dell'assistente Partner", () => {
     ],
     ["un motivo con un indirizzo", (s) => s.fail(lease, "blocca", "ada@example.test", signal())],
     ["un motivo di pausa sconosciuto", (s) => s.pause("stanco" as "credito", signal())],
+    ...(
+      [
+        ["la ricerca", research],
+        ["la scelta", chose],
+        ["la bozza", wrote],
+        ["la seconda lettura", reviewed],
+      ] as const
+    ).flatMap(([label, conclude]): [string, (s: PartnerAssistantStore) => Promise<unknown>][] => [
+      [
+        `${label} con un lavoro senza UUID`,
+        (s) => conclude(withLease(s, { ...lease, jobId: "1" }), signal()),
+      ],
+      [
+        `${label} con una lease senza UUID`,
+        (s) => conclude(withLease(s, { ...lease, leaseToken: "x" }), signal()),
+      ],
+      [`${label} con un'operazione senza UUID`, (s) => conclude(withOperation(s, "op"), signal())],
+    ]),
   ])("con %s non chiama il database", async (_, run) => {
     expect(await run(store())).toEqual({ ok: false });
     expect(mocks.rpc).not.toHaveBeenCalled();

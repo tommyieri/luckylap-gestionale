@@ -4,18 +4,22 @@
 import { createHash } from "node:crypto";
 import type { PartnerAssistantDraft, PartnerAssistantLanguage } from "./types";
 
-export type PartnerAssistantCheckCode =
-  | "parola_vietata"
-  | "segnaposto"
-  | "domande"
-  | "esclamativo"
-  | "emoji"
-  | "link"
-  | "telefono"
-  | "firma"
-  | "modello_porsche"
-  | "lunghezza"
-  | "regole_superate";
+/** I codici dei controlli, nell'ordine in cui si riportano. */
+export const PARTNER_ASSISTANT_CHECK_CODES = [
+  "parola_vietata",
+  "segnaposto",
+  "domande",
+  "esclamativo",
+  "emoji",
+  "link",
+  "telefono",
+  "firma",
+  "modello_porsche",
+  "lunghezza",
+  "oggetto",
+  "regole_superate",
+] as const;
+export type PartnerAssistantCheckCode = (typeof PARTNER_ASSISTANT_CHECK_CODES)[number];
 
 const ROLE: Record<PartnerAssistantLanguage, string> = {
   it: "Fondatore",
@@ -119,6 +123,14 @@ function anyMatch(patterns: RegExp[], texts: string[]): boolean {
   return patterns.some((pattern) => texts.some((text) => pattern.test(text)));
 }
 
+/** I testi senza le occorrenze esatte dei nomi, dalla più lunga: le regole chiedono il loro nome
+ * nell'oggetto, e un club o un evento può avere un modello nel nome. Al posto del nome uno spazio,
+ * così le parole intorno restano separate. */
+function withoutNames(texts: string[], names: string[]): string[] {
+  const filled = names.filter((name) => /\S/u.test(name)).sort((a, b) => b.length - a.length);
+  return texts.map((text) => filled.reduce((rest, name) => rest.split(name).join(" "), text));
+}
+
 function onlyLuckyLapHome(text: string): boolean {
   return (text.match(LINK) ?? []).every((link) =>
     LUCKYLAP_HOME.test(link.replace(LINK_TRAILING_PUNCTUATION, "")),
@@ -130,7 +142,13 @@ export function checkPartnerAssistantDraft(
     PartnerAssistantDraft,
     "language" | "subject" | "body" | "signature" | "rulesVersion"
   >,
-  context: { porscheCommunity: boolean; currentRulesVersion: number; phone: string },
+  context: {
+    porscheCommunity: boolean;
+    currentRulesVersion: number;
+    phone: string;
+    /** Il nome della scheda e quello dell'evento della scelta, se c'è. */
+    names: string[];
+  },
 ): { ok: true } | { ok: false; failures: PartnerAssistantCheckCode[] } {
   const texts = [draft.subject, draft.body];
   const words = partnerAssistantBodyWords(draft.body);
@@ -143,8 +161,13 @@ export function checkPartnerAssistantDraft(
     ["link", !texts.every(onlyLuckyLapHome)],
     ["telefono", PHONE_NUMBER.test(draft.body)],
     ["firma", draft.signature !== partnerAssistantSignature(draft.language, context.phone)],
-    ["modello_porsche", context.porscheCommunity && anyMatch(PORSCHE_MODELS, texts)],
+    [
+      "modello_porsche",
+      context.porscheCommunity && anyMatch(PORSCHE_MODELS, withoutNames(texts, context.names)),
+    ],
     ["lunghezza", words < 110 || words > 160],
+    // Una riga sola: l'oggetto va nell'intestazione dell'email.
+    ["oggetto", /[\n\r\t]/u.test(draft.subject)],
     ["regole_superate", draft.rulesVersion !== context.currentRulesVersion],
   ];
   const failures = checks.filter(([, failed]) => failed).map(([code]) => code);
