@@ -6,9 +6,11 @@
 -- - Coda: i contatti idonei senza lavoro, prima quelli del periodo (mese pianificato entro due mesi),
 --   poi per priorità, mese e CO. Idoneo: «Da contattare», senza «Seguito da», prossima azione,
 --   ricerca tolta, blocchi e attività del team, interruttore assente o attivo, un'email attiva.
+--   L'ordine sta solo in partner_assistant_ranking, che usano sia la coda sia il giro.
 -- - Un giro alla volta: claim blocca la riga di configurazione, conta le lease scadute come
 --   tentativi falliti, crea i lavori nuovi, riprende le attese arrivate al giorno giusto e dà un
 --   solo lavoro con la lease. Con una lease attiva il giro è «occupato»: un passo alla volta.
+-- - Le quattro conclusioni dei passi passano tutte dalla stessa guardia, partner_assistant_lock_step.
 -- - RPC: private.<nome> security definer più il wrapper public.<nome> security invoker, eseguibili
 --   solo da service_role. Ognuna controlla il ruolo, poi fa risultare l'assistente come autore di
 --   tutto quello che segue nella transazione: auth.uid() legge request.jwt.claim.sub e poi
@@ -77,20 +79,30 @@ language sql stable security invoker set search_path = '' as $$
             'prossima_azione', 'approccio')))
 $$;
 
--- Contatti idonei senza lavoro, in ordine: prima quelli con il mese pianificato entro due mesi da
--- p_day, poi priorità alta, media, bassa, poi mese, poi CO. In plpgsql, così l'ordine arriva intatto.
+-- L'ordine della coda, scritto una volta sola: tutti i contatti idonei, con o senza lavoro, numerati
+-- da 1. Prima quelli con il mese pianificato entro due mesi da p_day, poi priorità alta, media,
+-- bassa, poi mese, poi CO. La coda e il giro ordinano entrambi per rank.
+create function private.partner_assistant_ranking(p_day date)
+returns table (partner_id uuid, co integer, rank bigint)
+language sql stable security invoker set search_path = '' as $$
+  select p.id, p.co, row_number() over (order by
+      (date_trunc('month', coalesce(p.next_action_on, p.contact_month)::timestamp)
+        <= date_trunc('month', p_day::timestamp) + interval '2 months') desc,
+      array_position(array['alta', 'media', 'bassa']::text[], p.priority),
+      date_trunc('month', coalesce(p.next_action_on, p.contact_month)::timestamp),
+      p.co)
+  from public.partners p
+  where private.partner_assistant_eligible(p.id)
+$$;
+
+-- Contatti idonei senza lavoro, nell'ordine della coda. In plpgsql, così l'ordine arriva intatto.
 create function private.partner_assistant_queue(p_day date) returns table (partner_id uuid, co integer)
 language plpgsql stable security invoker set search_path = '' as $$
 begin
   return query
-    select p.id, p.co from public.partners p
-    where private.partner_assistant_eligible(p.id)
-      and not exists (select 1 from public.partner_assistant_jobs j where j.partner_id = p.id)
-    order by (date_trunc('month', coalesce(p.next_action_on, p.contact_month)::timestamp)
-        <= date_trunc('month', p_day::timestamp) + interval '2 months') desc,
-      array_position(array['alta', 'media', 'bassa']::text[], p.priority),
-      date_trunc('month', coalesce(p.next_action_on, p.contact_month)::timestamp),
-      p.co;
+    select r.partner_id, r.co from private.partner_assistant_ranking(p_day) r
+    where not exists (select 1 from public.partner_assistant_jobs j where j.partner_id = r.partner_id)
+    order by r.rank;
 end
 $$;
 
@@ -103,6 +115,32 @@ language sql stable security invoker set search_path = '' as $$
   where c.partner_id = p_partner_id and c.kind = 'email' and c.active and c.link_value is not null
   order by c.verified desc, c.position, c.created_at, c.id
   limit 1
+$$;
+
+-- La guardia dei quattro complete_*, scritta una volta sola. Blocca il lavoro e controlla la lease
+-- (token e scadenza), il passo e il contatto. Null: il passo può concludersi, e il lavoro resta
+-- bloccato fino alla fine della transazione. Altrimenti l'esito da restituire: lease_persa, oppure
+-- non_idoneo dopo aver rilasciato la lease e scritto l'evento, senza avanzare. Il passo sbagliato,
+-- impossibile con una lease valida, è un errore d'uso (22023).
+create function private.partner_assistant_lock_step(p_job_id uuid, p_lease_token uuid, p_step text)
+returns jsonb
+language plpgsql security invoker set search_path = '' as $$
+declare j public.partner_assistant_jobs%rowtype;
+begin
+  select * into j from public.partner_assistant_jobs where id = p_job_id for update;
+  if not found or j.lease_token is distinct from p_lease_token or j.lease_expires_at is null
+    or j.lease_expires_at <= clock_timestamp() then
+    return jsonb_build_object('status', 'lease_persa');
+  end if;
+  perform private.partner_check(j.step = p_step);
+  if not private.partner_assistant_eligible(j.partner_id) then
+    update public.partner_assistant_jobs set lease_token = null, lease_expires_at = null, updated_at = now()
+      where partner_id = j.partner_id;
+    insert into private.partner_assistant_events(partner_id, step, outcome) values (j.partner_id, j.step, 'non_idoneo');
+    return jsonb_build_object('status', 'non_idoneo');
+  end if;
+  return null;
+end
 $$;
 
 -- ---------------------------------------------------------------------------
@@ -169,15 +207,12 @@ begin
   update public.partner_assistant_jobs set status = 'in_coda', step = 'ricerca', write_on = null,
       next_attempt_at = now(), updated_at = now()
     where status = 'attesa' and write_on <= v_today;
-  -- Il primo lavoro pronto, nell'ordine della coda, con il contatto ancora idoneo.
-  select l.* into j from public.partner_assistant_jobs l join public.partners p on p.id = l.partner_id
+  -- Il primo lavoro pronto, nell'ordine della coda, con il contatto ancora idoneo: la classifica
+  -- della coda contiene solo i contatti idonei.
+  select l.* into j from public.partner_assistant_jobs l
+    join private.partner_assistant_ranking(v_today) r on r.partner_id = l.partner_id
     where l.status = 'in_coda' and l.next_attempt_at <= now() and l.attempts < 3
-      and private.partner_assistant_eligible(l.partner_id)
-    order by (date_trunc('month', coalesce(p.next_action_on, p.contact_month)::timestamp)
-        <= date_trunc('month', v_today::timestamp) + interval '2 months') desc,
-      array_position(array['alta', 'media', 'bassa']::text[], p.priority),
-      date_trunc('month', coalesce(p.next_action_on, p.contact_month)::timestamp),
-      p.co
+    order by r.rank
     limit 1
     for update of l skip locked;
   if not found then return jsonb_build_object('status', 'idle', 'reason', 'vuota'); end if;
@@ -302,9 +337,9 @@ end
 $$;
 
 -- Le quattro conclusioni dei passi seguono lo stesso schema: payload valido, ricevuta (la ripetizione
--- vale anche a lease scaduta), lavoro bloccato con la lease ancora valida, contatto ancora idoneo
--- (altrimenti lease rilasciata e nessun avanzamento), poi il salvataggio e l'avanzamento, che
--- rilascia la lease, azzera i tentativi e scrive un evento.
+-- vale anche a lease scaduta), la guardia comune partner_assistant_lock_step (lavoro bloccato con
+-- la lease ancora valida, passo giusto, contatto ancora idoneo, altrimenti lease_persa o non_idoneo),
+-- poi il salvataggio e l'avanzamento, che rilascia la lease, azzera i tentativi e scrive un evento.
 
 -- Ricerca: la nota «ricerca» con le fonti; si passa all'estrazione con scelta e bozza da rifare.
 create function private.complete_partner_assistant_research(p_operation_id uuid, p_payload jsonb) returns jsonb
@@ -312,7 +347,7 @@ language plpgsql security definer set search_path = '' as $$
 declare
   v_keys text[] := array['schema_version', 'job_id', 'lease_token', 'text', 'sources', 'model', 'rules_version'];
   v_actor uuid; v_job_id uuid; v_token uuid; v_text text; v_sources text[]; v_model text; v_rules bigint;
-  j public.partner_assistant_jobs%rowtype; v_note uuid; replay jsonb; result jsonb;
+  j public.partner_assistant_jobs%rowtype; v_note uuid; replay jsonb; stop jsonb; result jsonb;
 begin
   perform private.partner_assistant_service_required();
   v_actor := private.partner_assistant_as_actor();
@@ -334,18 +369,9 @@ begin
   if v_actor is null then raise exception 'partner_assistant_not_configured' using errcode = '55000'; end if;
   replay := private.partner_assistant_begin(p_operation_id, 'complete_partner_assistant_research', v_actor, p_payload);
   if replay is not null then return replay; end if;
-  select * into j from public.partner_assistant_jobs where id = v_job_id for update;
-  if not found or j.lease_token is distinct from v_token or j.lease_expires_at is null
-    or j.lease_expires_at <= clock_timestamp() then
-    return jsonb_build_object('status', 'lease_persa');
-  end if;
-  perform private.partner_check(j.step = 'ricerca');
-  if not private.partner_assistant_eligible(j.partner_id) then
-    update public.partner_assistant_jobs set lease_token = null, lease_expires_at = null, updated_at = now()
-      where partner_id = j.partner_id;
-    insert into private.partner_assistant_events(partner_id, step, outcome) values (j.partner_id, j.step, 'non_idoneo');
-    return jsonb_build_object('status', 'non_idoneo');
-  end if;
+  stop := private.partner_assistant_lock_step(v_job_id, v_token, 'ricerca');
+  if stop is not null then return stop; end if;
+  select * into j from public.partner_assistant_jobs where id = v_job_id;
   insert into public.partner_assistant_notes(partner_id, kind, content, sources, rules_version, model, operation_id,
       created_by)
     values (j.partner_id, 'ricerca', jsonb_build_object('text', v_text), v_sources, v_rules, v_model, p_operation_id,
@@ -379,7 +405,7 @@ declare
   v_today date := (now() at time zone 'Europe/Rome')::date;
   v_actor uuid; v_job_id uuid; v_token uuid; v_choice jsonb; v_decision jsonb; v_kind text; v_write_on date;
   v_reason text; v_model text; v_rules bigint; v_key text;
-  j public.partner_assistant_jobs%rowtype; v_note uuid; replay jsonb; result jsonb;
+  j public.partner_assistant_jobs%rowtype; v_note uuid; replay jsonb; stop jsonb; result jsonb;
 begin
   perform private.partner_assistant_service_required();
   v_actor := private.partner_assistant_as_actor();
@@ -427,18 +453,9 @@ begin
   if v_actor is null then raise exception 'partner_assistant_not_configured' using errcode = '55000'; end if;
   replay := private.partner_assistant_begin(p_operation_id, 'complete_partner_assistant_choice', v_actor, p_payload);
   if replay is not null then return replay; end if;
-  select * into j from public.partner_assistant_jobs where id = v_job_id for update;
-  if not found or j.lease_token is distinct from v_token or j.lease_expires_at is null
-    or j.lease_expires_at <= clock_timestamp() then
-    return jsonb_build_object('status', 'lease_persa');
-  end if;
-  perform private.partner_check(j.step = 'estrazione');
-  if not private.partner_assistant_eligible(j.partner_id) then
-    update public.partner_assistant_jobs set lease_token = null, lease_expires_at = null, updated_at = now()
-      where partner_id = j.partner_id;
-    insert into private.partner_assistant_events(partner_id, step, outcome) values (j.partner_id, j.step, 'non_idoneo');
-    return jsonb_build_object('status', 'non_idoneo');
-  end if;
+  stop := private.partner_assistant_lock_step(v_job_id, v_token, 'estrazione');
+  if stop is not null then return stop; end if;
+  select * into j from public.partner_assistant_jobs where id = v_job_id;
   insert into public.partner_assistant_notes(partner_id, kind, content, rules_version, model, operation_id, created_by)
     values (j.partner_id, 'scelta', v_choice || jsonb_build_object('decision', v_decision), v_rules, v_model,
       p_operation_id, v_actor)
@@ -470,7 +487,7 @@ declare
   v_actor uuid; v_job_id uuid; v_token uuid; v_draft jsonb; v_language text; v_subject text; v_body text;
   v_signature text; v_sha text; v_rules bigint; v_partner_version bigint; v_contact uuid; v_ok boolean;
   v_failures jsonb; v_outcome text; v_draft_id uuid;
-  j public.partner_assistant_jobs%rowtype; replay jsonb; result jsonb;
+  j public.partner_assistant_jobs%rowtype; replay jsonb; stop jsonb; result jsonb;
 begin
   perform private.partner_assistant_service_required();
   v_actor := private.partner_assistant_as_actor();
@@ -500,18 +517,9 @@ begin
   if v_actor is null then raise exception 'partner_assistant_not_configured' using errcode = '55000'; end if;
   replay := private.partner_assistant_begin(p_operation_id, 'complete_partner_assistant_draft', v_actor, p_payload);
   if replay is not null then return replay; end if;
-  select * into j from public.partner_assistant_jobs where id = v_job_id for update;
-  if not found or j.lease_token is distinct from v_token or j.lease_expires_at is null
-    or j.lease_expires_at <= clock_timestamp() then
-    return jsonb_build_object('status', 'lease_persa');
-  end if;
-  perform private.partner_check(j.step = 'scrittura');
-  if not private.partner_assistant_eligible(j.partner_id) then
-    update public.partner_assistant_jobs set lease_token = null, lease_expires_at = null, updated_at = now()
-      where partner_id = j.partner_id;
-    insert into private.partner_assistant_events(partner_id, step, outcome) values (j.partner_id, j.step, 'non_idoneo');
-    return jsonb_build_object('status', 'non_idoneo');
-  end if;
+  stop := private.partner_assistant_lock_step(v_job_id, v_token, 'scrittura');
+  if stop is not null then return stop; end if;
+  select * into j from public.partner_assistant_jobs where id = v_job_id;
   -- Il destinatario è un'email del contatto, mai un indirizzo copiato.
   perform private.partner_check(exists (select 1 from public.partner_contacts c
     where c.id = v_contact and c.partner_id = j.partner_id and c.kind = 'email'));
@@ -552,7 +560,7 @@ declare
     'rules_version'];
   v_actor uuid; v_job_id uuid; v_token uuid; v_approved boolean; v_problems jsonb; v_sha text; v_model text;
   v_rules bigint; v_draft_sha text; v_outcome text;
-  j public.partner_assistant_jobs%rowtype; replay jsonb; result jsonb;
+  j public.partner_assistant_jobs%rowtype; replay jsonb; stop jsonb; result jsonb;
 begin
   perform private.partner_assistant_service_required();
   v_actor := private.partner_assistant_as_actor();
@@ -575,18 +583,9 @@ begin
   if v_actor is null then raise exception 'partner_assistant_not_configured' using errcode = '55000'; end if;
   replay := private.partner_assistant_begin(p_operation_id, 'complete_partner_assistant_review', v_actor, p_payload);
   if replay is not null then return replay; end if;
-  select * into j from public.partner_assistant_jobs where id = v_job_id for update;
-  if not found or j.lease_token is distinct from v_token or j.lease_expires_at is null
-    or j.lease_expires_at <= clock_timestamp() then
-    return jsonb_build_object('status', 'lease_persa');
-  end if;
-  perform private.partner_check(j.step = 'controllo');
-  if not private.partner_assistant_eligible(j.partner_id) then
-    update public.partner_assistant_jobs set lease_token = null, lease_expires_at = null, updated_at = now()
-      where partner_id = j.partner_id;
-    insert into private.partner_assistant_events(partner_id, step, outcome) values (j.partner_id, j.step, 'non_idoneo');
-    return jsonb_build_object('status', 'non_idoneo');
-  end if;
+  stop := private.partner_assistant_lock_step(v_job_id, v_token, 'controllo');
+  if stop is not null then return stop; end if;
+  select * into j from public.partner_assistant_jobs where id = v_job_id;
   select d.sha256 into v_draft_sha from public.partner_assistant_drafts d where d.id = j.draft_id;
   insert into public.partner_assistant_notes(partner_id, kind, content, rules_version, model, operation_id, created_by)
     values (j.partner_id, 'controllo', jsonb_build_object('approved', v_approved, 'problems', v_problems,
@@ -710,7 +709,8 @@ begin
     select p.oid::regprocedure from pg_catalog.pg_proc p join pg_catalog.pg_namespace n on n.oid = p.pronamespace
       where n.nspname in ('public', 'private') and p.proname = any (array[
         'partner_assistant_service_required', 'partner_assistant_as_actor', 'partner_assistant_eligible',
-        'partner_assistant_queue', 'partner_assistant_email', 'configure_partner_assistant',
+        'partner_assistant_ranking', 'partner_assistant_queue', 'partner_assistant_email',
+        'partner_assistant_lock_step', 'configure_partner_assistant',
         'claim_partner_assistant_step', 'context_partner_assistant_step', 'checkpoint_partner_assistant_step',
         'record_partner_assistant_call', 'complete_partner_assistant_research', 'complete_partner_assistant_choice',
         'complete_partner_assistant_draft', 'complete_partner_assistant_review', 'fail_partner_assistant_step',

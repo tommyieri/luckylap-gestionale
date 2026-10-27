@@ -1,4 +1,4 @@
-// test-db: pglite minimo 468
+// test-db: pglite minimo 513
 // Assistente Partner, compito 2 (_assistente_partner_worker.sql): coda dei contatti idonei, giri del
 // worker con lease, contesto, checkpoint, costi, avanzamento dei passi, tentativi, pausa e permessi.
 // Migrazioni applicate in ordine su PGlite, auth.uid() definita come in produzione, permessi
@@ -194,48 +194,43 @@ const completeChoice = (j, fields = scrivi, op) => complete("choice", j, fields,
 const SIGNATURE = "Tommaso\nFounder, LuckyLap\nluckylap.com | Instagram @lucky.lap";
 let drafts = 0;
 // Bozza costruita dal contesto, come il worker: recapito e versione della scheda del contesto.
-async function completeDraft(j, { checks_ok = true, failures, ...draft } = {}, op) {
-  const ctx = await context(j);
+const draftFields = (ctx, { checks_ok = true, failures, ...draft } = {}) => {
   drafts++;
   const subject = `LuckyLap e ${ctx.partner.name}`;
   const body = `Testo sintetico numero ${drafts} per il CO ${ctx.partner.co}.`;
-  return complete(
-    "draft",
-    j,
-    {
-      draft: {
-        language: "en",
-        subject,
-        body,
-        signature: SIGNATURE,
-        sha256: sha(`${subject}\n\n${body}\n\n${SIGNATURE}`),
-        rules_version: ctx.rules.version,
-        partner_version: ctx.partner.version,
-        contact_id: ctx.email.contact_id,
-        ...draft,
-      },
-      checks_ok,
-      failures: failures ?? (checks_ok ? [] : ["parola_vietata"]),
+  return {
+    draft: {
+      language: "en",
+      subject,
+      body,
+      signature: SIGNATURE,
+      sha256: sha(`${subject}\n\n${body}\n\n${SIGNATURE}`),
+      rules_version: ctx.rules.version,
+      partner_version: ctx.partner.version,
+      contact_id: ctx.email.contact_id,
+      ...draft,
     },
-    op,
-  );
-}
+    checks_ok,
+    failures: failures ?? (checks_ok ? [] : ["parola_vietata"]),
+  };
+};
+const completeDraft = async (j, options, op) =>
+  complete("draft", j, draftFields(await context(j), options), op);
 // Seconda lettura: impronta e regole dal contesto, salvo quando il test le passa (lease già persa).
-async function completeReview(j, { approved, problems, sha256, rules_version } = {}, op) {
-  const ctx = sha256 && rules_version ? null : await context(j);
-  return complete(
+const reviewFields = (ctx, { approved, problems, sha256, rules_version } = {}) => ({
+  approved,
+  problems: problems ?? (approved ? [] : ["Il complimento iniziale è troppo generico."]),
+  sha256: sha256 ?? ctx.draft.sha256,
+  model: MODEL,
+  rules_version: rules_version ?? ctx.rules.version,
+});
+const completeReview = async (j, options = {}, op) =>
+  complete(
     "review",
     j,
-    {
-      approved,
-      problems: problems ?? (approved ? [] : ["Il complimento iniziale è troppo generico."]),
-      sha256: sha256 ?? ctx.draft.sha256,
-      model: MODEL,
-      rules_version: rules_version ?? ctx.rules.version,
-    },
+    reviewFields(options.sha256 && options.rules_version ? null : await context(j), options),
     op,
   );
-}
 
 // Schede della coda.
 const ids = new Map();
@@ -243,6 +238,7 @@ const id = (co) => {
   assert.ok(ids.has(co), `CO ${co} non nella fixture`);
   return ids.get(co);
 };
+const coOf = (partnerId) => [...ids].find(([, v]) => v === partnerId)?.[0];
 const job = (co) =>
   one(
     `select id, status, step, attempts, rewrites, reason, write_on::text as write_on, lease_token,
@@ -356,6 +352,101 @@ async function toReview(co) {
   await completeDraft(await claimJob(co));
   return claimJob(co);
 }
+// L'ordine in cui i giri prendono i lavori pronti: a ogni giro il lavoro preso si mette da parte
+// (pronto domani, senza lease) e il giro dopo prende il successivo. Alla fine lease e attese
+// tornano come prima, al microsecondo.
+async function claimOrder() {
+  const saved = (
+    await db.query(
+      `select id, lease_token, lease_expires_at::text as lease_expires_at, next_attempt_at::text as next_attempt_at
+         from public.partner_assistant_jobs`,
+    )
+  ).rows;
+  await asOwner(
+    "update public.partner_assistant_jobs set lease_token = null, lease_expires_at = null where lease_token is not null",
+  );
+  const order = [];
+  try {
+    for (let i = 0; i <= saved.length; i++) {
+      const r = await claim();
+      if (r.status !== "claimed") {
+        eq(r, { status: "idle", reason: "vuota" }, "Dopo l'ultimo lavoro pronto la coda è vuota");
+        break;
+      }
+      order.push(coOf(r.job.partner_id));
+      await asOwner(
+        `update public.partner_assistant_jobs set lease_token = null, lease_expires_at = null,
+           next_attempt_at = now() + interval '1 day' where id = $1`,
+        [r.job.job_id],
+      );
+    }
+  } finally {
+    for (const s of saved)
+      await asOwner(
+        `update public.partner_assistant_jobs set lease_token = $2, lease_expires_at = $3::timestamptz,
+           next_attempt_at = $4::timestamptz where id = $1`,
+        [s.id, s.lease_token, s.lease_expires_at, s.next_attempt_at],
+      );
+  }
+  return order;
+}
+// Lo stato di un passo: il lavoro, le sue note, bozze ed eventi, le ricevute di tutti.
+const stepState = async (co) => ({
+  ...(await one(
+    `select status, step, attempts, rewrites, reason, write_on::text as write_on, research_note_id,
+       choice_note_id, draft_id, lease_token, coalesce(lease_expires_at > clock_timestamp(), false) as leased
+       from public.partner_assistant_jobs where partner_id = $1`,
+    [id(co)],
+  )),
+  notes: await value(
+    "select count(*)::int as v from public.partner_assistant_notes where partner_id = $1",
+    [id(co)],
+  ),
+  drafts: await value(
+    "select count(*)::int as v from public.partner_assistant_drafts where partner_id = $1",
+    [id(co)],
+  ),
+  events: await outcomes(co),
+  receipts: await value("select count(*)::int as v from private.partner_assistant_receipts"),
+});
+// La guardia di un complete_*, con un payload che altrimenti farebbe avanzare il passo: con un
+// altro token o con la lease scaduta risponde lease_persa e non tocca niente; con il contatto
+// seguito dal team durante il passo risponde non_idoneo, rilascia la lease e scrive l'evento, ma
+// non salva note né bozze e non avanza (niente «pronta»). Nessuna ricevuta. Poi il contatto torna
+// libero e un giro nuovo riprende lo stesso passo.
+async function guardHolds(kind, co, j, fields) {
+  const send = (lease) => complete(kind, lease, fields, randomUUID());
+  const before = await stepState(co);
+  eq([before.step, before.leased], [j.step, true], `${kind}: passo ${j.step} con la lease`);
+  eq(await send({ ...j, lease_token: randomUUID() }), { status: "lease_persa" }, `${kind}: token`);
+  eq(await stepState(co), before, `${kind}: con un altro token il passo non avanza`);
+  await asOwner(
+    "update public.partner_assistant_jobs set lease_expires_at = now() - interval '1 second' where partner_id = $1",
+    [id(co)],
+  );
+  eq(await send(j), { status: "lease_persa" }, `${kind}: lease scaduta, stesso token`);
+  await asOwner(
+    "update public.partner_assistant_jobs set lease_expires_at = now() + interval '5 minutes' where partner_id = $1",
+    [id(co)],
+  );
+  eq(await stepState(co), before, `${kind}: con la lease scaduta il passo non avanza`);
+  await asOwner("update public.partners set owner_id = $2 where id = $1", [id(co), consultant]);
+  eq(await send(j), { status: "non_idoneo" }, `${kind}: contatto seguito dal team`);
+  eq(
+    await stepState(co),
+    {
+      ...before,
+      lease_token: null,
+      leased: false,
+      events: [...before.events, `${j.step}:non_idoneo`],
+    },
+    `${kind}: contatto non più idoneo, il passo non avanza e la lease si rilascia`,
+  );
+  await asOwner("update public.partners set owner_id = null where id = $1", [id(co)]);
+  const again = await claimJob(co);
+  eq(again.step, j.step, `${kind}: un giro nuovo riprende lo stesso passo`);
+  return again;
+}
 
 const canExecute = (role, signature) =>
   value("select has_function_privilege($1, $2, 'EXECUTE') as v", [role, signature]);
@@ -394,8 +485,10 @@ const WORKER_HELPERS = [
   "private.partner_assistant_service_required()",
   "private.partner_assistant_as_actor()",
   "private.partner_assistant_eligible(uuid)",
+  "private.partner_assistant_ranking(date)",
   "private.partner_assistant_queue(date)",
   "private.partner_assistant_email(uuid)",
+  "private.partner_assistant_lock_step(uuid,uuid,text)",
 ];
 // Le funzioni del compito 1, per controllare che la nuova migrazione non le tocchi.
 const TEAM_FUNCTIONS = [
@@ -614,6 +707,11 @@ try {
   );
 
   // 4. Primo giro: un lavoro per ogni contatto in coda, preso il primo.
+  // La coda del giorno di Roma, quello del giro, letta prima che i lavori esistano.
+  const queueToday = await queue(
+    await value("select ((now() at time zone 'Europe/Rome')::date)::text as v"),
+  );
+  eq(queueToday.length, 10, "Coda del giorno: dieci contatti");
   const first = await claim();
   eq(Object.keys(first).sort(), ["job", "status"]);
   eq(Object.keys(first.job).sort(), [
@@ -642,6 +740,23 @@ try {
   eq(await queue(fixture.today), [], "Chi ha un lavoro esce dalla coda");
   eq((await claim()).reason, "occupato");
   eq(await activeLeases(), 1, "Mai due lease attive");
+  // Con più lavori pronti il giro li prende nell'ordine della coda, non per CO né per inserimento.
+  // Le due coppie valgono in ogni giorno: 957 (settembre) e 953 (ottobre) hanno la stessa
+  // priorità; 955 (alta, gennaio) e 969 (media, febbraio) sono nello stesso periodo o 955 prima.
+  const claimed = await claimOrder();
+  eq(claimed, queueToday, "Il giro prende i lavori nell'ordine della coda");
+  ok(claimed.indexOf(957) < claimed.indexOf(953), "957 prima di 953");
+  ok(claimed.indexOf(955) < claimed.indexOf(969), "955 prima di 969");
+  eq(
+    await one(
+      `select lease_token, lease_expires_at = $2::timestamptz as same from public.partner_assistant_jobs
+        where partner_id = $1`,
+      [id(951), j.lease_expires_at],
+    ),
+    { lease_token: j.lease_token, same: true },
+    "Lease del primo giro rimessa com'era",
+  );
+  eq(await activeLeases(), 1);
 
   // Contesto, con le chiavi esatte.
   const c951 = await context(j);
@@ -1095,8 +1210,11 @@ try {
   });
   await completeDraft(jr1);
   const jr3 = await claimJob(969);
-  const right = (await context(jr3)).draft.sha256;
-  eq((await completeReview(jr3, { approved: true, sha256: right })).job_status, "pronta");
+  const ctx969 = await context(jr3);
+  const right = ctx969.draft.sha256;
+  // Il team segue il contatto durante una seconda lettura approvata: non diventa «pronta».
+  const jr4 = await guardHolds("review", 969, jr3, reviewFields(ctx969, { approved: true }));
+  eq((await completeReview(jr4, { approved: true, sha256: right })).job_status, "pronta");
   const ready = await job(969);
   eq(
     [ready.status, ready.step, ready.lease_token, ready.attempts],
@@ -1121,12 +1239,15 @@ try {
     "scrittura:controlli_superati",
     "controllo:riscrittura",
     "scrittura:controlli_superati",
+    "controllo:non_idoneo",
     "controllo:pronta",
   ]);
   // Seconda lettura fallita due volte: passa a Tommi.
   const jn = await toReview(970);
   eq((await completeReview(jn, { approved: false })).job_status, "in_coda");
-  await completeDraft(await claimJob(970));
+  // Il team segue il contatto durante la scrittura: la bozza non si salva e non va al controllo.
+  const jd970 = await claimJob(970);
+  await completeDraft(await guardHolds("draft", 970, jd970, draftFields(await context(jd970))));
   eq((await completeReview(await claimJob(970), { approved: false })).job_status, "serve_tommaso");
   eq((await job(970)).reason, "seconda_lettura");
   eq(
@@ -1135,12 +1256,16 @@ try {
     "I problemi della seconda lettura restano come testo",
   );
 
-  // 11. Attendere o bloccare.
-  await completeResearch(await claimJob(968));
+  // 11. Attendere o bloccare. Sul 968 anche la guardia di ricerca e scelta.
+  await completeResearch(await guardHolds("research", 968, await claimJob(968), research));
+  const blocca968 = decided(
+    { kind: "blocca", reason: "fatto_mancante" },
+    choiceOf({ fact_text: "" }),
+  );
   eq(
     await completeChoice(
-      await claimJob(968),
-      decided({ kind: "blocca", reason: "fatto_mancante" }, choiceOf({ fact_text: "" })),
+      await guardHolds("choice", 968, await claimJob(968), blocca968),
+      blocca968,
     ),
     { status: "done", job_status: "serve_tommaso", step: "estrazione", replayed: false },
   );

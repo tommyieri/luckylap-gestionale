@@ -1,4 +1,4 @@
-// test-db: postgres minimo 27
+// test-db: postgres minimo 32
 // Assistente Partner, compito 2: due giri sovrapposti del worker su PostgreSQL 17 reale (lock,
 // transazioni e permessi veri). Il secondo giro trova il lavoro occupato e non fa niente; mai due
 // lease attive; una lease scaduta conta un solo tentativo anche con due giri insieme. Cluster usa e
@@ -302,24 +302,22 @@ try {
 
   // 4. Un giro mentre la conclusione del passo non è ancora confermata: il giro non aspetta e trova
   // il lavoro occupato; dopo la conferma prende il passo successivo dello stesso lavoro.
-  const leased = results.find((r) => r.status === "claimed").job;
-  await beginService(a);
-  const done = await scalar(
-    a,
-    "select public.complete_partner_assistant_research($1, $2::jsonb) value",
-    [
+  const completeResearch = (client, job) =>
+    scalar(client, "select public.complete_partner_assistant_research($1, $2::jsonb) value", [
       randomUUID(),
       JSON.stringify({
         schema_version: 1,
-        job_id: leased.job_id,
-        lease_token: leased.lease_token,
+        job_id: job.job_id,
+        lease_token: job.lease_token,
         text: "Ricerca sintetica.",
         sources: ["https://club.example.test/notizie"],
         model: "claude-opus-5-5",
         rules_version: 1,
       }),
-    ],
-  );
+    ]);
+  const leased = results.find((r) => r.status === "claimed").job;
+  await beginService(a);
+  const done = await completeResearch(a, leased);
   eq(done.status, "done");
   eq(await asService(b, () => claim(b, WORKERS.b)), { status: "idle", reason: "occupato" });
   await a.query("commit");
@@ -337,6 +335,48 @@ try {
     ),
     1,
     "Una sola nota di ricerca",
+  );
+
+  // 5. La guardia dei complete_* blocca il lavoro prima di guardare la lease: con una pausa non
+  // ancora confermata, che rilascia ogni lease, la conclusione di un passo aspetta davvero, poi trova
+  // la lease persa e non salva niente.
+  await releaseAll();
+  const target = (
+    await owner.query(
+      `update public.partner_assistant_jobs set lease_token = gen_random_uuid(),
+         lease_expires_at = now() + interval '5 minutes'
+       where id = (select id from public.partner_assistant_jobs where step = 'ricerca' order by id limit 1)
+       returning id::text as job_id, lease_token::text as lease_token`,
+    )
+  ).rows[0];
+  await beginService(a);
+  eq(await scalar(a, "select public.pause_partner_assistant('credito') value"), {
+    status: "done",
+    paused_reason: "credito",
+  });
+  await beginService(b);
+  const late = capture(completeResearch(b, target));
+  await waitBlocked(pids.b, pids.a);
+  await a.query("commit");
+  eq(await success(late), { status: "lease_persa" }, "Dopo la pausa la lease non c'è più");
+  await b.query("commit");
+  eq(
+    await scalar(
+      owner,
+      "select count(*)::int value from public.partner_assistant_notes where kind = 'ricerca'",
+    ),
+    1,
+    "Nessuna nota di ricerca nuova",
+  );
+  eq(
+    (
+      await owner.query(
+        "select step, lease_token from public.partner_assistant_jobs where id = $1",
+        [target.job_id],
+      )
+    ).rows[0],
+    { step: "ricerca", lease_token: null },
+    "Il passo non avanza",
   );
   console.log(
     `PASS ${checks} Assistente Partner concurrent checks; PostgreSQL 17 reale, pids ${pids.a}/${pids.b}, Auth/dati sintetici.`,
