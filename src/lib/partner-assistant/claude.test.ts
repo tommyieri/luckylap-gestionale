@@ -1,4 +1,4 @@
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 vi.mock("server-only", () => ({}));
 import Anthropic, {
   APIConnectionError,
@@ -112,6 +112,15 @@ const message = (
   }) as unknown as Anthropic.Message;
 const replyWith = (value: Anthropic.Message): FakeReply => ({ final: async () => value });
 const failWith = (error: unknown): FakeReply => ({ final: async () => Promise.reject(error) });
+/** Uno stream partito che non finisce: si ferma solo con l'abort del segnale della richiesta. */
+const hangUntilAbort = (partial?: Anthropic.Message): FakeReply => ({
+  final: (signal) =>
+    new Promise((_, reject) => {
+      if (signal.aborted) reject(new APIUserAbortError());
+      signal.addEventListener("abort", () => reject(new APIUserAbortError()));
+    }),
+  partial,
+});
 const apiError = (status: number, type: string, detail: string) =>
   APIError.generate(
     status,
@@ -134,14 +143,27 @@ const call: ClaudeCall = {
   effort: "high",
   maxTokens: 32000,
 };
-const run = (input: ClaudeCall = call, signal = new AbortController().signal) =>
-  createPartnerAssistantClaude("sk-ant-synthetic-0000000000000000").call(input, signal, 240_000);
+const run = (
+  input: ClaudeCall = call,
+  signal = new AbortController().signal,
+  timeoutMs = 240_000,
+) =>
+  createPartnerAssistantClaude("sk-ant-synthetic-0000000000000000").call(input, signal, timeoutMs);
+/** La promessa e un flag che dice se è già finita. */
+const watch = <T>(promise: Promise<T>) => {
+  const state = { settled: false, promise };
+  void promise.then(() => (state.settled = true));
+  return state;
+};
 const sentBody = (index = 0) => fake.requests[index]?.body;
 
 beforeEach(() => {
   fake.clients.length = 0;
   fake.requests.length = 0;
   fake.replies.length = 0;
+});
+afterEach(() => {
+  vi.useRealTimers();
 });
 
 describe("client Claude dell'assistente Partner", () => {
@@ -201,18 +223,66 @@ describe("client Claude dell'assistente Partner", () => {
 
   it("abort del segnale: timeout, con l'usage della chiamata interrotta", async () => {
     const controller = new AbortController();
-    fake.replies.push({
-      final: (signal) =>
-        new Promise((_, reject) => {
-          if (signal.aborted) reject(new APIUserAbortError());
-          signal.addEventListener("abort", () => reject(new APIUserAbortError()));
-        }),
-      partial: message("end_turn", [], 300, 1),
-    });
+    fake.replies.push(hangUntilAbort(message("end_turn", [], 300, 1)));
     const pending = run(call, controller.signal);
     controller.abort();
     expect(await pending).toEqual({ ok: false, code: "timeout", usages: [usageOf(300, 1)] });
-    expect(fake.requests[0]?.options.signal).toBe(controller.signal);
+    expect(fake.requests[0]?.options.signal?.aborted).toBe(true);
+  });
+
+  // Il timeout dell'SDK si spegne all'arrivo delle intestazioni: uno stream già partito lo ferma
+  // solo il nostro timer.
+  it("allo scadere di timeoutMs ferma anche uno stream già partito: timeout", async () => {
+    vi.useFakeTimers();
+    const worker = new AbortController();
+    fake.replies.push(hangUntilAbort(message("end_turn", [], 300, 1)));
+    const pending = watch(run(call, worker.signal, 240_000));
+    await vi.advanceTimersByTimeAsync(239_999);
+    expect(pending.settled).toBe(false);
+    await vi.advanceTimersByTimeAsync(1);
+    expect(pending.settled).toBe(true);
+    expect(await pending.promise).toEqual({
+      ok: false,
+      code: "timeout",
+      usages: [usageOf(300, 1)],
+    });
+    expect(fake.requests[0]?.options.signal?.aborted).toBe(true);
+    expect(fake.requests[0]?.options.timeout).toBe(240_000);
+    expect(worker.signal.aborted).toBe(false);
+  });
+
+  it("timeoutMs vale per tutte le continuazioni insieme, non per ognuna", async () => {
+    vi.useFakeTimers();
+    fake.replies.push(
+      {
+        final: () =>
+          new Promise((resolve) =>
+            setTimeout(() => resolve(message("pause_turn", [searchUse], 100, 1)), 200_000),
+          ),
+      },
+      hangUntilAbort(message("end_turn", [], 300, 1)),
+      replyWith(message("end_turn", [text("ok")])),
+    );
+    const pending = watch(run(call, new AbortController().signal, 240_000));
+    await vi.advanceTimersByTimeAsync(200_000);
+    expect(fake.requests).toHaveLength(2);
+    await vi.advanceTimersByTimeAsync(39_999);
+    expect(pending.settled).toBe(false);
+    await vi.advanceTimersByTimeAsync(1);
+    expect(pending.settled).toBe(true);
+    expect(await pending.promise).toEqual({
+      ok: false,
+      code: "timeout",
+      usages: [usageOf(100, 1), usageOf(300, 1)],
+    });
+    expect(fake.requests).toHaveLength(2);
+  });
+
+  it("a chiamata finita il timer si spegne", async () => {
+    vi.useFakeTimers();
+    fake.replies.push(replyWith(message("end_turn", [text("ok")])));
+    expect((await run()).ok).toBe(true);
+    expect(vi.getTimerCount()).toBe(0);
   });
 
   it("abort tra due continuazioni: timeout senza una nuova chiamata", async () => {

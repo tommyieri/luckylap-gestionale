@@ -75,57 +75,68 @@ export function createPartnerAssistantClaude(apiKey: string) {
   // Nessun ritentativo dell'SDK: le attese e i tentativi li decide il worker.
   const client = new Anthropic({ apiKey, maxRetries: 0 });
   return {
+    /** `timeoutMs` limita tutta l'invocazione, continuazioni comprese: allo scadere l'esito è
+     * `timeout`, come per l'abort di `signal`. Il `timeout` dell'SDK copre solo l'attesa delle
+     * intestazioni, che con lo streaming arrivano subito: da solo non fermerebbe una ricerca
+     * lunga, e il worker perderebbe la riserva per registrare l'esito. */
     async call(input: ClaudeCall, signal: AbortSignal, timeoutMs: number): Promise<ClaudeResult> {
+      const deadline = new AbortController();
+      const timer = setTimeout(() => deadline.abort(), timeoutMs);
+      const stop = AbortSignal.any([signal, deadline.signal]);
       const contents: Anthropic.ContentBlock[] = [];
       const usages: PartnerAssistantUsage[] = [];
-      for (let continuations = 0; ; continuations++) {
-        if (signal.aborted) return { ok: false, code: "timeout", usages };
-        const stream = client.messages.stream(
-          {
-            model: PARTNER_ASSISTANT_MODEL,
-            max_tokens: input.maxTokens,
-            system: [
-              {
-                type: "text",
-                text: input.system,
-                cache_control: { type: "ephemeral", ttl: "1h" },
+      try {
+        for (let continuations = 0; ; continuations++) {
+          if (stop.aborted) return { ok: false, code: "timeout", usages };
+          const stream = client.messages.stream(
+            {
+              model: PARTNER_ASSISTANT_MODEL,
+              max_tokens: input.maxTokens,
+              system: [
+                {
+                  type: "text",
+                  text: input.system,
+                  cache_control: { type: "ephemeral", ttl: "1h" },
+                },
+              ],
+              // Dopo pause_turn si rimanda il turno dell'assistente com'è, thinking compreso.
+              messages: contents.length
+                ? [...input.messages, { role: "assistant", content: [...contents] }]
+                : input.messages,
+              ...(input.tools ? { tools: input.tools } : {}),
+              thinking: { type: "adaptive" },
+              output_config: {
+                effort: input.effort,
+                ...(input.format
+                  ? {
+                      format: {
+                        type: "json_schema",
+                        schema: input.format as Record<string, unknown>,
+                      },
+                    }
+                  : {}),
               },
-            ],
-            // Dopo pause_turn si rimanda il turno dell'assistente com'è, thinking compreso.
-            messages: contents.length
-              ? [...input.messages, { role: "assistant", content: [...contents] }]
-              : input.messages,
-            ...(input.tools ? { tools: input.tools } : {}),
-            thinking: { type: "adaptive" },
-            output_config: {
-              effort: input.effort,
-              ...(input.format
-                ? {
-                    format: {
-                      type: "json_schema",
-                      schema: input.format as Record<string, unknown>,
-                    },
-                  }
-                : {}),
             },
-          },
-          { signal, timeout: timeoutMs },
-        );
-        let message: Anthropic.Message;
-        try {
-          message = await stream.finalMessage();
-        } catch (err) {
-          // Una chiamata interrotta a metà ha già consumato: si registra quello che lo stream ha
-          // contato fin lì.
-          const partial = stream.currentMessage;
-          if (partial) usages.push(usageFromMessage(partial));
-          return { ok: false, code: signal.aborted ? "timeout" : classifyClaudeError(err), usages };
+            { signal: stop, timeout: timeoutMs },
+          );
+          let message: Anthropic.Message;
+          try {
+            message = await stream.finalMessage();
+          } catch (err) {
+            // Una chiamata interrotta a metà ha già consumato: si registra quello che lo stream ha
+            // contato fin lì.
+            const partial = stream.currentMessage;
+            if (partial) usages.push(usageFromMessage(partial));
+            return { ok: false, code: stop.aborted ? "timeout" : classifyClaudeError(err), usages };
+          }
+          usages.push(usageFromMessage(message));
+          contents.push(...message.content);
+          if (message.stop_reason !== "pause_turn") return { ok: true, message, contents, usages };
+          if (continuations === MAX_CONTINUATIONS)
+            return { ok: false, code: "troppe_continuazioni", usages };
         }
-        usages.push(usageFromMessage(message));
-        contents.push(...message.content);
-        if (message.stop_reason !== "pause_turn") return { ok: true, message, contents, usages };
-        if (continuations === MAX_CONTINUATIONS)
-          return { ok: false, code: "troppe_continuazioni", usages };
+      } finally {
+        clearTimeout(timer);
       }
     },
   };
