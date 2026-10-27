@@ -136,7 +136,14 @@ Il credito Anthropic (100 USD, 92,05 rimasti il 27 ottobre) scade il 5 novembre 
 - quando il credito finisce l'assistente non si rompe: smette di studiare e di scrivere, e ogni risposta in arrivo passa direttamente a Tommaso;
 - il credito rimasto non si legge con la chiave API: la configurazione tiene il credito di partenza, inserito a mano, e la pagina mostra quello meno la spesa registrata. Il numero esatto resta quello della Console.
 
-Dopo il 5 novembre l'assistente ha bisogno di nuovo credito per tutto quello che scrive: solleciti, risposte, ricerche da rifare, prime email dei contatti preparati più tardi. Ricaricare è una decisione di Tommaso; se ricarica, decide anche un tetto mensile da mettere nella configurazione. Senza credito l'assistente continua solo a leggere la casella, a registrare e a passare a Tommaso le risposte; le bozze già pronte restano nel gestionale e non partono, perché la loro ricerca invecchia (vedi sotto).
+Dopo il 5 novembre l'assistente ha bisogno di nuovo credito per tutto quello che scrive: solleciti, risposte, ricerche da rifare, prime email dei contatti preparati più tardi. Il 27 ottobre Tommaso ha deciso di non ricaricare per ora: si guarda come funziona e poi si decide; se ricarica, decide anche un tetto mensile da mettere nella configurazione. Quindi, finché non ricarica:
+
+- prima del 5 novembre si preparano ricerca, prima email e seconda lettura, tutte già approvate;
+- le prime email pronte partono con il ritmo previsto finché la loro ricerca ha meno di 21 giorni, con tutti i controlli nel codice; dopo restano nel gestionale;
+- niente solleciti e niente risposte scritte dall'assistente: ogni risposta in arrivo passa a Tommaso con la conversazione;
+- l'assistente continua a leggere la casella, a registrare e a mandare il riepilogo serale, che non richiedono Claude.
+
+Il risultato da guardare per decidere è il tasso di risposta alle prime email.
 
 Stima con i prezzi pubblici di Opus 5.5 (4 USD per milione di token in ingresso, 20 in uscita, 0,01 USD a ricerca web): tra 0,6 e 1,2 USD per contatto tra ricerca, scrittura e seconda lettura. Il credito basta quindi per preparare circa 80-150 contatti, non tutti i 165 che hanno un'email.
 
@@ -235,6 +242,18 @@ Il compito assegnato a Tommaso nel passaggio non contiene testi né indirizzi de
 - **Risposte a mano**: anche «Posta inviata» si legge; un messaggio in una conversazione dell'assistente con un `Message-ID` che l'assistente non ha creato significa che ha risposto una persona, e l'assistente si ferma su quel contatto.
 - **Conversazioni già esistenti**: prima della prima email a un contatto, l'assistente cerca nella posta inviata e ricevuta degli ultimi 12 mesi messaggi verso o da quell'indirizzo o dominio. Se ne trova, non scrive e passa il contatto a Tommaso con la conversazione: le email vecchie possono essere scritte con regole superate (conto vendita, allegati). Se Tommaso gli ridà il contatto, l'assistente continua quella conversazione con i solleciti (il caso di Milano AutoClassica).
 - **Riconoscimenti**: risposte automatiche (`Auto-Submitted`, `X-Autoreply`, oggetti tipici) e avvisi di mancata consegna (rapporti DSN che citano un nostro `Message-ID`) non contano come risposte.
+
+### Casella aziendale e Gmail
+
+Tommaso usa la casella aziendale da Gmail. Il DNS pubblico, controllato il 27 ottobre: MX su IONOS; SPF `v=spf1 include:_spf-eu.ionos.com ~all`, cioè solo i server IONOS; DKIM con le chiavi IONOS (`s1-ionos`, `s2-ionos`), nessuna chiave Google; DMARC preso da IONOS, `p=none`, senza indirizzo per i rapporti. Due server di inoltro IONOS (`mout-xforward`) risultano nella lista Spamhaus SBL, i server di invio normali no.
+
+Ne seguono tre cose da verificare nel pannello IONOS e in Gmail prima di costruire la parte di posta:
+
+- **Da dove parte la posta.** Se Gmail manda «come» la casella aziendale dai propri server, SPF e DKIM non valgono per il dominio e DMARC fallisce: è la causa più probabile dello spam. Se la manda attraverso il server SMTP di IONOS, va bene.
+- **Come arriva la posta in Gmail.** Un inoltro da IONOS passa dai server in lista Spamhaus, e le risposte dei contatti possono finire nello spam di Gmail. Una lettura POP da Gmail può cancellare i messaggi dalla casella IONOS.
+- **Cosa resta nella casella IONOS.** L'assistente legge IONOS via IMAP: le risposte devono restare lì (inoltro con copia conservata, oppure POP che lascia una copia sul server). Le risposte che Tommaso manda da Gmail finiscono nella posta inviata di Gmail, non in quella di IONOS: per accorgersene vale la seconda strada descritta in «Risposte» (la risposta successiva del contatto cita un messaggio che l'assistente non ha scritto).
+
+Ogni modifica a DNS, inoltri o impostazioni della casella la decide Tommaso, una per una.
 
 ### Regole di sicurezza
 
@@ -343,8 +362,8 @@ Tommaso non le ha decise esplicitamente: sono le scelte di Claude più vicine a 
 17. L'assistente prende solo contatti senza «Seguito da» e senza attività del team; gli altri li lascia alle persone.
 18. Le regole di sicurezza sono scelte di Claude, in particolare: una sola conversazione per indirizzo in 90 giorni, nessun invio dal 21 dicembre al 7 gennaio, una risposta dell'assistente ogni 24 ore per conversazione, e la domanda «scrive una persona o un programma?» passata sempre a Tommaso.
 
-## Domande aperte per Tommaso
+## Domande per Tommaso
 
-1. **Credito dopo il 5 novembre.** Ricarichi il credito Anthropic perché l'assistente continui a scrivere (solleciti, risposte, ricerche da rifare), e con quale tetto mensile? Senza credito, dal 6 novembre l'assistente legge soltanto la casella e passa a te le risposte.
-2. **Casella aziendale.** Leggi e rispondi dalla casella IONOS (webmail o un programma collegato in IMAP), oppure la posta passa da un inoltro verso un altro servizio da cui rispondi? Serve per la sistemazione dello spam e perché l'assistente si accorga delle tue risposte.
-3. **Milano AutoClassica.** La mandi tu a mano entro venerdì 30 ottobre, dalla casella aziendale?
+1. **Credito dopo il 5 novembre.** Risposta del 27 ottobre: per ora non si ricarica; si guarda come funziona e poi si decide. Vedi «Credito e tempi».
+2. **Casella aziendale.** Risposta del 27 ottobre: Tommaso usa la casella da Gmail, ma non è chiaro come sia collegata (inoltro da IONOS o lettura POP da Gmail, e da quale server parte la posta). Si controlla insieme nel pannello IONOS e nelle impostazioni di Gmail, come primo passo della sistemazione dello spam. Vedi «Casella aziendale e Gmail».
+3. **Milano AutoClassica.** La manda Tommaso a mano entro venerdì 30 ottobre, dalla casella aziendale? Ancora aperta.
