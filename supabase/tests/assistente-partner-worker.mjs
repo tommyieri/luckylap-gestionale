@@ -1,4 +1,4 @@
-// test-db: pglite minimo 574
+// test-db: pglite minimo 576
 // Assistente Partner, compito 2 (_assistente_partner_worker.sql): coda dei contatti idonei, giri del
 // worker con lease, contesto, checkpoint, costi, avanzamento dei passi, tentativi, pausa, permessi,
 // cancellazione di un recapito su una bozza pronta e lettura dello stato dei soli contatti idonei.
@@ -1060,7 +1060,14 @@ try {
   const fails957 = [];
   for (let i = 0; i < 3; i++) {
     fails957.push(await fail(await claimJob(957), "riprova", "risposta_non_valida"));
-    if (i === 0) eq((await job(957)).waits, true, "Riprova tra dieci minuti");
+    if (i === 0) {
+      eq((await job(957)).waits, true, "Riprova tra dieci minuti");
+      eq(
+        await value("select backoff_until is null as v from private.partner_assistant_config"),
+        true,
+        "Riprova per un altro motivo: nessuna attesa per tutti",
+      );
+    }
   }
   eq(fails957, [
     { status: "done", job_status: "in_coda", attempts: 1 },
@@ -1094,6 +1101,21 @@ try {
   );
   eq(await claim(), { status: "idle", reason: "attesa" });
   await asOwner("update private.partner_assistant_config set backoff_until = null");
+  // Attesa dopo un consumo già pagato: il worker la manda come riprova con claude_attesa. Il
+  // tentativo si consuma e tutto l'assistente aspetta comunque dieci minuti. Prova annullata.
+  const again953 = await claimJob(953);
+  eq(
+    await rolledBack(
+      () => fail(again953, "riprova", "claude_attesa"),
+      async () => [(await job(953)).attempts, (await job(953)).waits, (await configRow()).waits],
+    ),
+    [{ status: "done", job_status: "in_coda", attempts: 1 }, [1, true, true]],
+    "Riprova per Claude non disponibile: un tentativo e l'attesa per tutti",
+  );
+  await asOwner(
+    "update public.partner_assistant_jobs set lease_token = null, lease_expires_at = null where partner_id = $1",
+    [id(953)],
+  );
   eq((await fail(await claimJob(954), "rilascia", "non_idoneo")).attempts, 0);
   eq(
     [(await job(954)).attempts, (await job(954)).due, (await job(954)).lease_token],

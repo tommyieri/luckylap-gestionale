@@ -50,6 +50,8 @@ function fakeSupabase(
     failTable?: string;
     /** Codice dell'errore di `failTable` (PostgREST o PostgreSQL); senza, solo il messaggio. */
     failCode?: string;
+    /** Messaggio dell'errore di `failTable`; senza, «boom». */
+    failMessage?: string;
     /** Toglie una riga dalla prima pagina di questa tabella, lasciando il conteggio. */
     truncate?: string;
   } = {},
@@ -124,7 +126,10 @@ function fakeSupabase(
           if (options.failTable === table)
             return Promise.resolve({
               data: null,
-              error: { message: "boom", ...(options.failCode ? { code: options.failCode } : {}) },
+              error: {
+                message: options.failMessage ?? "boom",
+                ...(options.failCode ? { code: options.failCode } : {}),
+              },
               count: null,
             }).then(resolve, reject);
           const rows = (tables[table] ?? []).filter((row) => filters.every((f) => f(row)));
@@ -346,7 +351,7 @@ describe("assistente nella scheda", () => {
     expect(fake.calls.some((call) => call.table === "partner_assistant_drafts")).toBe(false);
   });
 
-  it("errore sulle tabelle dell'assistente, anche prima delle migrazioni: assistant null, scheda leggibile", async () => {
+  it("errore di lettura sulle tabelle dell'assistente: assistant null, scheda leggibile", async () => {
     for (const table of [
       "partner_assistant_contacts",
       "partner_assistant_jobs",
@@ -377,21 +382,38 @@ describe("assistente nella scheda", () => {
   });
 
   it("tabelle dell'assistente che non ci sono ancora: blocco non attivo, senza avviso", async () => {
-    for (const failCode of ["PGRST205", "42P01"])
+    // I messaggi di PostgREST e di PostgreSQL per una tabella che non c'è.
+    const missing = {
+      PGRST205: (table: string) => `Could not find the table 'public.${table}' in the schema cache`,
+      "42P01": (table: string) => `relation "public.${table}" does not exist`,
+    };
+    for (const [failCode, message] of Object.entries(missing))
       for (const table of ["partner_assistant_contacts", "partner_assistant_jobs"]) {
-        const fake = fakeSupabase(tables(), { failTable: table, failCode });
+        const fake = fakeSupabase(tables(), {
+          failTable: table,
+          failCode,
+          failMessage: message(table),
+        });
         const detail = await loadPartnerDetail(fake.client, 2);
         expect(detail?.assistant, `${table} ${failCode}`).toBe(PARTNER_ASSISTANT_INACTIVE);
         expect(detail?.contacts, table).toHaveLength(4);
         // Senza le tabelle non si leggono note e bozze.
         expect(fake.calls.some((call) => call.table === "partner_assistant_notes")).toBe(false);
       }
-    // Un altro codice resta «non leggibile».
-    const other = await loadPartnerDetail(
-      fakeSupabase(tables(), { failTable: "partner_assistant_jobs", failCode: "57014" }).client,
-      2,
-    );
-    expect(other?.assistant).toBeNull();
+    // Un altro codice, o lo stesso codice per un oggetto che non è dell'assistente (un bug),
+    // resta «non leggibile».
+    for (const [failCode, failMessage] of [
+      ["57014", "canceling statement due to statement timeout"],
+      ["42P01", 'missing FROM-clause entry for table "j"'],
+      ["42883", "operator does not exist: uuid = text"],
+    ]) {
+      const other = await loadPartnerDetail(
+        fakeSupabase(tables(), { failTable: "partner_assistant_jobs", failCode, failMessage })
+          .client,
+        2,
+      );
+      expect(other?.assistant, failMessage).toBeNull();
+    }
   });
 });
 
@@ -407,12 +429,38 @@ describe("stato e regole dell'assistente", () => {
   });
 
   it("funzione dell'assistente che non c'è ancora: stato non attivo, non un errore", async () => {
-    for (const code of ["PGRST202", "42883", "PGRST205", "42P01"]) {
+    // I messaggi di PostgREST e di PostgreSQL quando manca la funzione o una sua tabella.
+    for (const [code, message] of [
+      [
+        "PGRST202",
+        "Could not find the function public.read_partner_assistant_status without parameters in the schema cache",
+      ],
+      ["42883", "function public.read_partner_assistant_status() does not exist"],
+      [
+        "PGRST205",
+        "Could not find the table 'public.partner_assistant_config' in the schema cache",
+      ],
+      ["42P01", 'relation "private.partner_assistant_config" does not exist'],
+    ]) {
       const fake = fakeSupabase(tables(), {
-        rpc: () => ({ data: null, error: { code, message: "sintetico" } }),
+        rpc: () => ({ data: null, error: { code, message } }),
       });
       expect(await loadPartnerAssistantStatus(fake.client), code).toBe(PARTNER_ASSISTANT_INACTIVE);
     }
+  });
+
+  it("stesso codice per un oggetto che non è dell'assistente: un bug, Partner non disponibile", async () => {
+    for (const [code, message] of [
+      ["42883", "operator does not exist: uuid = text"],
+      ["42883", "function public.partner_text(text) does not exist"],
+      ["42P01", 'missing FROM-clause entry for table "j"'],
+    ])
+      await expect(
+        loadPartnerAssistantStatus(
+          fakeSupabase(tables(), { rpc: () => ({ data: null, error: { code, message } }) }).client,
+        ),
+        message,
+      ).rejects.toThrow(PartnerUnavailableError);
   });
 
   it("errore della RPC o risposta non valida: Partner non disponibile", async () => {

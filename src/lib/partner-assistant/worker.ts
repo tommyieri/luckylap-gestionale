@@ -256,7 +256,8 @@ function stepPlan(
 
 /** Consumo pagato: token di output già generati, oppure una continuazione (più di una richiesta).
  * Un'attesa che arriva dopo non è gratis: consuma un tentativo, così un contatto non spende
- * all'infinito. */
+ * all'infinito. L'attesa di tutto l'assistente resta: fail_partner_assistant_step la mette anche
+ * per riprova con claude_attesa. */
 const paidUsage = (usages: PartnerAssistantUsage[]) =>
   usages.length > 1 || usages.some((usage) => usage.outputTokens > 0);
 

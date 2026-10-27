@@ -384,7 +384,7 @@ try {
   const op1 = randomUUID();
   const first = await mode(
     consultant,
-    { mode: "prepara", expected_version: 1, starting_credit_usd: 92.05 },
+    { mode: "prepara", expected_version: 1, starting_credit_usd: 37.45 },
     op1,
   );
   eq(first.version, 2);
@@ -393,7 +393,7 @@ try {
   eq(first.id, await value("select id as v from private.partner_assistant_config"));
   const replay = await mode(
     consultant,
-    { mode: "prepara", expected_version: 1, starting_credit_usd: 92.05 },
+    { mode: "prepara", expected_version: 1, starting_credit_usd: 37.45 },
     op1,
   );
   eq(replay.replayed, true);
@@ -401,7 +401,7 @@ try {
   eq((await configRow()).version, 2, "La ripetizione non cambia niente");
   eq(
     pick(await config(), ["credit", "updated_by"]),
-    { credit: "92.05", updated_by: consultant },
+    { credit: "37.45", updated_by: consultant },
     "Credito di partenza e autore",
   );
   eq(
@@ -411,7 +411,7 @@ try {
   );
   eq(await configRow(), { mode: "spento", version: 3 });
   await rejects(
-    () => mode(founder, { mode: "prepara", expected_version: 1, starting_credit_usd: 92.05 }, op1),
+    () => mode(founder, { mode: "prepara", expected_version: 1, starting_credit_usd: 37.45 }, op1),
     "23505",
     "partner_idempotency_conflict",
   );
@@ -437,7 +437,7 @@ try {
     pick(resumed, ["mode", "credit", "paused_reason", "backoff_until", "updated_by"]),
     {
       mode: "prepara",
-      credit: "92.05",
+      credit: "37.45",
       paused_reason: null,
       backoff_until: null,
       updated_by: founder,
@@ -454,10 +454,10 @@ try {
   );
   eq(
     pick(await config(), ["mode", "version", "credit", "updated_by"]),
-    { mode: "prepara", version: 4, credit: "92.05", updated_by: founder },
+    { mode: "prepara", version: 4, credit: "37.45", updated_by: founder },
     "Credito da una pagina vecchia: modalità, versione e credito invariati",
   );
-  for (const credit of [10000.01, 1.234, -1, "92.05", true])
+  for (const credit of [10000.01, 1.234, -1, "37.45", true])
     await rejects(
       () => mode(founder, { mode: "prepara", expected_version: 4, starting_credit_usd: credit }),
       "22023",

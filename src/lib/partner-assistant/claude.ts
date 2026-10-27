@@ -139,6 +139,12 @@ export function createPartnerAssistantClaude(apiKey: string) {
             },
             { signal: stop, timeout: timeoutMs },
           );
+          // L'SDK azzera lo snapshot quando lo stream si chiude senza message_stop, prima di
+          // rifiutare finalMessage: l'ultimo visto dagli eventi resta qui.
+          let last: Anthropic.Message | undefined;
+          stream.on("streamEvent", (_event, snapshot) => {
+            last = snapshot;
+          });
           let message: Anthropic.Message;
           try {
             message = await stream.finalMessage();
@@ -146,7 +152,7 @@ export function createPartnerAssistantClaude(apiKey: string) {
             // Una chiamata interrotta a metà ha già consumato: si registra quello che lo stream ha
             // contato fin lì. Le ricerche web l'API le conta solo a fine messaggio: valgono almeno
             // i blocchi server_tool_use di web_search già arrivati.
-            const partial = stream.currentMessage;
+            const partial = stream.currentMessage ?? last;
             if (partial) {
               const usage = usageFromMessage(partial);
               const searches = partial.content.filter(

@@ -35,8 +35,14 @@ import {
   partnerFixtureDetail,
   partnerFixtureWorkspace,
 } from "../../lib/partner/fixtures";
-import type { PartnerAssistantStatus } from "../../lib/partner/assistant";
-import type { PartnerWorkspace as PartnerWorkspaceData } from "../../lib/partner/model";
+import {
+  PARTNER_ASSISTANT_INACTIVE,
+  type PartnerAssistantStatus,
+} from "../../lib/partner/assistant";
+import type {
+  PartnerDetail,
+  PartnerWorkspace as PartnerWorkspaceData,
+} from "../../lib/partner/model";
 
 const TODAY = "2026-10-22";
 
@@ -46,13 +52,16 @@ function render(
     workspace?: PartnerWorkspaceData;
     preview?: boolean;
     assistant?: PartnerAssistantStatus | null;
+    /** Cambia la scheda aperta prima di renderla. */
+    detail?: (detail: PartnerDetail) => PartnerDetail;
   } = {},
 ) {
   const co = Number(query.co);
+  const detail = query.co ? partnerFixtureDetail(co, TODAY) : null;
   return renderToStaticMarkup(
     <PartnerWorkspace
       workspace={options.workspace ?? partnerFixtureWorkspace(TODAY)}
-      detail={query.co ? partnerFixtureDetail(co, TODAY) : null}
+      detail={detail && options.detail ? options.detail(detail) : detail}
       assistant={
         options.assistant === undefined ? partnerAssistantFixture(TODAY).status : options.assistant
       }
@@ -154,6 +163,19 @@ describe("PartnerWorkspace", () => {
     expect(messages).toContain("Le bozze dell'assistente sono nel blocco «Assistente».");
     expect(messages).not.toContain("repository Partner");
     expect(messages).not.toContain("chiedilo a Claude");
+  });
+
+  it("assistente non attivo: niente rimando al blocco «Assistente», che non c'è", () => {
+    const html = render(
+      { periodo: "4", stato: "tutti", co: "5" },
+      { detail: (detail) => ({ ...detail, assistant: PARTNER_ASSISTANT_INACTIVE }) },
+    );
+    const start = html.indexOf('id="messaggi-5"');
+    expect(start).toBeGreaterThan(0);
+    const messages = text(html.slice(start, html.indexOf("</section>", start)));
+    expect(messages).toContain("Nessun messaggio pronto per questo contatto.");
+    expect(messages).not.toContain("Le bozze dell'assistente");
+    expect(html).not.toContain('id="assistente-5"');
   });
 
   it("contatto in «Non contattare»: niente rimando alle bozze dell'assistente", () => {

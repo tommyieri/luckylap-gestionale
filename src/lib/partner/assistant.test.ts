@@ -631,10 +631,45 @@ describe("dati sintetici dell'assistente", () => {
 });
 
 describe("migrazioni dell'assistente non ancora applicate", () => {
-  it("funzione o tabella mancante, da PostgREST o da PostgreSQL: assistente non attivo", () => {
-    for (const code of ["PGRST202", "PGRST205", "42883", "42P01"])
-      expect(isPartnerAssistantMissing({ code, message: "sintetico" }), code).toBe(true);
+  it("funzione o tabella dell'assistente mancante, da PostgREST o da PostgreSQL: assistente non attivo", () => {
+    // I messaggi come li mandano PostgREST e PostgreSQL quando l'oggetto non c'è.
+    for (const error of [
+      {
+        code: "PGRST202",
+        message:
+          "Could not find the function public.read_partner_assistant_status without parameters in the schema cache",
+      },
+      {
+        code: "PGRST205",
+        message: "Could not find the table 'public.partner_assistant_jobs' in the schema cache",
+      },
+      { code: "42883", message: "function public.read_partner_assistant_status() does not exist" },
+      { code: "42P01", message: 'relation "public.partner_assistant_contacts" does not exist' },
+    ])
+      expect(isPartnerAssistantMissing(error), error.code).toBe(true);
     expect(PARTNER_ASSISTANT_INACTIVE).toBe("non_attivo");
+  });
+
+  it("stesso codice, ma l'oggetto che manca non è dell'assistente: un bug, resta un errore", () => {
+    for (const error of [
+      { code: "42883", message: "operator does not exist: uuid = text" },
+      { code: "42883", message: "function public.partner_text(text) does not exist" },
+      { code: "42P01", message: 'missing FROM-clause entry for table "j"' },
+      { code: "42P01", message: 'relation "public.partners" does not exist' },
+      {
+        code: "PGRST202",
+        message:
+          "Could not find the function public.set_partner_state(p_operation_id, p_payload) in the schema cache",
+      },
+      {
+        code: "PGRST205",
+        message: "Could not find the table 'public.partner_contacts' in the schema cache",
+      },
+      { code: "42883", message: "sintetico" },
+      { code: "42883" },
+      { code: "42P01", message: null },
+    ])
+      expect(isPartnerAssistantMissing(error), JSON.stringify(error)).toBe(false);
   });
 
   it("gli altri errori restano errori veri", () => {

@@ -42,6 +42,9 @@ vi.mock("@anthropic-ai/sdk", async (importOriginal) => {
         const reply = fake.replies.shift();
         if (!reply) throw new Error("manca la risposta finta");
         return {
+          on() {
+            return this;
+          },
           finalMessage: () => reply.final(options.signal ?? new AbortController().signal),
           get currentMessage() {
             return reply.partial;

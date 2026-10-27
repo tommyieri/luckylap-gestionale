@@ -280,12 +280,23 @@ export type PartnerAssistantInactive = typeof PARTNER_ASSISTANT_INACTIVE;
  * (42883 undefined_function, 42P01 undefined_table).
  */
 const MISSING_CODES: readonly string[] = ["PGRST202", "PGRST205", "42883", "42P01"];
+/**
+ * Funzioni e tabelle dell'assistente hanno tutte questo pezzo nel nome. 42883 e 42P01 nascono anche
+ * da un bug (un operatore che manca, un alias sbagliato): senza un oggetto dell'assistente nel
+ * messaggio l'errore resta un errore.
+ */
+const ASSISTANT_OBJECT = /partner_assistant/;
 
 /** L'errore dice che la funzione o la tabella dell'assistente non c'è ancora. */
 export function isPartnerAssistantMissing(error: unknown): boolean {
   if (error === null || typeof error !== "object") return false;
-  const code = (error as { code?: unknown }).code;
-  return typeof code === "string" && MISSING_CODES.includes(code);
+  const { code, message } = error as { code?: unknown; message?: unknown };
+  return (
+    typeof code === "string" &&
+    MISSING_CODES.includes(code) &&
+    typeof message === "string" &&
+    ASSISTANT_OBJECT.test(message)
+  );
 }
 
 // ---------------------------------------------------------------------------

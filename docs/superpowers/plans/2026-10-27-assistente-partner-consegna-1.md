@@ -101,7 +101,7 @@ Cinque casi che la specifica implica e che rischiano di sfuggire. Ognuno ha il s
 - Produce le funzioni (firme esatte):
   - `private.partner_assistant_begin(p_operation_id uuid, p_kind text, p_actor uuid, p_payload jsonb) returns jsonb` e `private.partner_assistant_finish(p_operation_id uuid, p_kind text, p_actor uuid, p_payload jsonb, p_result jsonb) returns jsonb`: copie di `partner_begin`/`partner_finish` (`partner_module.sql:671-696`) con attore esplicito, la tabella `private.partner_assistant_receipts` e il lock `'luckylap.partner_assistant.'||op`.
   - `private.partner_assistant_append_only() returns trigger`: come `reject_ledger_mutation` (errore `42501`), ma lascia passare `delete` quando `current_setting('luckylap.partner_assistant.erase', true) = 'on'`. Usata su regole, note e bozze.
-  - `private.partner_assistant_erase(p_partner_id uuid) returns void`: imposta il flag in locale, cancella note e bozze del contatto e rimette il suo lavoro `in_coda`, `step='ricerca'`, `attempts=0`, `rewrites=0`, riferimenti nulli. La richiama un trigger `after update of erased_at on public.partner_contacts` quando `erased_at` passa da nullo a valorizzato.
+  - `private.partner_assistant_erase(p_partner_id uuid) returns void`: imposta il flag in locale, cancella note e bozze del contatto e manda il suo lavoro a Tommi: `status='serve_tommaso'`, `reason='dato_cancellato'` (un lavoro già `serve_tommaso` tiene il suo motivo), `step='ricerca'`, `attempts=0`, `rewrites=0`, riferimenti, lease e data nulli. Non torna in coda da solo: lo si ridà all'assistente dalla scheda. La richiama un trigger `after update of erased_at on public.partner_contacts` quando `erased_at` passa da nullo a valorizzato.
   - Comandi del team. Seguono lo schema di `record_partner_activity` (`partner_module.sql:1030-1084`, wrapper a 2165), con l'attore `private.partner_actor()`; le chiavi richieste sono validate con `partner_payload`.
     - `set_partner_assistant_mode(p_operation_id uuid, p_payload jsonb) returns jsonb`. Chiavi richieste `schema_version, mode, expected_version`; facoltativa `starting_credit_usd`, da 0 a 10000 con due decimali.
       - `prova` e `invio`: senza `private.is_founder()` errore `42501 partner_assistant_founder_required`; con il founder, in questa consegna, `22023 partner_assistant_mode_unavailable`.
@@ -141,8 +141,8 @@ await rejects(() => as("authenticated", consultant, () => cmd("set_partner_assis
 await rejects(() => as("authenticated", founder, () => cmd("set_partner_assistant_mode", { mode: "invio", expected_version: 1 })), "22023");
 await rejects(() => as("authenticated", consultant, () => cmd("set_partner_assistant_mode", { mode: "prepara", expected_version: 1 })), "55000");
 await asOwner(`update private.partner_assistant_config set actor_id = '${assistant}', handoff_to = '${founder}'`);
-eq((await as("authenticated", consultant, () => cmd("set_partner_assistant_mode", { mode: "prepara", expected_version: 1, starting_credit_usd: 92.05 }, op1))).version, 2);
-eq((await as("authenticated", consultant, () => cmd("set_partner_assistant_mode", { mode: "prepara", expected_version: 1, starting_credit_usd: 92.05 }, op1))).replayed, true);
+eq((await as("authenticated", consultant, () => cmd("set_partner_assistant_mode", { mode: "prepara", expected_version: 1, starting_credit_usd: 37.45 }, op1))).version, 2);
+eq((await as("authenticated", consultant, () => cmd("set_partner_assistant_mode", { mode: "prepara", expected_version: 1, starting_credit_usd: 37.45 }, op1))).replayed, true);
 eq((await as("authenticated", consultant, () => cmd("set_partner_assistant_mode", { mode: "spento", expected_version: 1 }))).mode, "spento", "spento vince anche con versione vecchia");
 await rejects(() => as("authenticated", founder, () => cmd("save_partner_assistant_rules", { body: "x", expected_version: 2 })), "40001");
 eq((await as("authenticated", founder, () => cmd("save_partner_assistant_rules", { body: "Regole v2", expected_version: 1 }))).version, 2);
@@ -225,7 +225,7 @@ eq(await countNotesAndDrafts(p951), 0); eq((await job(p951)).step, "ricerca");
       - altrimenti come per la bozza, con `reason='seconda_lettura'`.
   - `fail_partner_assistant_step(p_job_id uuid, p_lease_token uuid, p_kind text, p_reason text) returns jsonb`. Rilascia sempre la lease. Risultato `{status:'done', job_status, attempts}`. `p_kind`:
     - `attesa`: non consuma tentativi; `next_attempt_at` e `config.backoff_until` a `now() + 10 minuti`;
-    - `riprova`: `attempts+1`, `next_attempt_at = now() + 10 minuti`; al terzo `serve_tommaso`, `reason='troppi_tentativi'`;
+    - `riprova`: `attempts+1`, `next_attempt_at = now() + 10 minuti`; al terzo `serve_tommaso`, `reason='troppi_tentativi'`. Con `p_reason='claude_attesa'` (Claude non disponibile dopo un consumo già pagato) anche `config.backoff_until` a `now() + 10 minuti`;
     - `rilascia`: niente tentativo, niente attesa (passo fermato dal checkpoint);
     - `blocca`: `serve_tommaso` con `p_reason`.
   - `pause_partner_assistant(p_reason text) returns jsonb`: `p_reason` è `credito` o `errore_claude`. Imposta `paused_reason` e rilascia ogni lease senza consumare tentativi. Risultato `{status:'done', paused_reason}`.
@@ -557,7 +557,7 @@ it("refusal: null", () => expect(firstJson(refused)).toBeNull());
     Errori:
     - `credito` → `pause_partner_assistant('credito')`, esito `paused`;
     - `errore` → `pause_partner_assistant('errore_claude')`, esito `paused`;
-    - `attesa` → `fail(…, "attesa", "claude_attesa")`;
+    - `attesa` → `fail(…, "attesa", "claude_attesa")`; se la chiamata aveva già speso, `fail(…, "riprova", "claude_attesa")`: un tentativo, con l'attesa per tutti;
     - `timeout` e `troppe_continuazioni` → `fail(…, "riprova", <codice>)`;
     - `fallito`, JSON o scelta non valida → `fail(…, "riprova", "risposta_non_valida")`;
     - un `complete_*` senza risposta certa → `uncertain`, senza `fail`.

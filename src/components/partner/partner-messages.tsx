@@ -10,6 +10,7 @@ import {
 } from "react";
 import Link from "next/link";
 import { History, Mail, RotateCcw } from "lucide-react";
+import { PARTNER_ASSISTANT_INACTIVE } from "../../lib/partner/assistant";
 import {
   partnerActivityPayload,
   partnerMessagePayload,
@@ -716,7 +717,8 @@ export function PartnerMessages({ detail, blocked }: { detail: PartnerDetail; bl
             </button>
           </div>
         )}
-        {!blocked && (
+        {/* Senza le migrazioni dell'assistente il blocco «Assistente» non c'è. */}
+        {!blocked && detail.assistant !== PARTNER_ASSISTANT_INACTIVE && (
           <p className={styles.hint}>Le bozze dell'assistente sono nel blocco «Assistente».</p>
         )}
         {skipped && <p className={styles.hint}>Approcci scartati: {skipped}</p>}

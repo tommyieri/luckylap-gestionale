@@ -282,7 +282,7 @@ describe("controlli di coerenza della lettura", () => {
       assistant,
     });
     expect(view(partnerDetailFromRows(2, detailRows(assistantRows())))?.job?.status).toBe("pronta");
-    // Tabelle non leggibili (per esempio prima delle migrazioni): il server passa null.
+    // Tabelle non leggibili: il server passa null.
     const unreadable = partnerDetailFromRows(2, detailRows(null));
     expect(unreadable.assistant).toBeNull();
     expect(unreadable.contacts).toHaveLength(4);

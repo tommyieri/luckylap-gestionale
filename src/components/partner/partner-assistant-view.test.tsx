@@ -537,6 +537,65 @@ describe("PartnerAssistantView", () => {
     expect(focus).toHaveBeenCalledOnce();
   });
 
+  it("«Ridai all'assistente» su un secondo contatto: nessuna conferma con il suo nome prima dell'esito", async () => {
+    const [first] = fixture.status.toReview;
+    const toReview = [first, { ...first, co: 2, name: "Garage Sintetico Due" }];
+    const partnerIds = { 1: partnerFixtureId(1), 2: partnerFixtureId(2) };
+    const view = () => sectionOf(render({ partnerIds }, { toReview }), "Da vedere");
+    const ridai = (n: number) =>
+      buttons(view()).filter((node) => text(node).trim() === "Ridai all'assistente")[n];
+    const success = (co: number) => ({
+      status: "success",
+      kind: "set_partner_assistant_contact",
+      operationId: OPERATION,
+      id: "93000000-0000-4000-8000-000000000005",
+      partnerId: partnerFixtureId(co),
+      version: 2,
+      stage: null,
+      co: null,
+      message: "Assistente aggiornato su questo contatto.",
+    });
+    let answer!: (result: unknown) => void;
+    mocks.setContact
+      .mockResolvedValueOnce(success(1))
+      .mockReturnValueOnce(new Promise((resolve) => (answer = resolve)));
+    click(ridai(0));
+    await Promise.all(mocks.transitions);
+    expect(words(view())).toContain(
+      "CO 001 · Garage Sintetico Uno: di nuovo all'assistente, riparte dalla ricerca.",
+    );
+    // Il secondo invio è ancora aperto: né la conferma di prima né quella del contatto nuovo.
+    click(ridai(1));
+    expect(mocks.setContact).toHaveBeenCalledTimes(2);
+    const waiting = words(view());
+    answer(success(2));
+    await Promise.all(mocks.transitions);
+    expect(waiting).not.toContain("di nuovo all'assistente");
+    expect(words(view())).toContain(
+      "CO 002 · Garage Sintetico Due: di nuovo all'assistente, riparte dalla ricerca.",
+    );
+    expect(words(view())).not.toContain("Garage Sintetico Uno: di nuovo");
+  });
+
+  it("«Ridai all'assistente»: la conferma con il contatto solo se l'esito è di quel contatto", async () => {
+    mocks.setContact.mockResolvedValue({
+      status: "success",
+      kind: "set_partner_assistant_contact",
+      operationId: OPERATION,
+      id: "93000000-0000-4000-8000-000000000005",
+      partnerId: partnerFixtureId(2),
+      version: 2,
+      stage: null,
+      co: null,
+      message: "Assistente aggiornato su questo contatto.",
+    });
+    click(button(render(), "Ridai all'assistente"));
+    await Promise.all(mocks.transitions);
+    const review = sectionOf(render(), "Da vedere");
+    expect(words(review)).not.toContain("di nuovo all'assistente");
+    expect(words(review)).toContain("Assistente aggiornato su questo contatto.");
+  });
+
   it("i contatti di «Da vedere» arrivano al contesto: un invio incerto si legge con CO e nome", () => {
     const provider = descendants(render()).find(
       (node) => (node.props.value as { partnersById?: unknown } | undefined)?.partnersById,

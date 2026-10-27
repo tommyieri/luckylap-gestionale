@@ -148,13 +148,28 @@ describe("connessione che cade a metà stream, con l'SDK vero", () => {
     });
   });
 
-  it("lo stream si chiude senza message_stop: attesa", async () => {
+  it("lo stream si chiude senza message_stop: attesa, con l'usage di message_start", async () => {
     vi.stubGlobal("fetch", brokenStream("close"));
     const result = await createPartnerAssistantClaude("sk-ant-synthetic-0000000000000000").call(
       call,
       new AbortController().signal,
       2_000,
     );
-    expect(result).toMatchObject({ ok: false, code: "attesa" });
+    // L'SDK azzera lo snapshot prima di rifiutare finalMessage: l'usage arriva dall'ultimo
+    // snapshot visto dagli eventi dello stream.
+    expect(result).toEqual({
+      ok: false,
+      code: "attesa",
+      usages: [
+        {
+          inputTokens: 300,
+          outputTokens: 1,
+          cacheWrite5mTokens: 0,
+          cacheWrite1hTokens: 0,
+          cacheReadTokens: 0,
+          webSearches: 0,
+        },
+      ],
+    });
   });
 });

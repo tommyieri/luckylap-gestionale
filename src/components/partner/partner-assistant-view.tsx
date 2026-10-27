@@ -428,9 +428,14 @@ function AssistantReview({
   // Un solo comando per la sezione: la conferma resta qui anche quando la riga, ridata
   // all'assistente, sparisce con la pagina riletta.
   const command = usePartnerCommand("assistente-ridai");
-  const [sent, setSent] = useState<Pick<ReviewEntry, "co" | "name"> | null>(null);
+  const [sent, setSent] = useState<
+    (Pick<ReviewEntry, "co" | "name"> & { partnerId: string }) | null
+  >(null);
+  // L'esito di prima sparisce subito: la conferma non parla del contatto nuovo finché il suo
+  // invio non ha risposto.
   const giveBack = (item: ReviewEntry, partnerId: string) => {
-    setSent({ co: item.co, name: item.name });
+    command.reset();
+    setSent({ co: item.co, name: item.name, partnerId });
     command.run("set_partner_assistant_contact", {
       schema_version: 1,
       partner_id: partnerId,
@@ -468,7 +473,9 @@ function AssistantReview({
         command={command}
         focus
         success={
-          sent
+          sent &&
+          command.state.status === "success" &&
+          command.state.result.partnerId === sent.partnerId
             ? `${formatCo(sent.co)} · ${sent.name}: di nuovo all'assistente, riparte dalla ricerca.`
             : undefined
         }

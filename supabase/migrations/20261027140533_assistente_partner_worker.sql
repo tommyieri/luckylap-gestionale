@@ -644,9 +644,10 @@ $$;
 
 -- Passo non concluso. Rilascia sempre la lease. attesa: nessun tentativo, il lavoro e tutto
 -- l'assistente aspettano dieci minuti (429, 529, 5xx). riprova: un tentativo fallito e dieci minuti;
--- al terzo a Tommi. rilascia: niente tentativo né attesa (fermato dal checkpoint). blocca: a Tommi
--- con il motivo. Lock nello stesso ordine del giro: configurazione, contatto (for share, come la
--- guardia dei complete_*), poi lavoro.
+-- al terzo a Tommi. Con il motivo claude_attesa (Claude non disponibile dopo un consumo già
+-- pagato) anche tutto l'assistente aspetta dieci minuti. rilascia: niente tentativo né attesa
+-- (fermato dal checkpoint). blocca: a Tommi con il motivo. Lock nello stesso ordine del giro:
+-- configurazione, contatto (for share, come la guardia dei complete_*), poi lavoro.
 create function private.fail_partner_assistant_step(p_job_id uuid, p_lease_token uuid, p_kind text, p_reason text)
 returns jsonb
 language plpgsql security definer set search_path = '' as $$
@@ -667,7 +668,7 @@ begin
   if not found or j.lease_token is distinct from p_lease_token then
     return jsonb_build_object('status', 'lease_persa');
   end if;
-  if p_kind = 'attesa' then
+  if p_kind = 'attesa' or (p_kind = 'riprova' and p_reason = 'claude_attesa') then
     update private.partner_assistant_config set backoff_until = now() + interval '10 minutes' where singleton;
   end if;
   update public.partner_assistant_jobs set lease_token = null, lease_expires_at = null, updated_at = now(),

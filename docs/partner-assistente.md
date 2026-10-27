@@ -21,10 +21,10 @@ L'assistente prende solo contatti «Da contattare», senza «Seguito da», senza
 
 Errori e tentativi:
 
-- risposta di Claude rotta, rifiutata, troncata o oltre il nostro timer: un tentativo consumato; al terzo il contatto va a «Serve Tommi» e la coda continua;
-- Claude non raggiungibile, sovraccarico o al limite di velocità (errori di connessione, anche a metà risposta, 429, 529, 5xx): attesa di dieci minuti per tutti, senza tentativi consumati. Se però la chiamata aveva già speso (token in uscita o una ripresa), il tentativo si consuma: così un contatto non spende all'infinito;
 - credito finito (402, `billing_error`, 400 con «credit balance»): pausa di tutto l'assistente, nessun tentativo consumato; la striscia e la pagina lo dicono;
-- chiave o permessi rifiutati (401, 403) ed errori di configurazione (404, oppure un 400 che dice che il modello o una funzione non è disponibile): pausa «errore di Claude»;
+- chiave o permessi rifiutati (401, 403) ed errori di configurazione (404, oppure un 400 che dice che il modello o una funzione non è disponibile): pausa per errore di Claude, nessun tentativo consumato;
+- Claude sovraccarico, al limite di velocità o non raggiungibile (429, 529, 5xx, connessione caduta anche a metà risposta): attesa di dieci minuti per tutto l'assistente. Se la chiamata non aveva ancora speso, nessun tentativo consumato; se aveva già speso (token in uscita o una ripresa), si consuma un tentativo e l'attesa per tutti resta: così un contatto non spende all'infinito;
+- risposta di Claude rotta, rifiutata, troncata o interrotta dal nostro timer: un tentativo consumato; al terzo il contatto va a «Serve Tommi» e la coda continua;
 - ogni altro errore dell'API (per esempio un 400 «prompt is too long» o un 413): un tentativo consumato, come una risposta rotta.
 
 Fuori da questa consegna (seconda consegna, con un piano proprio): invio, lettura della casella, risposte, solleciti, passaggio a Tommi con email e attività in Oggi, riepilogo serale, modalità «prova» e «invio», origine `assistente` nel registro Partner e nel feed di Controllo CEO.
@@ -44,11 +44,11 @@ Le regole di scrittura in vigore sono un testo versionato nel database (versione
 ## Dove si vede nel gestionale
 
 - **Striscia** in cima a `/partner`: modalità, bozze pronte e spesa, con «Apri l'assistente» e «Ferma l'assistente». Spento, in pausa, non configurato o non leggibile: fondo ambra con la parola scritta.
-- **Pagina** `/partner/assistente` (link «Assistente» nel piede di Partner): stato e ultimi eventi, modalità e credito di partenza, coda, spesa, «Da vedere» (i contatti passati a Tommi, con «Ridai all'assistente») e regole, con le versioni. «Da vedere» e i conteggi della coda contano solo i contatti che l'assistente può ancora prendere: un contatto fermato nella scheda, seguito dal team o non più «Da contattare» esce da lì. Credito e regole partono dalla versione letta: se un collega le cambia nel frattempo, il campo si riallinea al valore salvato e il proprio resta visibile a parte.
+- **Pagina** `/partner/assistente` (link «Assistente» nel piede di Partner): stato e ultimi eventi, modalità e credito di partenza, coda, spesa, «Da vedere» (i contatti passati a Tommi, con «Ridai all'assistente») e regole, con le versioni. «Da vedere» e i conteggi In coda, In attesa della data, Bozza pronta e Serve Tommi contano solo i contatti che l'assistente può ancora prendere: un contatto fermato nella scheda, seguito dal team o non più «Da contattare» esce da lì. «Fermati dal team» conta invece i contatti con l'interruttore fermo. Credito e regole partono dalla versione letta: se un collega le cambia nel frattempo, il campo si riallinea al valore salvato e il proprio resta visibile a parte.
 - **Blocco «Assistente»** nella scheda del contatto: stato del lavoro, motivo per cui l'assistente non lo prende, proposta e motivo, ricerca con le fonti, bozza in una sezione apribile e l'interruttore «Assistente su questo contatto: attivo / fermo» (diverso da «Non contattare»).
 - La guida «Come si usa», parte «Partner», spiega tutto questo al team.
 
-Le pagine mostrano i dati del caricamento e funzionano anche in anteprima senza database. Prima delle migrazioni (funzione o tabella mancante: codici `PGRST202`, `PGRST205`, `42883`, `42P01`) l'assistente è «non attivo»: striscia e blocco non si mostrano e la pagina dell'assistente dice «Assistente non ancora attivo.». Se invece la lettura non riesce per un altro motivo, striscia e blocco dicono in ambra «stato non leggibile». In tutti e due i casi il resto di Partner resta com'è.
+Le pagine mostrano i dati del caricamento e funzionano anche in anteprima senza database. Prima delle migrazioni (funzione o tabella mancante: codici `PGRST202`, `PGRST205`, `42883`, `42P01`, con un oggetto dell'assistente, `partner_assistant`, nel messaggio) l'assistente è «non attivo»: striscia e blocco non si mostrano e la pagina dell'assistente dice «Assistente non ancora attivo.». Se invece la lettura non riesce per un altro motivo, striscia e blocco dicono in ambra «stato non leggibile». In tutti e due i casi il resto di Partner resta com'è.
 
 ## Tabelle e RPC
 
@@ -70,7 +70,7 @@ Tabelle in `public`, leggibili dai membri del team (RLS `member_read`) e scritte
 
 Tabelle in `private`, non leggibili da nessun ruolo client: `partner_assistant_config` (riga unica con modalità, profilo dell'assistente e di Tommi, credito di partenza, pausa, attesa, ultimo giro), `partner_assistant_runs` (una riga per chiamata a Claude: token, ricerche web, costo), `partner_assistant_events` (registro delle esecuzioni, solo codici), `partner_assistant_receipts` (ricevute idempotenti) e `partner_assistant_scheduler_state` (puntatore al segreto in Vault).
 
-Nessun testo, indirizzo o segreto finisce nei log, nelle risposte HTTP, negli eventi o nelle colonne con audit. La cancellazione definitiva di un recapito («Cancella il dato») cancella anche note e bozze del contatto e passa il lavoro a Tommi, dalla ricerca, con il motivo «Un dato del contatto è stato cancellato» (un lavoro che era già di Tommi tiene il suo motivo): non torna in coda da solo, così una ricerca rifatta non risalva il dato cancellato. Ridarlo all'assistente resta una scelta di Tommi, con «Ridai all'assistente».
+Nessun testo, indirizzo o segreto finisce nei log, nelle risposte HTTP, negli eventi o nelle colonne con audit. La cancellazione definitiva di un recapito («Cancella il dato») cancella anche note e bozze del contatto e passa il lavoro a Tommi con il motivo «dato cancellato» (un lavoro che era già di Tommi tiene il suo motivo): non lo rimette in coda dall'inizio, così una ricerca rifatta non risalva il dato cancellato. Lo si ridà all'assistente dalla scheda, con l'interruttore «Assistente su questo contatto», e allora riparte dalla ricerca.
 
 RPC dei membri (`authenticated`, con `partner_actor()` e ricevute per `operation_id`): `set_partner_assistant_mode`, `set_partner_assistant_contact`, `save_partner_assistant_rules` e `read_partner_assistant_status`. «Prova» e «Invio» li sceglie solo il founder e in questa consegna sono rifiutati.
 
