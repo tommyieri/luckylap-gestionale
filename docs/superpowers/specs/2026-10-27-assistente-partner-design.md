@@ -1,8 +1,8 @@
 # Assistente Partner: specifica
 
-Tommaso vuole che i contatti del modulo Partner vengano lavorati da un assistente basato su Claude, che vive nel gestionale. L'assistente studia ogni contatto, scrive e invia la prima email, gestisce le risposte e i solleciti, tiene aggiornato il gestionale e passa a Tommaso le trattative concrete. Tommaso supervisiona e chiude gli accordi. Questa specifica raccoglie le decisioni prese con lui tra il 26 e il 27 ottobre 2026; i testi delle email sono in attesa del parere di Luca, il consulente, e le regole di scrittura restano modificabili senza ricostruire nulla.
+Tommaso vuole che i contatti del modulo Partner vengano lavorati da un assistente basato su Claude, che vive nel gestionale. L'assistente studia ogni contatto, scrive e invia la prima email, gestisce le risposte e i solleciti, tiene aggiornato il gestionale e passa a Tommaso le trattative concrete. Tommaso supervisiona e chiude gli accordi. Questa specifica raccoglie le decisioni prese con lui tra il 26 e il 27 ottobre 2026; i testi delle email sono stati rivisti il 27 ottobre pomeriggio con il parere di Luca, il consulente (vedi «Parere di Luca»), e le regole di scrittura restano modificabili senza ricostruire nulla.
 
-Stato: approvata da Tommaso il 27 ottobre 2026. Base: `origin/main` a `3c58693`. Nell'interfaccia il founder è «Tommi»; le email sono firmate «Tommaso».
+Stato: approvata da Tommaso il 27 ottobre 2026, aggiornata lo stesso giorno con il parere di Luca («procedi con il resto»). Base: `origin/main` a `3c58693`. Nell'interfaccia il founder è «Tommi»; le email sono firmate «Tommaso».
 
 ## Intento
 
@@ -14,7 +14,7 @@ L'obiettivo di questa fase è il tasso di risposta: farci rispondere e aprire un
 
 - Per ogni contatto con email: ricerca fresca, scelta della richiesta, prima email personalizzata nella lingua del destinatario, inviata da sola.
 - Risposte lette e gestite in modo naturale, senza insistere, finché la conversazione diventa concreta; allora passa a Tommaso.
-- Al massimo due solleciti, nella stessa conversazione, poi stop.
+- Fino a quattro solleciti, a 7, 17, 45 e 90 giorni dalla prima email, nella stessa conversazione, poi stop (parere di Luca).
 - Tutto registrato nel gestionale: ricerca, richiesta e motivo, email inviate e ricevute, stato, prossimo passo.
 - Un riepilogo serale a Tommaso e una lista «Per te» con quello che aspetta lui.
 - Il credito Anthropic usato bene prima che scada il 5 novembre, con la spesa registrata e visibile.
@@ -34,7 +34,7 @@ Sarebbe un fallimento anche se tecnicamente funzionasse:
 - un'email che parla di conto vendita, in qualunque lingua;
 - un'email con un fatto inventato, un nome sbagliato o un segnaposto rimasto (`[first name]`);
 - due email uguali allo stesso contatto, o un'email a chi è in «Non contattare» o ha detto no;
-- tono da venditore, insistenza, più di due solleciti;
+- tono da venditore, insistenza, più di quattro solleciti;
 - una trattativa concreta che resta all'assistente invece di arrivare a Tommaso;
 - un credito che finisce senza che nessuno se ne accorga, o che scade senza essere usato;
 - azioni dell'assistente che nel gestionale sembrano fatte da una persona.
@@ -47,31 +47,36 @@ Tommaso vuole una ricerca prima di ogni email. Prima della prima email la ricerc
 
 L'assistente può scrivere a un indirizzo trovato dalla ricerca e non ancora nel gestionale solo se è pubblicato dall'organizzazione stessa (il suo sito, le sue pagine ufficiali); lo salva nei recapiti del contatto con la fonte, così vale anche per «Non contattare». Mai indirizzi presi da siti che raccolgono contatti, mai caselle private non pubblicate dall'organizzazione.
 
-### 2. Scelta della richiesta
+### 2. Scelta della proposta
 
-Una sola richiesta per email, in base al tipo di contatto (decisione del 27 ottobre):
+Una sola proposta per email, concreta, in base al tipo di contatto. La decisione del 27 ottobre era una richiesta aperta («parlare di un progetto futuro»); Luca ha osservato che una domanda generica riceve poche risposte e sembra una chiacchierata «a tempo perso», e che conviene anticipare l'opportunità per loro. L'IA classifica soltanto il contatto; la proposta la decide il codice da un elenco chiuso, così non propone cose che non possiamo fare:
 
-| Contatto | Richiesta |
-|---|---|
-| Club, brand, media | Parlare insieme di un progetto futuro, senza dire quale |
-| Evento raggiungibile | Esserci con un piccolo banco |
-| Negozio | Se venderebbero le nostre magliette |
+| Contatto | Proposta (codice) | Vantaggio per loro, in una frase |
+|---|---|---|
+| Club, ed evento che non possiamo raggiungere | Magliette co-firmate con il loro logo ricamato accanto alle nostre auto, come per il Porsche Club Toscana (`merch_cobranding`) | Un capo esclusivo da offrire o vendere ai soci e agli eventi; disegno, ricamo e consegna li curiamo noi |
+| Brand, media | Una capsule in edizione limitata disegnata insieme (`collab_capsule`) | Un prodotto nuovo per il loro shop e la loro community |
+| Evento raggiungibile | Uno stand dedicato, curato nei dettagli e in linea con l'evento (`stand_evento`) | Un'offerta in più per i visitatori |
+| Negozio | Se venderebbero le nostre magliette (`vendita_negozio`) | Un prodotto per i loro clienti appassionati di auto, che si trova in pochi posti |
 
-Regole per gli eventi: gli eventi sono il canale migliore perché andiamo di persona a vendere. La produzione richiede un mese esatto dall'ordine alla consegna, quindi a meno di un mese dall'evento non si parla di capi dedicati, ma il banco si chiede lo stesso se si può andare a vendere. Un evento è raggiungibile se è in Italia o in un paese confinante (scelta di Claude, da confermare); un evento più lontano si tratta come un club: progetto futuro. Un evento raggiungibile ma lontano nel tempo riceve la richiesta del banco al momento giusto (vedi sotto). Se un evento risponde con i costi del banco, li valuta Tommaso (passaggio); se non c'è più posto o è troppo tardi, si propone una collaborazione o la presenza all'edizione successiva: non è un no.
+La proposta si descrive a parole: niente dettagli di design, prezzi, numeri, guadagni, percentuali o commissioni, che decide Tommaso dopo.
 
-L'assistente decide anche quando scrivere: se il momento giusto è più avanti (per esempio qualche mese prima della prossima edizione di un evento), salva la data per scrivere nelle sue tabelle (non in «Prossima azione», che sposterebbe il contatto di periodo e lo metterebbe nell'Oggi di tutti) e non scrive adesso. Salva la richiesta scelta e il motivo in una frase.
+Regole per gli eventi: gli eventi sono il canale migliore perché andiamo di persona a vendere. La produzione richiede un mese esatto dall'ordine alla consegna. Con uno stand, se all'evento manca più di un mese, la stessa email propone anche una maglietta co-firmata dell'evento (parere di Luca); a un mese o meno no. Con un evento non raggiungibile a un mese o meno, la maglietta co-firmata è per la prossima edizione. La riga che lo dice a Claude la scrive il codice dalle date, non il modello. Un evento è raggiungibile se è in Italia o in un paese confinante (scelta di Claude, da confermare). Un evento raggiungibile ma lontano nel tempo riceve la proposta al momento giusto (vedi sotto). Se un evento risponde con i costi dello stand, li valuta Tommaso (passaggio); se non c'è più posto o è troppo tardi, si propone una collaborazione o la presenza all'edizione successiva: non è un no.
+
+L'assistente decide anche quando scrivere: se il momento giusto è più avanti (per esempio qualche mese prima della prossima edizione di un evento), salva la data per scrivere nelle sue tabelle (non in «Prossima azione», che sposterebbe il contatto di periodo e lo metterebbe nell'Oggi di tutti) e non scrive adesso. Salva la proposta scelta e il motivo in una frase.
 
 ### 3. Scrittura
 
-L'ordine di ogni prima email, approvato da Tommaso il 27 ottobre: complimento sincero e specifico, chi siamo (ragazzi di 22 anni di Milano appassionati di auto; disegniamo noi ogni auto e la facciamo ricamare in Italia su cotone biologico, senza loghi vistosi), cosa abbiamo già fatto, la voglia di fare qualcosa insieme, la richiesta, una sola domanda gentile, il grazie. Firma su tre righe: «Tommaso», il ruolo nella lingua dell'email («Fondatore», «Founder», «Gründer», «Fondateur», «Fundador») con «, LuckyLap», e «luckylap.com | Instagram @lucky.lap». Oggetto breve con il loro nome.
+L'ordine di ogni prima email, approvato da Tommaso il 27 ottobre e completato con il parere di Luca: complimento sincero e specifico; chi siamo («Sono Tommaso di LuckyLap», un gruppo di giovani appassionati di auto a Milano, senza mai l'età; disegniamo noi ogni maglietta e ogni auto che ricamiamo in Italia su cotone biologico, in puro stile quiet luxury); cosa abbiamo già fatto, con il link `https://luckylap.com` (con lo schema, così è cliccabile); la voglia di fare qualcosa insieme con la proposta; il vantaggio per loro; una sola domanda gentile; la richiesta garbata di un recapito telefonico per approfondire a voce, con il rimando al nostro numero nella firma; il grazie. Firma su quattro righe: «Tommaso», il ruolo nella lingua dell'email («Fondatore», «Founder», «Gründer», «Fondateur», «Fundador») con «, LuckyLap», il numero di Tommaso (dalla variabile `PARTNER_ASSISTANT_PHONE`, mai nel repository), e «https://luckylap.com | Instagram @lucky.lap». Oggetto breve con il loro nome.
 
-Fatti che si possono citare, da due a quattro per email: tra chi indossa le nostre magliette ci sono piloti di Formula 1 (mai nomi, mai «abbiamo venduto a»); siamo in un negozio nel centro di Milano a un minuto dal Duomo (mai il nome, mai «il nostro negozio»); 150 magliette su misura per il Porsche Club Toscana con il logo del club sulla manica; magliette arrivate in più di dieci paesi; siamo tutti di 22 anni. Con i Porsche Club e le comunità Porsche si nominano solo la 964 e la GT3RS, e si può dire che il nostro ricamatore lavora apposta per i Porsche Club.
+Uscire dalla posta e parlare a voce alla prima risposta aumenta molto la probabilità di chiudere (Luca): per questo la prima email chiede un recapito e lascia il nostro.
 
-Mai: conto vendita (in nessuna lingua: consignment, sale or return, Kommission, dépôt-vente…), «Made in Italy», schizzi, idee su misura, campioni, foto da mandare, magliette in regalo, prezzi, sconti, punti esclamativi, emoji, superlativi, case automobilistiche come partner, link diversi dalla home di luckylap.com (la pagina `/pages/porsche` non esisterà mai), allegati.
+Fatti che si possono citare, da due a quattro per email (di solito due o tre bastano): tra chi indossa le nostre magliette ci sono piloti di Formula 1 (mai nomi, mai «abbiamo venduto a»); le nostre magliette sono già in vendita in centro a Milano, a un minuto dal Duomo (mai il nome del negozio, mai «il nostro negozio»); 150 magliette su misura per il Porsche Club Toscana con il logo del club sulla manica (senza date); magliette arrivate in più di dieci paesi. L'età («siamo tutti di 22 anni») non si scrive più: rende scettici (Luca). Con i Porsche Club e le comunità Porsche si nominano solo la 964 e la GT3 RS, e si può dire che il nostro ricamatore lavora apposta per i Porsche Club.
+
+Mai: conto vendita (in nessuna lingua: consignment, sale or return, Kommission, dépôt-vente…), «Made in Italy», schizzi, dettagli di design su misura, campioni, foto da mandare, magliette in regalo, prezzi, sconti, guadagni o commissioni, l'età, il numero di telefono nel corpo, punti esclamativi, emoji, superlativi, case automobilistiche come partner, link diversi dalla home di luckylap.com (la pagina `/pages/porsche` non esisterà mai), allegati.
 
 Lingua del destinatario (da `CONTESTO.md`): inglese britannico, tedesco con il Sie (in Svizzera senza ß), francese con il vous, italiano con il voi verso un'organizzazione e il Lei verso una persona; spagnolo con l'usted (scelta di Claude). Corpo tra 110 e 160 parole. Saluto con il nome della persona se la ricerca l'ha trovato, altrimenti un saluto neutro; in Austria con il titolo accademico se c'è.
 
-I quattro testi del 27 ottobre (Milano AutoClassica, Porsche Club GB con il sollecito, Elferspot) sono il riferimento di tono, nella versione corretta dopo il parere di Luca. Due punti sono ancora aperti: nell'email a Elferspot le parole «mit dem Clublogo am Ärmel», e per Milano AutoClassica la giornata del 19 novembre.
+I quattro testi del 27 ottobre (Milano AutoClassica, Porsche Club GB con il sollecito, Elferspot), riscritti con il parere di Luca, sono il riferimento di tono: le tre prime email stanno nelle regole v1 (Appendice A del piano), il sollecito è in «7. Solleciti». Due punti sono ancora aperti: nell'email a Elferspot le parole «mit dem Clublogo am Ärmel», e per Milano AutoClassica la giornata del 19 novembre.
 
 ### 4. Controllo prima dell'invio
 
@@ -82,10 +87,11 @@ Ogni email passa due controlli. Il primo è una seconda lettura di Claude con le
 - nessuna parola vietata, in tutte le lingue;
 - nessun segnaposto rimasto (parentesi quadre, «Nachname», «first name»);
 - un solo punto interrogativo, nessun punto esclamativo;
-- l'unico link è luckylap.com;
-- la firma è quella giusta per la lingua e dice Tommaso;
+- l'unico link è luckylap.com, scritto anche `https://luckylap.com`, senza pagine interne;
+- nessuna età e nessun numero di telefono nel corpo;
+- la firma è quella giusta per la lingua, dice Tommaso e porta il suo numero;
 - la versione delle regole con cui è stata scritta è quella in vigore: una bozza scritta con regole superate si riscrive;
-- con un contatto Porsche non compaiono modelli diversi da 964 e GT3RS;
+- con un contatto Porsche non compaiono modelli diversi da 964 e GT3 RS;
 - lunghezza nei limiti.
 
 Se un controllo fallisce l'email non parte. L'assistente riscrive una volta; al secondo errore il contatto passa a Tommaso.
@@ -112,11 +118,24 @@ Per ogni risposta:
 - **interesse generico o domande semplici** a cui le regole rispondono: risposta naturale, breve, nella loro lingua, entro un giorno lavorativo, con gli stessi controlli della prima email;
 - **qualcosa di concreto** (costi, prezzi, quantità, date, una call o un incontro, un ordine, una richiesta di campioni, i nomi dei piloti, condizioni, contratti) o qualunque cosa a cui le regole non rispondono: l'assistente non risponde e passa la conversazione a Tommaso subito, con un riassunto e una proposta di risposta che lui può usare o cambiare.
 
+Luca consiglia di passare a Tommaso **ogni** prima risposta umana, per uscire subito dalla posta e parlare a voce, e lascia la decisione a noi: è la domanda 4 per Tommaso. Finché non ricarica il credito succede già così (vedi «Credito e tempi»).
+
 Se Tommaso o qualcun altro risponde a mano in una conversazione, l'assistente si ferma su quel contatto. Se ne accorge dalla posta inviata della casella oppure, se la persona ha risposto da un altro programma o servizio, dalla risposta successiva del contatto, che cita un messaggio nostro che l'assistente non ha scritto.
 
 ### 7. Solleciti
 
-Se non rispondono, un sollecito gentile nella stessa conversazione dopo due-tre settimane, poi un secondo, al massimo due; ognuno porta una cosa nuova e corta (40-90 parole). Dopo il secondo, il contatto resta «Contattato» senza prossimo passo automatico. Le date si spostano per gli eventi (per esempio, dopo il mercatino di Natale del Porsche Club GB).
+Se non rispondono, fino a quattro solleciti nella stessa conversazione, a 7, 17, 45 e 90 giorni dalla prima email (parere di Luca: dopo due-tre settimane una prima email è già dimenticata). Ognuno è corto (40-90 parole) e porta una cosa nuova, seguita da una frase sul valore che ha per loro; poi ripete la proposta in breve, una domanda e la richiesta del recapito. Dopo il quarto, il contatto resta «Contattato» senza prossimo passo automatico. Le date si spostano per gli eventi (per esempio, dopo il mercatino di Natale del Porsche Club GB). Esempio, primo sollecito al Porsche Club GB (73 parole):
+
+```text
+Subject: Re: Porsche Club GB and LuckyLap
+Good morning,
+One thing I didn't mention in my first note: our embroiderer in Italy works specifically for Porsche Clubs.
+It means your crest would be in safe hands, embroidered by someone who already knows the Porsche Clubs' branding rules.
+We'd still love to make co-branded T-shirts with the Club, for your members and events.
+Would that be of interest?
+If a call is easier, I'd be glad of your number; mine is just below.
+Thank you again, and warm wishes from Milan,
+```
 
 ### 8. Passaggio a Tommaso
 
@@ -208,7 +227,7 @@ I comandi Partner esistenti non si toccano, salvo il rifiuto di un invio manuale
 Una migrazione additiva (le tabelle nuove in `public` ricevono da Supabase permessi predefiniti per `anon`, `authenticated` e `service_role`: vanno revocati esplicitamente, compreso `service_role`), nello stile del modulo Partner (funzioni private, wrapper, ricevute idempotenti con `operation_id`, append-only dove si registra la storia, `audit_change_keys` senza testi né indirizzi):
 
 - **configurazione**: riga unica con modalità, profili, limiti giornalieri, indirizzo per i riepiloghi letto dall'ambiente;
-- **conversazioni**: una per contatto, con stato (`attiva`, `in_attesa`, `passata`, `ferma`, `chiusa`), solleciti inviati (vincolo 0-2), ultimo invio, ultima risposta, data del prossimo sollecito, versione;
+- **conversazioni**: una per contatto, con stato (`attiva`, `in_attesa`, `passata`, `ferma`, `chiusa`), solleciti inviati (vincolo 0-4), ultimo invio, ultima risposta, data del prossimo sollecito, versione;
 - **messaggi**: inviati e ricevuti, testo completo, oggetto, indirizzi, `Message-ID` unico, `In-Reply-To`, `References`, cartella e UID IMAP, tipo (primo, sollecito, risposta, ricevuto), stato di invio (`pronto`, `in_invio`, `inviato`, `incerto`), versione delle regole usata, esito dei controlli;
 - **note dell'assistente**: ricerca con fonti, richiesta scelta e motivo, passaggio a Tommaso con riassunto e proposta di risposta, modello e costo. La ricerca dell'assistente non va in `partners.research`, che ogni import della ricerca sovrascrive;
 - **esecuzioni e costi**: una riga per chiamata a Claude con token, ricerche web e costo calcolato;
@@ -313,6 +332,7 @@ Nel gestionale non esistono notifiche. L'assistente usa la posta: un'email a Tom
 | `PARTNER_ASSISTANT_ENABLED` | Accensione, vale solo `true` |
 | `PARTNER_ASSISTANT_SECRET` | Bearer del worker, lo stesso in Vault |
 | `ANTHROPIC_API_KEY` | Chiave dell'API Anthropic |
+| `PARTNER_ASSISTANT_PHONE` | Numero di Tommaso per la firma, con il prefisso internazionale (`+39 …`); senza un numero valido l'assistente resta spento |
 | `PARTNER_ASSISTANT_SUPABASE_SECRET_KEY` | Chiave segreta Supabase propria dell'assistente (`sb_secret_…`), distinta da quella del worker Shopify; con `NEXT_PUBLIC_SUPABASE_URL` già presente |
 | `PARTNER_MAIL_USER`, `PARTNER_MAIL_PASSWORD` | Casella aziendale |
 | `PARTNER_MAIL_SMTP_HOST`, `PARTNER_MAIL_IMAP_HOST` | Server IONOS: `smtp.ionos.it` (587, TLS) e `imap.ionos.it` (993, SSL) |
@@ -325,7 +345,7 @@ Nessun segreto negli ambienti preview: lì l'assistente resta spento e risponde 
 ### Test e verifica
 
 - Fake iniettati per Claude, ricerca web, SMTP e IMAP, come le dipendenze del worker Shopify; messaggi MIME sintetici con domini `example.test`; nessun server di posta installato sul Mac.
-- Harness PGlite per stati, code, limiti giornalieri, solleciti (mai più di due), blocchi e passaggi; PostgreSQL 17 per lease e invii concorrenti (doppio invio impossibile).
+- Harness PGlite per stati, code, limiti giornalieri, solleciti (mai più di quattro), blocchi e passaggi; PostgreSQL 17 per lease e invii concorrenti (doppio invio impossibile).
 - Test dei controlli nel codice su ogni lingua, con le parole vietate.
 - Prima del lancio, verifiche in sola lettura: privilegi di `service_role` sulle tabelle Partner, durata massima delle funzioni nel progetto Vercel, host IONOS, cartella «Posta inviata».
 - I comandi di AGENTS.md prima di ogni pull request; nessuna email vera in test, fixture o documenti.
@@ -343,6 +363,24 @@ Nomi di tabelle, funzioni e file; prompt; divisione in moduli; intervallo esatto
 - Le email e le risposte salvate nel modulo Partner le vedono tutti e cinque, Luca compreso.
 - Limiti di velocità dell'account Anthropic (tier) non noti: da controllare in Console.
 - Questa specifica supera la regola di P5 «Nessuna email o notifica esterna automatica» (`2026-10-22-p4-p6-design.md`), per decisione di Tommaso.
+
+## Parere di Luca (27 ottobre)
+
+Luca ha annotato il documento con gli esempi. Tommaso: alcuni punti li avevamo già gestiti, «procedi con il resto».
+
+| Nota di Luca | Esito |
+|---|---|
+| Come gestiamo eventi e contatto diretto con l'estero? | Già risolto: eventi solo se raggiungibili; all'estero proposte a distanza, magliette già in più di dieci paesi |
+| Opzioni chiare, non lasciare all'IA la scelta libera | Già risolto: la proposta la decide il codice da un elenco chiuso |
+| Proposta iniziale concreta per tipo (collab ai brand, merch ai club), con l'opportunità per loro, senza prezzi | Fatto: «2. Scelta della proposta» |
+| Agli eventi anche merchandise co-firmato | Fatto, solo con più di un mese prima dell'evento |
+| Niente età; «Sono Tommaso di LuckyLap»; «gruppo di giovani»; «quiet luxury»; «già in vendita in centro a Milano» | Fatto |
+| Link cliccabile | Fatto: `https://luckylap.com` |
+| «Stand dedicato, curato nei dettagli e consono all'evento» invece di «piccolo banco» | Fatto |
+| Chiedere un recapito e lasciare il nostro numero, per parlare a voce | Fatto: frase nella prima email, numero nella firma |
+| Solleciti più vicini e più numerosi: 5/7, 17, 45, 90 giorni | Fatto: quattro, a 7, 17, 45 e 90 giorni (seconda consegna) |
+| Nel sollecito, dire il valore per loro della cosa nuova | Fatto; «quest'anno» non si scrive perché non è confermato |
+| Passare a Tommaso dalla prima risposta («decisione vostra») | Domanda 4 |
 
 ## Scelte fatte da Claude, da controllare
 
@@ -372,3 +410,5 @@ Tommaso non le ha decise esplicitamente: sono le scelte di Claude più vicine a 
 1. **Credito dopo il 5 novembre.** Risposta del 27 ottobre: per ora non si ricarica; si guarda come funziona e poi si decide. Vedi «Credito e tempi».
 2. **Casella aziendale.** Risposta del 27 ottobre: Tommaso la usa nell'app Gmail come account «Altro». Controllata lo stesso giorno: configurazione e autenticazione a posto, spam dovuto a reputazione e contenuto. Vedi «Casella aziendale e spam».
 3. **Milano AutoClassica.** Risposta del 27 ottobre: la manda l'assistente, tra le prime email, appena lo spam è risolto. Vedi «Avvio».
+4. **Passaggio alla prima risposta.** Luca consiglia che ogni prima risposta umana passi subito a te, per sentirsi a voce; lo lascia decidere a noi. Se sì, l'assistente non risponde mai da solo e la seconda consegna si semplifica.
+5. **Numero nella firma.** Quale numero mettere in `PARTNER_ASSISTANT_PHONE` (il tuo cellulare o un numero aziendale). Serve all'avvio, non prima.
