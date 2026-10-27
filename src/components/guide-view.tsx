@@ -442,13 +442,51 @@ export function GuideView({ access, preview = false }: { access: GuideAccess; pr
               </li>
               <li>Tutti vedono e possono fare tutto. «Seguito da» dice chi se ne occupa.</li>
               <li>
-                In fondo alla pagina ci sono i lookbook da allegare e le regole per scrivere i
-                messaggi.
+                In fondo alla pagina ci sono i lookbook da allegare, le regole per scrivere i
+                messaggi e l’assistente.
+              </li>
+            </ul>
+            <h3 className={styles.subTitle}>L’assistente</h3>
+            <ul className={styles.points}>
+              <li>
+                L’assistente cerca notizie sui contatti «Da contattare», sceglie una proposta e
+                scrive la prima email. Per ora prepara solo le bozze e non manda niente: le leggi
+                nella scheda del contatto.
+              </li>
+              <li>
+                In cima a Partner c’è la striscia dell’assistente: dice cosa sta facendo, quante
+                bozze sono pronte e quanto ha speso. «Apri l'assistente» porta alla sua pagina.
+              </li>
+              <li>
+                Nella scheda del contatto, il blocco «Assistente» mostra la ricerca con le fonti, la
+                proposta scelta e la bozza dell’email.
+              </li>
+              <li>
+                Per fermarlo del tutto premi «Ferma l'assistente» nella striscia, oppure «Spento»
+                nella sua pagina: lo può fare chiunque. «Prepara» lo rimette al lavoro.
+              </li>
+              <li>
+                Per un solo contatto, nel blocco «Assistente» premi «Ferma su questo contatto»;
+                «Riattiva su questo contatto» glielo ridà. Fermarlo non è «Metti tra i non
+                contattare».
+              </li>
+              <li>
+                Quando non riesce a finire un contatto lo passa a Tommi: nella pagina
+                dell’assistente è in «Da vedere», con il motivo. «Ridai all'assistente» lo rimette
+                in coda.
+              </li>
+              <li>
+                Le regole con cui scrive sono nella sua pagina, in «Regole»: si cambiano con «Scrivi
+                una nuova versione». Le «Regole per scrivere i messaggi» in fondo a Partner sono
+                quelle importate con la ricerca: l’assistente non le usa.
               </li>
             </ul>
             <p className={styles.actions}>
               <Link href="/partner" prefetch={false} className="button button-secondary">
                 Apri Partner
+              </Link>
+              <Link href="/partner/assistente" prefetch={false} className="button button-secondary">
+                Apri l'assistente
               </Link>
               <Link href="/team/partner" prefetch={false} className="button button-secondary">
                 Apri Partner nel Team

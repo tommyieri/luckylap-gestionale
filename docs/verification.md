@@ -7,6 +7,27 @@ Stato del 23 ottobre 2026, dal branch `claude/revisione-pre-invio` (P7, revision
 
 Prove applicative, SQL sintetico, PostgreSQL concorrente e Auth cloud sono conteggiati separatamente. Le sezioni «Avvio del 21 ottobre 2026» restano come verbale dell'avvio: i numeri di allora non sono quelli di oggi.
 
+## Assistente Partner, 27 ottobre 2026
+
+Dal branch `claude/assistente-partner` (base `origin/main` a `3c58693`), prima consegna dell'assistente («prepara»: ricerca e bozze, nessun invio), con dati sintetici e senza accessi al cloud. Tre migrazioni nuove, additive, **non ancora applicate in produzione**: `20261027133105_assistente_partner.sql`, `20261027140533_assistente_partner_worker.sql` e `20261027145939_assistente_partner_scheduler.sql`. Dettagli, variabili e sequenza di avvio in [partner-assistente.md](partner-assistente.md).
+
+| Comando | Esito |
+| --- | --- |
+| `npm test` | 3.239 test in 216 file, tutti superati |
+| `npm run test:db` senza `LUCKYLAP_PG_BIN` | 24 harness PGlite superati, 4.780 controlli; i 17 harness su PostgreSQL 17 risultano saltati |
+| `npm run test:db` con `LUCKYLAP_PG_BIN` (PostgreSQL 17.11 locale) | in più 17 harness PostgreSQL 17 superati, 2.029 controlli: 41 harness, 6.809 controlli in tutto |
+
+Harness nuovi, con il minimo della riga `// test-db:` in testa:
+
+| Harness | Modalità | Minimo | Cosa prova |
+| --- | --- | --- | --- |
+| `assistente-partner.mjs` | PGlite | 311 | tabelle, regole versione 1, comandi del team (modalità, interruttore per contatto, regole), lettura dello stato, permessi, cancellazione di un recapito |
+| `assistente-partner-worker.mjs` | PGlite | 553 | coda, RPC del worker, `auth.uid()` dell'assistente, tentativi, contatto che cambia durante un passo, bozze e seconda lettura, pausa, revoca a `service_role` delle scritture sulle tabelle Partner |
+| `assistente-partner-scheduler.mjs` | PGlite | 196 | scheduler ogni due minuti (Cron, Vault e pg_net simulati), destinazione fissa, spegnimento, job Shopify invariato |
+| `assistente-partner-concurrency.mjs` | PostgreSQL 17 | 32 | due giri sovrapposti: uno solo prende il lavoro, mai due lease attive |
+
+Gli harness PostgreSQL 17 che applicano tutta la catena contano un controllo per migrazione: con le tre migrazioni nuove `finance-ecosystem-integration.mjs` passa a 111, `manual-sale-cancellation.mjs` a 113, `manual-sale-returns.mjs` a 128, `sensitive-area-members.mjs` a 180 (righe in testa aggiornate). Ogni harness ha eseguito esattamente il suo minimo. `npm run typecheck`, `npm run build` e `npm run format:check` passano. Restano per la pull request (compito 14 del piano): la prova visiva di `/partner` e `/partner/assistente` in anteprima a 1280 × 800 e 390 × 844, e il job «Concorrenza (PostgreSQL 17)» in CI.
+
 ## Conto vendita diviso, 23 ottobre 2026
 
 Dal branch `claude/conto-vendita-diviso` (base `origin/main` a `79ffbff`, con la pull request #20), con dati sintetici e senza accessi al cloud. Nessuna migrazione: cambiano solo pagine, indirizzi e link. Dettagli in [consignment.md](consignment.md), «Pagine».

@@ -145,6 +145,16 @@ describe("PartnerWorkspace", () => {
     expect(text(details)).toContain("niente link per scrivere o chiamare");
   });
 
+  it("senza messaggio pronto rimanda alle bozze dell'assistente, non al repository Partner", () => {
+    const html = render({ periodo: "3", stato: "tutti", co: "4" });
+    const start = html.indexOf('id="messaggi-4"');
+    const messages = text(html.slice(start, html.indexOf("</section>", start)));
+    expect(messages).toContain("Nessun messaggio pronto per questo contatto.");
+    expect(messages).toContain("Le bozze dell'assistente sono nel blocco «Assistente».");
+    expect(messages).not.toContain("repository Partner");
+    expect(messages).not.toContain("chiedilo a Claude");
+  });
+
   it("«Copia» sta accanto all'email che copia, anche quando il canale preferito è un altro", () => {
     const second = row(render(), 2);
     expect(second).toMatch(
@@ -341,5 +351,21 @@ describe("PartnerDataView", () => {
     expect(t).toContain("File esportato (.json)");
     expect(html).toMatch(/<h3[^>]*id="dati-file-importati"[^>]*>File già importati<\/h3>/);
     expect(html).toContain('aria-labelledby="dati-file-importati"');
+  });
+
+  it("ricerca non ancora importata: arriva con l'import, senza dire «Claude»", () => {
+    const html = renderToStaticMarkup(
+      <PartnerDataView
+        data={{ ...partnerFixtureData(TODAY), imports: [] }}
+        today={TODAY}
+        preview
+        userId={null}
+      />,
+    );
+    const research = text(html.slice(html.indexOf('id="dati-ricerca"'), html.indexOf("dati-file")));
+    expect(research).toContain(
+      "La ricerca Partner non è ancora stata importata. La ricerca arriva dal repository Partner con l'import.",
+    );
+    expect(research).not.toContain("Claude");
   });
 });

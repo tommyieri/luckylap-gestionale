@@ -1,3 +1,5 @@
+import Link from "next/link";
+import { PARTNER_ASSISTANT_PATH } from "../../lib/partner/links";
 import { partnerRuleBlocks } from "../../lib/partner/rules";
 import { PARTNER_PREVIEW_NOTICE, researchImportLine } from "../../lib/partner/model";
 import type { PartnerRules } from "../../lib/partner/read";
@@ -21,7 +23,11 @@ export function PartnerRulesView({
       <header className={styles.heading}>
         <h1>Regole per scrivere</h1>
         <p className={styles.headingNote}>
-          Queste regole valgono per ogni messaggio. Le aggiorna Tommi nel repository Partner.
+          Regole importate con la ricerca. Le regole dell'assistente sono nella{" "}
+          <Link href={PARTNER_ASSISTANT_PATH} prefetch={false}>
+            sua pagina
+          </Link>
+          .
         </p>
       </header>
       {preview && (

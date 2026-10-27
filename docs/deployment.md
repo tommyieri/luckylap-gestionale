@@ -27,6 +27,21 @@ Packaging, conto vendita, contenuti, sviluppo e lavoro Finance sono implementati
 
 Shopify: app interna LuckyLap Gestionale creata e installata, versione `luckylap-internal-1`, API 2026-10 e soli scope `read_products`, `read_orders`. Grant client credentials verificato con successo e durata di 24 ore; nessun token salvato. Credenziali permanenti configurate sul server Vercel corretto. Quindici migrazioni applicate e verificate; worker attivo dal deploy `f7b18cd`, configurazione database abilitata. Sei sottoscrizioni dell’app interna riletture senza duplicati, con soli riferimenti e date nel payload. Il controllo della finestra dal cutover ha trovato zero ordini; nessuno storico è stato importato. Scheduler Supabase ogni minuto, job proprietario postgres e destinazione fissa: primi due avvii reali riusciti, entrambi con risposta HTTP 200 e nessun timeout. Probe di sicurezza: bearer errato 401, HMAC errato 401, payload firmato non valido 400, worker autorizzato 200 con coda vuota. Nessun ordine o movimento artificiale inserito. La sede Shopify maGadzino è mappata a Magadzino per online e POS. Nessun ordine applicato nello snapshot di verifica. [Procedura](shopify-app-setup.md), [motore](shopify-ecosystem.md), [worker](shopify-worker.md).
 
+## Assistente Partner: variabili
+
+Al 27 ottobre 2026 l'assistente Partner non è attivo: le sue variabili non sono in Vercel e le sue migrazioni non sono applicate. Per accenderlo servono, solo in produzione e con l'OK di Tommi, le variabili server qui sotto; la sequenza completa di avvio è in [partner-assistente.md](partner-assistente.md).
+
+| Variabile server | Scopo |
+| --- | --- |
+| `PARTNER_ASSISTANT_ENABLED` | Accensione: vale solo `true`. |
+| `PARTNER_ASSISTANT_SECRET` | Bearer del worker dell'assistente, da 32 a 256 caratteri URL safe, distinto da quello Shopify; lo stesso valore va in Vault. |
+| `ANTHROPIC_API_KEY` | Chiave dell'API Anthropic (`sk-ant-…`). |
+| `PARTNER_ASSISTANT_SUPABASE_SECRET_KEY` | Chiave segreta Supabase propria (`sb_secret_…`), diversa da `SUPABASE_SECRET_KEY` del worker Shopify. |
+| `PARTNER_ASSISTANT_PHONE` | Numero di Tommaso per la firma delle email, con il prefisso internazionale (`+39 …`). Lo sceglie Tommaso; non entra nel repository. |
+| `NEXT_PUBLIC_SUPABASE_URL` | Già presente. |
+
+Con una variabile mancante o non valida l'assistente resta spento e la sua route risponde 503. Gli ambienti preview non ricevono queste variabili.
+
 ## Pubblicazione verificata
 
 Deploy `dpl_GCizPkhf1xFxWvnwdGZcRpPKS4aK`, commit `f7b18cd873a6d1d234aeeed8af2ccd564eb15e0b`: READY e alias `luckylap.vercel.app` confermati tramite plugin. Le dieci verifiche HTTP su inventario, Finance, packaging, conto vendita, contenuti, sviluppo, password aree e audit mostrano login anonimo con `private, no-store`; la route QA risponde 404. Nessun dato sintetico o riservato esposto.

@@ -242,11 +242,45 @@ describe("Partner", () => {
     expect(copy).toContain("il riquadro «Esito»");
   });
 
-  it("porta a «Partner nel Team» per tutti", () => {
+  it("porta a Partner, alla pagina dell'assistente e a «Partner nel Team» per tutti", () => {
     for (const access of [everyone, finance, founder]) {
-      expect(hrefs(part(access))).toEqual(["/partner", "/team/partner"]);
+      expect(hrefs(part(access))).toEqual(["/partner", "/partner/assistente", "/team/partner"]);
       expect(text(part(access))).toContain("«Partner nel Team»");
+      expect(text(part(access))).toContain("Apri l'assistente");
     }
+  });
+
+  it("dice dove sono la striscia, la pagina e il blocco dell'assistente", () => {
+    const copy = text(part(everyone));
+    expect(copy).toContain("In cima a Partner c’è la striscia dell’assistente");
+    expect(copy).toContain("«Apri l'assistente» porta alla sua pagina");
+    expect(copy).toContain("Nella scheda del contatto, il blocco «Assistente»");
+    expect(copy).toContain("la ricerca con le fonti, la proposta scelta e la bozza dell’email");
+  });
+
+  it("dice che per ora l'assistente prepara solo bozze e non manda niente", () => {
+    const copy = text(part(everyone));
+    expect(copy).toContain("Per ora prepara solo le bozze e non manda niente");
+    expect(copy).not.toMatch(/l’assistente (manda|invia)/i);
+  });
+
+  it("dice come fermarlo, del tutto o su un contatto, e chi lo può fare", () => {
+    const copy = text(part(everyone));
+    expect(copy).toContain("«Ferma l'assistente» nella striscia, oppure «Spento» nella sua pagina");
+    expect(copy).toContain("lo può fare chiunque");
+    expect(copy).toContain("«Prepara» lo rimette al lavoro");
+    expect(copy).toContain("«Ferma su questo contatto»");
+    expect(copy).toContain("«Riattiva su questo contatto»");
+    expect(copy).toContain("non è «Metti tra i non contattare»");
+    expect(copy).toContain("in «Da vedere»");
+    expect(copy).toContain("«Ridai all'assistente»");
+  });
+
+  it("dice che le regole dell'assistente si cambiano dalla sua pagina", () => {
+    const copy = text(part(everyone));
+    expect(copy).toContain("Le regole con cui scrive sono nella sua pagina, in «Regole»");
+    expect(copy).toContain("«Scrivi una nuova versione»");
+    expect(copy).toContain("l’assistente non le usa");
   });
 });
 
@@ -404,6 +438,20 @@ describe("i nomi citati esistono davvero", () => {
     ["src/components/consignment-report.tsx", ["Salva resoconto"]],
     ["src/components/tshirt-availability.tsx", [">Magliette disponibili</h2>"]],
     ["src/components/partner-work-links.tsx", ["<h1>Partner nel Team</h1>"]],
+    [
+      "src/components/partner/partner-assistant-strip.tsx",
+      ["Apri l'assistente", "Ferma l'assistente"],
+    ],
+    [
+      "src/components/partner/partner-assistant-block.tsx",
+      [">Assistente</h4>", "Ferma su questo contatto", "Riattiva su questo contatto"],
+    ],
+    [
+      "src/components/partner/partner-assistant-view.tsx",
+      [">Da vedere</h2>", ">Regole</h2>", "Scrivi una nuova versione", "Ridai all'assistente"],
+    ],
+    ["src/lib/partner/assistant.ts", ['spento: "Spento"', 'prepara: "Prepara"']],
+    ["src/components/partner/partner-workspace.tsx", ["Regole per scrivere i messaggi"]],
   ];
 
   it("ogni pulsante, riquadro e stato citato è nel suo componente", () => {

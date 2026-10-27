@@ -78,4 +78,19 @@ describe("PartnerRulesView", () => {
       "h3 Firma",
     ]);
   });
+
+  it("dice che sono le regole importate e porta a quelle dell'assistente", () => {
+    const rules = partnerFixtureRules(TODAY)!;
+    for (const value of [rules, null]) {
+      const html = renderToStaticMarkup(
+        <PartnerRulesView rules={value} today={TODAY} preview={false} />,
+      );
+      const note = html.slice(html.indexOf("<header"), html.indexOf("</header>"));
+      expect(note.replace(/<[^>]+>/g, "").replace(/&#x27;/g, "'")).toContain(
+        "Regole importate con la ricerca. Le regole dell'assistente sono nella sua pagina.",
+      );
+      expect(note).toMatch(/<a [^>]*href="\/partner\/assistente"[^>]*>sua pagina<\/a>/);
+      expect(note).not.toContain("repository Partner");
+    }
+  });
 });
