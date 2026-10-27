@@ -193,6 +193,7 @@ describe("parole vietate", () => {
   it.each([
     "22 anni",
     "we're all 22",
+    "we’re all 22",
     "alle 22 Jahre alt",
     "mit 22 Jahren",
     "22 years old",
@@ -214,6 +215,8 @@ describe("parole vietate", () => {
     "122 anni",
     "alle 220",
     "Halle 22",
+    "aperto dalle 18 alle 22",
+    "all 22 cars on display",
     "l'Europe et leur équipe",
   ])("%s non è vietato", (w) => expect(fails(withBody(`… ${w} …`))).toEqual([]));
 });
@@ -344,7 +347,7 @@ describe("modelli Porsche", () => {
     "997",
     "356",
     "718",
-    "boxster",
+    "Boxster",
     "Macan",
     "Cayenne",
     "Taycan",
@@ -363,7 +366,16 @@ describe("modelli Porsche", () => {
         },
       ),
     ).toEqual(["modello_porsche"]));
-  it.each(["964", "GT3 RS", "GT3RS", "Elfer", "nel 1993", "targato Milano"])("%s è ammesso", (m) =>
+  it.each([
+    "964",
+    "GT3 RS",
+    "GT3RS",
+    "Elfer",
+    "nel 1993",
+    "targato Milano",
+    "una targa ricordo",
+    "la carrera de Le Mans",
+  ])("%s è ammesso", (m) =>
     expect(fails(withBody(`… ${m} …`), { porscheCommunity: true })).toEqual([]),
   );
   it("senza comunità Porsche i modelli non contano", () =>

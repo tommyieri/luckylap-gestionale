@@ -79,7 +79,8 @@ const FORBIDDEN: RegExp[] = [
   new RegExp(`${B}remise`, "iu"),
   /campione|campioni|sample|samples|échantillon|échantillons/iu,
   new RegExp(`${B}22\\s*(?:anni|years|Jahre|ans|años)`, "iu"),
-  new RegExp(`${B}(?:all|alle|tutti\\s+di|tous|todos)\\s+22${E}`, "iu"),
+  // Senza unità solo nelle frasi sull'età: «dalle 18 alle 22» e «all 22 cars» non contano.
+  new RegExp(`${B}(?:(?:we[’']re|we\\s+are)\\s+all|tutti\\s+di)\\s+22${E}`, "iu"),
   /twenty[\s-]two/iu,
 ];
 
@@ -105,10 +106,11 @@ const PHONE_NUMBER = new RegExp(`${B}\\+?\\d(?: ?\\d){7,}${E}`, "u");
 
 // Con una comunità Porsche si nominano solo la 964 e la GT3 RS. I numeri valgono interi, cioè
 // non dentro un numero più lungo («1993» passa), ma anche con un suffisso («911er», «993RS»).
+// I nomi con le maiuscole esatte: «la carrera de Le Mans» e «una targa ricordo» non sono modelli.
 const PORSCHE_MODELS: RegExp[] = [
   new RegExp(
     `${B}(?:F40|512 ?TR|300 ?SL|Project\\s+88|Carrera|Cayman|Boxster|Macan|Cayenne|Taycan|Panamera|Speedster|Targa)${E}`,
-    "iu",
+    "u",
   ),
   new RegExp(`${B}(?:911|930|959|991|992|993|996|997|356|718)(?!\\p{N})`, "u"),
 ];
