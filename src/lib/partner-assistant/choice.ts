@@ -3,6 +3,7 @@
 // decisione le prende il codice.
 import { partnerLinkValue } from "../partner/contacts";
 import { daysBetween, isCalendarDay } from "../partner/dates";
+import { charCount, hasControlCharacters } from "../partner/model";
 import { PARTNER_ASSISTANT_CHOICE_KEYS, partnerAssistantChoiceFields } from "./store";
 import type {
   PartnerAssistantChoice,
@@ -15,12 +16,13 @@ export type PartnerAssistantExtractedChoice = Omit<PartnerAssistantChoice, "requ
 
 // I limiti dei testi di complete_partner_assistant_choice (e di private.partner_date per le date
 // più sotto): una scelta che il database rifiuta resterebbe senza esito certo e il passo si
-// ripeterebbe senza consumare tentativi. NUL e coppie surrogate spezzate non entrano in jsonb.
+// ripeterebbe senza consumare tentativi. Il database controlla lunghezza e caratteri di controllo
+// come private.partner_text: qui con i suoi specchi in model.ts. NUL e coppie surrogate spezzate
+// non entrano in jsonb.
 const TEXT_MAX = 2000;
-const CONTROL = /[\u0000-\u0008\u000b\u000c\u000e-\u001f\u007f]/u;
 const storable = (value: unknown): boolean =>
   typeof value !== "string" ||
-  (value.isWellFormed() && !CONTROL.test(value) && [...value].length <= TEXT_MAX);
+  (value.isWellFormed() && !hasControlCharacters(value) && charCount(value) <= TEXT_MAX);
 
 const orEmpty = (value: string, valid: (value: string) => boolean) => value === "" || valid(value);
 // La regola di link_value (private.partner_link_value): l'indirizzo o l'URL deve essere già il

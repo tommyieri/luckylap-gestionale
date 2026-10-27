@@ -1,5 +1,6 @@
 import { describe, expect, it, vi } from "vitest";
 vi.mock("server-only", () => ({}));
+import { hasControlCharacters } from "../partner/model";
 import {
   parsePartnerAssistantChoice,
   partnerAssistantDecision,
@@ -140,6 +141,18 @@ describe("parsePartnerAssistantChoice", () => {
       parsePartnerAssistantChoice({ ...validJson, notes_it: "🏁".repeat(2000) }),
     ).not.toBeNull();
     expect(parsePartnerAssistantChoice({ ...validJson, notes_it: "🏁".repeat(2001) })).toBeNull();
+  });
+
+  it("rifiuta proprio i caratteri che rifiuta private.partner_text (lo specchio di model.ts)", () => {
+    const codes = Array.from({ length: 0xa0 }, (_, code) => String.fromCodePoint(code));
+    const rejected = codes.filter(
+      (char) => parsePartnerAssistantChoice({ ...validJson, reason_it: `a${char}b` }) === null,
+    );
+    expect(rejected).toEqual(codes.filter(hasControlCharacters));
+    // Non è un confronto vuoto: tab, a capo e ritorno a capo passano, DEL e i C0 no.
+    expect(rejected).toHaveLength(30);
+    expect(rejected).not.toContain("\t");
+    expect(rejected).toContain("\u007f");
   });
 
   it.each([
