@@ -538,8 +538,9 @@ export type PartnerDetail = {
   /** Blocchi attivi che valgono per questo contatto (suo o del suo dominio). */
   blocks: PartnerBlock[];
   /**
-   * L'assistente su questo contatto. `null` se non ha né un lavoro né l'interruttore, oppure se le
-   * sue righe non si leggono o non sono valide: il blocco non oscura mai la scheda.
+   * L'assistente su questo contatto. `null` solo se lo stato non è leggibile (righe non lette,
+   * migrazioni assenti, righe non valide): il blocco non oscura mai la scheda. Un contatto senza
+   * lavoro né interruttore ha il blocco vuoto, con `active: true` e `job: null`.
    */
   assistant: PartnerAssistantContactView | null;
 };

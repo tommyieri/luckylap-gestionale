@@ -259,6 +259,17 @@ describe("blocco dell'assistente nella scheda", () => {
     });
   });
 
+  it("nessuna riga: vista vuota con l'interruttore attivo, mai null", () => {
+    expect(partnerAssistantContactFrom(contactRows(3))).toEqual({
+      active: true,
+      switchVersion: null,
+      job: null,
+      research: null,
+      choice: null,
+      draft: null,
+    });
+  });
+
   it("recapito cancellato: la bozza resta senza indirizzo", () => {
     const rows = contactRows(2);
     const draftContact = rows.draft!.contact_id;

@@ -268,6 +268,11 @@ export function partnerAssistantStatusFrom(value: unknown): PartnerAssistantStat
 // Blocco della scheda: public.partner_assistant_*
 // ---------------------------------------------------------------------------
 
+/**
+ * Il blocco «Assistente» della scheda. Senza righe (né lavoro né interruttore) è vuoto: attivo,
+ * `switchVersion`, `job`, `research`, `choice` e `draft` a `null`. Lo «stato non leggibile» non è
+ * questa vista: è `PartnerDetail.assistant === null`.
+ */
 export type PartnerAssistantContactView = {
   /** Interruttore «Assistente su questo contatto»: senza riga è attivo. */
   active: boolean;

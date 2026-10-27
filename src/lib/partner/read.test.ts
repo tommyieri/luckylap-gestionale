@@ -133,7 +133,7 @@ describe("anteprima locale di Partner", () => {
     expect(partnerFixtureDetail(99, TODAY)).toBeNull();
   });
 
-  it("blocco dell'assistente: bozza pronta, Serve Tommi, interruttore fermo, null senza lavoro", () => {
+  it("blocco dell'assistente: bozza pronta, Serve Tommi, interruttore fermo, vuoto senza lavoro", () => {
     const ready = partnerFixtureDetail(2, TODAY)!.assistant!;
     expect(ready.job?.status).toBe("pronta");
     expect(ready.draft?.toAddress).toBe("info@raduno-due.example.test");
@@ -143,9 +143,17 @@ describe("anteprima locale di Partner", () => {
       reason: "fatto_mancante",
     });
     expect(partnerFixtureDetail(4, TODAY)?.assistant).toMatchObject({ active: false, job: null });
-    // Contatti senza lavoro né interruttore: niente blocco dell'assistente.
+    // Contatti senza lavoro né interruttore: il blocco c'è, con l'interruttore attivo e senza
+    // lavoro. `null` vuol dire solo «stato non leggibile».
     for (const co of [3, 5, 6])
-      expect(partnerFixtureDetail(co, TODAY)?.assistant, `${co}`).toBe(null);
+      expect(partnerFixtureDetail(co, TODAY)?.assistant, `${co}`).toEqual({
+        active: true,
+        switchVersion: null,
+        job: null,
+        research: null,
+        choice: null,
+        draft: null,
+      });
   });
 
   it("dati e regole dell'ultimo import", () => {
@@ -284,10 +292,23 @@ describe("controlli di coerenza della lettura", () => {
       expect(detail.partner.co).toBe(2);
       expect(detail.contacts).toHaveLength(4);
     }
-    // Nessun lavoro e nessun interruttore: niente blocco.
+    // Nessun lavoro e nessun interruttore: righe lette, quindi un blocco vuoto e attivo, distinto
+    // dal `null` delle righe non lette o non valide.
     expect(
       partnerDetailFromRows(2, detailRows({ switch: null, job: null, notes: [], draft: null }))
         .assistant,
+    ).toEqual({
+      active: true,
+      switchVersion: null,
+      job: null,
+      research: null,
+      choice: null,
+      draft: null,
+    });
+    // Senza lavoro, note o bozza orfane sono righe non valide: null.
+    const orphan = assistantRows();
+    expect(
+      partnerDetailFromRows(2, detailRows({ ...orphan, job: null, switch: null })).assistant,
     ).toBeNull();
   });
 });

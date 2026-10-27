@@ -323,10 +323,17 @@ describe("assistente nella scheda", () => {
     expect(fermo?.assistant).toMatchObject({ active: false, switchVersion: 1, job: null });
   });
 
-  it("contatto senza lavoro: assistant null, senza leggere note e bozze", async () => {
+  it("contatto senza lavoro: blocco vuoto e attivo (non null), senza leggere note e bozze", async () => {
     const fake = fakeSupabase(tables());
     const detail = (await loadPartnerDetail(fake.client, 3))!;
-    expect(detail.assistant).toBeNull();
+    expect(detail.assistant).toEqual({
+      active: true,
+      switchVersion: null,
+      job: null,
+      research: null,
+      choice: null,
+      draft: null,
+    });
     expect(fake.calls.some((call) => call.table === "partner_assistant_notes")).toBe(false);
     expect(fake.calls.some((call) => call.table === "partner_assistant_drafts")).toBe(false);
   });

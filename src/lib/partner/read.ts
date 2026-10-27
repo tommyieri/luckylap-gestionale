@@ -147,9 +147,10 @@ export type PartnerDetailRows = {
 };
 
 /**
- * Il blocco dell'assistente ha un controllo proprio: righe non lette o non valide (anche un valore
- * sconosciuto, come una proposta fuori elenco) danno `null` e la scheda resta leggibile. `null`
- * anche per un contatto senza lavoro né interruttore.
+ * Il blocco dell'assistente ha un controllo proprio: `null` vuol dire solo «stato non leggibile»,
+ * cioè righe non lette o non valide (anche un valore sconosciuto, come una proposta fuori elenco),
+ * e la scheda resta leggibile. Un contatto senza lavoro né interruttore ha righe lette e vuote: il
+ * blocco c'è, con l'interruttore attivo e `job: null`, così chi lo mostra non confonde i due casi.
  */
 function assistantOf(
   partnerId: string,
@@ -157,8 +158,6 @@ function assistantOf(
   rows: PartnerAssistantRows | null,
 ): PartnerAssistantContactView | null {
   if (rows === null) return null;
-  const present = (value: unknown) => value !== null && value !== undefined;
-  if (!present(rows.job) && !present(rows.switch)) return null;
   try {
     return partnerAssistantContactFrom({ ...rows, partnerId, contacts });
   } catch {
