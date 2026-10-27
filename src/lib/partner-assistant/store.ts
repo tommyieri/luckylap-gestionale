@@ -257,7 +257,8 @@ function researchFrom(value: unknown): PartnerAssistantResearch | null {
     : null;
 }
 
-const choiceKeys = [
+/** Le chiavi della scelta (Appendice C), senza la richiesta, che decide il codice. */
+export const PARTNER_ASSISTANT_CHOICE_KEYS = [
   "contact_kind",
   "porsche_community",
   "reason_it",
@@ -281,10 +282,14 @@ const choiceKeys = [
   "event_country",
   "event_reachable",
   "notes_it",
-  "request",
 ] as const;
+const choiceKeys = [...PARTNER_ASSISTANT_CHOICE_KEYS, "request"] as const;
 
-function choiceFrom(row: Row): PartnerAssistantChoice | null {
+/** I campi dell'Appendice C in camelCase: tipi, elenchi chiusi, date vuote o reali. Null se un
+ * valore non va. Le chiavi le controlla chi chiama; serve anche alla lettura dell'estrazione. */
+export function partnerAssistantChoiceFields(
+  row: Row,
+): Omit<PartnerAssistantChoice, "request"> | null {
   const {
     contact_kind,
     porsche_community,
@@ -309,7 +314,6 @@ function choiceFrom(row: Row): PartnerAssistantChoice | null {
     event_country,
     event_reachable,
     notes_it,
-    request,
   } = row;
   if (
     !contactKinds(contact_kind) ||
@@ -334,8 +338,7 @@ function choiceFrom(row: Row): PartnerAssistantChoice | null {
     !text(event_city) ||
     !text(event_country) ||
     typeof event_reachable !== "boolean" ||
-    !text(notes_it) ||
-    !requests(request)
+    !text(notes_it)
   )
     return null;
   return {
@@ -362,8 +365,12 @@ function choiceFrom(row: Row): PartnerAssistantChoice | null {
     eventCountry: event_country,
     eventReachable: event_reachable,
     notesIt: notes_it,
-    request,
   };
+}
+
+function choiceFrom(row: Row): PartnerAssistantChoice | null {
+  const fields = partnerAssistantChoiceFields(row);
+  return fields && requests(row.request) ? { ...fields, request: row.request } : null;
 }
 
 function decisionFrom(value: unknown): PartnerAssistantDecision | null {
