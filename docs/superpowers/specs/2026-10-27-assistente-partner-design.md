@@ -253,6 +253,17 @@ Ne seguono tre cose da verificare nel pannello IONOS e in Gmail prima di costrui
 - **Come arriva la posta in Gmail.** Un inoltro da IONOS passa dai server in lista Spamhaus, e le risposte dei contatti possono finire nello spam di Gmail. Una lettura POP da Gmail può cancellare i messaggi dalla casella IONOS.
 - **Cosa resta nella casella IONOS.** L'assistente legge IONOS via IMAP: le risposte devono restare lì (inoltro con copia conservata, oppure POP che lascia una copia sul server). Le risposte che Tommaso manda da Gmail finiscono nella posta inviata di Gmail, non in quella di IONOS: per accorgersene vale la seconda strada descritta in «Risposte» (la risposta successiva del contatto cita un messaggio che l'assistente non ha scritto).
 
+Nel pannello IONOS, visto in sola lettura il 27 ottobre con l'accesso di Tommaso:
+
+- la casella è una Mail Basic da 2 GB, occupata per 0,14 GB: la posta resta su IONOS;
+- nessun reindirizzamento e nessuna risposta automatica sulla casella, nessun indirizzo di solo inoltro: Gmail quindi legge la posta da IONOS (probabilmente con POP3), non la riceve per inoltro;
+- antispam IONOS attivo al livello medio: i messaggi che IONOS giudica spam finiscono nella cartella spam della casella, che una lettura POP3 da Gmail non scarica. L'assistente deve leggere anche quella cartella, per le conversazioni sue;
+- autenticazione a due fattori non configurata;
+- server: IMAP `imap.ionos.it` porta 993 (SSL), SMTP `smtp.ionos.it` porta 587 (TLS), POP3 `pop.ionos.it` porta 995;
+- record DNS in più rispetto a quelli già detti: una terza chiave DKIM IONOS e le chiavi DKIM di Shopify Email, quindi le email di marketing di Shopify sono già autenticate.
+
+Resta da vedere in Gmail («Account e importazione») da quale server parte la posta inviata come casella aziendale e se la lettura POP3 lascia una copia su IONOS.
+
 Ogni modifica a DNS, inoltri o impostazioni della casella la decide Tommaso, una per una.
 
 ### Regole di sicurezza
@@ -310,7 +321,7 @@ Nel gestionale non esistono notifiche. L'assistente usa la posta: un'email a Tom
 | `ANTHROPIC_API_KEY` | Chiave dell'API Anthropic |
 | `PARTNER_ASSISTANT_SUPABASE_SECRET_KEY` | Chiave segreta Supabase propria dell'assistente (`sb_secret_…`), distinta da quella del worker Shopify; con `NEXT_PUBLIC_SUPABASE_URL` già presente |
 | `PARTNER_MAIL_USER`, `PARTNER_MAIL_PASSWORD` | Casella aziendale |
-| `PARTNER_MAIL_SMTP_HOST`, `PARTNER_MAIL_IMAP_HOST` | Server IONOS (da verificare nel pannello: `.it` o `.com`) |
+| `PARTNER_MAIL_SMTP_HOST`, `PARTNER_MAIL_IMAP_HOST` | Server IONOS: `smtp.ionos.it` (587, TLS) e `imap.ionos.it` (993, SSL), dal pannello IONOS |
 | `PARTNER_MAIL_FROM_NAME` | «Tommaso · LuckyLap» o simile |
 | `PARTNER_REPORT_TO` | Indirizzo di Tommaso per passaggi e riepilogo |
 | `PARTNER_TEST_TO` | Indirizzo per la modalità prova |
