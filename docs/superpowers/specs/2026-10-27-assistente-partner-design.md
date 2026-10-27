@@ -161,7 +161,7 @@ Per arrivare in tempo il lavoro si divide in due consegne. La prima (entro il 31
 
 ## Avvio
 
-1. **Spam.** Prima di qualunque invio automatico si sistema la casella aziendale: intestazioni di un'email finita in spam, inoltro disattivato se passa dai server IONOS in lista nera, record DMARC proprio con indirizzo per i rapporti, nessun allegato pesante. Lo fa Tommaso con una guida passo per passo.
+1. **Spam.** La configurazione della casella è a posto (vedi «Casella aziendale e spam»): il problema è di reputazione e contenuto. Prima di qualunque invio automatico si fa la prova realistica su Gmail, Outlook e iCloud; il record DMARC con i rapporti è facoltativo e richiede l'OK di Tommaso.
 2. **OK di Tommi** per merge, migrazione, creazione del profilo tecnico, variabili d'ambiente, attivazione di Fluid compute se serve, accensione dello scheduler (AGENTS.md).
 3. **Parere di Luca** incorporato nelle regole. La modalità «prepara» può partire prima; «prova» e «invio» no.
 4. **Contatti già avviati.** Gli stati del vecchio sito Partner vivono nei browser e arrivano nel gestionale solo con i file «Esporta» (`docs/partner.md`): prima del lancio tutti i file vanno caricati, e i rapporti già in corso (negozi in conto vendita, accordi) vanno segnati come fermi per l'assistente. Altrimenti l'assistente può riscrivere a chi è già stato contattato da un'altra casella o da Instagram.
@@ -243,28 +243,22 @@ Il compito assegnato a Tommaso nel passaggio non contiene testi né indirizzi de
 - **Conversazioni già esistenti**: prima della prima email a un contatto, l'assistente cerca nella posta inviata e ricevuta degli ultimi 12 mesi messaggi verso o da quell'indirizzo o dominio. Se ne trova, non scrive e passa il contatto a Tommaso con la conversazione: le email vecchie possono essere scritte con regole superate (conto vendita, allegati). Se Tommaso gli ridà il contatto, l'assistente continua quella conversazione con i solleciti (il caso di Milano AutoClassica).
 - **Riconoscimenti**: risposte automatiche (`Auto-Submitted`, `X-Autoreply`, oggetti tipici) e avvisi di mancata consegna (rapporti DSN che citano un nostro `Message-ID`) non contano come risposte.
 
-### Casella aziendale e Gmail
+### Casella aziendale e spam
 
-Tommaso usa la casella aziendale da Gmail. Il DNS pubblico, controllato il 27 ottobre: MX su IONOS; SPF `v=spf1 include:_spf-eu.ionos.com ~all`, cioè solo i server IONOS; DKIM con le chiavi IONOS (`s1-ionos`, `s2-ionos`), nessuna chiave Google; DMARC preso da IONOS, `p=none`, senza indirizzo per i rapporti. Due server di inoltro IONOS (`mout-xforward`) risultano nella lista Spamhaus SBL, i server di invio normali no.
+Tommaso usa la casella aziendale nell'app Gmail, aggiunta come account «Altro»: Gmail è solo il programma, legge via IMAP da IONOS e spedisce dal server SMTP di IONOS. La posta resta su IONOS.
 
-Ne seguono tre cose da verificare nel pannello IONOS e in Gmail prima di costruire la parte di posta:
+Controlli del 27 ottobre, tutti in sola lettura:
 
-- **Da dove parte la posta.** Se Gmail manda «come» la casella aziendale dai propri server, SPF e DKIM non valgono per il dominio e DMARC fallisce: è la causa più probabile dello spam. Se la manda attraverso il server SMTP di IONOS, va bene.
-- **Come arriva la posta in Gmail.** Un inoltro da IONOS passa dai server in lista Spamhaus, e le risposte dei contatti possono finire nello spam di Gmail. Una lettura POP da Gmail può cancellare i messaggi dalla casella IONOS.
-- **Cosa resta nella casella IONOS.** L'assistente legge IONOS via IMAP: le risposte devono restare lì (inoltro con copia conservata, oppure POP che lascia una copia sul server). Le risposte che Tommaso manda da Gmail finiscono nella posta inviata di Gmail, non in quella di IONOS: per accorgersene vale la seconda strada descritta in «Risposte» (la risposta successiva del contatto cita un messaggio che l'assistente non ha scritto).
+- **DNS pubblico.** MX su IONOS; SPF `v=spf1 include:_spf-eu.ionos.com ~all`; DKIM con le chiavi IONOS (`s1-ionos`, `s2-ionos` e una terza) e quelle di Shopify Email; DMARC preso da IONOS, `p=none`, senza indirizzo per i rapporti. Due server di inoltro IONOS (`mout-xforward`) sono nella lista Spamhaus SBL, ma la casella non li usa: non c'è nessun inoltro.
+- **Pannello IONOS.** Casella Mail Basic da 2 GB, occupata per 0,14 GB; nessun reindirizzamento, nessuna risposta automatica; antispam IONOS attivo al livello medio, quindi l'assistente deve leggere anche la cartella spam della casella per le sue conversazioni; autenticazione a due fattori non configurata. Server: IMAP `imap.ionos.it` porta 993 (SSL), SMTP `smtp.ionos.it` porta 587 (TLS).
+- **Shopify.** Nessuna attività di marketing registrata: dal dominio non sono partite newsletter di Shopify Email.
+- **Email di prova** dalla casella a un indirizzo Gmail di Tommaso: SPF, DKIM (dominio luckylap.com) e DMARC tutti «pass», partita da un server IONOS pulito (`mout.kundenserver.de`). Gmail l'ha messa comunque in spam, con il motivo «simile a messaggi già segnalati come spam». Il messaggio era solo HTML (l'app Gmail non aggiunge una parte di testo semplice) e con un testo di prova poco naturale.
 
-Nel pannello IONOS, visto in sola lettura il 27 ottobre con l'accesso di Tommaso:
+Diagnosi: la configurazione è a posto e non c'è niente da correggere nel DNS o nella casella. Il problema è di reputazione e di contenuto: un dominio giovane, che ha mandato poche email e in passato messaggi con allegati PDF pesanti e proposte di vendita, viene giudicato sul contenuto. Per questo contano le regole già scritte: testo semplice, nessun allegato, un solo link, email personalizzate, ritmo lento all'inizio, e le risposte dei contatti, che migliorano la reputazione.
 
-- la casella è una Mail Basic da 2 GB, occupata per 0,14 GB: la posta resta su IONOS;
-- nessun reindirizzamento e nessuna risposta automatica sulla casella, nessun indirizzo di solo inoltro: Gmail quindi legge la posta da IONOS (probabilmente con POP3), non la riceve per inoltro;
-- antispam IONOS attivo al livello medio: i messaggi che IONOS giudica spam finiscono nella cartella spam della casella, che una lettura POP3 da Gmail non scarica. L'assistente deve leggere anche quella cartella, per le conversazioni sue;
-- autenticazione a due fattori non configurata;
-- server: IMAP `imap.ionos.it` porta 993 (SSL), SMTP `smtp.ionos.it` porta 587 (TLS), POP3 `pop.ionos.it` porta 995;
-- record DNS in più rispetto a quelli già detti: una terza chiave DKIM IONOS e le chiavi DKIM di Shopify Email, quindi le email di marketing di Shopify sono già autenticate.
+Prima dell'invio automatico si fa una prova realistica: lo stesso testo di una prima email vera, in testo semplice, verso caselle di prova su Gmail, Outlook e iCloud, controllando dove arriva (è la modalità «prova»). Facoltativo, con l'OK di Tommaso: un record DMARC proprio con un indirizzo per i rapporti, per vedere chi spedisce a nome del dominio e con quale esito. Ogni modifica al DNS o alla casella la decide Tommaso, una per una.
 
-Resta da vedere in Gmail («Account e importazione») da quale server parte la posta inviata come casella aziendale e se la lettura POP3 lascia una copia su IONOS.
-
-Ogni modifica a DNS, inoltri o impostazioni della casella la decide Tommaso, una per una.
+Le risposte che Tommaso manda dall'app Gmail partono da IONOS e, con un account IMAP, di solito finiscono nella posta inviata di IONOS: da verificare guardando la cartella prima di costruire la parte di posta. Se non ci finiscono, vale la seconda strada descritta in «Risposte».
 
 ### Regole di sicurezza
 
@@ -321,7 +315,7 @@ Nel gestionale non esistono notifiche. L'assistente usa la posta: un'email a Tom
 | `ANTHROPIC_API_KEY` | Chiave dell'API Anthropic |
 | `PARTNER_ASSISTANT_SUPABASE_SECRET_KEY` | Chiave segreta Supabase propria dell'assistente (`sb_secret_…`), distinta da quella del worker Shopify; con `NEXT_PUBLIC_SUPABASE_URL` già presente |
 | `PARTNER_MAIL_USER`, `PARTNER_MAIL_PASSWORD` | Casella aziendale |
-| `PARTNER_MAIL_SMTP_HOST`, `PARTNER_MAIL_IMAP_HOST` | Server IONOS: `smtp.ionos.it` (587, TLS) e `imap.ionos.it` (993, SSL), dal pannello IONOS |
+| `PARTNER_MAIL_SMTP_HOST`, `PARTNER_MAIL_IMAP_HOST` | Server IONOS: `smtp.ionos.it` (587, TLS) e `imap.ionos.it` (993, SSL) |
 | `PARTNER_MAIL_FROM_NAME` | «Tommaso · LuckyLap» o simile |
 | `PARTNER_REPORT_TO` | Indirizzo di Tommaso per passaggi e riepilogo |
 | `PARTNER_TEST_TO` | Indirizzo per la modalità prova |
@@ -376,5 +370,5 @@ Tommaso non le ha decise esplicitamente: sono le scelte di Claude più vicine a 
 ## Domande per Tommaso
 
 1. **Credito dopo il 5 novembre.** Risposta del 27 ottobre: per ora non si ricarica; si guarda come funziona e poi si decide. Vedi «Credito e tempi».
-2. **Casella aziendale.** Risposta del 27 ottobre: Tommaso usa la casella da Gmail, ma non è chiaro come sia collegata (inoltro da IONOS o lettura POP da Gmail, e da quale server parte la posta). Si controlla insieme nel pannello IONOS e nelle impostazioni di Gmail, come primo passo della sistemazione dello spam. Vedi «Casella aziendale e Gmail».
+2. **Casella aziendale.** Risposta del 27 ottobre: Tommaso la usa nell'app Gmail come account «Altro». Controllata lo stesso giorno: configurazione e autenticazione a posto, spam dovuto a reputazione e contenuto. Vedi «Casella aziendale e spam».
 3. **Milano AutoClassica.** La manda Tommaso a mano entro venerdì 30 ottobre, dalla casella aziendale? Ancora aperta.
