@@ -29,6 +29,7 @@ import {
   type PartnerViewSection,
 } from "../../lib/partner/filters";
 import {
+  PARTNER_ASSISTANT_PATH,
   PARTNER_DATA_PATH,
   PARTNER_PATH,
   PARTNER_RULES_PATH,
@@ -580,6 +581,9 @@ function WorkspaceBody({
           </Link>
           <Link href={PARTNER_RULES_PATH} prefetch={false} className="text-button">
             Regole per scrivere i messaggi
+          </Link>
+          <Link href={PARTNER_ASSISTANT_PATH} prefetch={false} className="text-button">
+            Assistente
           </Link>
         </div>
         {adding && (

@@ -112,6 +112,68 @@ export function partnerAssistantReasonLabel(reason: string): string {
     : "Motivo non riconosciuto.";
 }
 
+/**
+ * Esiti degli ultimi eventi (migrazione 20261027140533_assistente_partner_worker), a parole. Per
+ * passo: ricerca → salvata; estrazione → scrivi, attendi, fatto_mancante, fuso_mancante;
+ * scrittura → controlli_superati, riscrittura, controlli_falliti, contesto_cambiato; controllo →
+ * pronta, regole_superate, riscrittura, seconda_lettura. In ogni passo lease_scaduta, non_idoneo
+ * e i motivi di fail_partner_assistant_step; senza passo le due pause.
+ */
+export const PARTNER_ASSISTANT_EVENT_LABELS = {
+  salvata: "Ricerca salvata",
+  scrivi: "Proposta scelta: scrive la bozza",
+  attendi: "Proposta scelta: scriverà più avanti",
+  fatto_mancante: "Nessun fatto recente da citare: passa a Tommi",
+  fuso_mancante: "Fuso orario non trovato: passa a Tommi",
+  controlli_superati: "Bozza scritta, controlli superati",
+  riscrittura: "Riscrive la bozza",
+  controlli_falliti: "Controlli non superati dopo la riscrittura: passa a Tommi",
+  contesto_cambiato: "Email del contatto cambiate: riscrive la bozza",
+  pronta: "Bozza pronta per Tommi",
+  regole_superate: "Regole cambiate: riscrive la bozza",
+  seconda_lettura: "Problemi anche nella bozza riscritta: passa a Tommi",
+  lease_scaduta: "Passo scaduto: tentativo fallito",
+  non_idoneo: "Contatto non più seguito dall'assistente",
+  claude_attesa: "Claude non disponibile: riprova tra dieci minuti",
+  timeout: "Claude non ha risposto in tempo: tentativo fallito",
+  troppe_continuazioni: "Ricerca non finita entro le riprese: tentativo fallito",
+  risposta_non_valida: "Risposta di Claude non valida: tentativo fallito",
+  tempo_insufficiente: "Poco tempo rimasto nel giro: riprova dopo",
+  troppi_tentativi: "Tre tentativi falliti: passa a Tommi",
+  spento: "Passo fermato: assistente spento",
+  pausa: "Passo fermato: assistente in pausa",
+  attesa: "Passo fermato: assistente in attesa",
+  lease_persa: "Passo oltre il tempo concesso",
+  pausa_credito: "In pausa: credito finito",
+  pausa_errore_claude: "In pausa: errore di Claude",
+} as const;
+export type PartnerAssistantEventOutcome = keyof typeof PARTNER_ASSISTANT_EVENT_LABELS;
+
+/** Frase dell'esito; un esito sconosciuto si mostra con il suo codice, così com'è. */
+export function partnerAssistantEventLabel(outcome: string): string {
+  return Object.hasOwn(PARTNER_ASSISTANT_EVENT_LABELS, outcome)
+    ? PARTNER_ASSISTANT_EVENT_LABELS[outcome as PartnerAssistantEventOutcome]
+    : outcome;
+}
+
+const usdFormat = new Intl.NumberFormat("it-IT", {
+  minimumFractionDigits: 2,
+  maximumFractionDigits: 2,
+});
+/** «1,37 USD». */
+export const formatPartnerAssistantUsd = (value: number) => `${usdFormat.format(value)} USD`;
+
+/**
+ * Credito di partenza scritto nella pagina, con la virgola o il punto: da 0 a 10.000 dollari con
+ * al massimo due decimali, come lo accetta set_partner_assistant_mode. `null` se non è valido.
+ */
+export function parsePartnerAssistantCredit(text: string): number | null {
+  const value = text.trim().replace(",", ".");
+  if (!/^\d{1,5}(\.\d{1,2})?$/.test(value)) return null;
+  const credit = Number(value);
+  return credit <= 10000 ? credit : null;
+}
+
 // ---------------------------------------------------------------------------
 // Controlli dei valori letti
 // ---------------------------------------------------------------------------

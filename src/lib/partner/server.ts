@@ -402,6 +402,32 @@ export async function loadPartnerAssistantRules(
   });
 }
 
+/**
+ * /partner/assistente: l'id delle schede passate a Tommi, dal CO. Lo stato dell'assistente dà
+ * solo CO e nome, mentre «Ridai all'assistente» manda l'id. Un CO senza scheda manca anche qui.
+ */
+export async function loadPartnerIdsByCo(
+  supabase: SupabaseClient,
+  cos: readonly number[],
+): Promise<Record<number, string>> {
+  if (cos.length === 0) return {};
+  return guarded(async () => {
+    const rows = rowsOf(
+      await supabase
+        .from("partners")
+        .select("id,co")
+        .in("co", [...cos]),
+    );
+    const ids: Record<number, string> = {};
+    for (const row of rows) {
+      const { id, co } = row as Record<string, unknown>;
+      ensure(isPartnerId(id) && isPartnerCo(co) && cos.includes(co) && !Object.hasOwn(ids, co));
+      ids[co as number] = id as string;
+    }
+    return ids;
+  });
+}
+
 /** /partner/dati: ultimi import della ricerca, file importati, differenze aperte, membri. */
 export async function loadPartnerData(supabase: SupabaseClient): Promise<PartnerDataSnapshot> {
   return guarded(async () => {

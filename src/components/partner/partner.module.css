@@ -1391,6 +1391,81 @@
   line-height: 1.5;
 }
 
+/* /partner/assistente: modalità in inversione d'inchiostro, conteggi in Condensed, regole. */
+.assistantModes {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 8px;
+  max-width: 520px;
+}
+.assistantCredit {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  gap: 8px 12px;
+}
+.assistantCredit .field {
+  flex: 0 1 220px;
+}
+.assistantCounts {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+  margin: 0;
+  border-top: 1px solid var(--rule);
+}
+.assistantCounts div {
+  display: grid;
+  align-content: start;
+  gap: 2px;
+  padding: 10px 12px 10px 0;
+  border-bottom: 1px solid var(--rule-soft);
+}
+.assistantCounts dt {
+  color: var(--muted);
+  font-size: var(--text-sm);
+}
+.assistantCounts dd {
+  margin: 0;
+  color: var(--ink);
+  font-family: var(--f-cond);
+  font-size: var(--text-xl);
+  font-weight: 700;
+}
+.assistantReview {
+  display: grid;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  border-top: 1px solid var(--rule);
+}
+.assistantReview li {
+  display: grid;
+  gap: 4px;
+  padding: 8px 0 12px;
+  border-bottom: 1px solid var(--rule);
+  overflow-wrap: anywhere;
+}
+.reviewName {
+  display: inline-flex;
+  align-items: center;
+  justify-self: start;
+  min-height: var(--tap);
+  color: var(--ink);
+  font-family: var(--f-cond);
+  font-size: var(--text-lg);
+  font-weight: 700;
+}
+.rulesForm {
+  display: grid;
+  gap: 10px;
+  padding-top: 8px;
+}
+.field textarea.rulesEditor {
+  min-height: max(24em, 60vh);
+  font-size: var(--text-md);
+  line-height: 1.55;
+}
+
 /* Schermi medi: il canale scende sotto la tappa. */
 @container partner (max-width: 879px) {
   .row {

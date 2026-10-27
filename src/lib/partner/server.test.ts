@@ -11,6 +11,7 @@ import {
   loadPartnerAssistantStatus,
   loadPartnerData,
   loadPartnerDetail,
+  loadPartnerIdsByCo,
   loadPartnerRules,
   loadPartnerWorkspace,
   previewPartnerDeviceFile,
@@ -413,6 +414,39 @@ describe("stato e regole dell'assistente", () => {
     await expect(
       loadPartnerAssistantRules(fakeSupabase(tables({ partner_assistant_rules: [] })).client),
     ).rejects.toThrow(PartnerUnavailableError);
+  });
+
+  it("«Ridai all'assistente»: l'id della scheda dal CO, solo id e CO", async () => {
+    const fake = fakeSupabase(tables());
+    expect(await loadPartnerIdsByCo(fake.client, [2, 1])).toEqual({
+      1: partnerFixtureId(1),
+      2: partnerFixtureId(2),
+    });
+    expect(fake.calls).toEqual([
+      { table: "partners", columns: "id,co", head: false, ops: [["in", "co", [2, 1]]] },
+    ]);
+    // CO senza scheda: manca anche nella risposta, e la pagina non offre il pulsante.
+    expect(await loadPartnerIdsByCo(fakeSupabase(tables()).client, [1, 999])).toEqual({
+      1: partnerFixtureId(1),
+    });
+  });
+
+  it("nessun CO da vedere: nessuna lettura; errore o riga non valida: Partner non disponibile", async () => {
+    const fake = fakeSupabase(tables());
+    expect(await loadPartnerIdsByCo(fake.client, [])).toEqual({});
+    expect(fake.calls).toEqual([]);
+    await expect(
+      loadPartnerIdsByCo(fakeSupabase(tables(), { failTable: "partners" }).client, [1]),
+    ).rejects.toThrow(PartnerUnavailableError);
+    const partners = partnerFixtureRows(TODAY).partners;
+    // Id non valido o due schede con lo stesso CO.
+    for (const broken of [
+      [{ ...partners[0], id: "non-un-id" }],
+      [partners[0], { ...partners[1], co: 1 }],
+    ])
+      await expect(
+        loadPartnerIdsByCo(fakeSupabase(tables({ partners: broken })).client, [1]),
+      ).rejects.toThrow(PartnerUnavailableError);
   });
 });
 

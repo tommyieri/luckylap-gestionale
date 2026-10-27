@@ -3,11 +3,15 @@ import { join } from "node:path";
 import { describe, expect, it } from "vitest";
 import { partnerAssistantSignature } from "../partner-assistant/checks";
 import {
+  PARTNER_ASSISTANT_EVENT_LABELS,
   PARTNER_ASSISTANT_MODE_LABELS,
   PARTNER_ASSISTANT_REASON_LABELS,
   PARTNER_ASSISTANT_REQUEST_LABELS,
   PARTNER_ASSISTANT_STATUS_LABELS,
+  formatPartnerAssistantUsd,
+  parsePartnerAssistantCredit,
   partnerAssistantContactFrom,
+  partnerAssistantEventLabel,
   partnerAssistantReasonLabel,
   partnerAssistantRulesFrom,
   partnerAssistantStatusFrom,
@@ -420,6 +424,99 @@ describe("etichette in italiano", () => {
       expect(partnerAssistantReasonLabel(reason)).toBe(label);
     }
     expect(partnerAssistantReasonLabel("motivo_nuovo")).toBe("Motivo non riconosciuto.");
+  });
+
+  it("una frase breve per ogni esito degli eventi; un esito sconosciuto resta il codice", () => {
+    // Gli esiti che la SQL scrive negli eventi, passo per passo (aggiunte del controllore, 1).
+    const byStep = {
+      ricerca: ["salvata"],
+      estrazione: ["scrivi", "attendi", "fatto_mancante", "fuso_mancante"],
+      scrittura: ["controlli_superati", "riscrittura", "controlli_falliti", "contesto_cambiato"],
+      controllo: ["pronta", "regole_superate", "riscrittura", "seconda_lettura"],
+      ogniPasso: [
+        "lease_scaduta",
+        "non_idoneo",
+        "claude_attesa",
+        "timeout",
+        "troppe_continuazioni",
+        "risposta_non_valida",
+        "tempo_insufficiente",
+        "troppi_tentativi",
+        "spento",
+        "pausa",
+        "attesa",
+        "lease_persa",
+      ],
+      senzaPasso: ["pausa_credito", "pausa_errore_claude"],
+    };
+    const listed = new Set(Object.values(byStep).flat());
+    // Gli esiti scritti come testo nella migrazione del worker sono tutti nell'elenco.
+    const sql = readFileSync(
+      join(ROOT, "supabase/migrations/20261027140533_assistente_partner_worker.sql"),
+      "utf8",
+    );
+    const all = (text: string, pattern: RegExp) => [...text.matchAll(pattern)].map((m) => m[1]);
+    const literal = [
+      ...all(
+        sql,
+        /partner_assistant_events\(partner_id, step, outcome\)\s+values \([^)]*'([a-z_]+)'\)/g,
+      ),
+      ...all(sql, /select e\.partner_id, e\.step, '([a-z_]+)'/g),
+      ...all(sql, /v_outcome := case([\s\S]*?)end;/g).flatMap((body) => all(body, /'([a-z_]+)'/g)),
+    ];
+    expect(literal).toEqual(
+      expect.arrayContaining([
+        "salvata",
+        "non_idoneo",
+        "contesto_cambiato",
+        "lease_scaduta",
+        "controlli_superati",
+        "pronta",
+        "regole_superate",
+      ]),
+    );
+    for (const code of literal) expect(listed.has(code), code).toBe(true);
+
+    expect(Object.keys(PARTNER_ASSISTANT_EVENT_LABELS).sort()).toEqual([...listed].sort());
+    for (const code of listed) {
+      const label = (PARTNER_ASSISTANT_EVENT_LABELS as Record<string, string>)[code];
+      expect(label, code).toMatch(/^[A-ZÈ][^.]*[^.\s]$/);
+      expect(label.length, code).toBeLessThanOrEqual(60);
+      expect(label, code).not.toContain("Tommaso");
+      expect(partnerAssistantEventLabel(code)).toBe(label);
+    }
+    expect(partnerAssistantEventLabel("salvata")).toBe("Ricerca salvata");
+    expect(partnerAssistantEventLabel("pronta")).toBe("Bozza pronta per Tommi");
+    expect(partnerAssistantEventLabel("riscrittura")).toBe("Riscrive la bozza");
+    expect(partnerAssistantEventLabel("pausa_credito")).toBe("In pausa: credito finito");
+    expect(partnerAssistantEventLabel("esito_nuovo")).toBe("esito_nuovo");
+    expect(partnerAssistantEventLabel("constructor")).toBe("constructor");
+  });
+
+  it("dollari con la virgola e due decimali", () => {
+    expect(formatPartnerAssistantUsd(1.372415)).toBe("1,37 USD");
+    expect(formatPartnerAssistantUsd(0.846102)).toBe("0,85 USD");
+    expect(formatPartnerAssistantUsd(0)).toBe("0,00 USD");
+    expect(formatPartnerAssistantUsd(25)).toBe("25,00 USD");
+    expect(formatPartnerAssistantUsd(12345.678)).toBe("12.345,68 USD");
+  });
+});
+
+describe("credito di partenza scritto nella pagina", () => {
+  it("da 0 a 10.000 dollari, con al massimo due decimali, virgola o punto", () => {
+    expect(parsePartnerAssistantCredit("25")).toBe(25);
+    expect(parsePartnerAssistantCredit(" 92,05 ")).toBe(92.05);
+    expect(parsePartnerAssistantCredit("92.5")).toBe(92.5);
+    expect(parsePartnerAssistantCredit("0")).toBe(0);
+    expect(parsePartnerAssistantCredit("10000")).toBe(10000);
+    // Come lo legge il comando: String(value) con al massimo due decimali.
+    for (const value of ["25", "92,05", "0,1", "9999,99"])
+      expect(String(parsePartnerAssistantCredit(value))).toMatch(/^\d+(\.\d{1,2})?$/);
+  });
+
+  it("vuoto, negativo, oltre 10.000, tre decimali o non numerico: null", () => {
+    for (const value of ["", "  ", "-1", "10000,01", "1,234", "abc", "1e3", "12,", ",5", "1 000"])
+      expect(parsePartnerAssistantCredit(value), value).toBeNull();
   });
 });
 

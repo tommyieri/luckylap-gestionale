@@ -191,6 +191,19 @@ describe("PartnerWorkspace", () => {
     expect(html).toContain('href="/partner/dati"');
   });
 
+  it("piede: «Assistente» accanto a «Regole per scrivere i messaggi»", () => {
+    const html = render();
+    const footer = html.slice(html.indexOf("<footer"), html.indexOf("</footer>"));
+    const links = [...footer.matchAll(/<a [^>]*href="([^"]+)"[^>]*>(.*?)<\/a>/g)]
+      .map((match) => [match[1], text(match[2]).trim()])
+      .filter(([href]) => !href.includes("/lookbook/"));
+    expect(links).toEqual([
+      ["/partner/dati", "Dati, import e lookbook"],
+      ["/partner/regole", "Regole per scrivere i messaggi"],
+      ["/partner/assistente", "Assistente"],
+    ]);
+  });
+
   it("dettagli aperti: messaggi, registro, recapiti, scheda e lista «non contattare»", () => {
     const html = render({ co: "1" });
     const t = text(html);
