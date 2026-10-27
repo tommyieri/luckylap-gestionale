@@ -1,6 +1,7 @@
-// test-db: pglite minimo 553
+// test-db: pglite minimo 574
 // Assistente Partner, compito 2 (_assistente_partner_worker.sql): coda dei contatti idonei, giri del
-// worker con lease, contesto, checkpoint, costi, avanzamento dei passi, tentativi, pausa e permessi.
+// worker con lease, contesto, checkpoint, costi, avanzamento dei passi, tentativi, pausa, permessi,
+// cancellazione di un recapito su una bozza pronta e lettura dello stato dei soli contatti idonei.
 // Migrazioni applicate in ordine su PGlite, auth.uid() definita come in produzione, permessi
 // predefiniti di Supabase sullo schema public. Le RPC si chiamano come service_role, con il JWT di
 // PostgREST (claims locali e set local role). Solo dati sintetici (schede 951-970 di
@@ -1497,6 +1498,11 @@ try {
   );
   eq(await completeResearch(j954b), { status: "lease_persa" }, "Cancellazione: lease tolta");
   eq((await notes(954, "ricerca")).length, 0);
+  eq(
+    [(await job(954)).status, (await job(954)).step, (await job(954)).reason],
+    ["serve_tommaso", "ricerca", "dato_cancellato"],
+    "Cancellazione durante il passo: il lavoro passa a Tommi",
+  );
 
   // Regole nuove durante la seconda lettura: il lavoro torna in scrittura e la lease si perde.
   const j953r = await toReview(953);
@@ -1537,6 +1543,7 @@ try {
     ).rows,
     [
       { co: 951, reason: "controlli_falliti" },
+      { co: 954, reason: "dato_cancellato" },
       { co: 955, reason: "troppi_tentativi" },
       { co: 957, reason: "troppi_tentativi" },
       { co: 968, reason: "fatto_mancante" },
@@ -1560,6 +1567,101 @@ try {
   );
   eq(statusRead.paused_reason, "credito");
 
+  // 14b. Cancellazione definitiva su una bozza pronta: il lavoro passa a Tommi e il giro non lo
+  // prende, anche con il contatto ancora idoneo (il 953 ha due email; si cancella quella non scelta).
+  await asOwner("update private.partner_assistant_config set paused_reason = null");
+  const jp953 = await claimJob(953);
+  eq(jp953.step, "scrittura");
+  await completeDraft(jp953);
+  eq((await completeReview(await claimJob(953), { approved: true })).job_status, "pronta");
+  const spare953 = await one(
+    `select c.id, c.version::int as version from public.partner_contacts c
+      where c.partner_id = $1 and c.kind = 'email'
+        and c.id <> (select e.contact_id from private.partner_assistant_email($1) e)`,
+    [id(953)],
+  );
+  await teamCommand(founder, "remove_partner_contact", {
+    contact_id: spare953.id,
+    expected_version: spare953.version,
+    erase: true,
+  });
+  const erased953 = await stepState(953);
+  eq(
+    [
+      erased953.status,
+      erased953.step,
+      erased953.reason,
+      erased953.attempts,
+      erased953.research_note_id,
+      erased953.choice_note_id,
+      erased953.draft_id,
+      erased953.notes,
+      erased953.drafts,
+    ],
+    ["serve_tommaso", "ricerca", "dato_cancellato", 0, null, null, null, 0, 0],
+    "Bozza pronta e un recapito cancellato: note e bozze via, il lavoro passa a Tommi",
+  );
+  eq(
+    await value("select private.partner_assistant_eligible($1) as v", [id(953)]),
+    true,
+    "Il 953 resta idoneo con l'altra email",
+  );
+  eq(await claimOnly(953), { status: "idle", reason: "vuota" }, "Il giro non lo riprende da solo");
+
+  // 14c. Lo stato conta solo i contatti dell'assistente: «Da vedere» e i conteggi in_coda, attesa,
+  // pronta e serve_tommaso lasciano fuori i contatti non più idonei; «ferma» conta gli interruttori.
+  const readStatus = () =>
+    as("authenticated", founder, () => rpc("select public.read_partner_assistant_status() r"));
+  const reviewCos = (s) => s.to_review.map((r) => r.co).sort((a, b) => a - b);
+  const before14c = await readStatus();
+  eq(
+    before14c.counts,
+    { in_coda: 1, attesa: 0, pronta: 0, serve_tommaso: 6, ferma: 1 },
+    "In coda solo il 969 (952 seguito, 956 in «Non contattare»); senza il 954, che non ha più email",
+  );
+  eq(reviewCos(before14c), [951, 953, 955, 957, 968, 970], "Da vedere: solo i contatti idonei");
+  eq(
+    before14c.to_review.find((r) => r.co === 953).reason,
+    "dato_cancellato",
+    "Da vedere con il motivo della cancellazione",
+  );
+  // Il team prende in mano due contatti passati a Tommi: il 968 con «Seguito da», il 970 segnandolo
+  // contattato. Poi ferma con l'interruttore il 955 (passato a Tommi) e il 969 (in coda).
+  const partnerVersion = (co) =>
+    value("select version::int as v from public.partners where id = $1", [id(co)]);
+  await teamCommand(founder, "set_partner_state", {
+    partner_id: id(968),
+    expected_version: await partnerVersion(968),
+    owner_id: consultant,
+  });
+  await teamCommand(founder, "set_partner_state", {
+    partner_id: id(970),
+    expected_version: await partnerVersion(970),
+    stage: "contattato",
+  });
+  for (const co of [955, 969])
+    await teamCommand(consultant, "set_partner_assistant_contact", {
+      partner_id: id(co),
+      active: false,
+    });
+  const after14c = await readStatus();
+  eq(
+    after14c.counts,
+    { in_coda: 0, attesa: 0, pronta: 0, serve_tommaso: 3, ferma: 3 },
+    "Presi dal team o fermati: fuori dai conteggi; «ferma» conta gli interruttori",
+  );
+  eq(reviewCos(after14c), [951, 953, 957], "Da vedere: senza i contatti presi dal team o fermati");
+  eq(
+    [
+      (await job(968)).status,
+      (await job(970)).status,
+      (await job(955)).status,
+      (await job(969)).status,
+    ],
+    ["serve_tommaso", "serve_tommaso", "serve_tommaso", "in_coda"],
+    "I lavori restano com'erano: cambia solo quello che si conta",
+  );
+
   // 15. Permessi.
   eq(await canExecute("authenticated", "public.claim_partner_assistant_step(uuid,integer)"), false);
   eq(await canInsert("service_role", "public.partners"), false);
@@ -1576,7 +1678,10 @@ try {
   for (const f of WORKER_HELPERS)
     for (const role of ["anon", "authenticated", "service_role"])
       eq(await canExecute(role, f), false, `${role} non esegue ${f}`);
-  for (const f of TEAM_FUNCTIONS) eq(await canExecute("authenticated", f), true, `Membri su ${f}`);
+  for (const f of TEAM_FUNCTIONS) {
+    eq(await canExecute("authenticated", f), true, `Membri su ${f}`);
+    eq(await canExecute("anon", f), false, `anon non esegue ${f}`);
+  }
   for (const f of [...TEAM_FUNCTIONS, ...TEAM_INTERNAL])
     eq(await canExecute("service_role", f), false, `service_role non esegue ${f}`);
   for (const t of PARTNER_TABLES)
@@ -1655,6 +1760,16 @@ try {
       .every((f) => !f.prosecdef),
     true,
     "Funzioni di supporto security invoker",
+  );
+  eq(
+    functions
+      .filter((f) => f.name.endsWith(".read_partner_assistant_status"))
+      .map((f) => [f.name, f.prosecdef]),
+    [
+      ["private.read_partner_assistant_status", true],
+      ["public.read_partner_assistant_status", false],
+    ],
+    "Lettura dello stato ridefinita: security definer la privata, invoker il wrapper",
   );
   console.log(`PASS ${checks} Assistente Partner worker synthetic checks passed.`);
 } catch (error) {

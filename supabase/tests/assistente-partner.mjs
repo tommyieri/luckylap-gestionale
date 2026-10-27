@@ -1,4 +1,4 @@
-// test-db: pglite minimo 311
+// test-db: pglite minimo 320
 // Assistente Partner, compito 1 (_assistente_partner.sql): configurazione a riga unica, regole
 // versionate, interruttore per contatto, lavori, note e bozze append-only, cancellazione dei dati
 // con il recapito, comandi del team, lettura dello stato e permessi. Migrazioni applicate in ordine
@@ -105,8 +105,8 @@ const rulesVersions = async () =>
 const job = (partnerId) =>
   one(
     `select status, step, attempts, rewrites, reason, lease_token, lease_expires_at, research_note_id,
-       choice_note_id, draft_id, next_attempt_at <= now() as due from public.partner_assistant_jobs
-     where partner_id = $1`,
+       choice_note_id, draft_id, write_on::text as write_on, next_attempt_at <= now() as due
+     from public.partner_assistant_jobs where partner_id = $1`,
     [partnerId],
   );
 const countNotesAndDrafts = (partnerId) =>
@@ -213,6 +213,22 @@ const requeued = (step) => ({
 });
 const pick = (object, keys) => Object.fromEntries(keys.map((key) => [key, object[key]]));
 const REQUEUE_KEYS = Object.keys(requeued("ricerca"));
+// Dopo la cancellazione definitiva di un recapito il lavoro non torna in coda: passa a Tommi dalla
+// ricerca, senza riferimenti, lease, tentativi né data. Un lavoro già di Tommi tiene il suo motivo.
+const erasedJob = (reason) => ({
+  status: "serve_tommaso",
+  step: "ricerca",
+  attempts: 0,
+  rewrites: 0,
+  reason,
+  lease_token: null,
+  lease_expires_at: null,
+  research_note_id: null,
+  choice_note_id: null,
+  draft_id: null,
+  write_on: null,
+});
+const ERASED_KEYS = Object.keys(erasedJob(null));
 
 const PUBLIC_TABLES = [
   "public.partner_assistant_rules",
@@ -429,6 +445,18 @@ try {
     "prepara: pausa e attesa azzerate, credito invariato",
   );
   ok(resumed.last_tick_at, "prepara: l'ultimo giro resta");
+  // Con il credito la versione conta anche per «spento»: una pagina rimasta alla versione 3, quando
+  // l'assistente era spento, salva il credito dopo «Prepara» di un collega. Niente scritto.
+  await rejects(
+    () => mode(consultant, { mode: "spento", expected_version: 3, starting_credit_usd: 50 }),
+    "40001",
+    "partner_changed",
+  );
+  eq(
+    pick(await config(), ["mode", "version", "credit", "updated_by"]),
+    { mode: "prepara", version: 4, credit: "92.05", updated_by: founder },
+    "Credito da una pagina vecchia: modalità, versione e credito invariati",
+  );
   for (const credit of [10000.01, 1.234, -1, "92.05", true])
     await rejects(
       () => mode(founder, { mode: "prepara", expected_version: 4, starting_credit_usd: credit }),
@@ -807,7 +835,8 @@ try {
     rejects(() => asOwner("delete from private.partner_assistant_receipts"), "42501"),
   );
 
-  // 7. Cancellazione definitiva del recapito: note e bozze del contatto spariscono, il lavoro riparte.
+  // 7. Cancellazione definitiva del recapito: note e bozze del contatto spariscono, il lavoro passa a
+  // Tommi. Ridarlo all'assistente resta una sua scelta, con l'interruttore.
   const n951 = await note(p951);
   const c951 = await note(p951, "scelta");
   const d951 = await draft(p951, n951);
@@ -831,13 +860,34 @@ try {
   const eraseContactOf951 = () => asOwner(eraseSql, [p951.contactId]);
   await eraseContactOf951();
   eq(await countNotesAndDrafts(p951.id), 0);
-  eq((await job(p951.id)).step, "ricerca");
   eq(
-    pick(await job(p951.id), [...REQUEUE_KEYS, "research_note_id", "choice_note_id", "draft_id"]),
-    { ...requeued("ricerca"), research_note_id: null, choice_note_id: null, draft_id: null },
-    "Lavoro di nuovo in coda, senza riferimenti",
+    pick(await job(p951.id), ERASED_KEYS),
+    erasedJob("dato_cancellato"),
+    "Bozza pronta: il lavoro passa a Tommi, senza riferimenti né lease",
   );
   eq(await countNotesAndDrafts(p952.id), 5, "Gli altri contatti non cambiano");
+  // Un lavoro già passato a Tommi resta suo, con il suo motivo.
+  ok((await countNotesAndDrafts(p957.id)) > 0, "Il 957 ha ricerca e bozza");
+  await asOwner(eraseSql, [p957.contactId]);
+  eq(await countNotesAndDrafts(p957.id), 0);
+  eq(
+    pick(await job(p957.id), ERASED_KEYS),
+    erasedJob("seconda_lettura"),
+    "Serve Tommi per la seconda lettura: il motivo resta",
+  );
+  // Un lavoro in attesa passa a Tommi e perde la data.
+  await asOwner(
+    "update public.partner_assistant_jobs set write_on = current_date + 40 where partner_id = $1",
+    [p958.id],
+  );
+  eq(pick(await job(p958.id), ["status", "step"]), { status: "attesa", step: "ricerca" });
+  ok((await job(p958.id)).write_on, "Il 958 aspetta una data");
+  await asOwner(eraseSql, [p958.contactId]);
+  eq(
+    pick(await job(p958.id), ERASED_KEYS),
+    erasedJob("dato_cancellato"),
+    "In attesa: passa a Tommi, senza data",
+  );
   ok(
     (await value("select current_setting('luckylap.partner_assistant.erase', true) as v")) !== "on",
     "Il flag non resta acceso",
@@ -880,7 +930,11 @@ try {
     }),
   );
   eq(await countNotesAndDrafts(p952.id), 0, "remove_partner_contact con erase: note e bozze via");
-  eq(pick(await job(p952.id), REQUEUE_KEYS), requeued("ricerca"));
+  eq(
+    pick(await job(p952.id), ERASED_KEYS),
+    erasedJob("dato_cancellato"),
+    "remove_partner_contact con erase: il lavoro in coda passa a Tommi",
+  );
 
   // 8. Permessi: nessun ruolo client scrive, solo i membri leggono, funzioni interne chiuse.
   for (const t of PUBLIC_TABLES)

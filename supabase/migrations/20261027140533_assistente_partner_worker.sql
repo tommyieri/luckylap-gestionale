@@ -1,7 +1,8 @@
--- Assistente Partner, prima consegna: coda e RPC del worker. Funzioni nuove, più tre ritocchi:
+-- Assistente Partner, prima consegna: coda e RPC del worker. Funzioni nuove, più quattro ritocchi:
 -- un vincolo sui lavori (ogni passaggio a Tommi ha il motivo), lo schema private usabile da
--- service_role e la revoca a service_role delle scritture dirette sulle tabelle Partner, che
--- scavalcherebbero comandi e «Non contattare».
+-- service_role, la revoca a service_role delle scritture dirette sulle tabelle Partner, che
+-- scavalcherebbero comandi e «Non contattare», e la lettura dello stato del compito 1, ridefinita
+-- qui perché conti solo i contatti dell'assistente (l'idoneità nasce in questa migrazione).
 --
 -- - Coda: i contatti idonei senza lavoro, prima quelli del periodo (mese pianificato entro due mesi),
 --   poi per priorità, mese e CO. Idoneo: «Da contattare», senza «Seguito da», prossima azione,
@@ -11,6 +12,9 @@
 --   tentativi falliti, crea i lavori nuovi, riprende le attese arrivate al giorno giusto e dà un
 --   solo lavoro con la lease. Con una lease attiva il giro è «occupato»: un passo alla volta.
 -- - Le quattro conclusioni dei passi passano tutte dalla stessa guardia, partner_assistant_lock_step.
+-- - Ordine dei lock come nei comandi del team: configurazione (solo giro e fail), poi il contatto
+--   (for share), poi il lavoro. Così una cancellazione definitiva o un comando Partner in corso non
+--   va in deadlock con il worker, e l'idoneità si legge dopo la sua conferma.
 -- - RPC: private.<nome> security definer più il wrapper public.<nome> security invoker, eseguibili
 --   solo da service_role. Ognuna controlla il ruolo, poi fa risultare l'assistente come autore di
 --   tutto quello che segue nella transazione: auth.uid() legge request.jwt.claim.sub e poi
@@ -117,16 +121,22 @@ language sql stable security invoker set search_path = '' as $$
   limit 1
 $$;
 
--- La guardia dei quattro complete_*, scritta una volta sola. Blocca il lavoro e controlla la lease
--- (token e scadenza), il passo e il contatto. Null: il passo può concludersi, e il lavoro resta
--- bloccato fino alla fine della transazione. Altrimenti l'esito da restituire: lease_persa, oppure
--- non_idoneo dopo aver rilasciato la lease e scritto l'evento, senza avanzare. Il passo sbagliato,
--- impossibile con una lease valida, è un errore d'uso (22023).
+-- La guardia dei quattro complete_*, scritta una volta sola. Blocca il contatto e il lavoro e
+-- controlla la lease (token e scadenza), il passo e il contatto. Null: il passo può concludersi, e
+-- contatto e lavoro restano bloccati fino alla fine della transazione. Altrimenti l'esito da
+-- restituire: lease_persa, oppure non_idoneo dopo aver rilasciato la lease e scritto l'evento, senza
+-- avanzare. Il passo sbagliato, impossibile con una lease valida, è un errore d'uso (22023).
+-- Ordine dei lock come nei comandi del team: prima il contatto (for share, che aspetta i comandi
+-- Partner in corso, compresa la cancellazione definitiva di un recapito), poi il lavoro. Così il
+-- worker non va in deadlock con il team e legge l'idoneità dopo la loro conferma.
 create function private.partner_assistant_lock_step(p_job_id uuid, p_lease_token uuid, p_step text)
 returns jsonb
 language plpgsql security invoker set search_path = '' as $$
-declare j public.partner_assistant_jobs%rowtype;
+declare j public.partner_assistant_jobs%rowtype; v_partner uuid;
 begin
+  select l.partner_id into v_partner from public.partner_assistant_jobs l where l.id = p_job_id;
+  if not found then return jsonb_build_object('status', 'lease_persa'); end if;
+  perform 1 from public.partners where id = v_partner for share;
   select * into j from public.partner_assistant_jobs where id = p_job_id for update;
   if not found or j.lease_token is distinct from p_lease_token or j.lease_expires_at is null
     or j.lease_expires_at <= clock_timestamp() then
@@ -189,7 +199,13 @@ begin
   if exists (select 1 from public.partner_assistant_jobs l where l.lease_expires_at > clock_timestamp()) then
     return jsonb_build_object('status', 'idle', 'reason', 'occupato');
   end if;
-  -- Lease scaduta: un tentativo fallito; al terzo il contatto passa a Tommi.
+  -- Lease scaduta: un tentativo fallito; al terzo il contatto passa a Tommi. Prima i contatti di quei
+  -- lavori (for share), poi i lavori, come nei comandi del team: una cancellazione definitiva in
+  -- corso finisce prima, e la sua lease tolta non conta. Senza lease attive (controllo qui sopra)
+  -- le due letture trovano gli stessi lavori.
+  perform 1 from public.partners p join public.partner_assistant_jobs l on l.partner_id = p.id
+    where l.lease_expires_at <= clock_timestamp()
+    for share of p;
   with expired as (
     update public.partner_assistant_jobs l set attempts = least(l.attempts + 1, 3),
         status = case when l.attempts + 1 >= 3 then 'serve_tommaso' else l.status end,
@@ -337,9 +353,10 @@ end
 $$;
 
 -- Le quattro conclusioni dei passi seguono lo stesso schema: payload valido, ricevuta (la ripetizione
--- vale anche a lease scaduta), la guardia comune partner_assistant_lock_step (lavoro bloccato con
--- la lease ancora valida, passo giusto, contatto ancora idoneo, altrimenti lease_persa o non_idoneo),
--- poi il salvataggio e l'avanzamento, che rilascia la lease, azzera i tentativi e scrive un evento.
+-- vale anche a lease scaduta), la guardia comune partner_assistant_lock_step (contatto e lavoro
+-- bloccati in quest'ordine, lease ancora valida, passo giusto, contatto ancora idoneo, altrimenti
+-- lease_persa o non_idoneo), poi il salvataggio e l'avanzamento, che rilascia la lease, azzera i
+-- tentativi e scrive un evento.
 
 -- Ricerca: la nota «ricerca» con le fonti; si passa all'estrazione con scelta e bozza da rifare.
 create function private.complete_partner_assistant_research(p_operation_id uuid, p_payload jsonb) returns jsonb
@@ -628,11 +645,12 @@ $$;
 -- Passo non concluso. Rilascia sempre la lease. attesa: nessun tentativo, il lavoro e tutto
 -- l'assistente aspettano dieci minuti (429, 529, 5xx). riprova: un tentativo fallito e dieci minuti;
 -- al terzo a Tommi. rilascia: niente tentativo né attesa (fermato dal checkpoint). blocca: a Tommi
--- con il motivo. Lock nello stesso ordine del giro: configurazione, poi lavoro.
+-- con il motivo. Lock nello stesso ordine del giro: configurazione, contatto (for share, come la
+-- guardia dei complete_*), poi lavoro.
 create function private.fail_partner_assistant_step(p_job_id uuid, p_lease_token uuid, p_kind text, p_reason text)
 returns jsonb
 language plpgsql security definer set search_path = '' as $$
-declare j public.partner_assistant_jobs%rowtype;
+declare j public.partner_assistant_jobs%rowtype; v_partner uuid;
 begin
   perform private.partner_assistant_service_required();
   perform private.partner_assistant_as_actor();
@@ -642,6 +660,9 @@ begin
     raise exception 'invalid_partner_payload' using errcode = '22023';
   end if;
   perform 1 from private.partner_assistant_config where singleton for update;
+  select l.partner_id into v_partner from public.partner_assistant_jobs l where l.id = p_job_id;
+  if not found then return jsonb_build_object('status', 'lease_persa'); end if;
+  perform 1 from public.partners where id = v_partner for share;
   select * into j from public.partner_assistant_jobs where id = p_job_id for update;
   if not found or j.lease_token is distinct from p_lease_token then
     return jsonb_build_object('status', 'lease_persa');
@@ -679,6 +700,57 @@ begin
     where lease_token is not null or lease_expires_at is not null;
   insert into private.partner_assistant_events(outcome) values ('pausa_' || p_reason);
   return jsonb_build_object('status', 'done', 'paused_reason', p_reason);
+end
+$$;
+
+-- ---------------------------------------------------------------------------
+-- Lettura dello stato, ridefinita
+-- ---------------------------------------------------------------------------
+
+-- Come nel compito 1, ma «Da vedere» e i conteggi dei lavori (in coda, in attesa, pronti, passati a
+-- Tommi) contano solo i contatti che l'assistente segue ancora: un contatto preso in mano dal team,
+-- fermato con l'interruttore o non più idoneo esce dai numeri e dalla lista, e il suo lavoro resta
+-- com'è. «ferma» resta il numero di interruttori fermi. create or replace tiene proprietario e
+-- grant; il wrapper public.read_partner_assistant_status resta quello del compito 1.
+create or replace function private.read_partner_assistant_status() returns jsonb
+language plpgsql stable security definer set search_path = '' as $$
+declare
+  c private.partner_assistant_config%rowtype;
+  v_today_starts timestamptz := ((now() at time zone 'Europe/Rome')::date)::timestamp at time zone 'Europe/Rome';
+begin
+  perform private.partner_actor();
+  select * into c from private.partner_assistant_config where singleton;
+  return jsonb_build_object(
+    'mode', c.mode,
+    'configured', c.actor_id is not null and c.handoff_to is not null,
+    'paused_reason', c.paused_reason,
+    'backoff_until', c.backoff_until,
+    'last_tick_at', c.last_tick_at,
+    'version', c.version,
+    'starting_credit_usd', c.starting_credit_usd,
+    'spent_usd', (select coalesce(sum(r.cost_usd), 0) from private.partner_assistant_runs r),
+    'spent_today_usd', (select coalesce(sum(r.cost_usd), 0) from private.partner_assistant_runs r
+      where r.created_at >= v_today_starts),
+    'counts', (select jsonb_build_object(
+        'in_coda', count(*) filter (where j.status = 'in_coda'),
+        'attesa', count(*) filter (where j.status = 'attesa'),
+        'pronta', count(*) filter (where j.status = 'pronta'),
+        'serve_tommaso', count(*) filter (where j.status = 'serve_tommaso'),
+        'ferma', (select count(*) from public.partner_assistant_contacts s where not s.active))
+      from public.partner_assistant_jobs j
+      where private.partner_assistant_eligible(j.partner_id)),
+    'to_review', (select coalesce(jsonb_agg(jsonb_build_object('co', t.co, 'name', t.name, 'reason', t.reason,
+        'updated_at', t.updated_at) order by t.updated_at, t.co), '[]'::jsonb)
+      from (select p.co, p.name, j.reason, j.updated_at
+        from public.partner_assistant_jobs j join public.partners p on p.id = j.partner_id
+        where j.status = 'serve_tommaso' and private.partner_assistant_eligible(j.partner_id)
+        order by j.updated_at, p.co limit 50) t),
+    'last_events', (select coalesce(jsonb_agg(jsonb_build_object('created_at', e.created_at, 'co', e.co,
+        'step', e.step, 'outcome', e.outcome) order by e.created_at desc, e.id desc), '[]'::jsonb)
+      from (select v.id, v.created_at, p.co, v.step, v.outcome
+        from private.partner_assistant_events v left join public.partners p on p.id = v.partner_id
+        order by v.created_at desc, v.id desc limit 10) e)
+  );
 end
 $$;
 

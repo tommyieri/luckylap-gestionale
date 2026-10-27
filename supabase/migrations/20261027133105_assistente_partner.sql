@@ -185,8 +185,10 @@ create trigger partner_assistant_notes_append_only before update or delete on pu
 create trigger partner_assistant_drafts_append_only before update or delete on public.partner_assistant_drafts
   for each row execute function private.partner_assistant_append_only();
 
--- Cancella note e bozze del contatto e rimette il suo lavoro in coda dalla ricerca, senza riferimenti
--- e senza lease. Il flag torna al valore di prima subito dopo le cancellazioni.
+-- Cancella note e bozze del contatto e passa il suo lavoro a Tommi, dalla ricerca, senza riferimenti,
+-- lease, tentativi né data: non torna in coda da solo. Il motivo è dato_cancellato; un lavoro già
+-- di Tommi tiene il suo. Ridarlo all'assistente resta una scelta di Tommi, con l'interruttore. Il
+-- flag torna al valore di prima subito dopo le cancellazioni.
 create function private.partner_assistant_erase(p_partner_id uuid) returns void
 language plpgsql security definer set search_path = '' as $$
 declare v_previous text := current_setting('luckylap.partner_assistant.erase', true);
@@ -195,8 +197,9 @@ begin
   delete from public.partner_assistant_drafts where partner_id = p_partner_id;
   delete from public.partner_assistant_notes where partner_id = p_partner_id;
   perform pg_catalog.set_config('luckylap.partner_assistant.erase', coalesce(v_previous, ''), true);
-  update public.partner_assistant_jobs set status = 'in_coda', step = 'ricerca', attempts = 0, rewrites = 0,
-      reason = null, lease_token = null, lease_expires_at = null, research_note_id = null, choice_note_id = null,
+  update public.partner_assistant_jobs set status = 'serve_tommaso', step = 'ricerca', attempts = 0, rewrites = 0,
+      reason = case when status = 'serve_tommaso' then reason else 'dato_cancellato' end, write_on = null,
+      lease_token = null, lease_expires_at = null, research_note_id = null, choice_note_id = null,
       draft_id = null, next_attempt_at = now(), updated_at = now()
     where partner_id = p_partner_id;
 end
@@ -253,7 +256,8 @@ $$;
 -- ---------------------------------------------------------------------------
 
 -- Modalità e credito di partenza. «prova» e «invio» solo al founder, e non in questa consegna.
--- «spento» ferma sempre, anche da una pagina con la versione vecchia.
+-- «spento» senza credito ferma sempre, anche da una pagina con la versione vecchia. Con il credito
+-- la versione conta sempre: una pagina vecchia non sovrascrive il credito né spegne l'assistente.
 create function private.set_partner_assistant_mode(p_operation_id uuid, p_payload jsonb) returns jsonb
 language plpgsql security definer set search_path = '' as $$
 declare
@@ -285,7 +289,7 @@ begin
   if not found or (v_mode = 'prepara' and (c.actor_id is null or c.handoff_to is null)) then
     raise exception 'partner_assistant_not_configured' using errcode = '55000';
   end if;
-  if v_mode <> 'spento' and c.version <> v_expected then
+  if (v_mode <> 'spento' or v_credit is not null) and c.version <> v_expected then
     raise exception 'partner_changed' using errcode = '40001';
   end if;
   update private.partner_assistant_config set mode = v_mode,

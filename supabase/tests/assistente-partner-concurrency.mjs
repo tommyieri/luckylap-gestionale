@@ -1,8 +1,11 @@
-// test-db: postgres minimo 32
+// test-db: postgres minimo 51
 // Assistente Partner, compito 2: due giri sovrapposti del worker su PostgreSQL 17 reale (lock,
 // transazioni e permessi veri). Il secondo giro trova il lavoro occupato e non fa niente; mai due
-// lease attive; una lease scaduta conta un solo tentativo anche con due giri insieme. Cluster usa e
-// getta in /private/tmp su socket privata, Auth e dati solo sintetici, nessun DSN o accesso cloud.
+// lease attive; una lease scaduta conta un solo tentativo anche con due giri insieme. Poi l'ordine
+// dei lock con i comandi del team (prima il contatto, poi il lavoro): l'interruttore confermato
+// durante un passo dà non_idoneo, la cancellazione definitiva di un recapito non va in deadlock
+// con complete_*, fail e giro. Cluster usa e getta in /private/tmp su socket privata, Auth e dati
+// solo sintetici, nessun DSN o accesso cloud.
 import assert from "node:assert/strict";
 import { randomUUID } from "node:crypto";
 import { mkdirSync, mkdtempSync, readFileSync, readdirSync, rmSync } from "node:fs";
@@ -378,6 +381,175 @@ try {
     { step: "ricerca", lease_token: null },
     "Il passo non avanza",
   );
+
+  // Dal punto 6: i comandi del team bloccano prima il contatto, poi il lavoro; il worker fa lo stesso.
+  // Il JWT di un membro del team, come PostgREST: claims locali e set local role authenticated.
+  async function beginTeam(client) {
+    await client.query("begin");
+    await client.query("select set_config('request.jwt.claims', $1, true)", [
+      JSON.stringify({ sub: founder, role: "authenticated" }),
+    ]);
+    await client.query("set local role authenticated");
+  }
+  const teamCommand = (client, name, payload) =>
+    scalar(client, `select public.${name}($1, $2::jsonb) value`, [
+      randomUUID(),
+      JSON.stringify({ schema_version: 1, ...payload }),
+    ]);
+  const partnerOf = (co) =>
+    scalar(owner, "select id::text value from public.partners where co = $1", [co]);
+  // Una lease data dal proprietario al lavoro del contatto, sul passo della ricerca.
+  const leaseResearch = async (co, expires = "now() + interval '5 minutes'") =>
+    (
+      await owner.query(
+        `update public.partner_assistant_jobs set status = 'in_coda', step = 'ricerca',
+           lease_token = gen_random_uuid(), lease_expires_at = ${expires}
+         where partner_id = $1
+         returning id::text as job_id, lease_token::text as lease_token`,
+        [await partnerOf(co)],
+      )
+    ).rows[0];
+  const jobOf = async (co) =>
+    (
+      await owner.query(
+        `select status, step, reason, lease_token from public.partner_assistant_jobs
+          where partner_id = $1`,
+        [await partnerOf(co)],
+      )
+    ).rows[0];
+  const notesOf = async (co) =>
+    scalar(
+      owner,
+      "select count(*)::int value from public.partner_assistant_notes where partner_id = $1",
+      [await partnerOf(co)],
+    );
+
+  // 6. Il team ferma il contatto con l'interruttore e non ha ancora confermato; intanto arriva la
+  // conclusione della ricerca. Il worker aspetta il contatto prima di bloccare il lavoro, quindi
+  // legge l'idoneità dopo la conferma del team: non_idoneo, nessuna nota, il passo non avanza.
+  const j951 = await leaseResearch(951);
+  const notes951 = await notesOf(951);
+  await beginTeam(a);
+  eq(
+    (
+      await teamCommand(a, "set_partner_assistant_contact", {
+        partner_id: await partnerOf(951),
+        active: false,
+      })
+    ).replayed,
+    false,
+  );
+  await beginService(b);
+  const stopped = capture(completeResearch(b, j951));
+  await waitBlocked(pids.b, pids.a);
+  await a.query("commit");
+  eq(
+    await success(stopped),
+    { status: "non_idoneo" },
+    "Interruttore confermato durante il passo: non_idoneo",
+  );
+  await b.query("commit");
+  eq(await notesOf(951), notes951, "Nessuna nota di ricerca nuova");
+  eq(
+    await jobOf(951),
+    { status: "in_coda", step: "ricerca", reason: null, lease_token: null },
+    "Il passo non avanza e la lease si rilascia",
+  );
+
+  // 7-9. Cancellazione definitiva di un recapito durante un passo del worker. Il team lavora sui
+  // recapiti in una transazione aperta: prima disattiva il telefono (il contatto resta bloccato), poi
+  // lo cancella definitivamente, e la cancellazione passa il lavoro a Tommi. Tra i due comandi parte
+  // il worker. Se il worker bloccasse il lavoro prima del contatto, i due si aspetterebbero a
+  // vicenda (40P01): il worker aspetta invece il contatto e trova la lease tolta.
+  async function eraseDuring(co, workerCall, label) {
+    const phone = await scalar(
+      owner,
+      `insert into public.partner_contacts(partner_id, kind, value, active, position, created_by, updated_by)
+       values ($1, 'phone', '+39 000 000 0000', true, 9, $2, $2) returning id::text value`,
+      [await partnerOf(co), founder],
+    );
+    await beginTeam(a);
+    await teamCommand(a, "remove_partner_contact", {
+      contact_id: phone,
+      expected_version: 1,
+      erase: false,
+    });
+    await beginService(b);
+    const worker = capture(workerCall(b));
+    await waitBlocked(pids.b, pids.a);
+    const erased = await capture(
+      teamCommand(a, "remove_partner_contact", {
+        contact_id: phone,
+        expected_version: 2,
+        erase: true,
+      }),
+    );
+    await a.query(erased.error ? "rollback" : "commit");
+    const result = await worker;
+    await b.query(result.error ? "rollback" : "commit");
+    eq(
+      [erased.error?.code ?? null, result.error?.code ?? null],
+      [null, null],
+      `${label}: nessun 40P01, nessun errore`,
+    );
+    eq(
+      await jobOf(co),
+      { status: "serve_tommaso", step: "ricerca", reason: "dato_cancellato", lease_token: null },
+      `${label}: il lavoro passa a Tommi, senza lease`,
+    );
+    return result.value;
+  }
+
+  // 7. La conclusione della ricerca.
+  const j952 = await leaseResearch(952);
+  eq(
+    await eraseDuring(952, (client) => completeResearch(client, j952), "complete_*"),
+    { status: "lease_persa" },
+    "complete_*: dopo la cancellazione la lease non c'è più",
+  );
+  eq(await notesOf(952), 0, "complete_*: nessuna nota");
+
+  // 8. Un passo non concluso.
+  const j953 = await leaseResearch(953);
+  eq(
+    await eraseDuring(
+      953,
+      (client) =>
+        scalar(
+          client,
+          "select public.fail_partner_assistant_step($1, $2, 'riprova', 'risposta_non_valida') value",
+          [j953.job_id, j953.lease_token],
+        ),
+      "fail",
+    ),
+    { status: "lease_persa" },
+    "fail: dopo la cancellazione la lease non c'è più",
+  );
+
+  // 9. Il giro con una lease scaduta, che conterebbe un tentativo fallito: la cancellazione arriva
+  // prima e la lease non c'è più, quindi nessun tentativo e nessun lavoro da prendere.
+  await beginTeam(a);
+  await teamCommand(a, "set_partner_assistant_contact", {
+    partner_id: await partnerOf(951),
+    active: true,
+  });
+  await a.query("commit");
+  await owner.query(
+    "update private.partner_assistant_config set paused_reason = null, backoff_until = null",
+  );
+  await leaseResearch(951, "now() - interval '1 second'");
+  const expiredEvents = () =>
+    scalar(
+      owner,
+      "select count(*)::int value from private.partner_assistant_events where outcome = 'lease_scaduta'",
+    );
+  const expiredBefore = await expiredEvents();
+  eq(
+    await eraseDuring(951, (client) => claim(client, WORKERS.b), "claim"),
+    { status: "idle", reason: "vuota" },
+    "claim: niente da prendere, tutti i lavori sono di Tommi",
+  );
+  eq(await expiredEvents(), expiredBefore, "claim: nessun tentativo per la lease tolta");
   console.log(
     `PASS ${checks} Assistente Partner concurrent checks; PostgreSQL 17 reale, pids ${pids.a}/${pids.b}, Auth/dati sintetici.`,
   );
