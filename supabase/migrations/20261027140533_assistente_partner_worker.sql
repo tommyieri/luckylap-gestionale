@@ -15,9 +15,9 @@
 --   solo da service_role. Ognuna controlla il ruolo, poi fa risultare l'assistente come autore di
 --   tutto quello che segue nella transazione: auth.uid() legge request.jwt.claim.sub e poi
 --   request.jwt.claims->>'sub', impostati entrambi all'id configurato, con il claim role conservato.
--- - Gli esiti attesi (idle, lease_persa, non_idoneo, stop) tornano come righe, mai come eccezioni:
---   il trasporto del worker scarta i corpi d'errore. Le conclusioni dei passi hanno la ricevuta per
---   operation_id e si ripetono anche a lease scaduta.
+-- - Gli esiti attesi (idle, lease_persa, non_idoneo, contesto_cambiato, stop) tornano come righe,
+--   mai come eccezioni: il trasporto del worker scarta i corpi d'errore. Le conclusioni dei passi
+--   hanno la ricevuta per operation_id e si ripetono anche a lease scaduta.
 -- - Eventi senza testi né indirizzi: passo ed esito come codici.
 --
 -- Codici d'errore (messaggio = codice): 42501 partner_assistant_worker_access_required;
@@ -427,8 +427,8 @@ begin
     private.partner_enum(v_choice, 'contact_kind', array['club', 'brand', 'media', 'evento', 'negozio']) is not null
     and private.partner_enum(v_choice, 'language', array['it', 'en', 'de', 'fr', 'es']) is not null
     and private.partner_enum(v_choice, 'register', array['voi', 'lei', 'you', 'sie', 'vous', 'usted']) is not null
-    and private.partner_enum(v_choice, 'request', array['progetto_futuro', 'banco_evento', 'vendita_negozio'])
-      is not null);
+    and private.partner_enum(v_choice, 'request',
+      array['merch_cobranding', 'collab_capsule', 'stand_evento', 'vendita_negozio']) is not null);
   foreach v_key in array array['write_on', 'fact_date', 'event_starts_on'] loop
     if v_choice ->> v_key <> '' then perform private.partner_date(v_choice, v_key); end if;
   end loop;
@@ -477,8 +477,9 @@ begin
 end
 $$;
 
--- Bozza: si salva sempre, sul recapito del contatto. Controlli superati: seconda lettura. Falliti la
--- prima volta: una riscrittura, con i problemi in una nota «controllo». Falliti di nuovo: a Tommi.
+-- Bozza: si salva sempre, sul recapito del contatto, se è ancora quello del contesto. Controlli
+-- superati: seconda lettura. Falliti la prima volta: una riscrittura, con i problemi in una nota
+-- «controllo». Falliti di nuovo: a Tommi.
 create function private.complete_partner_assistant_draft(p_operation_id uuid, p_payload jsonb) returns jsonb
 language plpgsql security definer set search_path = '' as $$
 declare
@@ -522,8 +523,20 @@ begin
   if stop is not null then return stop; end if;
   select * into j from public.partner_assistant_jobs where id = v_job_id;
   -- Il destinatario è l'email scelta per il contatto, la stessa del contesto: mai un'altra email
-  -- (non attiva, senza link_value o non scelta) né un indirizzo copiato.
-  perform private.partner_check(v_contact = (select e.contact_id from private.partner_assistant_email(j.partner_id) e));
+  -- (non attiva, senza link_value o non scelta) né un indirizzo copiato. Un recapito che non è del
+  -- contatto non è mai stato nel contesto: payload non valido. Uno del contatto che non è più quello
+  -- scelto vuol dire che il team ha cambiato le email a metà passo: contesto_cambiato, niente scritto
+  -- oltre all'evento, lease rilasciata e nessun tentativo consumato; il giro dopo rifà la scrittura
+  -- con il contesto nuovo.
+  perform private.partner_check(exists (select 1 from public.partner_contacts c
+    where c.id = v_contact and c.partner_id = j.partner_id));
+  if v_contact is distinct from (select e.contact_id from private.partner_assistant_email(j.partner_id) e) then
+    update public.partner_assistant_jobs set lease_token = null, lease_expires_at = null, updated_at = now()
+      where partner_id = j.partner_id;
+    insert into private.partner_assistant_events(partner_id, step, outcome)
+      values (j.partner_id, 'scrittura', 'contesto_cambiato');
+    return jsonb_build_object('status', 'contesto_cambiato');
+  end if;
   insert into public.partner_assistant_drafts(partner_id, contact_id, partner_version, language, subject, body,
       signature, sha256, rules_version, research_note_id, operation_id, created_by)
     values (j.partner_id, v_contact, v_partner_version, v_language, v_subject, v_body, v_signature, v_sha, v_rules,

@@ -1,4 +1,4 @@
-// test-db: pglite minimo 306
+// test-db: pglite minimo 311
 // Assistente Partner, compito 1 (_assistente_partner.sql): configurazione a riga unica, regole
 // versionate, interruttore per contatto, lavori, note e bozze append-only, cancellazione dei dati
 // con il recapito, comandi del team, lettura dello stato e permessi. Migrazioni applicate in ordine
@@ -303,17 +303,35 @@ try {
     "select body, created_by from public.partner_assistant_rules where version = 1",
   );
   eq(rulesV1.created_by, null, "Regole v1: scritte dalla migrazione");
+  // Il testo dell'Appendice A del piano, riscritto con il parere di Luca: proposta da un elenco
+  // chiuso, recapito telefonico, mai l'età. L'impronta è quella del blocco dell'Appendice, senza
+  // l'a capo finale.
   ok(
     rulesV1.body.startsWith(
       "# Regole dell'assistente Partner, versione 1\n\nScrivi a nome di Tommaso, fondatore di LuckyLap.",
     ),
     "Regole v1: inizio dell'Appendice A",
   );
+  ok(rulesV1.body.includes("«Sono Tommaso di LuckyLap»"), "Regole v1: la presentazione");
   ok(
-    rulesV1.body.endsWith("Herzlichen Dank für Ihre Zeit.\nFreundliche Grüße"),
+    ["merch_cobranding", "collab_capsule", "stand_evento", "vendita_negozio"].every((code) =>
+      rulesV1.body.includes(`\`${code}\``),
+    ),
+    "Regole v1: le quattro proposte dell'elenco chiuso",
+  );
+  const never = rulesV1.body.split("\n## Mai\n")[1]?.split("\n## ")[0] ?? "";
+  ok(never.startsWith("- Conto vendita o equivalenti, in nessuna lingua.\n"), "Regole v1: «Mai»");
+  ok(never.includes("\n- La nostra età, in nessuna forma.\n"), "Regole v1: mai l'età");
+  eq(rulesV1.body.includes("22 anni"), false, "Regole v1: nessuna età");
+  ok(
+    rulesV1.body.endsWith("Herzlichen Dank für Ihre Zeit.\nFreundliche Grüße aus Mailand"),
     "Regole v1: fine dell'Appendice A, senza a capo",
   );
-  ok(rulesV1.body.includes("\n## Mai\n- Conto vendita, in nessuna lingua.\n"), "Regole v1: «Mai»");
+  eq(
+    [rulesV1.body.length, sha(rulesV1.body)],
+    [12011, "907149f90237a9642e45f76a5fde5eadd4307151d0188aab961b58b3b90a9ef7"],
+    "Regole v1: identiche all'Appendice A",
+  );
   await rejects(
     () =>
       asOwner(

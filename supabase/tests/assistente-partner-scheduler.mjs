@@ -1,4 +1,4 @@
-// test-db: pglite minimo 191
+// test-db: pglite minimo 196
 // Assistente Partner, compito 3 (_assistente_partner_scheduler.sql): lo scheduler, copia di quello
 // Shopify con nomi propri. Migrazioni dei compiti 1 e 2 su PGlite, poi la fixture
 // fixtures/partner-assistant-scheduler.sql (sostituti sintetici di Cron, pg_net e Vault, più un job
@@ -167,7 +167,9 @@ try {
   );
   ok(!sql.includes(secret) && !sql.includes(rotated), "Nessun segreto nella migrazione");
 
-  // 2. Vault leggibile dai ruoli del browser: la migrazione si ferma e non lascia niente.
+  // 2. Vault leggibile dai ruoli del browser: la migrazione si ferma e non lascia niente. Si ferma
+  // dentro la sua transazione, prima del commit: la sessione resta nella transazione interrotta,
+  // che rifiuta ogni comando finché non si annulla, quindi niente è stato confermato.
   for (const role of ["anon", "authenticated"])
     for (const relation of ["vault.secrets", "vault.decrypted_secrets"]) {
       await db.exec(`grant select on ${relation} to ${role}`);
@@ -176,12 +178,8 @@ try {
         "55000",
         "partner_assistant_scheduler_vault_permissions_required",
       );
+      await rejects(() => db.query("select 1"), "25P02");
       await db.exec("rollback");
-      eq(
-        await value("select to_regclass('private.partner_assistant_scheduler_state') is null as v"),
-        true,
-        "Vault non protetto: nessuna tabella",
-      );
       await db.exec(`revoke select on ${relation} from ${role}`);
     }
 
@@ -386,8 +384,22 @@ try {
     "Stesso job dopo la riconfigurazione",
   );
   await db.query("update cron.job set active = false where jobname = $1", [JOB]);
+  // Il puntatore: il segreto è sempre lo stesso, l'ora di configurazione cambia a ogni accensione.
+  const pointer = async () =>
+    (
+      await db.query(
+        "select vault_secret_id, configured_at::text as configured_at from private.partner_assistant_scheduler_state",
+      )
+    ).rows[0];
+  const pointerBefore = await pointer();
   eq(await asService(() => configure(rotated, true)), { enabled: true, schedule_seconds: 120 });
   eq((await jobRow()).active, true, "Accensione esplicita: il job in pausa si riattiva");
+  const pointerAfter = await pointer();
+  ok(
+    pointerAfter.vault_secret_id === firstSecretId &&
+      pointerAfter.configured_at !== pointerBefore.configured_at,
+    "Riaccensione: stesso segreto, ora di configurazione nuova",
+  );
   await db.query("update private.synthetic_scheduler_switch set mode = 'fail'");
   await rejects(() => asService(() => configure(secret, true)), "P0001");
   eq(
@@ -396,9 +408,9 @@ try {
     "Riprogrammazione fallita: la rotazione torna indietro",
   );
   eq(
-    await value("select vault_secret_id as v from private.partner_assistant_scheduler_state"),
-    firstSecretId,
-    "Riprogrammazione fallita: il puntatore resta",
+    await pointer(),
+    pointerAfter,
+    "Riprogrammazione fallita: il puntatore resta, con la sua ora di configurazione",
   );
   eq((await jobRow()).active, true, "Riprogrammazione fallita: il job resta attivo");
   await db.query("update private.synthetic_scheduler_switch set mode = 'normal'");

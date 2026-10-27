@@ -1,4 +1,4 @@
-// test-db: pglite minimo 530
+// test-db: pglite minimo 550
 // Assistente Partner, compito 2 (_assistente_partner_worker.sql): coda dei contatti idonei, giri del
 // worker con lease, contesto, checkpoint, costi, avanzamento dei passi, tentativi, pausa e permessi.
 // Migrazioni applicate in ordine su PGlite, auth.uid() definita come in produzione, permessi
@@ -155,11 +155,12 @@ const research = {
   rules_version: 1,
 };
 const completeResearch = (j, fields = research, op) => complete("research", j, fields, op);
-// Appendice C più la richiesta.
+// Appendice C più la richiesta, una proposta dell'elenco chiuso.
+const REQUESTS = ["merch_cobranding", "collab_capsule", "stand_evento", "vendita_negozio"];
 const choiceOf = (overrides = {}) => ({
   contact_kind: "club",
   porsche_community: false,
-  reason_it: "Club: si propone di parlare di un progetto futuro.",
+  reason_it: "Club: si propongono magliette co-firmate.",
   write_now: true,
   write_on: "",
   recipient_email: "",
@@ -180,7 +181,7 @@ const choiceOf = (overrides = {}) => ({
   event_country: "",
   event_reachable: false,
   notes_it: "",
-  request: "progetto_futuro",
+  request: "merch_cobranding",
   ...overrides,
 });
 const decided = (decision, choice = choiceOf()) => ({
@@ -345,6 +346,25 @@ const uidInside = (fn) =>
     claimsInside = await value("select current_setting('request.jwt.claims', true)::jsonb as v");
     return value("select auth.uid() as v");
   });
+// Come service_role in una transazione sempre annullata: il passo si prova davvero, il
+// proprietario legge cosa ha scritto, poi tutto torna com'era.
+async function rolledBack(fn, read) {
+  assert.equal(openRole, null, "Transazione già aperta");
+  openRole = "service_role";
+  await db.exec("begin");
+  try {
+    await db.query("select set_config('request.jwt.claims', $1, true)", [
+      JSON.stringify({ role: "service_role" }),
+    ]);
+    await db.exec("set local role service_role");
+    const out = await fn();
+    await db.exec("reset role");
+    return [out, await read()];
+  } finally {
+    await db.exec("rollback");
+    openRole = null;
+  }
+}
 // Ricerca, scelta e bozza senza problemi: il lavoro arriva alla seconda lettura con la lease.
 async function toReview(co) {
   await completeResearch(await claimJob(co));
@@ -1115,6 +1135,7 @@ try {
     { ...cc.research, created_at: null },
     { note_id: r951[0].id, text: research.text, sources: research.sources, created_at: null },
   );
+  const beforeChoice = await stepState(951);
   for (const bad of [
     decided({ kind: "scrivi", extra: 1 }),
     decided({ kind: "attendi", write_on: cc.today }),
@@ -1122,6 +1143,9 @@ try {
     decided({ kind: "blocca", reason: "altro" }),
     decided({ kind: "manda" }),
     decided({ kind: "scrivi" }, choiceOf({ request: "regalo" })),
+    // Le richieste di prima del parere di Luca non valgono più.
+    decided({ kind: "scrivi" }, choiceOf({ request: "progetto_futuro" })),
+    decided({ kind: "scrivi" }, choiceOf({ request: "banco_evento" })),
     decided({ kind: "scrivi" }, choiceOf({ contact_kind: "altro" })),
     decided({ kind: "scrivi" }, choiceOf({ write_on: "27/10/2026" })),
     decided({ kind: "scrivi" }, choiceOf({ swiss: "no" })),
@@ -1130,6 +1154,23 @@ try {
     decided({ kind: "scrivi" }, { ...choiceOf(), extra: "" }),
   ])
     await rejects(() => completeChoice(jc, bad, randomUUID()), "22023", "invalid_partner_payload");
+  eq(await stepState(951), beforeChoice, "Scelte rifiutate: niente scritto");
+  // Ognuna delle quattro proposte passa e si salva così com'è, in una prova annullata.
+  for (const request of REQUESTS)
+    eq(
+      await rolledBack(
+        () => completeChoice(jc, decided({ kind: "scrivi" }, choiceOf({ request })), randomUUID()),
+        () =>
+          value(
+            `select n.content ->> 'request' as v from public.partner_assistant_notes n
+               join public.partner_assistant_jobs j on j.choice_note_id = n.id where j.partner_id = $1`,
+            [id(951)],
+          ),
+      ),
+      [{ status: "done", job_status: "in_coda", step: "scrittura", replayed: false }, request],
+      `Proposta ${request}`,
+    );
+  eq(await stepState(951), beforeChoice, "Prove delle quattro proposte annullate");
   eq(await completeChoice(jc, scrivi), {
     status: "done",
     job_status: "in_coda",
@@ -1144,22 +1185,56 @@ try {
     "Scelta con richiesta e decisione",
   );
   eq((await job(951)).choice_note_id, s951[0].id);
-  const jw = await claimJob(951);
+  let jw = await claimJob(951);
   const cw = await context(jw);
   eq(cw.choice, { note_id: s951[0].id, content: s951[0].content });
   eq(cw.draft, null);
   await rejects(() => completeChoice(jw, scrivi, randomUUID()), "22023", "invalid_partner_payload");
+  // Un recapito che non è del contatto (di un altro contatto, o inesistente) non può essere stato
+  // nel contesto: payload non valido, niente scritto.
   const otherContact = await value(
     "select id as v from public.partner_contacts where partner_id = $1",
     [id(952)],
   );
-  await rejects(
-    () => completeDraft(jw, { contact_id: otherContact }, randomUUID()),
-    "22023",
-    "invalid_partner_payload",
-  );
-  // Solo il recapito scelto per il contatto, quello del contesto: un'altra email dello stesso
-  // contatto (non attiva, senza link_value, oppure attiva ma non scelta) è un payload non valido.
+  const beforeForeign = await stepState(951);
+  for (const contactId of [otherContact, randomUUID()])
+    await rejects(
+      () => completeDraft(jw, { contact_id: contactId }, randomUUID()),
+      "22023",
+      "invalid_partner_payload",
+    );
+  eq(await stepState(951), beforeForeign, "Recapito non del contatto: niente scritto");
+  // Il team cambia le email del contatto tra il contesto e la bozza, così il recapito della bozza
+  // non è più quello scelto: contesto_cambiato. Niente bozza, note o ricevuta, solo l'evento; la
+  // lease si rilascia, i tentativi restano, e il giro dopo riprende la scrittura dal contesto nuovo.
+  const contextChanged = async (j, contactId, label) => {
+    const before = await stepState(951);
+    const stale = { ...cw, email: { ...cw.email, contact_id: contactId } };
+    eq(
+      await complete("draft", j, draftFields(stale), randomUUID()),
+      { status: "contesto_cambiato" },
+      label,
+    );
+    eq(
+      await stepState(951),
+      {
+        ...before,
+        lease_token: null,
+        leased: false,
+        events: [...before.events, "scrittura:contesto_cambiato"],
+      },
+      `${label}: niente scritto, lease rilasciata, tentativi invariati`,
+    );
+    const again = await claimJob(951);
+    eq(
+      [again.step, again.attempts],
+      ["scrittura", before.attempts],
+      `${label}: si riprende la scrittura`,
+    );
+    return again;
+  };
+  // Un'altra email dello stesso contatto (non attiva, senza link_value, oppure attiva ma non
+  // scelta) non cambia il recapito scelto; una bozza su una di queste non è sul recapito attuale.
   const extraContacts = (
     await asOwner(
       `insert into public.partner_contacts(partner_id, kind, value, link_value, active, position, created_by,
@@ -1176,17 +1251,29 @@ try {
     cw.email.contact_id,
     "Le email in più non cambiano il recapito scelto",
   );
-  const beforeContacts = await stepState(951);
-  for (const contactId of extraContacts)
-    await rejects(
-      () => completeDraft(jw, { contact_id: contactId }, randomUUID()),
-      "22023",
-      "invalid_partner_payload",
-    );
-  eq(await stepState(951), beforeContacts, "Recapito diverso da quello scelto: niente scritto");
+  for (const [i, kind] of ["non attiva", "senza link_value", "attiva ma non scelta"].entries())
+    jw = await contextChanged(jw, extraContacts[i], `Email del contatto ${kind}`);
   await asOwner("delete from public.partner_contacts where id = any($1::uuid[])", [
     `{${extraContacts.join(",")}}`,
   ]);
+  // Il team sostituisce l'email del contesto: ne aggiunge una nuova e disattiva quella vecchia. La
+  // bozza sul recapito del contesto vecchio non vale più.
+  const replacement = await value(
+    `insert into public.partner_contacts(partner_id, kind, value, link_value, position, created_by, updated_by)
+     values ($1, 'email', 'nuova@pc-nord.example.test', 'nuova@pc-nord.example.test', 1, $2, $2)
+     returning id as v`,
+    [id(951), founder],
+  );
+  await asOwner("update public.partner_contacts set active = false where id = $1", [
+    cw.email.contact_id,
+  ]);
+  jw = await contextChanged(jw, cw.email.contact_id, "Email del contesto sostituita dal team");
+  eq((await context(jw)).email.contact_id, replacement, "Il contesto nuovo ha l'email nuova");
+  await asOwner("update public.partner_contacts set active = true where id = $1", [
+    cw.email.contact_id,
+  ]);
+  await asOwner("delete from public.partner_contacts where id = $1", [replacement]);
+  eq((await context(jw)).email.contact_id, cw.email.contact_id, "Di nuovo il recapito di prima");
   for (const bad of [
     { checks_ok: true, failures: ["lunghezza"] },
     { checks_ok: false, failures: [] },
@@ -1240,6 +1327,7 @@ try {
   eq(await outcomes(951), [
     "ricerca:salvata",
     "estrazione:scrivi",
+    ...Array(4).fill("scrittura:contesto_cambiato"),
     "scrittura:riscrittura",
     "scrittura:controlli_falliti",
   ]);
@@ -1347,7 +1435,7 @@ try {
         contact_kind: "evento",
         write_now: false,
         write_on: later,
-        request: "banco_evento",
+        request: "stand_evento",
       }),
     ),
   );
