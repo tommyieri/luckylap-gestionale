@@ -5,7 +5,7 @@ import {
   SHOPIFY_TOKEN_MAX_BYTES,
   SHOPIFY_TOKEN_TIMEOUT_MS,
 } from "./token";
-import { shopifyWorkerConfig } from "./worker-config";
+import { shopifyWorkerConfig, validWorkerSupabaseUrl } from "./worker-config";
 
 const credentials = {
   expectedShopDomain: "synthetic.myshopify.com",
@@ -60,6 +60,28 @@ describe("Shopify worker explicit private configuration", () => {
     { NEXT_PUBLIC_SUPABASE_URL: "https://synthetic.supabase.co/path" },
   ])("fails closed on unavailable or unsafe config %j", (change) => {
     expect(shopifyWorkerConfig({ ...environment, ...change })).toBeNull();
+  });
+  it.each<[string, boolean]>([
+    ["https://synthetic.supabase.co", true],
+    ["https://synthetic.supabase.co/", true],
+    ["https://synthetic.supabase.co:8443", true],
+    ["http://localhost:54321", true],
+    ["http://127.0.0.1:54321", true],
+    ["http://[::1]:54321", true],
+    ["http://remote.test", false],
+    ["ftp://synthetic.supabase.co", false],
+    ["https://user:password@synthetic.supabase.co", false],
+    ["https://user@synthetic.supabase.co", false],
+    ["https://synthetic.supabase.co/path", false],
+    ["https://synthetic.supabase.co/?a=1", false],
+    ["https://synthetic.supabase.co/#a", false],
+    ["not a url", false],
+    ["", false],
+  ])("shares the Supabase URL check: %s is %s", (url, expected) => {
+    expect(validWorkerSupabaseUrl(url)).toBe(expected);
+    expect(shopifyWorkerConfig({ ...environment, NEXT_PUBLIC_SUPABASE_URL: url }) !== null).toBe(
+      expected,
+    );
   });
 });
 

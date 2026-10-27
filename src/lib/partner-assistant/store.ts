@@ -1,6 +1,12 @@
 import "server-only";
 import { createClient } from "@supabase/supabase-js";
-import { abortable, boundedPhase, workerJson } from "../shopify/worker-io";
+import {
+  abortable,
+  createWorkerRpcFetch,
+  safeWorkerReason as safeReason,
+  workerRecord as record,
+  workerUuid as uuid,
+} from "../shopify/worker-io";
 import type { PartnerAssistantConfig } from "./config";
 import type {
   PartnerAssistantCallRecord,
@@ -46,63 +52,24 @@ type PartnerAssistantRpcName = (typeof PARTNER_ASSISTANT_RPC_NAMES)[number];
 // Più larghi di Shopify (64 KiB, 4 secondi): ricerche con fonti, regole e bozze.
 export const PARTNER_ASSISTANT_RPC_TIMEOUT_MS = 10_000;
 export const PARTNER_ASSISTANT_RPC_MAX_BYTES = 1_048_576;
-const rpcPaths = new Set<string>(PARTNER_ASSISTANT_RPC_NAMES.map((name) => `/rest/v1/rpc/${name}`));
 
-/** Copia di createShopifyWorkerFetch con i limiti propri: byte limitati in uscita e in entrata
- * prima del parser di PostgREST, e la chiave mai inoltrata in un redirect. */
+/** Lo stesso trasporto di createShopifyWorkerFetch (createWorkerRpcFetch) con i limiti propri:
+ * byte limitati in uscita e in entrata prima del parser di PostgREST, la chiave mai inoltrata
+ * in un redirect. In più, una richiesta deve essere testo entro 1 MiB, contato in byte. */
 export function createPartnerAssistantFetch(
   config: Pick<PartnerAssistantConfig, "supabaseUrl">,
   fetcher: typeof fetch = fetch,
 ): typeof fetch {
-  const origin = new URL(config.supabaseUrl).origin;
-  return async (input, init) => {
-    const url = new URL(input instanceof Request ? input.url : String(input));
-    const method = init?.method ?? (input instanceof Request ? input.method : "GET");
-    const parentSignal = init?.signal ?? (input instanceof Request ? input.signal : null);
-    const body = init?.body;
-    if (
-      url.origin !== origin ||
-      !rpcPaths.has(url.pathname) ||
-      url.search ||
-      url.hash ||
-      url.username ||
-      url.password ||
-      method !== "POST" ||
-      !parentSignal ||
-      // PostgREST manda sempre testo JSON: si conta in byte, un carattere ne vale fino a tre.
-      typeof body !== "string" ||
-      body.length > PARTNER_ASSISTANT_RPC_MAX_BYTES ||
-      new TextEncoder().encode(body).byteLength > PARTNER_ASSISTANT_RPC_MAX_BYTES
-    )
-      throw new Error("worker_transport_invalid");
-    return boundedPhase(parentSignal, PARTNER_ASSISTANT_RPC_TIMEOUT_MS, async (signal) => {
-      const response = await abortable(
-        fetcher(input, {
-          ...init,
-          method: "POST",
-          signal,
-          redirect: "error",
-          cache: "no-store",
-          credentials: "omit",
-        }),
-        signal,
-      );
-      if (!response.ok) {
-        // I corpi d'errore non si leggono mai: l'esito resta incerto per chi chiama.
-        void response.body?.cancel().catch(() => undefined);
-        return Response.json(
-          { code: "worker_database_unavailable", message: "worker_database_unavailable" },
-          { status: response.status },
-        );
-      }
-      if (response.redirected || response.status !== 200) {
-        void response.body?.cancel().catch(() => undefined);
-        throw new Error("worker_response_invalid");
-      }
-      const value = await workerJson(response, signal, PARTNER_ASSISTANT_RPC_MAX_BYTES);
-      return Response.json(value);
-    });
-  };
+  return createWorkerRpcFetch(
+    {
+      supabaseUrl: config.supabaseUrl,
+      rpcNames: PARTNER_ASSISTANT_RPC_NAMES,
+      timeoutMs: PARTNER_ASSISTANT_RPC_TIMEOUT_MS,
+      maxResponseBytes: PARTNER_ASSISTANT_RPC_MAX_BYTES,
+      maxRequestBytes: PARTNER_ASSISTANT_RPC_MAX_BYTES,
+    },
+    fetcher,
+  );
 }
 
 // ---------------------------------------------------------------------------
@@ -110,8 +77,6 @@ export function createPartnerAssistantFetch(
 // ---------------------------------------------------------------------------
 
 type Row = Record<string, unknown>;
-const record = (value: unknown): Row | null =>
-  value && typeof value === "object" && !Array.isArray(value) ? (value as Row) : null;
 const exact = (value: unknown, keys: readonly string[]): Row | null => {
   const row = record(value);
   return row && Object.keys(row).sort().join(",") === [...keys].sort().join(",") ? row : null;
@@ -120,10 +85,6 @@ const oneOf =
   <T extends string>(allowed: readonly T[]) =>
   (value: unknown): value is T =>
     typeof value === "string" && (allowed as readonly string[]).includes(value);
-const uuid = (value: unknown): value is string =>
-  typeof value === "string" &&
-  /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(value) &&
-  !/^0{8}-0{4}-0{4}-0{4}-0{12}$/.test(value);
 const integer = (value: unknown, min: number, max: number): value is number =>
   Number.isSafeInteger(value) && (value as number) >= min && (value as number) <= max;
 const text = (value: unknown): value is string => typeof value === "string";
@@ -148,8 +109,6 @@ const emailAddress = (value: unknown): value is string =>
   typeof value === "string" && /^[^@\s]{1,64}@[A-Za-z0-9.-]{1,190}\.[A-Za-z]{2,24}$/.test(value);
 const sha256 = (value: unknown): value is string =>
   typeof value === "string" && /^[0-9a-f]{64}$/.test(value);
-const safeReason = (value: unknown): value is string =>
-  typeof value === "string" && /^[a-z][a-z0-9_]{0,79}$/.test(value);
 
 const steps = oneOf<PartnerAssistantStep>(["ricerca", "estrazione", "scrittura", "controllo"]);
 const jobStatuses = oneOf(["in_coda", "attesa", "pronta", "serve_tommaso"] as const);

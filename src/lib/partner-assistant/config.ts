@@ -1,4 +1,5 @@
 import "server-only";
+import { validWorkerSupabaseUrl } from "../shopify/worker-config";
 
 export type PartnerAssistantEnvironment = {
   PARTNER_ASSISTANT_ENABLED?: string;
@@ -17,7 +18,7 @@ export type PartnerAssistantConfig = {
   phone: string;
 };
 
-/** Copia di shopifyWorkerConfig: nessun valore predefinito accende l'assistente. Le chiavi restano
+/** Come shopifyWorkerConfig: nessun valore predefinito accende l'assistente. Le chiavi restano
  * nei moduli server; la chiave Supabase è propria, mai quella del worker Shopify. */
 export function partnerAssistantConfig(
   environment: PartnerAssistantEnvironment = {
@@ -44,23 +45,10 @@ export function partnerAssistantConfig(
     config.supabaseSecretKey === environment.SUPABASE_SECRET_KEY ||
     !/^sk-ant-[\x21-\x7e]{16,512}$/.test(config.anthropicApiKey) ||
     // Prefisso internazionale, da 8 a 15 cifre, spazi singoli; il numero resta com'è.
-    !/^\+[0-9]( ?[0-9]){7,14}$/.test(config.phone)
+    !/^\+[0-9]( ?[0-9]){7,14}$/.test(config.phone) ||
+    // Lo stesso controllo del worker Shopify, non una copia.
+    !validWorkerSupabaseUrl(config.supabaseUrl)
   )
     return null;
-  try {
-    const url = new URL(config.supabaseUrl);
-    const local = ["localhost", "127.0.0.1", "[::1]"].includes(url.hostname);
-    if (
-      (url.protocol !== "https:" && !(local && url.protocol === "http:")) ||
-      url.username ||
-      url.password ||
-      url.pathname !== "/" ||
-      url.search ||
-      url.hash
-    )
-      return null;
-  } catch {
-    return null;
-  }
   return config;
 }

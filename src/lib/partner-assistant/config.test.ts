@@ -1,5 +1,6 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 vi.mock("server-only", () => ({}));
+import { validWorkerSupabaseUrl } from "../shopify/worker-config";
 import { partnerAssistantConfig, type PartnerAssistantEnvironment } from "./config";
 
 // Solo valori sintetici: segreti inventati, numero di telefono finto.
@@ -89,6 +90,22 @@ describe("configurazione dell'assistente Partner", () => {
       partnerAssistantConfig({ ...env(), NEXT_PUBLIC_SUPABASE_URL: "http://127.0.0.1:54321" })
         ?.supabaseUrl,
     ).toBe("http://127.0.0.1:54321"));
+  it.each([
+    "https://synthetic.supabase.co",
+    "https://synthetic.supabase.co:8443",
+    "http://localhost:54321",
+    "http://[::1]:54321",
+    "http://remote.test",
+    "https://user@synthetic.supabase.co",
+    "https://synthetic.supabase.co/path",
+    "https://synthetic.supabase.co/?a=1",
+    "https://synthetic.supabase.co/#a",
+    "non un url",
+  ])("controlla l'URL %s come il worker Shopify", (url) =>
+    expect(partnerAssistantConfig({ ...env(), NEXT_PUBLIC_SUPABASE_URL: url }) !== null).toBe(
+      validWorkerSupabaseUrl(url),
+    ),
+  );
   it("legge le variabili del server una per una", () => {
     for (const [key, value] of Object.entries(env())) vi.stubEnv(key, value);
     expect(partnerAssistantConfig()).toEqual(expected);
