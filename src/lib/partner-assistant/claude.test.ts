@@ -221,6 +221,36 @@ describe("client Claude dell'assistente Partner", () => {
     expect(await run()).toEqual({ ok: false, code: "credito", usages: [usageOf(100, 2)] });
   });
 
+  // A metà stream l'API non ha ancora contato le ricerche: valgono i blocchi già arrivati.
+  it("chiamata interrotta: almeno una ricerca web per ogni server_tool_use web_search arrivato", async () => {
+    const controller = new AbortController();
+    const fetchUse = block({
+      type: "server_tool_use",
+      id: "srvtoolu_fetch",
+      name: "web_fetch",
+      input: { url: "https://club.example.test/" },
+    });
+    const partial = [
+      searchUse,
+      searchResults(["https://club.example.test/"]),
+      searchUse,
+      fetchUse,
+      text("Il club "),
+    ];
+    fake.replies.push(hangUntilAbort(message("end_turn", partial, 300, 0)));
+    const pending = run(call, controller.signal);
+    controller.abort();
+    expect(await pending).toEqual({ ok: false, code: "timeout", usages: [usageOf(300, 2)] });
+  });
+
+  it("chiamata interrotta: le ricerche già contate dall'API restano, se sono di più", async () => {
+    const controller = new AbortController();
+    fake.replies.push(hangUntilAbort(message("end_turn", [searchUse], 300, 3)));
+    const pending = run(call, controller.signal);
+    controller.abort();
+    expect(await pending).toEqual({ ok: false, code: "timeout", usages: [usageOf(300, 3)] });
+  });
+
   it("abort del segnale: timeout, con l'usage della chiamata interrotta", async () => {
     const controller = new AbortController();
     fake.replies.push(hangUntilAbort(message("end_turn", [], 300, 1)));
@@ -379,6 +409,29 @@ describe("testo e fonti della ricerca", () => {
         text("organizza un raduno.", ["https://club.example.test/raduno"]),
       ]).text,
     ).toBe("Il club organizza un raduno."));
+
+  it("serie di testo separate da strumenti, risultati o thinking: una riga vuota tra le due", () =>
+    expect(
+      partnerAssistantResearchText([
+        text("Il club "),
+        text("ha un sito.", ["https://club.example.test/"]),
+        searchUse,
+        searchResults(["https://club.example.test/raduno"]),
+        text("Il raduno "),
+        text("è a maggio."),
+        block({ type: "thinking", thinking: "Pensiero sintetico.", signature: "synthetic" }),
+        text("Fonti trovate."),
+      ]).text,
+    ).toBe("Il club ha un sito.\n\nIl raduno è a maggio.\n\nFonti trovate."));
+
+  it("toglie i caratteri di controllo, tranne a capo e tab", () =>
+    expect(
+      partnerAssistantResearchText([
+        text("Riga\u0000 uno\r\n\tdue\u0007\u001b\u007f\u000b\u000c fine"),
+        searchUse,
+        text("\u0001Altro."),
+      ]).text,
+    ).toBe("Riga uno\n\tdue fine\n\nAltro."));
 
   it("fonti senza doppioni e al massimo 40", () => {
     const urls = Array.from({ length: 50 }, (_, i) => `https://club${i}.example.test/`);

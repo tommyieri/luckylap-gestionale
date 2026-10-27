@@ -247,6 +247,11 @@ describe("extractCall", () => {
     expect(text).not.toContain("Conto vendita");
   });
 
+  // «2026-09» renderebbe nulla tutta la scelta: meglio un campo vuoto.
+  it("una data nota solo a mese o anno si lascia vuota", () => {
+    expect(text).toContain("una data nota solo a mese o anno si lascia vuota");
+  });
+
   it("senza ricerca non si costruisce", () => {
     expect(() => extractCall({ ...ctx, research: null })).toThrow();
   });
@@ -415,6 +420,16 @@ describe("writeCall", () => {
     expect(rewriteText).toContain("parola_vietata");
     expect(rewriteText).toContain("La domanda è doppia");
     expect(text).not.toContain("parola_vietata");
+  });
+
+  it("una lettura non approvata senza problemi elencati chiede comunque di riscrivere", () => {
+    const rewrite = { ...evCtx, lastReview: { approved: false, problems: [] } };
+    expect(userText(writeCall(rewrite, "2026-10-27"))).toContain(
+      "La bozza precedente non è passata.",
+    );
+    const approved = { ...evCtx, lastReview: { approved: true, problems: [] } };
+    expect(userText(writeCall(approved, "2026-10-27"))).not.toContain("La bozza precedente");
+    expect(text).not.toContain("La bozza precedente");
   });
 
   it("non manda la ricerca importata né la bozza precedente", () => {

@@ -4,7 +4,7 @@
 import { partnerLinkValue } from "../partner/contacts";
 import { daysBetween, isCalendarDay } from "../partner/dates";
 import { charCount, hasControlCharacters } from "../partner/model";
-import { PARTNER_ASSISTANT_CHOICE_KEYS, partnerAssistantChoiceFields } from "./store";
+import { PARTNER_ASSISTANT_CHOICE_KEYS, partnerAssistantChoiceFields } from "./choice-fields";
 import type {
   PartnerAssistantChoice,
   PartnerAssistantDecision,

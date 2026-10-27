@@ -124,9 +124,16 @@ export function createPartnerAssistantClaude(apiKey: string) {
             message = await stream.finalMessage();
           } catch (err) {
             // Una chiamata interrotta a metà ha già consumato: si registra quello che lo stream ha
-            // contato fin lì.
+            // contato fin lì. Le ricerche web l'API le conta solo a fine messaggio: valgono almeno
+            // i blocchi server_tool_use di web_search già arrivati.
             const partial = stream.currentMessage;
-            if (partial) usages.push(usageFromMessage(partial));
+            if (partial) {
+              const usage = usageFromMessage(partial);
+              const searches = partial.content.filter(
+                (block) => block.type === "server_tool_use" && block.name === "web_search",
+              ).length;
+              usages.push({ ...usage, webSearches: Math.max(usage.webSearches, searches) });
+            }
             return { ok: false, code: stop.aborted ? "timeout" : classifyClaudeError(err), usages };
           }
           usages.push(usageFromMessage(message));
@@ -158,26 +165,36 @@ function truncateUtf8(text: string, maxBytes: number): string {
   return new TextDecoder().decode(bytes.subarray(0, end));
 }
 
-/** Il testo della ricerca e le sue fonti. Le fonti citate nel testo vengono prima dei risultati
- * di ricerca, che possono essere molti di più delle 40 da salvare. */
+/** I caratteri di controllo che private.partner_text rifiuta, più il ritorno a capo: restano solo
+ * a capo e tab. */
+const CONTROL_CHARACTERS = /[\u0000-\u0008\u000b-\u001f\u007f]/gu;
+
+/** Il testo della ricerca e le sue fonti. I blocchi di testo contigui (spezzati dalle citazioni)
+ * si uniscono così come sono; tra due serie separate da strumenti, risultati o thinking va una riga
+ * vuota. Le fonti citate nel testo vengono prima dei risultati di ricerca, che possono essere
+ * molti di più delle 40 da salvare. */
 export function partnerAssistantResearchText(contents: Anthropic.ContentBlock[]): {
   text: string;
   sources: string[];
 } {
-  const texts: string[] = [];
+  const runs: string[] = [];
+  let previousWasText = false;
   const cited: string[] = [];
   const found: string[] = [];
   for (const block of contents) {
     if (block.type === "text") {
-      texts.push(block.text);
+      if (previousWasText) runs[runs.length - 1] += block.text;
+      else runs.push(block.text);
       for (const citation of block.citations ?? [])
         if (citation.type === "web_search_result_location") cited.push(citation.url);
     } else if (block.type === "web_search_tool_result" && Array.isArray(block.content)) {
       for (const result of block.content) found.push(result.url);
     }
+    previousWasText = block.type === "text";
   }
   const sources = [...new Set([...cited, ...found])]
     .filter((url) => url.length <= SOURCE_MAX_LENGTH && SOURCE_URL.test(url))
     .slice(0, RESEARCH_MAX_SOURCES);
-  return { text: truncateUtf8(texts.join(""), RESEARCH_MAX_BYTES), sources };
+  const text = runs.join("\n\n").replace(CONTROL_CHARACTERS, "");
+  return { text: truncateUtf8(text, RESEARCH_MAX_BYTES), sources };
 }
