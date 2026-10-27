@@ -2,7 +2,7 @@
 
 Tommaso vuole che i contatti del modulo Partner vengano lavorati da un assistente basato su Claude, che vive nel gestionale. L'assistente studia ogni contatto, scrive e invia la prima email, gestisce le risposte e i solleciti, tiene aggiornato il gestionale e passa a Tommaso le trattative concrete. Tommaso supervisiona e chiude gli accordi. Questa specifica raccoglie le decisioni prese con lui tra il 26 e il 27 ottobre 2026; i testi delle email sono in attesa del parere di Luca, il consulente, e le regole di scrittura restano modificabili senza ricostruire nulla.
 
-Stato: da approvare. Base: `origin/main` a `3c58693`. Nell'interfaccia il founder è «Tommi»; le email sono firmate «Tommaso».
+Stato: approvata da Tommaso il 27 ottobre 2026. Base: `origin/main` a `3c58693`. Nell'interfaccia il founder è «Tommi»; le email sono firmate «Tommaso».
 
 ## Intento
 
@@ -171,7 +171,7 @@ Per arrivare in tempo il lavoro si divide in due consegne. La prima (entro il 31
 
 Solo Tommaso (ruolo founder) passa l'assistente a «prova» o a «invio», e solo dopo i passi 1-4. Chiunque del team può fermarlo o rimetterlo in «prepara».
 
-Milano AutoClassica va scritta entro venerdì 30 ottobre, prima che l'assistente sia pronto. Proposta di Claude: Tommaso la manda a mano, con il testo sistemato dopo il parere di Luca. Quando l'assistente si accende, la trova nella posta (vedi «Conversazioni già esistenti») e la passa a Tommaso, che può ridargliela per i solleciti. Se Tommaso registra l'invio con «Segna inviato», il gestionale gli crea come oggi un sollecito a 7 giorni: quando ridà il contatto all'assistente, quel promemoria si chiude e i solleciti li fa l'assistente.
+Milano AutoClassica la manda l'assistente, tra le prime email, appena la prova realistica conferma che lo spam è risolto (decisione di Tommaso del 27 ottobre). Nessuno la manda a mano prima. L'evento è vicino: se all'invio non c'è più posto, vale la regola degli eventi (collaborazione o edizione successiva).
 
 ## Come è fatto
 
@@ -371,4 +371,4 @@ Tommaso non le ha decise esplicitamente: sono le scelte di Claude più vicine a 
 
 1. **Credito dopo il 5 novembre.** Risposta del 27 ottobre: per ora non si ricarica; si guarda come funziona e poi si decide. Vedi «Credito e tempi».
 2. **Casella aziendale.** Risposta del 27 ottobre: Tommaso la usa nell'app Gmail come account «Altro». Controllata lo stesso giorno: configurazione e autenticazione a posto, spam dovuto a reputazione e contenuto. Vedi «Casella aziendale e spam».
-3. **Milano AutoClassica.** La manda Tommaso a mano entro venerdì 30 ottobre, dalla casella aziendale? Ancora aperta.
+3. **Milano AutoClassica.** Risposta del 27 ottobre: la manda l'assistente, tra le prime email, appena lo spam è risolto. Vedi «Avvio».

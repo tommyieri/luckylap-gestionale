@@ -63,7 +63,7 @@ Alcuni documenti scritti prima del modello attuale chiedono ancora una sessione 
 ## Partner
 
 - [Partner nel gestionale](partner.md): pagina `/partner` con contatti, periodi, messaggi e stati, «Ci siamo» (accordi fatti, unici nel calendario), import della ricerca e dei file «Esporta», lookbook, privacy e GitHub Pages.
-- [Assistente Partner: specifica](superpowers/specs/2026-10-27-assistente-partner-design.md): assistente basato su Claude che studia i contatti, scrive e invia le email, gestisce risposte e solleciti e passa a Tommi le trattative concrete. Da approvare, 27 ottobre 2026.
+- [Assistente Partner: specifica](superpowers/specs/2026-10-27-assistente-partner-design.md): assistente basato su Claude che studia i contatti, scrive e invia le email, gestisce risposte e solleciti e passa a Tommi le trattative concrete. Approvata il 27 ottobre 2026.
 
 ## Team, contenuti e sviluppo
 
