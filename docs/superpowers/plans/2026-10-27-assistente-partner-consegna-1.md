@@ -30,7 +30,7 @@
 ## Fuori da questa consegna
 
 Della seconda consegna:
-- invio SMTP e copia in «Posta inviata»; lettura IMAP e cartella spam; risposte, solleciti (fino a quattro, a 7, 17, 45 e 90 giorni, su parere di Luca), conversazioni già esistenti;
+- invio SMTP e copia in «Posta inviata»; lettura IMAP e cartella spam; risposte (ogni prima risposta di una persona passa subito a Tommaso, decisione del 27 ottobre: l'assistente non risponde da solo), solleciti (fino a quattro, a 7, 17, 45 e 90 giorni, su parere di Luca), conversazioni già esistenti;
 - passaggio a Tommi con email e attività in Oggi; riepilogo serale; modalità «prova» e «invio»;
 - origine `assistente` nel registro Partner (vincoli, trigger dei solleciti, `partner_today`, parser, feed «Controllo CEO»);
 - «Non contattare» per indirizzo; salvataggio nei recapiti degli indirizzi trovati dalla ricerca (in questa consegna la bozza va sempre all'email del gestionale, e l'indirizzo trovato resta una proposta nella nota «scelta»);

@@ -13,7 +13,7 @@ L'obiettivo di questa fase è il tasso di risposta: farci rispondere e aprire un
 ## Obiettivi
 
 - Per ogni contatto con email: ricerca fresca, scelta della richiesta, prima email personalizzata nella lingua del destinatario, inviata da sola.
-- Risposte lette e gestite in modo naturale, senza insistere, finché la conversazione diventa concreta; allora passa a Tommaso.
+- Risposte lette e passate subito a Tommaso: ogni prima risposta umana va a lui, con un riassunto e una proposta di risposta, per sentirsi a voce (decisione del 27 ottobre, su consiglio di Luca). L'assistente non risponde da solo.
 - Fino a quattro solleciti, a 7, 17, 45 e 90 giorni dalla prima email, nella stessa conversazione, poi stop (parere di Luca).
 - Tutto registrato nel gestionale: ricerca, richiesta e motivo, email inviate e ricevute, stato, prossimo passo.
 - Un riepilogo serale a Tommaso e una lista «Per te» con quello che aspetta lui.
@@ -101,24 +101,21 @@ Se un controllo fallisce l'email non parte. L'assistente riscrive una volta; al 
 - Dalla casella aziendale attraverso il server IONOS, solo dopo la sistemazione dello spam.
 - Testo semplice, niente allegati, niente immagini, niente tracciamento delle aperture, un destinatario per volta.
 - Copia nella cartella «Posta inviata» della casella, così Tommaso la vede anche dal suo programma di posta.
-- Ritmo: 5 prime email al giorno nella prima settimana, poi tra 10 e 15. I solleciti hanno un loro limite giornaliero; le risposte non hanno limite ma seguono le regole contro le catene (vedi «Regole di sicurezza»).
-- Orari: prime email e solleciti nei giorni feriali tra le 9 e le 12 nel fuso del destinatario, meglio da martedì a giovedì; risposte tra le 9 e le 18.
+- Ritmo: 5 prime email al giorno nella prima settimana, poi tra 10 e 15. I solleciti hanno un loro limite giornaliero. L'assistente non scrive risposte.
+- Orari: prime email e solleciti nei giorni feriali tra le 9 e le 12 nel fuso del destinatario, meglio da martedì a giovedì.
 
 ### 6. Risposte
 
 L'assistente legge la casella ogni pochi minuti e considera solo le email che rispondono a una sua conversazione o che arrivano da un indirizzo o dominio di un contatto Partner. Tutto il resto della casella (ordini, clienti, fornitori) non lo tocca: non lo legge oltre l'intestazione, non lo segna come letto, non lo sposta.
 
-Per ogni risposta:
+Per ogni email in arrivo:
 
-- **risposta automatica** (fuori ufficio, cambio indirizzo): non conta come risposta; se indica una data di rientro, il sollecito slitta;
+- **risposta automatica** (fuori ufficio, cambio indirizzo): non conta come risposta e non passa a Tommaso; se indica una data di rientro, il sollecito slitta;
 - **indirizzo non valido**: il contatto torna da studiare per trovare un altro indirizzo, e lo segnala nel riepilogo;
-- **no**: un grazie breve e gentile, stato «Non interessato», nessun altro messaggio; a «stop» o «remove» nemmeno il grazie, e l'indirizzo va in «Non contattare»;
-- **non ora**: un grazie breve, una nuova data nel gestionale e nessun sollecito fino ad allora;
-- **evento senza posto o troppo tardi**: come sopra per gli eventi, collaborazione o edizione successiva;
-- **interesse generico o domande semplici** a cui le regole rispondono: risposta naturale, breve, nella loro lingua, entro un giorno lavorativo, con gli stessi controlli della prima email;
-- **qualcosa di concreto** (costi, prezzi, quantità, date, una call o un incontro, un ordine, una richiesta di campioni, i nomi dei piloti, condizioni, contratti) o qualunque cosa a cui le regole non rispondono: l'assistente non risponde e passa la conversazione a Tommaso subito, con un riassunto e una proposta di risposta che lui può usare o cambiare.
+- **«stop» o «remove»**: nessuna risposta, l'indirizzo va subito in «Non contattare», e Tommaso lo trova nel riepilogo;
+- **ogni altra risposta di una persona** (sì, no, non ora, domande, costi dello stand, un numero di telefono): l'assistente non risponde. Ferma i solleciti e passa subito la conversazione a Tommaso con un riassunto, la sua lettura (interessato, no, non ora, evento senza posto, concreto), il numero di telefono se l'hanno lasciato, e una proposta di risposta che Tommaso può usare o cambiare. Lo stato del contatto lo cambia Tommaso; l'assistente lo propone nel riassunto.
 
-Luca consiglia di passare a Tommaso **ogni** prima risposta umana, per uscire subito dalla posta e parlare a voce, e lascia la decisione a noi: è la domanda 4 per Tommaso. Finché non ricarica il credito succede già così (vedi «Credito e tempi»).
+È la decisione di Tommaso del 27 ottobre, su consiglio di Luca: uscire subito dalla posta e parlarsi a voce alla prima risposta aumenta molto la probabilità di chiudere, e Tommaso tiene il controllo del seguito.
 
 Se Tommaso o qualcun altro risponde a mano in una conversazione, l'assistente si ferma su quel contatto. Se ne accorge dalla posta inviata della casella oppure, se la persona ha risposto da un altro programma o servizio, dalla risposta successiva del contatto, che cita un messaggio nostro che l'assistente non ha scritto.
 
@@ -139,7 +136,7 @@ Thank you again, and warm wishes from Milan,
 
 ### 8. Passaggio a Tommaso
 
-Quando una conversazione diventa concreta, o in uno dei casi di blocco sopra, il contatto passa a Tommaso: stato e responsabile cambiano nel gestionale, compare nella lista «Per te» e Tommaso riceve subito un'email con il riassunto e la proposta di risposta. Da lì in poi l'assistente non scrive più a quel contatto finché Tommaso non glielo ridà.
+Alla prima risposta di una persona, o in uno dei casi di blocco sopra, il contatto passa a Tommaso: stato e responsabile cambiano nel gestionale, compare nella lista «Per te» e Tommaso riceve subito un'email con il riassunto e la proposta di risposta. Da lì in poi l'assistente non scrive più a quel contatto finché Tommaso non glielo ridà.
 
 ### 9. Gestionale e riepilogo
 
@@ -159,7 +156,7 @@ Dopo il 5 novembre l'assistente ha bisogno di nuovo credito per tutto quello che
 
 - prima del 5 novembre si preparano ricerca, prima email e seconda lettura, tutte già approvate;
 - le prime email pronte partono con il ritmo previsto finché la loro ricerca ha meno di 21 giorni, con tutti i controlli nel codice; dopo restano nel gestionale;
-- niente solleciti e niente risposte scritte dall'assistente: ogni risposta in arrivo passa a Tommaso con la conversazione;
+- niente solleciti; le risposte in arrivo passano comunque a Tommaso con la conversazione, come sempre;
 - l'assistente continua a leggere la casella, a registrare e a mandare il riepilogo serale, che non richiedono Claude.
 
 Il risultato da guardare per decidere è il tasso di risposta alle prime email.
@@ -235,7 +232,7 @@ Una migrazione additiva (le tabelle nuove in `public` ricevono da Supabase perme
 
 Nel modulo esistente cambiano solo:
 
-- `partner_activities.origin` accetta anche `assistente` (un solo nome, ovunque: vincolo, trigger, tipi e parser TypeScript, feed). Ogni email dell'assistente lascia una riga di registro (`inviato` con `primo` o `sollecito` per quelle in uscita, `risposta` per quelle in arrivo), così stati e storia restano quelli di oggi. Per una risposta in uscita dentro una conversazione `message_kind` non ha oggi un valore adatto: va aggiunto (per esempio `risposta`). Il testo completo resta nelle tabelle dell'assistente, non nel registro (limite di 4000 caratteri);
+- `partner_activities.origin` accetta anche `assistente` (un solo nome, ovunque: vincolo, trigger, tipi e parser TypeScript, feed). Ogni email dell'assistente lascia una riga di registro (`inviato` con `primo` o `sollecito` per quelle in uscita, `risposta` per quelle in arrivo), così stati e storia restano quelli di oggi. L'assistente non scrive risposte, quindi non serve un nuovo `message_kind`. Il testo completo resta nelle tabelle dell'assistente, non nel registro (limite di 4000 caratteri);
 - la funzione del trigger dei solleciti, `private.partner_work_activity_trigger()` (ultima versione in `20261023140414_partner_oggi_fixes.sql`): oggi esce subito per ogni origine diversa da `team` e `file`; con origine `assistente` deve chiudere i solleciti del team come per le altre origini ma non crearne di nuovi (i solleciti li gestisce l'assistente), e il controllo «invio più recente» deve contare anche l'assistente. Dopo il `create or replace` va ripetuta la revoca a `service_role`;
 - la lettura di Oggi (`partner_today`, nella sua ultima definizione) non mostra tra i «Contatti da fare» quelli seguiti dall'assistente, così nessuno li contatta a mano in parallelo;
 - i parser dell'interfaccia (`src/lib/partner/model.ts`, `read.ts`) accettano la nuova origine. Il deploy dell'app va fatto prima che il worker scriva, altrimenti la scheda del contatto si rompe;
@@ -286,21 +283,21 @@ Le risposte che Tommaso manda dall'app Gmail partono da IONOS e, con un account 
 - **Un indirizzo, una conversazione.** I doppioni si controllano sull'indirizzo normalizzato, non solo sul contatto: al massimo una conversazione attiva per indirizzo, e per dominio non generico, in 90 giorni (un club e il suo evento possono avere lo stesso indirizzo). «Non contattare» accetta anche un indirizzo intero; oggi accetta solo contatto o dominio.
 - **Destinatari.** Si scrive solo a un'email attiva del gestionale o, nelle risposte, al mittente reale della conversazione se è lo stesso indirizzo o lo stesso dominio non generico. Mai Cc, mai «rispondi a tutti», mai un indirizzo indicato dentro un'email o una pagina web: diventa una proposta per Tommaso.
 - **Doppioni lato server.** Il comando che registra le attività rifiuta un invio manuale su un contatto seguito dall'assistente, non basta nascondere il pulsante. L'assistente scrive su `partners` solo ai cambi di stato, per non far fallire i comandi del team per conflitto di versione.
-- **Niente catene.** Al massimo una risposta dell'assistente per conversazione ogni 24 ore e tre messaggi di fila senza l'intervento di una persona, poi la conversazione passa a Tommaso. L'assistente risponde un'ora dopo l'ultima email ricevuta e rifà la bozza se ne è arrivata un'altra. Non risponde a messaggi con il flag `\Answered`, con `Precedence: bulk` o `auto_reply`, `List-Id`, `X-Auto-Response-Suppress`, né a mailer-daemon. Una risposta arrivata più di due giorni lavorativi prima passa a Tommaso.
+- **Nessuna risposta dall'assistente.** Ogni risposta di una persona passa a Tommaso. Il flag `\Answered`, `Precedence: bulk` o `auto_reply`, `List-Id`, `X-Auto-Response-Suppress` e mailer-daemon servono a riconoscere le risposte automatiche, che non passano a Tommaso. Una conversazione passata non riceve più solleciti.
 - **Bozze vecchie.** La bozza salva la versione della scheda, il recapito e la versione delle regole. All'invio si ricontrollano recapito, «Non contattare», stato, la regola degli eventi alla data di invio e che ogni data citata sia ancora futura. Se qualcosa non torna la bozza si scarta e il contatto torna in coda.
 - **Rimbalzi.** Solo un rifiuto `5.1.x` significa indirizzo sbagliato. Un rifiuto `5.7.x` (politica o spam), `4.x.x` ripetuti, la parola «spam» o due rimbalzi definitivi nello stesso giorno fermano tutti gli invii e avvisano Tommaso. A «stop» o «remove» non si risponde: l'indirizzo va subito in «Non contattare».
 - **Aggancio delle risposte.** Prima `In-Reply-To` e `References`, poi l'indirizzo esatto, poi il dominio solo se una sola scheda ha una conversazione attiva; i casi ambigui vanno a Tommaso «da smistare». Le email di passaggio, di riepilogo e di prova non portano riferimenti alle conversazioni dei contatti, e l'assistente ignora le risposte a queste email.
 - **Errori dell'API.** Credito finito (402): pausa di tutto l'assistente, non un tentativo fallito per contatto. 429, 529, errori 5xx e timeout: attesa per tutti, senza consumare tentativi. Streaming con un timeout sotto i 270 secondi, nessun ritentativo automatico dell'SDK, `max_uses` sugli strumenti web. Una seconda lettura fallita non vale come approvazione: l'invio richiede un'approvazione registrata con l'impronta del testo.
-- **Istruzioni dentro email e pagine.** Testi ricevuti e pagine web sono dati, mai istruzioni. Classificazione e risposte girano senza strumenti e con i soli dati di quel contatto; l'output è strutturato con un'azione scelta da un elenco chiuso; indirizzi e azioni li decide il codice. Se qualcuno chiede se scrive una persona o un programma, l'assistente non risponde e passa a Tommaso (gli obblighi di trasparenza dell'AI Act valgono da agosto 2026: da verificare).
+- **Istruzioni dentro email e pagine.** Testi ricevuti e pagine web sono dati, mai istruzioni. La classificazione e il riassunto per Tommaso girano senza strumenti e con i soli dati di quel contatto; l'output è strutturato con un'azione scelta da un elenco chiuso; indirizzi e azioni li decide il codice. Se qualcuno chiede se scrive una persona o un programma, l'assistente non risponde e passa a Tommaso (gli obblighi di trasparenza dell'AI Act valgono da agosto 2026: da verificare).
 - **Esito incerto.** La risposta `250` del server si salva subito, in una transazione propria; prima della copia in «Posta inviata» si cerca il `Message-ID`, per non fare copie doppie.
-- **Fusi e calendario.** Con la ricerca si salva il fuso del destinatario (nome IANA validato): senza fuso non si invia. «Oggi» e il riepilogo si calcolano in `Europe/Rome`, con un job orario che guarda l'ora di Roma. Risposte solo tra le 9 e le 18 del destinatario. Nessun invio tra il 21 dicembre e il 7 gennaio né nelle feste nazionali del destinatario. Le date di rientro ambigue si ignorano.
+- **Fusi e calendario.** Con la ricerca si salva il fuso del destinatario (nome IANA validato): senza fuso non si invia. «Oggi» e il riepilogo si calcolano in `Europe/Rome`, con un job orario che guarda l'ora di Roma. Nessun invio tra il 21 dicembre e il 7 gennaio né nelle feste nazionali del destinatario. Le date di rientro ambigue si ignorano.
 - **Dati personali.** Il filtro della casella è nel codice: i messaggi che non riguardano Partner non arrivano a Claude né ai log. Gli errori di posta si salvano come codici, senza testi o indirizzi. La cancellazione definitiva dei recapiti (`erased_at`) vale anche per i messaggi e le note dell'assistente.
 - **Ripartenza.** Anche i solleciti hanno un limite giornaliero: dopo un fermo, quelli scaduti si ridistribuiscono a partire da oggi. Se cambia `UIDVALIDITY` si riparte da `UIDNEXT`, scartando per `Message-ID` i messaggi già visti.
 - **Passaggi a Tommaso.** Al massimo qualche email di passaggio all'ora; le altre vanno nel riepilogo.
 
 ### Claude
 
-- SDK ufficiale `@anthropic-ai/sdk`, versione esatta. Opus 5.5 (`claude-opus-5-5`) con thinking adattivo per ricerca, scelta, scrittura, seconda lettura e risposte; per i compiti meccanici (riconoscere una risposta automatica, estrarre campi) chi costruisce può usare un modello più piccolo.
+- SDK ufficiale `@anthropic-ai/sdk`, versione esatta. Opus 5.5 (`claude-opus-5-5`) con thinking adattivo per ricerca, scelta, scrittura, seconda lettura e riassunti dei passaggi; per i compiti meccanici (riconoscere una risposta automatica, estrarre campi) chi costruisce può usare un modello più piccolo.
 - Ricerca con gli strumenti server `web_search` e `web_fetch` (versioni del 2026-02-09), in testo libero con le fonti; poi una seconda chiamata estrae i campi con output strutturato (JSON schema), perché output strutturato e citazioni non stanno nella stessa richiesta.
 - Ogni chiamata si ricostruisce dai dati del database: niente blocchi di thinking riportati tra un passo e l'altro. L'eccezione è `pause_turn`: si riprende nella stessa invocazione e, se non basta, si salva il contenuto così com'è, thinking compreso.
 - Le regole di scrittura sono un testo nel database, versionato e append-only, che il team modifica dalla pagina dell'assistente: le correzioni di Luca e di Tommaso entrano senza deploy. La prima versione nasce dalle decisioni di questa specifica. Ogni email registra la versione usata. Il testo va nel system prompt con il prompt caching. I controlli nel codice (parole vietate, segnaposto, link, firma) restano nel codice. La pagina `/partner/regole` resta quella di `CONTESTO.md`, che è superato su più punti (firma, conto vendita, allegati, solleciti a 7-10 giorni): la pagina dell'assistente mostra le regole in vigore e lo dice.
@@ -380,7 +377,7 @@ Luca ha annotato il documento con gli esempi. Tommaso: alcuni punti li avevamo g
 | Chiedere un recapito e lasciare il nostro numero, per parlare a voce | Fatto: frase nella prima email, numero nella firma |
 | Solleciti più vicini e più numerosi: 5/7, 17, 45, 90 giorni | Fatto: quattro, a 7, 17, 45 e 90 giorni (seconda consegna) |
 | Nel sollecito, dire il valore per loro della cosa nuova | Fatto; «quest'anno» non si scrive perché non è confermato |
-| Passare a Tommaso dalla prima risposta («decisione vostra») | Domanda 4 |
+| Passare a Tommaso dalla prima risposta («decisione vostra») | Fatto: decisione di Tommaso del 27 ottobre («6. Risposte») |
 
 ## Scelte fatte da Claude, da controllare
 
@@ -390,8 +387,8 @@ Tommaso non le ha decise esplicitamente: sono le scelte di Claude più vicine a 
 2. Le regole di scrittura stanno nel database, versionate e modificabili dalla pagina dell'assistente; ogni email registra la versione usata.
 3. Evento «raggiungibile»: in Italia o in un paese confinante.
 4. Due consegne, la prima entro il 31 ottobre, per usare il credito prima del 5 novembre.
-5. L'assistente non mette mai «In trattativa» o «Accordo fatto»: lo decide Tommaso. Un no esplicito porta a «Non interessato», dopo un grazie breve.
-6. Nel passaggio a Tommaso l'assistente non risponde e prepara una proposta di risposta; Tommaso risponde dal suo programma di posta, e l'assistente se ne accorge dalla posta inviata o dalla risposta successiva del contatto.
+5. L'assistente non mette mai «In trattativa» o «Accordo fatto»: lo decide Tommaso. Anche un no esplicito passa a Tommaso, che cambia lo stato.
+6. Nel passaggio a Tommaso l'assistente prepara una proposta di risposta; Tommaso risponde dal suo programma di posta, e l'assistente se ne accorge dalla posta inviata o dalla risposta successiva del contatto.
 7. Chiunque del team può fermare l'assistente; solo Tommaso lo manda in prova o in invio.
 8. Una ricerca più vecchia di 21 giorni al momento dell'invio si rifà.
 9. Senza un fatto vero e recente da citare, la prima email non parte e il contatto passa a Tommaso.
@@ -403,12 +400,12 @@ Tommaso non le ha decise esplicitamente: sono le scelte di Claude più vicine a 
 15. I contatti senza email restano fuori: le API ufficiali di Instagram e WhatsApp non permettono messaggi a freddo, e i moduli web li compila meglio una persona.
 16. L'assistente scrive a indirizzi trovati dalla ricerca solo se pubblicati dall'organizzazione, e li salva nei recapiti.
 17. L'assistente prende solo contatti senza «Seguito da» e senza attività del team; gli altri li lascia alle persone.
-18. Le regole di sicurezza sono scelte di Claude, in particolare: una sola conversazione per indirizzo in 90 giorni, nessun invio dal 21 dicembre al 7 gennaio, una risposta dell'assistente ogni 24 ore per conversazione, e la domanda «scrive una persona o un programma?» passata sempre a Tommaso.
+18. Le regole di sicurezza sono scelte di Claude, in particolare: una sola conversazione per indirizzo in 90 giorni, nessun invio dal 21 dicembre al 7 gennaio e la domanda «scrive una persona o un programma?» passata sempre a Tommaso.
 
 ## Domande per Tommaso
 
 1. **Credito dopo il 5 novembre.** Risposta del 27 ottobre: per ora non si ricarica; si guarda come funziona e poi si decide. Vedi «Credito e tempi».
 2. **Casella aziendale.** Risposta del 27 ottobre: Tommaso la usa nell'app Gmail come account «Altro». Controllata lo stesso giorno: configurazione e autenticazione a posto, spam dovuto a reputazione e contenuto. Vedi «Casella aziendale e spam».
 3. **Milano AutoClassica.** Risposta del 27 ottobre: la manda l'assistente, tra le prime email, appena lo spam è risolto. Vedi «Avvio».
-4. **Passaggio alla prima risposta.** Luca consiglia che ogni prima risposta umana passi subito a te, per sentirsi a voce; lo lascia decidere a noi. Se sì, l'assistente non risponde mai da solo e la seconda consegna si semplifica.
+4. **Passaggio alla prima risposta.** Risposta del 27 ottobre: sì, ogni prima risposta di una persona passa subito a Tommaso, come consiglia Luca; l'assistente non risponde da solo. Vedi «6. Risposte».
 5. **Numero nella firma.** Quale numero mettere in `PARTNER_ASSISTANT_PHONE` (il tuo cellulare o un numero aziendale). Serve all'avvio, non prima.
