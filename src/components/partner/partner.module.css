@@ -53,6 +53,60 @@
   margin-bottom: 16px;
 }
 
+/*
+ * Striscia dell'assistente in cima a /partner, sul modello di «Area aperta»: frase da 14 px in
+ * ink-2 e pulsante a destra anche quando va a capo. Spento, in pausa o non leggibile: fondo ambra.
+ */
+.assistantStrip {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px 16px;
+  margin-bottom: 20px;
+  padding-bottom: 12px;
+  border-bottom: 1px solid var(--rule-soft);
+}
+.assistantStrip[data-attention] {
+  padding: 10px 12px;
+  border-bottom-color: var(--amber);
+  background: var(--amber-wash);
+}
+.assistantStripText {
+  display: flex;
+  flex: 1 1 280px;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+  color: var(--ink-2);
+  font-size: var(--text-sm);
+  line-height: 1.5;
+}
+.assistantStripText svg {
+  flex-shrink: 0;
+  color: var(--green);
+}
+.assistantStrip[data-attention] .assistantStripText {
+  color: var(--ink);
+  font-weight: 600;
+}
+.assistantStrip[data-attention] .assistantStripText svg {
+  color: var(--amber);
+}
+.assistantStripActions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px 16px;
+  margin-left: auto;
+}
+.assistantStripFeedback {
+  flex-basis: 100%;
+}
+.assistantStripFeedback:empty {
+  display: none;
+}
+
 /* Sezioni: sottolineatura d'inchiostro da 3 px sulla scelta, niente fascia verde. */
 .sections {
   display: flex;

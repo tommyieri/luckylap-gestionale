@@ -22,6 +22,7 @@ import {
   type PartnerSummary,
 } from "../../lib/partner/model";
 import { PartnerActivityLog } from "./partner-activity";
+import { PartnerAssistantBlock } from "./partner-assistant-block";
 import { PartnerCardForm } from "./partner-card-form";
 import { CommandFeedback, usePartnerCommand } from "./partner-command";
 import { PartnerContacts } from "./partner-contacts";
@@ -407,7 +408,7 @@ function Research({ detail }: { detail: PartnerDetail }) {
 
 /**
  * Dettagli di un contatto (spec 02 §5.5): differenze, fuori dalla ricerca, responsabile e
- * prossima azione, «Esito» con l'accordo fatto, messaggi, registro, ricerca, recapiti, attenzione e fonti, scheda, blocco.
+ * prossima azione, «Esito» con l'accordo fatto, assistente, messaggi, registro, ricerca, recapiti, attenzione e fonti, scheda, blocco.
  */
 export function PartnerDetails({
   detail,
@@ -442,6 +443,13 @@ export function PartnerDetails({
       )}
       <OwnerStrip key={`${summary.id}-${summary.version}`} partner={summary} />
       <PartnerOutcomePanel partner={summary} />
+      <PartnerAssistantBlock
+        partner={summary}
+        assistant={detail.assistant}
+        blocked={blocked}
+        contacts={detail.contacts}
+        activities={detail.activities}
+      />
       <PartnerMessages detail={detail} blocked={blocked} />
       <PartnerActivityLog detail={detail} blocked={blocked} />
       <Research detail={detail} />

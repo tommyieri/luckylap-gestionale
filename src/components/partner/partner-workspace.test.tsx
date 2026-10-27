@@ -27,25 +27,35 @@ vi.mock("../../app/(workspace)/partner/dati/actions", () => ({
 
 import { PartnerDataView } from "./partner-data-view";
 import { PartnerWorkspace, partnerDetailGone } from "./partner-workspace";
+import styles from "./partner.module.css";
 import {
   PARTNER_FIXTURE_MEMBER_ID,
+  partnerAssistantFixture,
   partnerFixtureData,
   partnerFixtureDetail,
   partnerFixtureWorkspace,
 } from "../../lib/partner/fixtures";
+import type { PartnerAssistantStatus } from "../../lib/partner/assistant";
 import type { PartnerWorkspace as PartnerWorkspaceData } from "../../lib/partner/model";
 
 const TODAY = "2026-10-22";
 
 function render(
   query: Record<string, string> = {},
-  options: { workspace?: PartnerWorkspaceData; preview?: boolean } = {},
+  options: {
+    workspace?: PartnerWorkspaceData;
+    preview?: boolean;
+    assistant?: PartnerAssistantStatus | null;
+  } = {},
 ) {
   const co = Number(query.co);
   return renderToStaticMarkup(
     <PartnerWorkspace
       workspace={options.workspace ?? partnerFixtureWorkspace(TODAY)}
       detail={query.co ? partnerFixtureDetail(co, TODAY) : null}
+      assistant={
+        options.assistant === undefined ? partnerAssistantFixture(TODAY).status : options.assistant
+      }
       today={TODAY}
       memberId={PARTNER_FIXTURE_MEMBER_ID}
       preview={options.preview ?? false}
@@ -276,6 +286,41 @@ describe("PartnerWorkspace", () => {
     const html = render({}, { preview: true });
     expect(text(html)).toContain("Anteprima locale: dati sintetici, salvataggio disattivato.");
     expect(row(html, 1)).toMatch(/<select id="stato-1"[^>]*disabled/);
+  });
+
+  it("striscia dell'assistente: il primo elemento della pagina, prima del titolo", () => {
+    const html = render();
+    const strip = `<section class="${styles.assistantStrip}"`;
+    expect(html.startsWith(`<div class="${styles.workspace}">${strip}`)).toBe(true);
+    expect(html.indexOf(strip)).toBeLessThan(html.indexOf("<h1>Partner</h1>"));
+    expect(text(html)).toContain("Assistente: prepara · 1 bozza pronta · 1,37 USD spesi");
+    expect(buttons(html).map((b) => b.text)).toContain("Ferma l'assistente");
+  });
+
+  it("stato dell'assistente non leggibile: la pagina Partner si vede lo stesso", () => {
+    const html = render({ co: "2" }, { assistant: null });
+    expect(html).toContain("<h1>Partner</h1>");
+    expect(html.match(/<li id="lead-\d+"/g)).toEqual(['<li id="lead-1"', '<li id="lead-2"']);
+    expect(html).toContain('id="dettagli-2"');
+    expect(html).toContain(`<section class="${styles.assistantStrip}" data-attention="true"`);
+    expect(text(html)).toContain("Stato dell'assistente non leggibile");
+    expect(buttons(html).map((b) => b.text)).not.toContain("Ferma l'assistente");
+  });
+
+  it("scheda aperta: il blocco «Assistente» tra «Esito» e i messaggi", () => {
+    for (const co of ["2", "6"]) {
+      const html = render({ co });
+      const details = html.slice(html.indexOf(`id="dettagli-${co}"`));
+      const block = details.indexOf(">Assistente</h4>");
+      expect(block, co).toBeGreaterThan(0);
+      expect(block, co).toBeLessThan(details.indexOf(`id="messaggi-${co}"`));
+      expect(block, co).toBeGreaterThan(details.indexOf("Prossima azione"));
+    }
+    const agreed = render({ co: "6" });
+    expect(agreed.indexOf(">Esito</h4>")).toBeLessThan(agreed.indexOf(">Assistente</h4>"));
+    const ready = text(render({ co: "2" }));
+    expect(ready).toContain("Bozza pronta");
+    expect(ready).toContain("Assistente su questo contatto: attivo");
   });
 
   it("lookbook nel piede, dalla route dei membri", () => {
