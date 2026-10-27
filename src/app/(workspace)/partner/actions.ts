@@ -45,3 +45,17 @@ export async function setPartnerDoNotContact(command: unknown): Promise<PartnerC
 export async function resolvePartnerDifference(command: unknown): Promise<PartnerCommandResult> {
   return runPartnerCommandAction("resolve_partner_difference", command);
 }
+
+/** Modalità dell'assistente: «prova» e «invio» solo a Tommi, e non in questa consegna. */
+export async function setPartnerAssistantMode(command: unknown): Promise<PartnerCommandResult> {
+  return runPartnerCommandAction("set_partner_assistant_mode", command);
+}
+
+/** «Assistente su questo contatto: attivo / fermo». */
+export async function setPartnerAssistantContact(command: unknown): Promise<PartnerCommandResult> {
+  return runPartnerCommandAction("set_partner_assistant_contact", command);
+}
+
+export async function savePartnerAssistantRules(command: unknown): Promise<PartnerCommandResult> {
+  return runPartnerCommandAction("save_partner_assistant_rules", command);
+}

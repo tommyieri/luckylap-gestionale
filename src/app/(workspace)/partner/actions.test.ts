@@ -24,8 +24,11 @@ import {
   resolvePartnerDifference,
   restorePartnerMessage,
   savePartner,
+  savePartnerAssistantRules,
   savePartnerContact,
   savePartnerMessage,
+  setPartnerAssistantContact,
+  setPartnerAssistantMode,
   setPartnerDoNotContact,
   setPartnerState,
 } from "./actions";
@@ -44,6 +47,9 @@ const ACTIONS = [
   [setPartnerDoNotContact, "set_partner_do_not_contact"],
   [resolvePartnerDifference, "resolve_partner_difference"],
   [importPartnerDeviceFile, "import_partner_device_file"],
+  [setPartnerAssistantMode, "set_partner_assistant_mode"],
+  [setPartnerAssistantContact, "set_partner_assistant_contact"],
+  [savePartnerAssistantRules, "save_partner_assistant_rules"],
 ] as const;
 
 beforeEach(() => {
@@ -86,6 +92,18 @@ describe("Server Action dei comandi Partner", () => {
       mocks.revalidatePath.mockClear();
       await action(command);
       expect(mocks.revalidatePath.mock.calls).toEqual([["/partner"], ["/"], ["/team"]]);
+    }
+  });
+
+  it("i comandi dell'assistente rileggono /partner e /partner/assistente", async () => {
+    for (const action of [
+      setPartnerAssistantMode,
+      setPartnerAssistantContact,
+      savePartnerAssistantRules,
+    ]) {
+      mocks.revalidatePath.mockClear();
+      await action(command);
+      expect(mocks.revalidatePath.mock.calls).toEqual([["/partner"], ["/partner/assistente"]]);
     }
   });
 

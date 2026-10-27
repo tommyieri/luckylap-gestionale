@@ -8,8 +8,11 @@ import {
   resolvePartnerDifference,
   restorePartnerMessage,
   savePartner,
+  savePartnerAssistantRules,
   savePartnerContact,
   savePartnerMessage,
+  setPartnerAssistantContact,
+  setPartnerAssistantMode,
   setPartnerDoNotContact,
   setPartnerState,
 } from "../../app/(workspace)/partner/actions";
@@ -49,6 +52,9 @@ const ACTIONS: Record<PartnerCommandKind, (command: unknown) => Promise<PartnerC
   set_partner_do_not_contact: setPartnerDoNotContact,
   resolve_partner_difference: resolvePartnerDifference,
   import_partner_device_file: importPartnerDeviceFile,
+  set_partner_assistant_mode: setPartnerAssistantMode,
+  set_partner_assistant_contact: setPartnerAssistantContact,
+  save_partner_assistant_rules: savePartnerAssistantRules,
 };
 
 export const PARTNER_UNCERTAIN_TITLE = PARTNER_UNCERTAIN_MESSAGE;

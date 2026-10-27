@@ -15,6 +15,9 @@ vi.mock("../../app/(workspace)/partner/actions", () => {
     removePartnerContact: action,
     setPartnerDoNotContact: action,
     resolvePartnerDifference: action,
+    setPartnerAssistantMode: action,
+    setPartnerAssistantContact: action,
+    savePartnerAssistantRules: action,
   };
 });
 vi.mock("../../app/(workspace)/partner/dati/actions", () => ({

@@ -8,7 +8,11 @@ import {
   type PartnerCommandResult,
 } from "../../../lib/partner/commands";
 import { executePartnerCommand } from "../../../lib/partner/server";
-import { PARTNER_DATA_PATH, PARTNER_PATH } from "../../../lib/partner/links";
+import {
+  PARTNER_ASSISTANT_PATH,
+  PARTNER_DATA_PATH,
+  PARTNER_PATH,
+} from "../../../lib/partner/links";
 
 /** Nell'anteprima locale nessun comando arriva al database (00-sequenza §1.5). */
 export const PARTNER_PREVIEW_REJECTION: PartnerCommandResult = {
@@ -24,6 +28,13 @@ const FOLLOW_UP_KINDS: readonly PartnerCommandKind[] = [
   "set_partner_state",
   "set_partner_do_not_contact",
   "import_partner_device_file",
+];
+
+/** Comandi dell'assistente: si rilegge anche la sua pagina. */
+const ASSISTANT_KINDS: readonly PartnerCommandKind[] = [
+  "set_partner_assistant_mode",
+  "set_partner_assistant_contact",
+  "save_partner_assistant_rules",
 ];
 
 /**
@@ -43,6 +54,7 @@ export async function runPartnerCommandAction(
     if (result.status === "success" || (result.status === "rejected" && result.refresh)) {
       revalidatePath(PARTNER_PATH);
       if (kind === "import_partner_device_file") revalidatePath(PARTNER_DATA_PATH);
+      if (ASSISTANT_KINDS.includes(kind)) revalidatePath(PARTNER_ASSISTANT_PATH);
       if (FOLLOW_UP_KINDS.includes(kind)) for (const path of ["/", "/team"]) revalidatePath(path);
     }
     return result;
