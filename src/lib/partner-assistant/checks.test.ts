@@ -167,6 +167,29 @@ describe("parole vietate", () => {
     "des échantillons",
     "un échantillon",
   ])("rifiuta %s", (w) => expect(fails(withBody(`… ${w} …`))).toEqual(["parola_vietata"]));
+  // Le parole vietate valgono anche in fondo a un composto: il confine a sinistra c'è solo per
+  // «remise», «en depósito» e l'età, dove una parola comune finisce con quella vietata.
+  it.each([
+    "Mitgliederrabatt",
+    "Mengenrabatt",
+    "Sonderrabatt",
+    "Händlerrabatt",
+    "handmade in Italy",
+    "Handmade in Italy",
+    "Verkaufskommission",
+    "un supersconto",
+    "maxisconti",
+    "a superdiscount",
+    "un superdescuento",
+    "Produktsamples",
+    "reconsignment",
+  ])("rifiuta il composto %s", (w) =>
+    expect(fails(withBody(`… ${w} …`))).toEqual(["parola_vietata"]),
+  );
+  it("rifiuta il composto anche nell'oggetto", () =>
+    expect(fails({ ...valid, subject: "Mitgliederrabatt für Porsche Club GB" })).toEqual([
+      "parola_vietata",
+    ]));
   it.each([
     "22 anni",
     "we're all 22",
@@ -190,6 +213,8 @@ describe("parole vietate", () => {
     "tienen depósito",
     "122 anni",
     "alle 220",
+    "Halle 22",
+    "l'Europe et leur équipe",
   ])("%s non è vietato", (w) => expect(fails(withBody(`… ${w} …`))).toEqual([]));
 });
 

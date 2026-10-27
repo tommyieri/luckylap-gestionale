@@ -64,22 +64,23 @@ export function partnerAssistantBodyWords(body: string): number {
 const B = String.raw`(?<![\p{L}\p{N}])`;
 const E = String.raw`(?![\p{L}\p{N}])`;
 
-// Parole vietate, su oggetto e corpo. Confine a sinistra su tutte; a destra solo dove un prefisso
-// toccherebbe parole comuni («leur», «heure», «Europe», «alle 220»): così passano anche plurali e
-// composti come «Kommissionsware», «Rabattcode», «mit 22 Jahren».
+// Parole vietate, su oggetto e corpo. Valgono anche dentro una parola più lunga, così si fermano
+// composti e plurali come «Mitgliederrabatt», «handmade in Italy», «Verkaufskommission» e
+// «Rabattcode». Il confine a sinistra c'è solo dove una parola comune finisce con quella vietata
+// («premise», «tienen depósito», «122 anni», «Halle 22», «leur»); a destra solo dove continua in
+// una parola comune («heure», «Europe», «USDA», «alle 220»). `Tommi` è una parola intera.
 const FORBIDDEN: RegExp[] = [
-  new RegExp(
-    `${B}(?:conto\\s+vendita|consignment|sale[\\s-]+or[\\s-]+return|kommission|d[ée]p[ôo]t[\\s-]+vente|en\\s+dep[oó]sito|made\\s+in\\s+italy)`,
-    "iu",
-  ),
+  /conto\s+vendita|consignment|sale[\s-]+or[\s-]+return|kommission|d[ée]p[ôo]t[\s-]+vente|made\s+in\s+italy/iu,
+  new RegExp(`${B}en\\s+dep[oó]sito`, "iu"),
   new RegExp(`${B}Tommi${E}`, "u"),
   /[€$£]/u,
   new RegExp(`${B}(?:EUR|USD)${E}`, "iu"),
-  new RegExp(`${B}(?:sconto|sconti|discount|Rabatt|remise|descuento)`, "iu"),
-  new RegExp(`${B}(?:campione|campioni|sample|samples|échantillon|échantillons)`, "iu"),
+  /sconto|sconti|discount|Rabatt|descuento/iu,
+  new RegExp(`${B}remise`, "iu"),
+  /campione|campioni|sample|samples|échantillon|échantillons/iu,
   new RegExp(`${B}22\\s*(?:anni|years|Jahre|ans|años)`, "iu"),
   new RegExp(`${B}(?:all|alle|tutti\\s+di|tous|todos)\\s+22${E}`, "iu"),
-  new RegExp(`${B}twenty[\\s-]two`, "iu"),
+  /twenty[\s-]two/iu,
 ];
 
 const PLACEHOLDERS: RegExp[] = [
