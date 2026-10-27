@@ -893,7 +893,8 @@ export function partnerAssistantFixtureRows(today: string) {
         FIXTURE_PHONE,
         "https://luckylap.com | Instagram @lucky.lap",
       ].join("\n"),
-      sha256: "0".repeat(64),
+      // partnerAssistantDraftSha256 di oggetto, corpo e firma qui sopra (lo verifica un test).
+      sha256: "2095c09b9bf401c937a93a61fe044191eb81adca777ee4f86b1ff1092e029740",
       rules_version: 2,
       research_note_id: id(973),
       operation_id: id(1981),

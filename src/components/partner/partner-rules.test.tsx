@@ -86,9 +86,12 @@ describe("PartnerRulesView", () => {
         <PartnerRulesView rules={value} today={TODAY} preview={false} />,
       );
       const note = html.slice(html.indexOf("<header"), html.indexOf("</header>"));
-      expect(note.replace(/<[^>]+>/g, "").replace(/&#x27;/g, "'")).toContain(
-        "Regole importate con la ricerca. Le regole dell'assistente sono nella sua pagina.",
-      );
+      const plain = note.replace(/<[^>]+>/g, "").replace(/&#x27;/g, "'");
+      expect(plain).toContain("Le regole dell'assistente sono nella sua pagina.");
+      // «Importate con la ricerca» solo se la ricerca c'è.
+      if (value)
+        expect(plain).toContain("Regole importate con la ricerca. Le regole dell'assistente");
+      else expect(plain).not.toContain("Regole importate con la ricerca");
       expect(note).toMatch(/<a [^>]*href="\/partner\/assistente"[^>]*>sua pagina<\/a>/);
       expect(note).not.toContain("repository Partner");
     }

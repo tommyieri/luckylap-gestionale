@@ -4,6 +4,7 @@ import { PartnerAssistantView } from "../../../../components/partner/partner-ass
 import { RefreshButton } from "../../../../components/refresh-button";
 import { PanelActions, WorkspacePanel } from "../../../../components/workspace-panel";
 import { requireMember } from "../../../../lib/auth/current-member";
+import { PARTNER_ASSISTANT_INACTIVE } from "../../../../lib/partner/assistant";
 import { partnerAssistantFixture, partnerFixtureId } from "../../../../lib/partner/fixtures";
 import { partnerToday } from "../../../../lib/partner/periods";
 import {
@@ -53,17 +54,27 @@ export default async function PartnerAssistantPage() {
         }}
       />
     );
-  let loaded: Pick<Parameters<typeof PartnerAssistantView>[0], "status" | "rules" | "partnerIds">;
+  let loaded:
+    | Pick<Parameters<typeof PartnerAssistantView>[0], "status" | "rules" | "partnerIds">
+    | typeof PARTNER_ASSISTANT_INACTIVE;
   try {
+    // Le regole si leggono insieme allo stato; senza migrazioni non ci sono, e conta lo stato.
     const [status, rules] = await Promise.all([
       loadPartnerAssistantStatus(current.supabase),
-      loadPartnerAssistantRules(current.supabase),
+      loadPartnerAssistantRules(current.supabase).then(
+        (value) => ({ value }),
+        (error: unknown) => ({ error }),
+      ),
     ]);
-    const partnerIds = await loadPartnerIdsByCo(
-      current.supabase,
-      status.toReview.map((item) => item.co),
-    );
-    loaded = { status, rules, partnerIds };
+    if (status === PARTNER_ASSISTANT_INACTIVE) loaded = status;
+    else {
+      if ("error" in rules) throw rules.error;
+      const partnerIds = await loadPartnerIdsByCo(
+        current.supabase,
+        status.toReview.map((item) => item.co),
+      );
+      loaded = { status, rules: rules.value, partnerIds };
+    }
   } catch {
     return (
       <WorkspacePanel
@@ -77,6 +88,13 @@ export default async function PartnerAssistantPage() {
       </WorkspacePanel>
     );
   }
+  if (loaded === PARTNER_ASSISTANT_INACTIVE)
+    return (
+      <WorkspacePanel
+        title="Assistente non ancora attivo."
+        description="L’assistente non è ancora installato nel database: lo attiva Tommi con il passo di avvio. Il resto di Partner funziona come sempre."
+      />
+    );
   return (
     <PartnerAssistantView
       {...loaded}

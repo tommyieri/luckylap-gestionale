@@ -615,6 +615,13 @@
   background: var(--ink);
   color: var(--paper);
 }
+/* La scelta in vigore resta piena anche con i pulsanti spenti (comando in corso, anteprima). */
+.act[aria-pressed="true"]:disabled,
+.act[aria-pressed="true"]:disabled:hover {
+  opacity: 1;
+  background: var(--ink);
+  color: var(--paper);
+}
 .actMini {
   padding: 6px 10px;
 }

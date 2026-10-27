@@ -144,7 +144,7 @@ Ogni passo lascia traccia nel gestionale, con l'assistente come autore riconosci
 
 ## Credito e tempi
 
-Il credito Anthropic (100 USD, 92,05 rimasti il 27 ottobre) scade il 5 novembre 2026. Tommaso ha chiesto di non porre limiti di spesa: il credito va usato. Quindi:
+Il credito Anthropic è in scadenza il 5 novembre 2026. Tommaso ha chiesto di non porre limiti di spesa: il credito va usato. Quindi:
 
 - nessun tetto di spesa interno; si usa Opus 5.5 in ogni passo che scrive o decide;
 - il lavoro costoso, cioè ricerca e bozza, va fatto prima del 5 novembre per tutti i contatti che conviene preparare;
@@ -266,7 +266,7 @@ Tommaso usa la casella aziendale nell'app Gmail, aggiunta come account «Altro»
 Controlli del 27 ottobre, tutti in sola lettura:
 
 - **DNS pubblico.** MX su IONOS; SPF `v=spf1 include:_spf-eu.ionos.com ~all`; DKIM con le chiavi IONOS (`s1-ionos`, `s2-ionos` e una terza) e quelle di Shopify Email; DMARC preso da IONOS, `p=none`, senza indirizzo per i rapporti. Due server di inoltro IONOS (`mout-xforward`) sono nella lista Spamhaus SBL, ma la casella non li usa: non c'è nessun inoltro.
-- **Pannello IONOS.** Casella Mail Basic da 2 GB, occupata per 0,14 GB; nessun reindirizzamento, nessuna risposta automatica; antispam IONOS attivo al livello medio, quindi l'assistente deve leggere anche la cartella spam della casella per le sue conversazioni; autenticazione a due fattori non configurata. Server: IMAP `imap.ionos.it` porta 993 (SSL), SMTP `smtp.ionos.it` porta 587 (TLS).
+- **Pannello IONOS.** Casella Mail Basic da 2 GB, occupata per 0,14 GB; nessun reindirizzamento, nessuna risposta automatica; antispam IONOS attivo al livello medio, quindi l'assistente deve leggere anche la cartella spam della casella per le sue conversazioni. Server: IMAP `imap.ionos.it` porta 993 (SSL), SMTP `smtp.ionos.it` porta 587 (TLS).
 - **Shopify.** Nessuna attività di marketing registrata: dal dominio non sono partite newsletter di Shopify Email.
 - **Email di prova** dalla casella a un indirizzo Gmail di Tommaso: SPF, DKIM (dominio luckylap.com) e DMARC tutti «pass», partita da un server IONOS pulito (`mout.kundenserver.de`). Gmail l'ha messa comunque in spam, con il motivo «simile a messaggi già segnalati come spam». Il messaggio era solo HTML (l'app Gmail non aggiunge una parte di testo semplice) e con un testo di prova poco naturale.
 

@@ -3,8 +3,11 @@ import type { SupabaseClient } from "@supabase/supabase-js";
 import { verifiedMember } from "../auth/server";
 import { readTeamPages } from "../team/read";
 import {
+  PARTNER_ASSISTANT_INACTIVE,
+  isPartnerAssistantMissing,
   partnerAssistantRulesFrom,
   partnerAssistantStatusFrom,
+  type PartnerAssistantInactive,
   type PartnerAssistantRows,
   type PartnerAssistantRulesView,
   type PartnerAssistantStatus,
@@ -42,7 +45,8 @@ import {
  * pagine con keyset (readTeamPages), conteggi esatti verificati, riferimenti controllati in
  * read.ts. Ogni errore diventa PartnerUnavailableError: la pagina non mostra dati parziali.
  * Unica eccezione, il blocco dell'assistente nella scheda: con un errore suo diventa `null` e la
- * scheda resta leggibile, anche prima che le migrazioni dell'assistente siano applicate.
+ * scheda resta leggibile. Prima che le migrazioni dell'assistente siano applicate, funzione e
+ * tabelle mancanti danno PARTNER_ASSISTANT_INACTIVE: striscia e blocco non si mostrano.
  */
 
 export class PartnerUnavailableError extends Error {
@@ -313,12 +317,13 @@ export async function loadPartnerDetail(
 
 /**
  * Righe dell'assistente per la scheda: interruttore e lavoro del contatto, poi solo le note e la
- * bozza citate dal lavoro. Lancia se una lettura non riesce; chi chiama ne fa `null`.
+ * bozza citate dal lavoro. Senza le tabelle (migrazioni non applicate) PARTNER_ASSISTANT_INACTIVE.
+ * Lancia se una lettura non riesce; chi chiama ne fa `null`.
  */
 async function readPartnerAssistant(
   supabase: SupabaseClient,
   partnerId: string,
-): Promise<PartnerAssistantRows> {
+): Promise<PartnerAssistantRows | PartnerAssistantInactive> {
   const [toggle, job] = await Promise.all([
     supabase
       .from("partner_assistant_contacts")
@@ -331,6 +336,8 @@ async function readPartnerAssistant(
       .eq("partner_id", partnerId)
       .maybeSingle(),
   ]);
+  if (isPartnerAssistantMissing(toggle.error) || isPartnerAssistantMissing(job.error))
+    return PARTNER_ASSISTANT_INACTIVE;
   ensure(!toggle.error && !job.error);
   const field = (key: string) =>
     job.data === null ? null : (job.data as Record<string, unknown>)[key];
@@ -361,12 +368,16 @@ async function readPartnerAssistant(
   return { switch: toggle.data, job: job.data, notes, draft };
 }
 
-/** Striscia di /partner e pagina /partner/assistente: lo stato da read_partner_assistant_status. */
+/**
+ * Striscia di /partner e pagina /partner/assistente: lo stato da read_partner_assistant_status.
+ * Senza la funzione (migrazioni non applicate) PARTNER_ASSISTANT_INACTIVE, non un errore.
+ */
 export async function loadPartnerAssistantStatus(
   supabase: SupabaseClient,
-): Promise<PartnerAssistantStatus> {
+): Promise<PartnerAssistantStatus | PartnerAssistantInactive> {
   return guarded(async () => {
     const { data, error } = await supabase.rpc("read_partner_assistant_status");
+    if (isPartnerAssistantMissing(error)) return PARTNER_ASSISTANT_INACTIVE;
     ensure(!error);
     return partnerAssistantStatusFrom(data);
   });
@@ -523,7 +534,7 @@ export async function executePartnerCommand(
       p_operation_id: command.operationId,
       p_payload: command.payload,
     });
-    if (error) return partnerCommandRejection(error, command.retry) ?? uncertain();
+    if (error) return partnerCommandRejection(error, command.retry, command.kind) ?? uncertain();
     const outcome = partnerCommandOutcome(command, data);
     if (!outcome) return uncertain();
     return command.kind === "record_partner_activity" && command.payload.kind === "inviato"

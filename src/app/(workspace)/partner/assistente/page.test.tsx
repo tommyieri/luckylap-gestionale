@@ -117,6 +117,19 @@ describe("/partner/assistente", () => {
     expect(mocks.ids).toHaveBeenCalledWith(expect.anything(), [1]);
   });
 
+  it("migrazioni non ancora applicate: pannello neutro «non ancora attivo», senza ambra", async () => {
+    signedIn();
+    mocks.status.mockResolvedValue("non_attivo");
+    // Senza le tabelle anche le regole non si leggono: non è un errore da ricaricare.
+    mocks.rules.mockRejectedValue(new Error("tabella mancante"));
+    const page = (await PartnerAssistantPage()) as Element;
+    expect(page.type).toBe(WorkspacePanel);
+    expect(page.props.title).toBe("Assistente non ancora attivo.");
+    expect(page.props.tone).toBeUndefined();
+    expect(String(page.props.description)).toContain("Tommi");
+    expect(mocks.ids).not.toHaveBeenCalled();
+  });
+
   it("una lettura non riuscita: pannello di avviso, nessun dato parziale", async () => {
     signedIn();
     const fixture = partnerAssistantFixture("2026-10-22");

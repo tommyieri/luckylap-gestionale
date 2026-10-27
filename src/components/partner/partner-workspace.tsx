@@ -47,7 +47,7 @@ import {
   type PartnerWorkspace as PartnerWorkspaceData,
 } from "../../lib/partner/model";
 import { partnerPeriod, partnerPeriods, type PartnerPeriodNumber } from "../../lib/partner/periods";
-import type { PartnerAssistantStatus } from "../../lib/partner/assistant";
+import type { PartnerAssistantInactive, PartnerAssistantStatus } from "../../lib/partner/assistant";
 import { PartnerAssistantStrip } from "./partner-assistant-strip";
 import { PartnerCardForm } from "./partner-card-form";
 import { PartnerPendingRecovery } from "./partner-command";
@@ -65,8 +65,11 @@ export type PartnerWorkspaceProps = {
   workspace: PartnerWorkspaceData;
   /** Dettaglio del contatto `co` dell'indirizzo, letto dal server. */
   detail: PartnerDetail | null;
-  /** Stato dell'assistente per la striscia in cima; `null` se non è leggibile. */
-  assistant: PartnerAssistantStatus | null;
+  /**
+   * Stato dell'assistente per la striscia in cima; `null` se non è leggibile,
+   * PARTNER_ASSISTANT_INACTIVE (niente striscia) senza le sue migrazioni.
+   */
+  assistant: PartnerAssistantStatus | PartnerAssistantInactive | null;
   /** Giorno di Roma, dal server. */
   today: string;
   /** Membro della sessione, per «Seguiti da me». */

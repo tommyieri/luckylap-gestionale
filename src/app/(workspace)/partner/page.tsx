@@ -4,7 +4,7 @@ import { PartnerWorkspace } from "@/components/partner/partner-workspace";
 import { RefreshButton } from "@/components/refresh-button";
 import { PanelActions, WorkspacePanel } from "@/components/workspace-panel";
 import { requireMember } from "@/lib/auth/current-member";
-import type { PartnerAssistantStatus } from "@/lib/partner/assistant";
+import type { PartnerAssistantInactive, PartnerAssistantStatus } from "@/lib/partner/assistant";
 import { partnerFixtureDetail, partnerLocalPreview } from "@/lib/partner/fixtures";
 import { isPartnerCo, type PartnerDetail } from "@/lib/partner/model";
 import { partnerToday } from "@/lib/partner/periods";
@@ -73,13 +73,14 @@ export default async function PartnerPage({ searchParams }: { searchParams: Sear
   let loaded: [
     Awaited<ReturnType<typeof loadPartnerWorkspace>>,
     PartnerDetail | null,
-    PartnerAssistantStatus | null,
+    PartnerAssistantStatus | PartnerAssistantInactive | null,
   ];
   try {
     loaded = await Promise.all([
       loadPartnerWorkspace(current.supabase),
       co ? loadPartnerDetail(current.supabase, co) : Promise.resolve(null),
-      // Catch proprio: senza lo stato dell'assistente la striscia lo dice e la pagina resta.
+      // Catch proprio: senza lo stato dell'assistente la striscia lo dice e la pagina resta;
+      // senza le sue migrazioni lo stato è «non attivo» e la striscia non c'è.
       loadPartnerAssistantStatus(current.supabase).catch(() => null),
     ]);
   } catch {

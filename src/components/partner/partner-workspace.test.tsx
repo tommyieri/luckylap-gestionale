@@ -146,13 +146,22 @@ describe("PartnerWorkspace", () => {
   });
 
   it("senza messaggio pronto rimanda alle bozze dell'assistente, non al repository Partner", () => {
-    const html = render({ periodo: "3", stato: "tutti", co: "4" });
-    const start = html.indexOf('id="messaggi-4"');
+    const html = render({ periodo: "4", stato: "tutti", co: "5" });
+    const start = html.indexOf('id="messaggi-5"');
+    expect(start).toBeGreaterThan(0);
     const messages = text(html.slice(start, html.indexOf("</section>", start)));
     expect(messages).toContain("Nessun messaggio pronto per questo contatto.");
     expect(messages).toContain("Le bozze dell'assistente sono nel blocco «Assistente».");
     expect(messages).not.toContain("repository Partner");
     expect(messages).not.toContain("chiedilo a Claude");
+  });
+
+  it("contatto in «Non contattare»: niente rimando alle bozze dell'assistente", () => {
+    const html = render({ periodo: "3", stato: "tutti", co: "4" });
+    const start = html.indexOf('id="messaggi-4"');
+    const messages = text(html.slice(start, html.indexOf("</section>", start)));
+    expect(messages).toContain("niente messaggi nuovi");
+    expect(messages).not.toContain("Le bozze dell'assistente");
   });
 
   it("«Copia» sta accanto all'email che copia, anche quando il canale preferito è un altro", () => {
@@ -364,8 +373,9 @@ describe("PartnerDataView", () => {
     );
     const research = text(html.slice(html.indexOf('id="dati-ricerca"'), html.indexOf("dati-file")));
     expect(research).toContain(
-      "La ricerca Partner non è ancora stata importata. La ricerca arriva dal repository Partner con l'import.",
+      "La ricerca Partner non è ancora stata importata: la carica Tommi con l'import.",
     );
     expect(research).not.toContain("Claude");
+    expect(research).not.toContain("repository");
   });
 });

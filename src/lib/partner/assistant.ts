@@ -73,6 +73,22 @@ export const PARTNER_ASSISTANT_STATUS_LABELS: Record<PartnerAssistantJobStatus, 
   serve_tommaso: "Serve Tommi",
 };
 
+/** I conteggi della coda (read_partner_assistant_status), con le etichette della pagina. */
+export const PARTNER_ASSISTANT_COUNT_LABELS: Record<
+  keyof PartnerAssistantStatus["counts"],
+  string
+> = {
+  inCoda: PARTNER_ASSISTANT_STATUS_LABELS.in_coda,
+  attesa: PARTNER_ASSISTANT_STATUS_LABELS.attesa,
+  pronta: PARTNER_ASSISTANT_STATUS_LABELS.pronta,
+  serveTommaso: PARTNER_ASSISTANT_STATUS_LABELS.serve_tommaso,
+  ferma: "Fermati dal team",
+};
+
+/** Stato non leggibile: la stessa frase nella striscia di /partner e nel blocco della scheda. */
+export const PARTNER_ASSISTANT_UNREADABLE =
+  "Stato dell'assistente non leggibile: ricarica la pagina tra poco.";
+
 export const PARTNER_ASSISTANT_REQUEST_LABELS: Record<PartnerAssistantRequest, string> = {
   merch_cobranding: "Merch co-firmato",
   collab_capsule: "Capsule insieme",
@@ -102,6 +118,8 @@ export const PARTNER_ASSISTANT_REASON_LABELS = {
   attesa: "L'assistente aspettava dopo un errore temporaneo di Claude.",
   lease_persa: "Il passo ha superato il tempo concesso.",
   non_idoneo: "Il contatto non è più tra quelli che l'assistente può seguire.",
+  dato_cancellato:
+    "Un dato del contatto è stato cancellato: ridallo all'assistente se vuoi rifare ricerca e bozza.",
 } as const;
 export type PartnerAssistantReason = keyof typeof PARTNER_ASSISTANT_REASON_LABELS;
 
@@ -110,6 +128,17 @@ export function partnerAssistantReasonLabel(reason: string): string {
   return Object.hasOwn(PARTNER_ASSISTANT_REASON_LABELS, reason)
     ? PARTNER_ASSISTANT_REASON_LABELS[reason as PartnerAssistantReason]
     : "Motivo non riconosciuto.";
+}
+
+/** Nomi propri che restano maiuscoli anche dopo i due punti. */
+const PROPER_NAMES = ["Claude", "Tommi"];
+
+/** La frase del motivo dopo i due punti («Serve Tommi: la ricerca…»): minuscola, tranne i nomi. */
+export function partnerAssistantReasonInline(reason: string): string {
+  const label = partnerAssistantReasonLabel(reason);
+  return PROPER_NAMES.some((name) => label.startsWith(`${name} `))
+    ? label
+    : label.charAt(0).toLowerCase() + label.slice(1);
 }
 
 /**
@@ -235,6 +264,31 @@ const source = (value: unknown, what: string): string =>
     : fail(what);
 
 // ---------------------------------------------------------------------------
+// Migrazioni non ancora applicate
+// ---------------------------------------------------------------------------
+
+/**
+ * L'assistente senza le sue migrazioni (per esempio un deploy prima dell'avvio): non è un errore.
+ * Striscia e blocco della scheda non si mostrano; l'ambra resta per gli errori veri.
+ */
+export const PARTNER_ASSISTANT_INACTIVE = "non_attivo";
+export type PartnerAssistantInactive = typeof PARTNER_ASSISTANT_INACTIVE;
+
+/**
+ * Codici di una funzione o di una tabella che non c'è, nel campo `code` dell'errore di Supabase:
+ * PostgREST (PGRST202 funzione, PGRST205 tabella, fuori dalla cache dello schema) e PostgreSQL
+ * (42883 undefined_function, 42P01 undefined_table).
+ */
+const MISSING_CODES: readonly string[] = ["PGRST202", "PGRST205", "42883", "42P01"];
+
+/** L'errore dice che la funzione o la tabella dell'assistente non c'è ancora. */
+export function isPartnerAssistantMissing(error: unknown): boolean {
+  if (error === null || typeof error !== "object") return false;
+  const code = (error as { code?: unknown }).code;
+  return typeof code === "string" && MISSING_CODES.includes(code);
+}
+
+// ---------------------------------------------------------------------------
 // Stato: read_partner_assistant_status
 // ---------------------------------------------------------------------------
 
@@ -333,7 +387,8 @@ export function partnerAssistantStatusFrom(value: unknown): PartnerAssistantStat
 /**
  * Il blocco «Assistente» della scheda. Senza righe (né lavoro né interruttore) è vuoto: attivo,
  * `switchVersion`, `job`, `research`, `choice` e `draft` a `null`. Lo «stato non leggibile» non è
- * questa vista: è `PartnerDetail.assistant === null`.
+ * questa vista: è `PartnerDetail.assistant === null`; senza migrazioni è
+ * `PARTNER_ASSISTANT_INACTIVE`.
  */
 export type PartnerAssistantContactView = {
   /** Interruttore «Assistente su questo contatto»: senza riga è attivo. */

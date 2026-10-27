@@ -1,10 +1,13 @@
 "use client";
 
 import {
+  PARTNER_ASSISTANT_INACTIVE,
   PARTNER_ASSISTANT_REQUEST_LABELS,
   PARTNER_ASSISTANT_STATUS_LABELS,
-  partnerAssistantReasonLabel,
+  PARTNER_ASSISTANT_UNREADABLE,
+  partnerAssistantReasonInline,
   type PartnerAssistantContactView,
+  type PartnerAssistantInactive,
 } from "../../lib/partner/assistant";
 import { hostLabel } from "../../lib/partner/contacts";
 import { addDays, instantDay, instantTime, longDay } from "../../lib/partner/dates";
@@ -15,7 +18,6 @@ import {
   type PartnerContact,
   type PartnerSummary,
 } from "../../lib/partner/model";
-import { PARTNER_ASSISTANT_UNREADABLE } from "./partner-assistant-strip";
 import { CommandFeedback, usePartnerCommand } from "./partner-command";
 import { usePartnerContext } from "./partner-context";
 import styles from "./partner.module.css";
@@ -26,6 +28,7 @@ import styles from "./partner.module.css";
  * scelta con il motivo, l'indirizzo trovato dalla ricerca (solo una proposta), la ricerca con le
  * fonti, la bozza com'è salvata e l'interruttore «Assistente su questo contatto: attivo / fermo».
  * Mostra i dati del caricamento: dopo l'interruttore la scheda la rilegge la Server Action.
+ * Senza le migrazioni dell'assistente («non attivo») il blocco non c'è.
  */
 
 /** Le attività del team che tolgono il contatto all'assistente (partner_assistant_eligible). */
@@ -115,8 +118,11 @@ export function PartnerAssistantBlock({
   activities,
 }: {
   partner: PartnerSummary;
-  /** `null`: stato non leggibile. La vista vuota (attivo, senza lavoro) è un contatto senza lavoro. */
-  assistant: PartnerAssistantContactView | null;
+  /**
+   * `null`: stato non leggibile; PARTNER_ASSISTANT_INACTIVE: migrazioni non applicate, niente
+   * blocco. La vista vuota (attivo, senza lavoro) è un contatto senza lavoro.
+   */
+  assistant: PartnerAssistantContactView | PartnerAssistantInactive | null;
   /** In «Non contattare», per sé o per il dominio. */
   blocked: boolean;
   contacts: readonly PartnerContact[];
@@ -124,6 +130,7 @@ export function PartnerAssistantBlock({
 }) {
   const { members } = usePartnerContext();
   const titleId = `assistente-${partner.co}`;
+  if (assistant === PARTNER_ASSISTANT_INACTIVE) return null;
   if (assistant === null)
     return (
       <section className={styles.detailBlock} aria-labelledby={titleId}>
@@ -139,7 +146,11 @@ export function PartnerAssistantBlock({
     contacts,
     activities,
   });
-  const { choice, research, draft } = assistant;
+  const { choice, research, draft, job } = assistant;
+  // Fermo sul contatto o non più idoneo: l'assistente non ci lavora, qualunque sia il lavoro.
+  const held = [...(assistant.active ? [] : ["è fermato dal team"]), ...skip];
+  // In coda o in attesa, i motivi stanno nella frase del lavoro; altrimenti in una riga a sé.
+  const waiting = job !== null && (job.status === "in_coda" || job.status === "attesa");
   // L'indirizzo trovato dalla ricerca resta una proposta: la bozza va all'email del gestionale.
   const target = draft !== null ? draft.toAddress : assistantAddress(contacts);
   const proposed = choice?.proposedEmail.trim() ?? "";
@@ -148,8 +159,8 @@ export function PartnerAssistantBlock({
   return (
     <section className={styles.detailBlock} aria-labelledby={titleId}>
       <h4 id={titleId}>Assistente</h4>
-      <JobState job={assistant.job} />
-      {skip.length > 0 && <p>L'assistente non lo prende: {sentenceList(skip)}.</p>}
+      <JobState job={job} held={held} />
+      {skip.length > 0 && !waiting && <p>L'assistente non lo prende: {sentenceList(skip)}.</p>}
       {choice && (
         <p>
           <b className={styles.ideaLabel}>
@@ -160,8 +171,8 @@ export function PartnerAssistantBlock({
       )}
       {showProposed && (
         <p>
-          Indirizzo trovato dalla ricerca (proposta): {proposed}. La bozza va all'email del
-          gestionale.
+          Indirizzo trovato dalla ricerca (proposta): {proposed}.
+          {target !== null && " La bozza va all'email del gestionale."}
         </p>
       )}
       {research && <Research research={research} />}
@@ -171,31 +182,58 @@ export function PartnerAssistantBlock({
   );
 }
 
-function JobState({ job }: { job: PartnerAssistantContactView["job"] }) {
+/** Detto dopo lo stato quando l'assistente non segue più il contatto (pronta, Serve Tommi). */
+const NOT_FOLLOWED = "Il contatto non è più seguito dall'assistente.";
+
+/**
+ * Lo stato del lavoro, vero anche quando l'assistente non lo prende: con `held` non vuoto (fermo
+ * sul contatto o non idoneo) non promette i prossimi giri.
+ */
+function JobState({
+  job,
+  held,
+}: {
+  job: PartnerAssistantContactView["job"];
+  /** Perché l'assistente non lo prende: «è fermato dal team», «è seguito da Ada»… */
+  held: readonly string[];
+}) {
   const { today } = usePartnerContext();
   if (job === null) return <p>Nessun lavoro dell'assistente su questo contatto.</p>;
   const label = PARTNER_ASSISTANT_STATUS_LABELS[job.status];
+  const stopped = held.length > 0;
+  const after = stopped ? ` ${NOT_FOLLOWED}` : "";
   switch (job.status) {
     case "serve_tommaso":
       return (
         <p className={styles.noteAmber}>
           {job.reason === null
-            ? `${label}.`
-            : `${label}: ${partnerAssistantReasonLabel(job.reason)}`}
+            ? `${label}.${after}`
+            : `${label}: ${partnerAssistantReasonInline(job.reason)}${after}`}
+        </p>
+      );
+    case "pronta":
+      return (
+        <p>
+          {label}: la trovi qui sotto. Per ora l'assistente non manda niente.{after}
         </p>
       );
     case "attesa":
-      return (
+    case "in_coda":
+      if (stopped)
+        return (
+          <p>
+            {label}, ma l'assistente non lo prende finché resta così: {sentenceList(held)}.
+          </p>
+        );
+      return job.status === "in_coda" ? (
+        <p>{label}: l'assistente ci lavora nei prossimi giri.</p>
+      ) : (
         <p>
           {job.writeOn === null
             ? `${label}.`
             : `${label}: scrive dal ${longDay(job.writeOn, today)}.`}
         </p>
       );
-    case "pronta":
-      return <p>{label}: la trovi qui sotto. Per ora l'assistente non manda niente.</p>;
-    case "in_coda":
-      return <p>{label}: l'assistente ci lavora nei prossimi giri.</p>;
   }
 }
 

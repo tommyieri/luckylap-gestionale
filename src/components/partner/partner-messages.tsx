@@ -716,7 +716,9 @@ export function PartnerMessages({ detail, blocked }: { detail: PartnerDetail; bl
             </button>
           </div>
         )}
-        <p className={styles.hint}>Le bozze dell'assistente sono nel blocco «Assistente».</p>
+        {!blocked && (
+          <p className={styles.hint}>Le bozze dell'assistente sono nel blocco «Assistente».</p>
+        )}
         {skipped && <p className={styles.hint}>Approcci scartati: {skipped}</p>}
         <p>
           <Link href={PARTNER_RULES_PATH} prefetch={false} className="text-button">

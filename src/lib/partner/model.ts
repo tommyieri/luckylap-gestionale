@@ -3,7 +3,7 @@
 //
 // I parser delle righe lette dal database rifiutano ogni riga non valida (PartnerReadError):
 // la pagina mostra un errore, mai dati parziali o inventati.
-import type { PartnerAssistantContactView } from "./assistant";
+import type { PartnerAssistantContactView, PartnerAssistantInactive } from "./assistant";
 import { instantDay, instantTime, isCalendarDay, isMonthStart, longDay, shortDay } from "./dates";
 
 export const PARTNER_STAGES = [
@@ -538,11 +538,12 @@ export type PartnerDetail = {
   /** Blocchi attivi che valgono per questo contatto (suo o del suo dominio). */
   blocks: PartnerBlock[];
   /**
-   * L'assistente su questo contatto. `null` solo se lo stato non è leggibile (righe non lette,
-   * migrazioni assenti, righe non valide): il blocco non oscura mai la scheda. Un contatto senza
-   * lavoro né interruttore ha il blocco vuoto, con `active: true` e `job: null`.
+   * L'assistente su questo contatto. `null` solo se lo stato non è leggibile (righe non lette o
+   * non valide): il blocco non oscura mai la scheda. Senza migrazioni è
+   * PARTNER_ASSISTANT_INACTIVE e il blocco non c'è. Un contatto senza lavoro né interruttore ha
+   * il blocco vuoto, con `active: true` e `job: null`.
    */
-  assistant: PartnerAssistantContactView | null;
+  assistant: PartnerAssistantContactView | PartnerAssistantInactive | null;
 };
 
 export type PartnerDeviceImport = {

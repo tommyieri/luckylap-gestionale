@@ -590,6 +590,21 @@ describe("esiti dei comandi", () => {
         "Un collega ha appena modificato questo contatto. Ricarico i dati: controlla e riprova.",
       refresh: true,
     });
+    // Modalità e regole non sono un contatto: il conflitto dice che cosa è cambiato.
+    const changed = { code: "40001", message: "partner_changed" };
+    expect(partnerCommandRejection(changed, false, "set_partner_assistant_mode")).toEqual({
+      status: "rejected",
+      code: "partner_changed",
+      message:
+        "Un collega ha appena cambiato le impostazioni dell'assistente. Ricarico i dati: controlla e riprova.",
+      refresh: true,
+    });
+    expect(partnerCommandRejection(changed, false, "save_partner_assistant_rules")?.message).toBe(
+      "Un collega ha appena salvato una nuova versione delle regole. Ricarico i dati: controlla e riprova.",
+    );
+    expect(partnerCommandRejection(changed, false, "set_partner_state")?.message).toBe(
+      "Un collega ha appena modificato questo contatto. Ricarico i dati: controlla e riprova.",
+    );
     expect(
       partnerCommandRejection({ code: "42501", message: "partner_access_required" }, false)
         ?.message,

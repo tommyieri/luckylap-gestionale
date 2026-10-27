@@ -3,8 +3,11 @@
 import Link from "next/link";
 import { Bot, BotOff } from "lucide-react";
 import {
+  PARTNER_ASSISTANT_INACTIVE,
   PARTNER_ASSISTANT_MODE_LABELS,
+  PARTNER_ASSISTANT_UNREADABLE,
   formatPartnerAssistantUsd,
+  type PartnerAssistantInactive,
   type PartnerAssistantPausedReason,
   type PartnerAssistantStatus,
 } from "../../lib/partner/assistant";
@@ -18,20 +21,22 @@ import styles from "./partner.module.css";
  * di «Area aperta» (SensitiveAreaSessionBar): modalità, bozze pronte e spesa, con «Ferma
  * l'assistente». Spento, in pausa, non configurato o non leggibile: fondo ambra con la parola
  * scritta. Mostra i dati del caricamento: dopo «Ferma» la pagina la rilegge la Server Action.
+ * Senza le migrazioni dell'assistente («non attivo») la striscia non c'è.
  */
-
-/** Stato non leggibile: la stessa frase del blocco «Assistente» della scheda. */
-export const PARTNER_ASSISTANT_UNREADABLE =
-  "Stato dell'assistente non leggibile: ricarica la pagina tra poco.";
 
 const PAUSED: Record<PartnerAssistantPausedReason, string> = {
   credito: "in pausa per credito finito",
   errore_claude: "in pausa per un errore di Claude",
 };
 
-export function PartnerAssistantStrip({ status }: { status: PartnerAssistantStatus | null }) {
+export function PartnerAssistantStrip({
+  status,
+}: {
+  status: PartnerAssistantStatus | PartnerAssistantInactive | null;
+}) {
   const { preview } = usePartnerContext();
   const command = usePartnerCommand("assistente-striscia");
+  if (status === PARTNER_ASSISTANT_INACTIVE) return null;
   const attention =
     status === null ||
     status.mode === "spento" ||
@@ -68,12 +73,13 @@ export function PartnerAssistantStrip({ status }: { status: PartnerAssistantStat
               })
             }
           >
-            Ferma l'assistente
+            {command.pending ? "Fermo…" : "Ferma l'assistente"}
           </button>
         )}
       </div>
       <div className={styles.assistantStripFeedback}>
-        <CommandFeedback command={command} compact />
+        {/* «Ferma l'assistente» sparisce con lo spegnimento: il focus va sull'esito. */}
+        <CommandFeedback command={command} compact focus />
       </div>
     </section>
   );

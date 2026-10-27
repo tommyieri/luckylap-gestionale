@@ -867,12 +867,25 @@ export const PARTNER_ERROR_MESSAGES: Record<string, { sqlstate: string; message:
 };
 
 /**
+ * Conflitto di versione dei comandi che non toccano un contatto: modalità e credito sono le
+ * impostazioni dell'assistente, le regole sono le regole.
+ */
+const PARTNER_CHANGED_MESSAGES: Partial<Record<PartnerCommandKind, string>> = {
+  set_partner_assistant_mode:
+    "Un collega ha appena cambiato le impostazioni dell'assistente. Ricarico i dati: controlla e riprova.",
+  save_partner_assistant_rules:
+    "Un collega ha appena salvato una nuova versione delle regole. Ricarico i dati: controlla e riprova.",
+};
+
+/**
  * Errore della RPC → rifiuto definitivo, oppure `null` (esito da verificare). In una
  * ripetizione, accesso e payload non validi non dicono se il primo invio è andato a buon fine.
+ * Con il tipo del comando, il conflitto di versione dice che cosa è cambiato.
  */
 export function partnerCommandRejection(
   error: { code?: string | null; message?: string | null },
   retry: boolean,
+  kind?: PartnerCommandKind,
 ): Extract<PartnerCommandResult, { status: "rejected" }> | null {
   const known = error.message ? PARTNER_ERROR_MESSAGES[error.message] : undefined;
   if (!known || known.sqlstate !== error.code) return null;
@@ -881,11 +894,12 @@ export function partnerCommandRejection(
     (error.message === "partner_access_required" || error.message === "invalid_partner_payload")
   )
     return null;
+  const changed = error.message === "partner_changed";
   return {
     status: "rejected",
     code: error.message!,
-    message: known.message,
-    refresh: error.message === "partner_changed",
+    message: (changed && kind && PARTNER_CHANGED_MESSAGES[kind]) || known.message,
+    refresh: changed,
   };
 }
 

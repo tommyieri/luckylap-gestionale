@@ -23,7 +23,8 @@ export function PartnerRulesView({
       <header className={styles.heading}>
         <h1>Regole per scrivere</h1>
         <p className={styles.headingNote}>
-          Regole importate con la ricerca. Le regole dell'assistente sono nella{" "}
+          {rules !== null && "Regole importate con la ricerca. "}Le regole dell'assistente sono
+          nella{" "}
           <Link href={PARTNER_ASSISTANT_PATH} prefetch={false}>
             sua pagina
           </Link>

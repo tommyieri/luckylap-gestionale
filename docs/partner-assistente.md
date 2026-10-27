@@ -22,10 +22,10 @@ L'assistente prende solo contatti «Da contattare», senza «Seguito da», senza
 Errori e tentativi:
 
 - risposta di Claude rotta, rifiutata, troncata o oltre il nostro timer: un tentativo consumato; al terzo il contatto va a «Serve Tommi» e la coda continua;
-- Claude non raggiungibile, sovraccarico o al limite di velocità (errori di connessione, 429, 529, 5xx): attesa di dieci minuti per tutti, senza tentativi consumati;
+- Claude non raggiungibile, sovraccarico o al limite di velocità (errori di connessione, anche a metà risposta, 429, 529, 5xx): attesa di dieci minuti per tutti, senza tentativi consumati. Se però la chiamata aveva già speso (token in uscita o una ripresa), il tentativo si consuma: così un contatto non spende all'infinito;
 - credito finito (402, `billing_error`, 400 con «credit balance»): pausa di tutto l'assistente, nessun tentativo consumato; la striscia e la pagina lo dicono;
-- chiave o permessi rifiutati (401, 403): pausa «errore di Claude»;
-- ogni altro errore dell'API: un tentativo consumato, come una risposta rotta.
+- chiave o permessi rifiutati (401, 403) ed errori di configurazione (404, oppure un 400 che dice che il modello o una funzione non è disponibile): pausa «errore di Claude»;
+- ogni altro errore dell'API (per esempio un 400 «prompt is too long» o un 413): un tentativo consumato, come una risposta rotta.
 
 Fuori da questa consegna (seconda consegna, con un piano proprio): invio, lettura della casella, risposte, solleciti, passaggio a Tommi con email e attività in Oggi, riepilogo serale, modalità «prova» e «invio», origine `assistente` nel registro Partner e nel feed di Controllo CEO.
 
@@ -44,11 +44,11 @@ Le regole di scrittura in vigore sono un testo versionato nel database (versione
 ## Dove si vede nel gestionale
 
 - **Striscia** in cima a `/partner`: modalità, bozze pronte e spesa, con «Apri l'assistente» e «Ferma l'assistente». Spento, in pausa, non configurato o non leggibile: fondo ambra con la parola scritta.
-- **Pagina** `/partner/assistente` (link «Assistente» nel piede di Partner): stato e ultimi eventi, modalità e credito di partenza, coda, spesa, «Da vedere» (i contatti passati a Tommi, con «Ridai all'assistente») e regole, con le versioni.
+- **Pagina** `/partner/assistente` (link «Assistente» nel piede di Partner): stato e ultimi eventi, modalità e credito di partenza, coda, spesa, «Da vedere» (i contatti passati a Tommi, con «Ridai all'assistente») e regole, con le versioni. «Da vedere» e i conteggi della coda contano solo i contatti che l'assistente può ancora prendere: un contatto fermato nella scheda, seguito dal team o non più «Da contattare» esce da lì. Credito e regole partono dalla versione letta: se un collega le cambia nel frattempo, il campo si riallinea al valore salvato e il proprio resta visibile a parte.
 - **Blocco «Assistente»** nella scheda del contatto: stato del lavoro, motivo per cui l'assistente non lo prende, proposta e motivo, ricerca con le fonti, bozza in una sezione apribile e l'interruttore «Assistente su questo contatto: attivo / fermo» (diverso da «Non contattare»).
 - La guida «Come si usa», parte «Partner», spiega tutto questo al team.
 
-Le pagine mostrano i dati del caricamento e funzionano anche in anteprima senza database. Se le tabelle dell'assistente non si leggono (per esempio prima delle migrazioni), striscia e blocco dicono «stato non leggibile» e il resto di Partner resta com'è.
+Le pagine mostrano i dati del caricamento e funzionano anche in anteprima senza database. Prima delle migrazioni (funzione o tabella mancante: codici `PGRST202`, `PGRST205`, `42883`, `42P01`) l'assistente è «non attivo»: striscia e blocco non si mostrano e la pagina dell'assistente dice «Assistente non ancora attivo.». Se invece la lettura non riesce per un altro motivo, striscia e blocco dicono in ambra «stato non leggibile». In tutti e due i casi il resto di Partner resta com'è.
 
 ## Tabelle e RPC
 
@@ -70,7 +70,7 @@ Tabelle in `public`, leggibili dai membri del team (RLS `member_read`) e scritte
 
 Tabelle in `private`, non leggibili da nessun ruolo client: `partner_assistant_config` (riga unica con modalità, profilo dell'assistente e di Tommi, credito di partenza, pausa, attesa, ultimo giro), `partner_assistant_runs` (una riga per chiamata a Claude: token, ricerche web, costo), `partner_assistant_events` (registro delle esecuzioni, solo codici), `partner_assistant_receipts` (ricevute idempotenti) e `partner_assistant_scheduler_state` (puntatore al segreto in Vault).
 
-Nessun testo, indirizzo o segreto finisce nei log, nelle risposte HTTP, negli eventi o nelle colonne con audit. La cancellazione definitiva di un recapito («Cancella il dato») cancella anche note e bozze del contatto e rimette il lavoro all'inizio.
+Nessun testo, indirizzo o segreto finisce nei log, nelle risposte HTTP, negli eventi o nelle colonne con audit. La cancellazione definitiva di un recapito («Cancella il dato») cancella anche note e bozze del contatto e passa il lavoro a Tommi, dalla ricerca, con il motivo «Un dato del contatto è stato cancellato» (un lavoro che era già di Tommi tiene il suo motivo): non torna in coda da solo, così una ricerca rifatta non risalva il dato cancellato. Ridarlo all'assistente resta una scelta di Tommi, con «Ridai all'assistente».
 
 RPC dei membri (`authenticated`, con `partner_actor()` e ricevute per `operation_id`): `set_partner_assistant_mode`, `set_partner_assistant_contact`, `save_partner_assistant_rules` e `read_partner_assistant_status`. «Prova» e «Invio» li sceglie solo il founder e in questa consegna sono rifiutati.
 
@@ -104,7 +104,7 @@ Se una variabile manca o non ha il formato giusto, l'assistente resta spento: ne
 
 ## Come si ferma
 
-- **Dal gestionale**, chiunque del team: «Ferma l'assistente» nella striscia, oppure «Spento» nella pagina. Lo spegnimento vale anche con una versione vecchia della pagina. L'assistente ricontrolla la modalità a ogni giro e subito prima di ogni chiamata a Claude: un passo con la chiamata già partita può ancora salvare il suo risultato, poi non ne parte un altro.
+- **Dal gestionale**, chiunque del team: «Ferma l'assistente» nella striscia, oppure «Spento» nella pagina. Lo spegnimento vale anche con una versione vecchia della pagina; il credito invece si salva solo dalla versione in vigore, anche con «Spento», così non sovrascrive quello di un collega. L'assistente ricontrolla la modalità a ogni giro e subito prima di ogni chiamata a Claude: un passo con la chiamata già partita può ancora salvare il suo risultato, poi non ne parte un altro.
 - **Su un solo contatto**: «Ferma su questo contatto» nel blocco «Assistente» della scheda. Non è «Non contattare»: il contatto resta contattabile dal team.
 - **Pausa automatica**: con il credito finito o un errore di Claude l'assistente si mette in pausa da solo. Dopo una ricarica si aggiunge l'importo al credito di partenza in «Modalità» («Salva il credito e riparti»); dopo un errore si preme «Prepara».
 - **Dal server**, con l'OK di Tommi: `PARTNER_ASSISTANT_ENABLED` diverso da `true` (la route risponde `503`), oppure `configure_partner_assistant_scheduler(null, false)` dal client tecnico, che toglie il job, il puntatore e il segreto dell'assistente in Vault e lascia com'è lo scheduler Shopify.
@@ -127,14 +127,17 @@ Il credito Anthropic scade il 5 novembre 2026: la stima della specifica è tra 0
 
 Tutta la sequenza richiede l'OK di Tommi in chat, passo per passo (`AGENTS.md`): merge, migrazioni, profilo tecnico, chiavi, variabili, impostazioni Vercel e accensione dello scheduler.
 
+**Il merge su `main` è il deploy di produzione**: Vercel pubblica `main` appena arriva il merge ([deployment.md](deployment.md)). Per questo Fluid compute, migrazioni e variabili vanno fatti **prima del merge**, e il merge è un passo della sequenza, non il primo. Se Fluid compute non è attivo, Vercel rifiuta il deploy della route con `maxDuration` 300 e da quel momento nessun merge su `main` arriva in produzione, nemmeno le correzioni degli altri moduli.
+
 1. **Utente tecnico «Assistente».** Crearlo con gli strumenti Admin di Supabase Auth, mai con SQL su `auth.users`: indirizzo non instradabile nel dominio `.invalid` (come l'account QA di [verifica-auth-cloud.md](verifica-auth-cloud.md)), password casuale che nessuno conserva. Poi la sua riga in `profiles`, con il nome «Assistente», **senza membership**: così non entra nell'app e non compare tra gli assegnatari.
 2. **Chiave segreta Supabase propria** dell'assistente, distinta da quella del worker Shopify.
-3. **Vercel e Anthropic.** Controllare che Fluid compute sia attivo, con funzioni fino a 300 secondi (se non lo è, lo attiva Tommi), e il tier dell'account Anthropic in Console, che dà i limiti di velocità.
-4. **Migrazioni.** Applicare le tre migrazioni con la procedura di [verification.md](verification.md) («Produzione, 22 ottobre 2026»: impronte in sola lettura prima, testo esatto del file, rinomina alla versione cloud, impronte dopo). Sono additive, quindi vanno **prima** del deploy.
-5. **Variabili e deploy.** Inserire in Vercel produzione le variabili della tabella sopra, compreso `PARTNER_ASSISTANT_PHONE` con il numero che sceglie Tommaso, poi fare il deploy.
-6. **Configurazione.** Dal client tecnico, con la chiave dell'assistente: `configure_partner_assistant(<assistente>, <Tommi>)` (profilo dell'assistente senza membership e profilo di Tommi con ruolo founder), poi `configure_partner_assistant_scheduler(<segreto>, true)` con lo stesso valore di `PARTNER_ASSISTANT_SECRET`. Il segreto non si incolla nel SQL Editor, in chat o nei log.
-7. **Contatti già avviati.** Caricare in «Dati Partner» i file «Esporta» di tutti i dispositivi del vecchio sito ([partner.md](partner.md)) e segnare «Assistente su questo contatto: fermo» sui rapporti già avviati (negozi in conto vendita, accordi), così l'assistente non riscrive a chi è già stato contattato.
-8. **Prepara.** Prima, controllare di nuovo in Console Anthropic il tier e il credito. Poi, dalla pagina dell'assistente, inserire il credito di partenza (quello della Console) e scegliere «Prepara».
+3. **Vercel e Anthropic, prima del merge.** Controllare che Fluid compute sia attivo, con funzioni fino a 300 secondi (se non lo è, lo attiva Tommi), e il tier dell'account Anthropic in Console, che dà i limiti di velocità.
+4. **Migrazioni, prima del merge.** Applicare le tre migrazioni con la procedura di [verification.md](verification.md) («Produzione, 22 ottobre 2026»: impronte in sola lettura prima, testo esatto del file, rinomina alla versione cloud, impronte dopo). Sono additive: il codice già in produzione non le usa. Se il merge arrivasse prima, la pagina non si rompe (l'assistente risulta «non attivo» e striscia e blocco non si vedono), ma è meglio non contarci.
+5. **Variabili, prima del merge.** Inserire in Vercel produzione le variabili della tabella sopra, compreso `PARTNER_ASSISTANT_PHONE` con il numero che sceglie Tommaso.
+6. **Merge su `main`.** Con i passi 3, 4 e 5 fatti, Tommi fa il merge della pull request: è il deploy di produzione. Poi controllare che il deploy su Vercel sia riuscito.
+7. **Configurazione.** Dal client tecnico, con la chiave dell'assistente: `configure_partner_assistant(<assistente>, <Tommi>)` (profilo dell'assistente senza membership e profilo di Tommi con ruolo founder), poi `configure_partner_assistant_scheduler(<segreto>, true)` con lo stesso valore di `PARTNER_ASSISTANT_SECRET`. Il segreto non si incolla nel SQL Editor, in chat o nei log.
+8. **Contatti già avviati.** Caricare in «Dati Partner» i file «Esporta» di tutti i dispositivi del vecchio sito ([partner.md](partner.md)) e segnare «Assistente su questo contatto: fermo» sui rapporti già avviati (negozi in conto vendita, accordi), così l'assistente non riscrive a chi è già stato contattato.
+9. **Prepara.** Prima, controllare di nuovo in Console Anthropic il tier e il credito. Poi, dalla pagina dell'assistente, inserire il credito di partenza (quello della Console) e scegliere «Prepara».
 
 Dopo l'avvio: il primo giro aggiorna «Ultimo giro» nella pagina; gli eventi dicono passo ed esito di ogni contatto.
 

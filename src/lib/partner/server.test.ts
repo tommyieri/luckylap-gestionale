@@ -1,6 +1,11 @@
 import { describe, expect, it, vi } from "vitest";
 import type { SupabaseClient } from "@supabase/supabase-js";
 vi.mock("server-only", () => ({}));
+import {
+  PARTNER_ASSISTANT_INACTIVE,
+  type PartnerAssistantContactView,
+  type PartnerAssistantStatus,
+} from "./assistant";
 import { partnerAssistantFixtureRows, partnerFixtureId, partnerFixtureRows } from "./fixtures";
 import {
   PARTNER_DETAIL_ACTIVITY_LIMIT,
@@ -43,6 +48,8 @@ function fakeSupabase(
     user?: string | null;
     rpc?: (name: string, args: Record<string, unknown>) => unknown;
     failTable?: string;
+    /** Codice dell'errore di `failTable` (PostgREST o PostgreSQL); senza, solo il messaggio. */
+    failCode?: string;
     /** Toglie una riga dalla prima pagina di questa tabella, lasciando il conteggio. */
     truncate?: string;
   } = {},
@@ -115,10 +122,11 @@ function fakeSupabase(
         },
         then(resolve: (value: unknown) => unknown, reject?: (error: unknown) => unknown) {
           if (options.failTable === table)
-            return Promise.resolve({ data: null, error: { message: "boom" }, count: null }).then(
-              resolve,
-              reject,
-            );
+            return Promise.resolve({
+              data: null,
+              error: { message: "boom", ...(options.failCode ? { code: options.failCode } : {}) },
+              count: null,
+            }).then(resolve, reject);
           const rows = (tables[table] ?? []).filter((row) => filters.every((f) => f(row)));
           rows.sort((a, b) => {
             for (const [column, ascending] of sorts) {
@@ -305,11 +313,10 @@ describe("assistente nella scheda", () => {
   it("bozza pronta con le colonne dichiarate: niente lease, tentativi o motivo dell'interruttore", async () => {
     const fake = fakeSupabase(tables());
     const detail = (await loadPartnerDetail(fake.client, 2))!;
-    expect(detail.assistant?.job?.status).toBe("pronta");
-    expect(detail.assistant?.draft?.toAddress).toBe("info@raduno-due.example.test");
-    expect(detail.assistant?.research?.sources).toEqual([
-      "https://raduno-due.example.test/espositori",
-    ]);
+    const assistant = detail.assistant as PartnerAssistantContactView;
+    expect(assistant.job?.status).toBe("pronta");
+    expect(assistant.draft?.toAddress).toBe("info@raduno-due.example.test");
+    expect(assistant.research?.sources).toEqual(["https://raduno-due.example.test/espositori"]);
     const columns = (table: string) =>
       fake.calls.filter((call) => call.table === table).flatMap((call) => call.columns.split(","));
     expect(columns("partner_assistant_jobs")).not.toContain("lease_token");
@@ -368,6 +375,24 @@ describe("assistente nella scheda", () => {
       loadPartnerDetail(fakeSupabase(tables(), { failTable: "partner_contacts" }).client, 2),
     ).rejects.toThrow(PartnerUnavailableError);
   });
+
+  it("tabelle dell'assistente che non ci sono ancora: blocco non attivo, senza avviso", async () => {
+    for (const failCode of ["PGRST205", "42P01"])
+      for (const table of ["partner_assistant_contacts", "partner_assistant_jobs"]) {
+        const fake = fakeSupabase(tables(), { failTable: table, failCode });
+        const detail = await loadPartnerDetail(fake.client, 2);
+        expect(detail?.assistant, `${table} ${failCode}`).toBe(PARTNER_ASSISTANT_INACTIVE);
+        expect(detail?.contacts, table).toHaveLength(4);
+        // Senza le tabelle non si leggono note e bozze.
+        expect(fake.calls.some((call) => call.table === "partner_assistant_notes")).toBe(false);
+      }
+    // Un altro codice resta «non leggibile».
+    const other = await loadPartnerDetail(
+      fakeSupabase(tables(), { failTable: "partner_assistant_jobs", failCode: "57014" }).client,
+      2,
+    );
+    expect(other?.assistant).toBeNull();
+  });
 });
 
 describe("stato e regole dell'assistente", () => {
@@ -375,15 +400,25 @@ describe("stato e regole dell'assistente", () => {
 
   it("stato dalla RPC read_partner_assistant_status", async () => {
     const fake = fakeSupabase(tables(), { rpc: () => ({ data: status, error: null }) });
-    const loaded = await loadPartnerAssistantStatus(fake.client);
+    const loaded = (await loadPartnerAssistantStatus(fake.client)) as PartnerAssistantStatus;
     expect(fake.rpcCalls.map((call) => call.name)).toEqual(["read_partner_assistant_status"]);
     expect(loaded.mode).toBe("prepara");
     expect(loaded.toReview[0]).toMatchObject({ co: 1, reason: "fatto_mancante" });
   });
 
+  it("funzione dell'assistente che non c'è ancora: stato non attivo, non un errore", async () => {
+    for (const code of ["PGRST202", "42883", "PGRST205", "42P01"]) {
+      const fake = fakeSupabase(tables(), {
+        rpc: () => ({ data: null, error: { code, message: "sintetico" } }),
+      });
+      expect(await loadPartnerAssistantStatus(fake.client), code).toBe(PARTNER_ASSISTANT_INACTIVE);
+    }
+  });
+
   it("errore della RPC o risposta non valida: Partner non disponibile", async () => {
     for (const rpc of [
-      () => ({ data: null, error: { code: "PGRST202", message: "not found" } }),
+      () => ({ data: null, error: { code: "57014", message: "statement timeout" } }),
+      () => ({ data: null, error: { message: "boom" } }),
       () => ({ data: { ...status, extra: true }, error: null }),
       () => new Error("rete"),
     ])
@@ -556,6 +591,42 @@ describe("comandi del team", () => {
         message: text,
         refresh: code === "40001",
       });
+    }
+  });
+
+  it("conflitto di versione su modalità e regole: lo dice per l'assistente, non per il contatto", async () => {
+    const assistantCommand = (kind: string, payload: Record<string, unknown>) => ({
+      kind,
+      operationId: "93000000-0000-4000-8000-000000000009",
+      payload: { schema_version: 1, ...payload },
+      retry: false,
+    });
+    const cases: [ReturnType<typeof assistantCommand>, string][] = [
+      [
+        assistantCommand("set_partner_assistant_mode", { mode: "prepara", expected_version: 2 }),
+        "impostazioni dell'assistente",
+      ],
+      [
+        assistantCommand("save_partner_assistant_rules", {
+          body: "Regole sintetiche.",
+          expected_version: 2,
+        }),
+        "regole",
+      ],
+    ];
+    for (const [command, words] of cases) {
+      const fake = fakeSupabase(tables(), {
+        rpc: () => ({ data: null, error: { code: "40001", message: "partner_changed" } }),
+      });
+      const result = await executePartnerCommand(fake.client, command, NOW);
+      expect(result, command.kind).toMatchObject({
+        status: "rejected",
+        code: "partner_changed",
+        refresh: true,
+      });
+      const message = (result as { message: string }).message;
+      expect(message, command.kind).toContain(words);
+      expect(message, command.kind).not.toContain("contatto");
     }
   });
 

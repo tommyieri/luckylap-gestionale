@@ -13,13 +13,20 @@ import {
   partnerFixtureWorkspace,
   partnerLocalPreview,
 } from "./fixtures";
-import type { PartnerAssistantRows } from "./assistant";
+import {
+  PARTNER_ASSISTANT_INACTIVE,
+  type PartnerAssistantContactView,
+  type PartnerAssistantRows,
+} from "./assistant";
 import { PartnerReadError } from "./model";
 import { partnerDetailFromRows, partnerWorkspaceFromRows } from "./read";
 
 // Righe → modello della pagina (read.ts) con i dati sintetici dell'anteprima (00-sequenza §1.5).
 const TODAY = "2026-10-22";
 const rows = () => partnerFixtureRows(TODAY);
+/** Il blocco dell'assistente letto, quando c'è: né «non attivo» né `null`. */
+const view = (detail: { assistant: unknown } | null | undefined) =>
+  detail?.assistant as PartnerAssistantContactView | undefined;
 const workspaceRows = (change: (r: ReturnType<typeof rows>) => void = () => {}) => {
   const r = rows();
   change(r);
@@ -134,11 +141,11 @@ describe("anteprima locale di Partner", () => {
   });
 
   it("blocco dell'assistente: bozza pronta, Serve Tommi, interruttore fermo, vuoto senza lavoro", () => {
-    const ready = partnerFixtureDetail(2, TODAY)!.assistant!;
+    const ready = view(partnerFixtureDetail(2, TODAY))!;
     expect(ready.job?.status).toBe("pronta");
     expect(ready.draft?.toAddress).toBe("info@raduno-due.example.test");
     expect(ready.choice?.proposedEmail).toBe("booking@raduno-due.example.test");
-    expect(partnerFixtureDetail(1, TODAY)?.assistant?.job).toMatchObject({
+    expect(view(partnerFixtureDetail(1, TODAY))?.job).toMatchObject({
       status: "serve_tommaso",
       reason: "fatto_mancante",
     });
@@ -259,7 +266,9 @@ describe("controlli di coerenza della lettura", () => {
         draft: mine(a.drafts)[0] ?? null,
       };
     };
-    const detailRows = (assistant: PartnerAssistantRows | null) => ({
+    const detailRows = (
+      assistant: PartnerAssistantRows | typeof PARTNER_ASSISTANT_INACTIVE | null,
+    ) => ({
       partner,
       contacts: mine(r.contacts),
       variants: mine(r.variants),
@@ -272,9 +281,7 @@ describe("controlli di coerenza della lettura", () => {
       deviceImports: [],
       assistant,
     });
-    expect(partnerDetailFromRows(2, detailRows(assistantRows())).assistant?.job?.status).toBe(
-      "pronta",
-    );
+    expect(view(partnerDetailFromRows(2, detailRows(assistantRows())))?.job?.status).toBe("pronta");
     // Tabelle non leggibili (per esempio prima delle migrazioni): il server passa null.
     const unreadable = partnerDetailFromRows(2, detailRows(null));
     expect(unreadable.assistant).toBeNull();
@@ -310,5 +317,17 @@ describe("controlli di coerenza della lettura", () => {
     expect(
       partnerDetailFromRows(2, detailRows({ ...orphan, job: null, switch: null })).assistant,
     ).toBeNull();
+    // Migrazioni non ancora applicate: il blocco non c'è, senza avviso; la scheda resta.
+    const inactive = partnerDetailFromRows(2, detailRows(PARTNER_ASSISTANT_INACTIVE));
+    expect(inactive.assistant).toBe(PARTNER_ASSISTANT_INACTIVE);
+    expect(inactive.contacts).toHaveLength(4);
+    // Solo le righe non valide (PartnerReadError) annullano il blocco: un altro errore è un bug
+    // e risale, come ogni errore della scheda.
+    expect(() =>
+      partnerDetailFromRows(
+        2,
+        detailRows({ ...assistantRows(), notes: null as unknown as readonly unknown[] }),
+      ),
+    ).toThrow(TypeError);
   });
 });

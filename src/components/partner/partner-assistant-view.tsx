@@ -1,11 +1,11 @@
 "use client";
 
 import Link from "next/link";
-import { useId, useState, type FormEvent } from "react";
+import { useId, useMemo, useState, type FormEvent } from "react";
 import {
+  PARTNER_ASSISTANT_COUNT_LABELS,
   PARTNER_ASSISTANT_MODE_LABELS,
   PARTNER_ASSISTANT_RULES_FIRST_AUTHOR,
-  PARTNER_ASSISTANT_STATUS_LABELS,
   formatPartnerAssistantUsd,
   parsePartnerAssistantCredit,
   partnerAssistantEventLabel,
@@ -23,10 +23,9 @@ import {
   formatCo,
   hasControlCharacters,
   type PartnerMember,
-  type PartnerSummary,
 } from "../../lib/partner/model";
 import { CommandFeedback, PartnerPendingRecovery, usePartnerCommand } from "./partner-command";
-import { PartnerProvider, usePartnerContext } from "./partner-context";
+import { PartnerProvider, usePartnerContext, type PartnerContextPartner } from "./partner-context";
 import { CopyButton } from "./copy-button";
 import { PartnerRuleText } from "./partner-rules";
 import styles from "./partner.module.css";
@@ -44,7 +43,6 @@ const ASSISTANT_ONLY = [
   "save_partner_assistant_rules",
 ] as const;
 const NO_MEMBERS: PartnerMember[] = [];
-const NO_PARTNERS: PartnerSummary[] = [];
 const RULES_MAX = 100000;
 
 const MODE_SENTENCES: Record<PartnerAssistantMode, string> = {
@@ -55,12 +53,12 @@ const MODE_SENTENCES: Record<PartnerAssistantMode, string> = {
 };
 
 const QUEUE = [
-  ["inCoda", PARTNER_ASSISTANT_STATUS_LABELS.in_coda],
-  ["attesa", PARTNER_ASSISTANT_STATUS_LABELS.attesa],
-  ["pronta", PARTNER_ASSISTANT_STATUS_LABELS.pronta],
-  ["serveTommaso", PARTNER_ASSISTANT_STATUS_LABELS.serve_tommaso],
-  ["ferma", "Fermati dal team"],
-] as const satisfies readonly (readonly [keyof PartnerAssistantStatus["counts"], string])[];
+  "inCoda",
+  "attesa",
+  "pronta",
+  "serveTommaso",
+  "ferma",
+] as const satisfies readonly (keyof PartnerAssistantStatus["counts"])[];
 
 /** «oggi», «ieri» o «16 ottobre» (con l'anno se non è quello di oggi). */
 const dayName = (day: string, today: string) =>
@@ -97,13 +95,24 @@ export function PartnerAssistantView({
   preview: boolean;
   userId: string | null;
 }) {
+  // I contatti di «Da vedere»: un invio incerto, ripreso dopo un ricaricamento, li scrive con CO
+  // e nome.
+  const partners = useMemo<PartnerContextPartner[]>(
+    () =>
+      status.toReview.flatMap((item) =>
+        Object.hasOwn(partnerIds, item.co)
+          ? [{ id: partnerIds[item.co], co: item.co, name: item.name }]
+          : [],
+      ),
+    [status.toReview, partnerIds],
+  );
   return (
     <PartnerProvider
       preview={preview}
       userId={userId}
       today={today}
       members={NO_MEMBERS}
-      partners={NO_PARTNERS}
+      partners={partners}
     >
       <div className={styles.workspace}>
         <header className={styles.heading}>
@@ -201,6 +210,13 @@ function AssistantState({
   );
 }
 
+/** Il credito salvato com'è scritto nel campo, con la virgola: «40,5». */
+const creditText = (value: number | null) =>
+  value === null ? "" : String(value).replace(".", ",");
+
+/** Credito scritto e non salvato, con la versione delle impostazioni da cui è partito. */
+type CreditDraft = { value: string; base: number };
+
 function AssistantMode({ status, now }: { status: PartnerAssistantStatus; now: string }) {
   const { preview } = usePartnerContext();
   const command = usePartnerCommand("assistente-modalita");
@@ -208,25 +224,39 @@ function AssistantMode({ status, now }: { status: PartnerAssistantStatus; now: s
   const creditId = useId();
   const creditErrorId = useId();
   const creditHintId = useId();
-  const [credit, setCredit] = useState(
-    status.startingCreditUsd === null ? "" : String(status.startingCreditUsd),
-  );
+  const [draft, setDraft] = useState<CreditDraft | null>(null);
   const [creditError, setCreditError] = useState<string | null>(null);
-  const paused = status.pausedReason !== null;
+  // Il valore non salvato messo da parte quando sono arrivate impostazioni nuove.
+  const [kept, setKept] = useState<string | null>(null);
+  const saved = creditText(status.startingCreditUsd);
+  // La pagina riletta (dopo un comando qualunque o un 40001) porta una versione nuova: il credito
+  // salvato va nel campo e il tuo valore, partito da una versione superata, resta da parte (come
+  // le regole). Se il credito salvato è proprio il tuo, era il tuo salvataggio. Stato aggiornato
+  // durante il render: React rifà subito il render.
+  if (draft !== null && draft.base !== status.version) {
+    if (parsePartnerAssistantCredit(draft.value) !== status.startingCreditUsd) setKept(draft.value);
+    setDraft(null);
+    setCreditError(null);
+  }
+  const credit = draft?.value ?? saved;
   // «Prepara» rimette in moto anche dalla stessa modalità: toglie la pausa e l'attesa.
-  const restart = paused || waitingNow(status, now);
+  const restart = status.pausedReason !== null || waitingNow(status, now);
   const locked = preview || command.busy;
+  /** La modalità in vigore non si spegne: resta piena, e il clic non fa niente. */
+  const idle = (mode: PartnerAssistantMode) =>
+    mode === status.mode && !(mode === "prepara" && restart);
   const disabled = (mode: PartnerAssistantMode) => {
     if (locked) return true;
-    if (mode === "spento") return status.mode === "spento";
-    if (mode === "prepara") return !status.configured || (status.mode === "prepara" && !restart);
+    if (mode === "spento") return false;
+    if (mode === "prepara") return !status.configured;
     // «Prova» e «Invio» arrivano con la seconda consegna.
     return true;
   };
   // Il credito si salva con la modalità in vigore: lo accettano solo «Spento» e «Prepara».
   const creditMode = status.mode === "spento" || status.mode === "prepara" ? status.mode : null;
+  // Come «Prepara»: dopo una pausa o durante un'attesa il salvataggio rimette in moto.
   const creditLabel =
-    paused && creditMode === "prepara" ? "Salva il credito e riparti" : "Salva il credito";
+    restart && creditMode === "prepara" ? "Salva il credito e riparti" : "Salva il credito";
 
   function saveCredit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -237,10 +267,13 @@ function AssistantMode({ status, now }: { status: PartnerAssistantStatus; now: s
       return;
     }
     setCreditError(null);
+    // La versione da cui è partito il valore: se nel frattempo un collega ha cambiato le
+    // impostazioni, il comando lo rifiuta invece di sovrascriverle. Dopo il salvataggio la bozza
+    // la chiude la pagina riletta (sopra).
     command.run("set_partner_assistant_mode", {
       schema_version: 1,
       mode: creditMode,
-      expected_version: status.version,
+      expected_version: draft?.base ?? status.version,
       starting_credit_usd: value,
     });
   }
@@ -260,13 +293,14 @@ function AssistantMode({ status, now }: { status: PartnerAssistantStatus; now: s
             aria-pressed={status.mode === mode}
             aria-describedby={mode === "prova" || mode === "invio" ? noteId : undefined}
             disabled={disabled(mode)}
-            onClick={() =>
+            onClick={() => {
+              if (idle(mode)) return;
               command.run("set_partner_assistant_mode", {
                 schema_version: 1,
                 mode,
                 expected_version: status.version,
-              })
-            }
+              });
+            }}
           >
             {PARTNER_ASSISTANT_MODE_LABELS[mode]}
           </button>
@@ -281,15 +315,18 @@ function AssistantMode({ status, now }: { status: PartnerAssistantStatus; now: s
           <input
             id={creditId}
             name="credito"
-            type="number"
+            type="text"
             inputMode="decimal"
-            min={0}
-            max={10000}
-            step={0.01}
+            autoComplete="off"
             value={credit}
             aria-invalid={creditError ? true : undefined}
             aria-describedby={creditError ? `${creditHintId} ${creditErrorId}` : creditHintId}
-            onChange={(event) => setCredit(event.target.value)}
+            onChange={(event) => {
+              const value = event.target.value;
+              // La base resta quella da cui è partito il valore; tornato uguale, niente bozza.
+              setDraft(value === saved ? null : { value, base: draft?.base ?? status.version });
+              setKept(null);
+            }}
           />
         </label>
         <button
@@ -303,6 +340,12 @@ function AssistantMode({ status, now }: { status: PartnerAssistantStatus; now: s
       {creditError && (
         <p id={creditErrorId} className={styles.fieldError} role="alert">
           {creditError}
+        </p>
+      )}
+      {kept !== null && (
+        <p className={styles.hint}>
+          Mentre scrivevi sono cambiate le impostazioni dell'assistente: nel campo ora c'è il
+          credito salvato. Il tuo valore, non salvato: <span className="num">{kept}</span> USD.
         </p>
       )}
       <p id={creditHintId} className={styles.hint}>
@@ -319,16 +362,17 @@ function AssistantQueue({ counts }: { counts: PartnerAssistantStatus["counts"] }
     <section className={styles.dataSection} aria-labelledby="assistente-coda">
       <h2 id="assistente-coda">Coda</h2>
       <dl className={styles.assistantCounts}>
-        {QUEUE.map(([key, label]) => (
+        {QUEUE.map((key) => (
           <div key={key}>
-            <dt>{label}</dt>
+            <dt>{PARTNER_ASSISTANT_COUNT_LABELS[key]}</dt>
             <dd className="num">{counts[key]}</dd>
           </div>
         ))}
       </dl>
       <p className={styles.hint}>
-        «Serve Tommi» sono i contatti in «Da vedere». «Fermati dal team» sono i contatti con
-        l'assistente fermo nella scheda: l'assistente non li tocca.
+        {`«${PARTNER_ASSISTANT_COUNT_LABELS.serveTommaso}» sono i contatti in «Da vedere». ` +
+          `«${PARTNER_ASSISTANT_COUNT_LABELS.ferma}» sono i contatti con l'assistente fermo nella ` +
+          "scheda: l'assistente non li tocca."}
       </p>
     </section>
   );
@@ -369,6 +413,8 @@ function AssistantSpend({ status }: { status: PartnerAssistantStatus }) {
   );
 }
 
+type ReviewEntry = PartnerAssistantStatus["toReview"][number];
+
 function AssistantReview({
   items,
   partnerIds,
@@ -378,6 +424,19 @@ function AssistantReview({
   partnerIds: Readonly<Record<number, string>>;
   today: string;
 }) {
+  const { preview } = usePartnerContext();
+  // Un solo comando per la sezione: la conferma resta qui anche quando la riga, ridata
+  // all'assistente, sparisce con la pagina riletta.
+  const command = usePartnerCommand("assistente-ridai");
+  const [sent, setSent] = useState<Pick<ReviewEntry, "co" | "name"> | null>(null);
+  const giveBack = (item: ReviewEntry, partnerId: string) => {
+    setSent({ co: item.co, name: item.name });
+    command.run("set_partner_assistant_contact", {
+      schema_version: 1,
+      partner_id: partnerId,
+      active: true,
+    });
+  };
   return (
     <section className={styles.dataSection} aria-labelledby="assistente-da-vedere">
       <h2 id="assistente-da-vedere">Da vedere</h2>
@@ -398,11 +457,22 @@ function AssistantReview({
                 item={item}
                 partnerId={Object.hasOwn(partnerIds, item.co) ? partnerIds[item.co] : null}
                 today={today}
+                disabled={preview || command.busy}
+                onGiveBack={giveBack}
               />
             ))}
           </ul>
         </>
       )}
+      <CommandFeedback
+        command={command}
+        focus
+        success={
+          sent
+            ? `${formatCo(sent.co)} · ${sent.name}: di nuovo all'assistente, riparte dalla ricerca.`
+            : undefined
+        }
+      />
     </section>
   );
 }
@@ -411,19 +481,22 @@ function ReviewItem({
   item,
   partnerId,
   today,
+  disabled,
+  onGiveBack,
 }: {
-  item: PartnerAssistantStatus["toReview"][number];
+  item: ReviewEntry;
   partnerId: string | null;
   today: string;
+  disabled: boolean;
+  onGiveBack: (item: ReviewEntry, partnerId: string) => void;
 }) {
-  const { preview } = usePartnerContext();
-  const command = usePartnerCommand(`assistente-ridai-${item.co}`);
   const day = instantDay(item.updatedAt);
   const when = day === null ? null : dayName(day, today);
+  const contact = `${formatCo(item.co)} · ${item.name}`;
   return (
     <li>
       <Link href={partnerHref({ co: item.co })} prefetch={false} className={styles.reviewName}>
-        {formatCo(item.co)} · {item.name}
+        {contact}
       </Link>
       <p>{partnerAssistantReasonLabel(item.reason)}</p>
       {when && (
@@ -436,20 +509,14 @@ function ReviewItem({
           <button
             type="button"
             className="button button-secondary"
-            disabled={preview || command.busy}
-            onClick={() =>
-              command.run("set_partner_assistant_contact", {
-                schema_version: 1,
-                partner_id: partnerId,
-                active: true,
-              })
-            }
+            aria-label={`Ridai all'assistente ${contact}`}
+            disabled={disabled}
+            onClick={() => onGiveBack(item, partnerId)}
           >
             Ridai all'assistente
           </button>
         </div>
       )}
-      <CommandFeedback command={command} compact />
     </li>
   );
 }

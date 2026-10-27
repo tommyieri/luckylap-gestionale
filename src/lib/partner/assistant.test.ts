@@ -1,17 +1,25 @@
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
 import { describe, expect, it } from "vitest";
-import { partnerAssistantSignature } from "../partner-assistant/checks";
 import {
+  partnerAssistantDraftSha256,
+  partnerAssistantSignature,
+} from "../partner-assistant/checks";
+import {
+  PARTNER_ASSISTANT_COUNT_LABELS,
   PARTNER_ASSISTANT_EVENT_LABELS,
+  PARTNER_ASSISTANT_INACTIVE,
   PARTNER_ASSISTANT_MODE_LABELS,
   PARTNER_ASSISTANT_REASON_LABELS,
   PARTNER_ASSISTANT_REQUEST_LABELS,
   PARTNER_ASSISTANT_STATUS_LABELS,
+  PARTNER_ASSISTANT_UNREADABLE,
   formatPartnerAssistantUsd,
+  isPartnerAssistantMissing,
   parsePartnerAssistantCredit,
   partnerAssistantContactFrom,
   partnerAssistantEventLabel,
+  partnerAssistantReasonInline,
   partnerAssistantReasonLabel,
   partnerAssistantRulesFrom,
   partnerAssistantStatusFrom,
@@ -372,9 +380,36 @@ describe("etichette in italiano", () => {
     });
   });
 
+  it("le etichette della coda e lo stato non leggibile stanno qui, non nei componenti", () => {
+    expect(PARTNER_ASSISTANT_COUNT_LABELS).toEqual({
+      inCoda: "In coda",
+      attesa: "In attesa della data",
+      pronta: "Bozza pronta",
+      serveTommaso: "Serve Tommi",
+      ferma: "Fermati dal team",
+    });
+    expect(PARTNER_ASSISTANT_UNREADABLE).toBe(
+      "Stato dell'assistente non leggibile: ricarica la pagina tra poco.",
+    );
+    // I componenti le importano: nessuna copia scritta a mano.
+    for (const file of [
+      "partner-assistant-view.tsx",
+      "partner-assistant-strip.tsx",
+      "partner-assistant-block.tsx",
+    ]) {
+      const source = readFileSync(join(ROOT, "src/components/partner", file), "utf8");
+      expect(source, file).not.toContain('"Fermati dal team"');
+      expect(source, file).not.toContain("non leggibile: ricarica");
+    }
+  });
+
   it("una frase per ogni motivo del brief, della SQL e del worker", () => {
     const sql = readFileSync(
       join(ROOT, "supabase/migrations/20261027140533_assistente_partner_worker.sql"),
+      "utf8",
+    );
+    const commands = readFileSync(
+      join(ROOT, "supabase/migrations/20261027133105_assistente_partner.sql"),
       "utf8",
     );
     const worker = readFileSync(join(ROOT, "src/lib/partner-assistant/worker.ts"), "utf8");
@@ -387,6 +422,8 @@ describe("etichette in italiano", () => {
       ...all(sql, /'reason', array\[([^\]]*)\]/g).flatMap((list) => all(list, /'([a-z_]+)'/g)),
       ...all(sql, /'status', 'stop', 'reason', '([a-z_]+)'/g),
       ...all(sql, /'status', '(contesto_cambiato)'/g),
+      // La cancellazione definitiva di un recapito (comandi del team).
+      ...all(commands, /reason = case [^;]*? else '([a-z_]+)' end/g),
     ];
     const fromWorker = all(worker, /fail\("[a-z]+", "([a-z_]+)"\)/g);
     expect(fromSql).toEqual(
@@ -399,6 +436,7 @@ describe("etichette in italiano", () => {
         "lease_persa",
         "non_idoneo",
         "contesto_cambiato",
+        "dato_cancellato",
       ]),
     );
     expect(fromWorker).toEqual(
@@ -424,6 +462,22 @@ describe("etichette in italiano", () => {
       expect(partnerAssistantReasonLabel(reason)).toBe(label);
     }
     expect(partnerAssistantReasonLabel("motivo_nuovo")).toBe("Motivo non riconosciuto.");
+    expect(PARTNER_ASSISTANT_REASON_LABELS.dato_cancellato).toBe(
+      "Un dato del contatto è stato cancellato: ridallo all'assistente se vuoi rifare ricerca e bozza.",
+    );
+  });
+
+  it("dopo i due punti il motivo comincia in minuscolo, tranne i nomi", () => {
+    expect(partnerAssistantReasonInline("fatto_mancante")).toBe(
+      "la ricerca non ha trovato un fatto vero e recente da citare.",
+    );
+    expect(partnerAssistantReasonInline("dato_cancellato")).toBe(
+      "un dato del contatto è stato cancellato: ridallo all'assistente se vuoi rifare ricerca e bozza.",
+    );
+    expect(partnerAssistantReasonInline("risposta_non_valida")).toBe(
+      "Claude ha dato una risposta non valida, rifiutata o incompleta.",
+    );
+    expect(partnerAssistantReasonInline("motivo_nuovo")).toBe("motivo non riconosciuto.");
   });
 
   it("una frase breve per ogni esito degli eventi; un esito sconosciuto resta il codice", () => {
@@ -505,12 +559,12 @@ describe("etichette in italiano", () => {
 describe("credito di partenza scritto nella pagina", () => {
   it("da 0 a 10.000 dollari, con al massimo due decimali, virgola o punto", () => {
     expect(parsePartnerAssistantCredit("25")).toBe(25);
-    expect(parsePartnerAssistantCredit(" 92,05 ")).toBe(92.05);
+    expect(parsePartnerAssistantCredit(" 37,45 ")).toBe(37.45);
     expect(parsePartnerAssistantCredit("92.5")).toBe(92.5);
     expect(parsePartnerAssistantCredit("0")).toBe(0);
     expect(parsePartnerAssistantCredit("10000")).toBe(10000);
     // Come lo legge il comando: String(value) con al massimo due decimali.
-    for (const value of ["25", "92,05", "0,1", "9999,99"])
+    for (const value of ["25", "37,45", "0,1", "9999,99"])
       expect(String(parsePartnerAssistantCredit(value))).toMatch(/^\d+(\.\d{1,2})?$/);
   });
 
@@ -544,6 +598,19 @@ describe("dati sintetici dell'assistente", () => {
     });
   });
 
+  it("la bozza sintetica ha l'impronta vera di oggetto, corpo e firma", () => {
+    for (const today of [TODAY, "2026-12-31"]) {
+      const drafts = partnerAssistantFixtureRows(today).drafts;
+      expect(drafts.length).toBeGreaterThan(0);
+      for (const draft of drafts)
+        expect(draft.sha256).toBe(
+          partnerAssistantDraftSha256(
+            draft as unknown as { subject: string; body: string; signature: string },
+          ),
+        );
+    }
+  });
+
   it("solo dati sintetici: email example.test, telefono +39 000 000 0000, link example.test", () => {
     for (const today of [TODAY, "2026-12-31"]) {
       const text = JSON.stringify(partnerAssistantFixtureRows(today));
@@ -560,5 +627,28 @@ describe("dati sintetici dell'assistente", () => {
         );
       expect(text).not.toMatch(/Tommi\b/);
     }
+  });
+});
+
+describe("migrazioni dell'assistente non ancora applicate", () => {
+  it("funzione o tabella mancante, da PostgREST o da PostgreSQL: assistente non attivo", () => {
+    for (const code of ["PGRST202", "PGRST205", "42883", "42P01"])
+      expect(isPartnerAssistantMissing({ code, message: "sintetico" }), code).toBe(true);
+    expect(PARTNER_ASSISTANT_INACTIVE).toBe("non_attivo");
+  });
+
+  it("gli altri errori restano errori veri", () => {
+    for (const error of [
+      { code: "40001", message: "partner_changed" },
+      { code: "PGRST301", message: "JWT" },
+      { code: "42501", message: "permessi" },
+      { message: "boom" },
+      { code: 42883 },
+      new Error("rete"),
+      "PGRST202",
+      null,
+      undefined,
+    ])
+      expect(isPartnerAssistantMissing(error), JSON.stringify(error)).toBe(false);
   });
 });

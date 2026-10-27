@@ -261,7 +261,9 @@ describe("Partner", () => {
   it("dice che per ora l'assistente prepara solo bozze e non manda niente", () => {
     const copy = text(part(everyone));
     expect(copy).toContain("Per ora prepara solo le bozze e non manda niente");
-    expect(copy).not.toMatch(/l’assistente (manda|invia)/i);
+    // Apostrofo dritto e tipografico: la guida li usa tutti e due.
+    expect(copy).not.toMatch(/l['’]assistente (manda|invia)/i);
+    expect("l'assistente manda").toMatch(/l['’]assistente (manda|invia)/i);
   });
 
   it("dice come fermarlo, del tutto o su un contatto, e chi lo può fare", () => {

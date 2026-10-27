@@ -4,8 +4,10 @@
 // righe sintetiche di fixtures.ts. Stesso percorso, stessi controlli: righe non valide,
 // riferimenti a contatti che non ci sono o doppioni danno PartnerReadError, mai dati parziali.
 import {
+  PARTNER_ASSISTANT_INACTIVE,
   partnerAssistantContactFrom,
   type PartnerAssistantContactView,
+  type PartnerAssistantInactive,
   type PartnerAssistantRows,
 } from "./assistant";
 import { partnerDomain } from "./contacts";
@@ -142,8 +144,11 @@ export type PartnerDetailRows = {
   blocks: readonly unknown[];
   /** File dei dispositivi citati da registro e differenze. */
   deviceImports: readonly unknown[];
-  /** Righe dell'assistente; `null` se non si sono lette (per esempio prima delle migrazioni). */
-  assistant: PartnerAssistantRows | null;
+  /**
+   * Righe dell'assistente; `null` se non si sono lette, PARTNER_ASSISTANT_INACTIVE se le tabelle
+   * non ci sono ancora (prima delle migrazioni).
+   */
+  assistant: PartnerAssistantRows | PartnerAssistantInactive | null;
 };
 
 /**
@@ -151,17 +156,20 @@ export type PartnerDetailRows = {
  * cioè righe non lette o non valide (anche un valore sconosciuto, come una proposta fuori elenco),
  * e la scheda resta leggibile. Un contatto senza lavoro né interruttore ha righe lette e vuote: il
  * blocco c'è, con l'interruttore attivo e `job: null`, così chi lo mostra non confonde i due casi.
+ * Senza migrazioni il blocco è PARTNER_ASSISTANT_INACTIVE e non si mostra. Un errore che non è
+ * PartnerReadError è un bug, non un dato: risale, come ogni errore della scheda.
  */
 function assistantOf(
   partnerId: string,
   contacts: readonly PartnerContact[],
-  rows: PartnerAssistantRows | null,
-): PartnerAssistantContactView | null {
-  if (rows === null) return null;
+  rows: PartnerAssistantRows | PartnerAssistantInactive | null,
+): PartnerAssistantContactView | PartnerAssistantInactive | null {
+  if (rows === null || rows === PARTNER_ASSISTANT_INACTIVE) return rows;
   try {
     return partnerAssistantContactFrom({ ...rows, partnerId, contacts });
-  } catch {
-    return null;
+  } catch (error) {
+    if (error instanceof PartnerReadError) return null;
+    throw error;
   }
 }
 

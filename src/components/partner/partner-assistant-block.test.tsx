@@ -80,7 +80,10 @@ vi.mock("../../app/(workspace)/partner/dati/actions", () => ({
 import { PartnerAssistantBlock } from "./partner-assistant-block";
 import { PartnerProvider } from "./partner-context";
 import styles from "./partner.module.css";
-import type { PartnerAssistantContactView } from "../../lib/partner/assistant";
+import {
+  PARTNER_ASSISTANT_INACTIVE,
+  type PartnerAssistantContactView,
+} from "../../lib/partner/assistant";
 import {
   PARTNER_FIXTURE_MEMBER_ID,
   partnerFixtureDetail,
@@ -117,7 +120,9 @@ function expand(node: unknown): unknown {
 function render(
   co: number,
   options: {
-    assistant?: (view: PartnerAssistantContactView) => PartnerAssistantContactView | null;
+    assistant?: (
+      view: PartnerAssistantContactView,
+    ) => PartnerAssistantContactView | typeof PARTNER_ASSISTANT_INACTIVE | null;
     partner?: Partial<PartnerSummary>;
     preview?: boolean;
   } = {},
@@ -126,7 +131,8 @@ function render(
   mocks.contexts = [];
   const detail = partnerFixtureDetail(co, TODAY)!;
   const partner = { ...workspace.partners.find((item) => item.co === co)!, ...options.partner };
-  const assistant = options.assistant ? options.assistant(detail.assistant!) : detail.assistant;
+  const view = detail.assistant as PartnerAssistantContactView;
+  const assistant = options.assistant ? options.assistant(view) : detail.assistant;
   const preview = options.preview ?? false;
   return expand(
     <PartnerProvider
@@ -262,7 +268,7 @@ describe("PartnerAssistantBlock", () => {
       "Oggetto",
       "Raduno Sintetico Due and LuckyLap",
     ]);
-    const saved = partnerFixtureDetail(2, TODAY)!.assistant!.draft!;
+    const saved = (partnerFixtureDetail(2, TODAY)!.assistant as PartnerAssistantContactView).draft!;
     const texts = descendants(draft)
       .filter((node) => node.type === "p")
       .map((node) => text(node));
@@ -295,8 +301,10 @@ describe("PartnerAssistantBlock", () => {
   it("«Serve Tommi»: il motivo in ambra, e perché l'assistente non lo prende più", () => {
     const tree = render(1);
     const serve = paragraph(tree, "Serve Tommi");
+    // Minuscola dopo i due punti; il contatto non è più idoneo, e lo dice.
     expect(words(serve)).toBe(
-      "Serve Tommi: La ricerca non ha trovato un fatto vero e recente da citare.",
+      "Serve Tommi: la ricerca non ha trovato un fatto vero e recente da citare. " +
+        "Il contatto non è più seguito dall'assistente.",
     );
     expect(serve.props.className).toBe(styles.noteAmber);
     expect(words(paragraph(tree, "non lo prende"))).toBe(
@@ -320,6 +328,79 @@ describe("PartnerAssistantBlock", () => {
     expect(words(paragraph(tree, "In attesa della data"))).toBe(
       "In attesa della data: scrive dal 3 dicembre.",
     );
+  });
+
+  it("«Serve Tommi» di un contatto ancora idoneo: solo il motivo", () => {
+    const tree = render(2, {
+      assistant: (view) => ({
+        ...view,
+        job: { ...view.job!, status: "serve_tommaso", reason: "dato_cancellato" },
+        draft: null,
+      }),
+    });
+    expect(words(paragraph(tree, "Serve Tommi"))).toBe(
+      "Serve Tommi: un dato del contatto è stato cancellato: ridallo all'assistente se vuoi " +
+        "rifare ricerca e bozza.",
+    );
+  });
+
+  it("in coda ma non idoneo: non promette i prossimi giri, dice finché cosa", () => {
+    const tree = render(1, {
+      assistant: (view) => ({ ...view, job: { ...view.job!, status: "in_coda", reason: null } }),
+    });
+    expect(words(paragraph(tree, "In coda"))).toBe(
+      "In coda, ma l'assistente non lo prende finché resta così: è seguito da Ada Prova, non è " +
+        "più «Da contattare», ha una prossima azione e il team ci ha già lavorato.",
+    );
+    expect(words(tree)).not.toContain("nei prossimi giri");
+    // I motivi stanno in una frase sola.
+    expect(words(tree)).not.toContain("L'assistente non lo prende:");
+  });
+
+  it("in coda o in attesa con l'assistente fermo sul contatto: non lo prende", () => {
+    const stopped = (status: "in_coda" | "attesa") =>
+      render(2, {
+        assistant: (view) => ({
+          ...view,
+          active: false,
+          switchVersion: 1,
+          job: { ...view.job!, status, writeOn: status === "attesa" ? "2026-12-03" : null },
+          draft: null,
+        }),
+      });
+    expect(words(paragraph(stopped("in_coda"), "In coda"))).toBe(
+      "In coda, ma l'assistente non lo prende finché resta così: è fermato dal team.",
+    );
+    const waiting = stopped("attesa");
+    expect(words(paragraph(waiting, "In attesa della data"))).toBe(
+      "In attesa della data, ma l'assistente non lo prende finché resta così: è fermato dal team.",
+    );
+    expect(words(waiting)).not.toContain("scrive dal");
+    expect(words(waiting)).toContain("Assistente su questo contatto: fermo");
+  });
+
+  it("bozza pronta con l'assistente fermo sul contatto: lo dice", () => {
+    const tree = render(2, { assistant: (view) => ({ ...view, active: false, switchVersion: 1 }) });
+    expect(words(paragraph(tree, "Bozza pronta"))).toBe(
+      "Bozza pronta: la trovi qui sotto. Per ora l'assistente non manda niente. " +
+        "Il contatto non è più seguito dall'assistente.",
+    );
+  });
+
+  it("senza email del gestionale non dice dove va la bozza", () => {
+    const tree = render(2, {
+      assistant: (view) => ({ ...view, draft: { ...view.draft!, toAddress: null } }),
+    });
+    expect(words(paragraph(tree, "Indirizzo trovato dalla ricerca"))).toBe(
+      "Indirizzo trovato dalla ricerca (proposta): booking@raduno-due.example.test.",
+    );
+    expect(words(tree)).not.toContain("La bozza va all'email del gestionale");
+  });
+
+  it("migrazioni dell'assistente non ancora applicate: nessun blocco, nessun avviso", () => {
+    const tree = render(2, { assistant: () => PARTNER_ASSISTANT_INACTIVE });
+    expect(descendants(tree).some((node) => typeof node.type === "string")).toBe(false);
+    expect(words(tree)).toBe("");
   });
 
   it("in coda: lo dice", () => {

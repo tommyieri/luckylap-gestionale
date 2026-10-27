@@ -14,6 +14,8 @@ const mocks = vi.hoisted(() => ({
   index: 0,
   contexts: [] as { context: unknown; value: unknown }[],
   transitions: [] as Promise<unknown>[],
+  /** Comando in corso: useTransition lo dà come `pending`. */
+  pending: false,
   setMode: vi.fn(),
   other: vi.fn(),
 }));
@@ -40,7 +42,7 @@ vi.mock("react", async () => {
     useMemo: (fn: () => unknown) => fn(),
     useId: () => "campo",
     useTransition: () => [
-      false,
+      mocks.pending,
       (fn: () => unknown) => {
         mocks.transitions.push(Promise.resolve(fn()));
       },
@@ -80,7 +82,10 @@ vi.mock("../../app/(workspace)/partner/dati/actions", () => ({
 import { PartnerAssistantStrip } from "./partner-assistant-strip";
 import { PartnerProvider } from "./partner-context";
 import styles from "./partner.module.css";
-import type { PartnerAssistantStatus } from "../../lib/partner/assistant";
+import {
+  PARTNER_ASSISTANT_INACTIVE,
+  type PartnerAssistantStatus,
+} from "../../lib/partner/assistant";
 import { PARTNER_FIXTURE_MEMBER_ID, partnerAssistantFixture } from "../../lib/partner/fixtures";
 
 type Element = ReactElement<Record<string, unknown>>;
@@ -107,9 +112,12 @@ function expand(node: unknown): unknown {
   return { type: element.type, props: { ...element.props, children } };
 }
 
-/** La striscia con lo stato sintetico cambiato; `null` è lo stato non leggibile. */
+/**
+ * La striscia con lo stato sintetico cambiato; `null` è lo stato non leggibile,
+ * PARTNER_ASSISTANT_INACTIVE l'assistente senza migrazioni.
+ */
 function render(
-  status: Partial<PartnerAssistantStatus> | null = {},
+  status: Partial<PartnerAssistantStatus> | null | typeof PARTNER_ASSISTANT_INACTIVE = {},
   { preview = false }: { preview?: boolean } = {},
 ) {
   mocks.index = 0;
@@ -122,7 +130,13 @@ function render(
       members={[]}
       partners={[]}
     >
-      <PartnerAssistantStrip status={status === null ? null : { ...fixture, ...status }} />
+      <PartnerAssistantStrip
+        status={
+          status === null || status === PARTNER_ASSISTANT_INACTIVE
+            ? status
+            : { ...fixture, ...status }
+        }
+      />
     </PartnerProvider>,
   );
 }
@@ -159,6 +173,7 @@ beforeEach(() => {
   vi.clearAllMocks();
   mocks.states = [];
   mocks.transitions = [];
+  mocks.pending = false;
   vi.stubGlobal("crypto", { randomUUID: vi.fn(() => OPERATION) });
   mocks.setMode.mockResolvedValue({
     status: "uncertain",
@@ -193,6 +208,21 @@ describe("PartnerAssistantStrip", () => {
       retry: false,
     });
     expect(mocks.other).not.toHaveBeenCalled();
+  });
+
+  it("mentre «Ferma l'assistente» è in corso il pulsante dice «Fermo…» ed è spento", () => {
+    mocks.pending = true;
+    const tree = render();
+    const waiting = buttons(tree).filter((node) => text(node).trim() === "Fermo…");
+    expect(waiting).toHaveLength(1);
+    expect(waiting[0].props.disabled).toBe(true);
+    expect(stop(tree)).toEqual([]);
+  });
+
+  it("migrazioni non ancora applicate: nessuna striscia, nessun avviso", () => {
+    const tree = render(PARTNER_ASSISTANT_INACTIVE);
+    expect(descendants(tree).some((node) => typeof node.type === "string")).toBe(false);
+    expect(words(tree)).toBe("");
   });
 
   it("«Spento»: fondo ambra con la parola scritta e nessun pulsante per fermarlo", () => {

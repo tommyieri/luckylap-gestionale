@@ -1,3 +1,5 @@
+import { readFileSync } from "node:fs";
+import { join } from "node:path";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type { ReactElement } from "react";
 
@@ -183,6 +185,10 @@ const rulesArea = (tree: unknown) =>
   descendants(tree).find((node) => node.type === "textarea" && node.props.name === "regole")!;
 const typeRules = (tree: unknown, value: string) =>
   (rulesArea(tree).props.onChange as (event: unknown) => void)({ target: { value } });
+const creditInput = (tree: unknown) =>
+  descendants(tree).find((node) => node.type === "input" && node.props.name === "credito")!;
+const typeCredit = (tree: unknown, value: string) =>
+  (creditInput(tree).props.onChange as (event: unknown) => void)({ target: { value } });
 const command = (kind: string, payload: Record<string, unknown>) => ({
   kind,
   operationId: OPERATION,
@@ -225,13 +231,28 @@ describe("PartnerAssistantView", () => {
     expect(button(tree, "Prepara").props["aria-pressed"]).toBe(true);
     expect(button(tree, "Spento").props["aria-pressed"]).toBe(false);
     expect(button(tree, "Spento").props.disabled).toBe(false);
-    // Già in «Prepara», senza pausa né attesa: niente da rimettere in moto.
-    expect(button(tree, "Prepara").props.disabled).toBe(true);
+    // Già in «Prepara», senza pausa né attesa: niente da rimettere in moto. Il pulsante resta
+    // pieno (non disabilitato, non sbiadito) e il clic non fa niente.
+    expect(button(tree, "Prepara").props.disabled).toBe(false);
+    click(button(tree, "Prepara"));
+    expect(mocks.setMode).not.toHaveBeenCalled();
+  });
+
+  it("la modalità in vigore resta piena anche quando i pulsanti sono spenti", () => {
+    const css = readFileSync(join(__dirname, "partner.module.css"), "utf8");
+    const rule = /\.act\[aria-pressed="true"\]:disabled[^{]*\{([^}]*)\}/.exec(css);
+    expect(rule?.[1]).toContain("opacity: 1");
+    expect(rule?.[1]).toContain("background: var(--ink)");
+    expect(rule?.[1]).toContain("color: var(--paper)");
   });
 
   it("«Prepara» chiama setPartnerAssistantMode con expected_version", () => {
     const tree = render({}, { mode: "spento", version: 7 });
-    expect(button(tree, "Spento").props.disabled).toBe(true);
+    // «Spento» è già in vigore: premuto, non disabilitato, il clic non manda niente.
+    expect(button(tree, "Spento").props["aria-pressed"]).toBe(true);
+    expect(button(tree, "Spento").props.disabled).toBe(false);
+    click(button(tree, "Spento"));
+    expect(mocks.setMode).not.toHaveBeenCalled();
     click(button(tree, "Prepara"));
     expect(mocks.setMode).toHaveBeenCalledExactlyOnceWith(
       command("set_partner_assistant_mode", { mode: "prepara", expected_version: 7 }),
@@ -362,12 +383,14 @@ describe("PartnerAssistantView", () => {
     expect(words(tree)).not.toContain("salva il credito nuovo");
   });
 
-  it("credito di partenza: campo numerico, salvato con la modalità e la versione", () => {
+  it("credito di partenza: campo di testo con la tastiera dei decimali, salvato con la modalità e la versione", () => {
     let tree = render();
     const input = descendants(tree).find(
       (node) => node.type === "input" && node.props.name === "credito",
     )!;
-    expect(input.props).toMatchObject({ type: "number", min: 0, max: 10000, step: 0.01 });
+    // Testo, non number: la virgola funziona anche in un browser inglese.
+    expect(input.props).toMatchObject({ type: "text", inputMode: "decimal" });
+    for (const key of ["min", "max", "step"]) expect(input.props[key], key).toBeUndefined();
     expect(input.props.value).toBe("25");
     (input.props.onChange as (event: unknown) => void)({ target: { value: "40,5" } });
     tree = render();
@@ -398,6 +421,74 @@ describe("PartnerAssistantView", () => {
     expect(formOf(tree, "Salva il credito e riparti")).toBeTruthy();
   });
 
+  it("anche in attesa dopo un errore di Claude il credito fa ripartire, detto sul pulsante", () => {
+    const tree = render({}, { backoffUntil: "2026-10-22T09:08:00Z" });
+    expect(formOf(tree, "Salva il credito e riparti")).toBeTruthy();
+    // Attesa già finita: niente da far ripartire.
+    expect(
+      formOf(render({}, { backoffUntil: "2026-10-22T08:00:00Z" }), "Salva il credito"),
+    ).toBeTruthy();
+  });
+
+  it("credito: un collega lo cambia, il campo si riallinea e il tuo valore resta a parte", () => {
+    typeCredit(render(), "40");
+    // Bruno salva 75 USD (versione 3); un comando qualunque della pagina la rilegge. Lo stato si
+    // aggiorna durante il render e React rifà subito il render.
+    const v3 = { version: 3, startingCreditUsd: 75 };
+    render({}, v3);
+    let tree = render({}, v3);
+    expect(creditInput(tree).props.value).toBe("75");
+    const mode = words(sectionOf(tree, "Modalità"));
+    expect(mode).toContain("Il tuo valore, non salvato: 40");
+    expect(mode).toContain("nel campo ora c'è il credito salvato");
+    // Riscritto, parte dalla versione 3: niente sovrascrive il credito di Bruno con la versione 2.
+    typeCredit(tree, "115");
+    tree = render({}, v3);
+    expect(words(sectionOf(tree, "Modalità"))).not.toContain("Il tuo valore");
+    submit(formOf(tree, "Salva il credito"));
+    expect(mocks.setMode).toHaveBeenCalledExactlyOnceWith(
+      command("set_partner_assistant_mode", {
+        mode: "prepara",
+        expected_version: 3,
+        starting_credit_usd: 115,
+      }),
+    );
+  });
+
+  it("credito: la versione mandata è quella da cui è partita la bozza", () => {
+    typeCredit(render(), "40");
+    submit(formOf(render(), "Salva il credito"));
+    expect(mocks.setMode).toHaveBeenCalledExactlyOnceWith(
+      command("set_partner_assistant_mode", {
+        mode: "prepara",
+        expected_version: 2,
+        starting_credit_usd: 40,
+      }),
+    );
+  });
+
+  it("credito: il proprio salvataggio riuscito non diventa un conflitto", async () => {
+    mocks.setMode.mockResolvedValue({
+      status: "success",
+      kind: "set_partner_assistant_mode",
+      operationId: OPERATION,
+      id: "93000000-0000-4000-8000-000000000004",
+      partnerId: null,
+      version: 3,
+      stage: null,
+      co: null,
+      message: "Modalità dell'assistente salvata.",
+    });
+    typeCredit(render(), "40,5");
+    submit(formOf(render(), "Salva il credito"));
+    await Promise.all(mocks.transitions);
+    const v3 = { version: 3, startingCreditUsd: 40.5 };
+    render({}, v3);
+    const tree = render({}, v3);
+    expect(creditInput(tree).props.value).toBe("40,5");
+    expect(words(tree)).not.toContain("Il tuo valore");
+  });
+
   it("da vedere: motivo, link alla scheda e «Ridai all'assistente»", () => {
     const tree = render();
     const review = sectionOf(tree, "Da vedere");
@@ -411,6 +502,52 @@ describe("PartnerAssistantView", () => {
     expect(descendants(item[0]).find((node) => node.type === "a")?.props.href).toBe(
       "/partner?co=1#lead-1",
     );
+  });
+
+  it("«Ridai all'assistente» dice il contatto a chi usa un lettore di schermo", () => {
+    const ridai = button(render(), "Ridai all'assistente");
+    expect(ridai.props["aria-label"]).toBe("Ridai all'assistente CO 001 · Garage Sintetico Uno");
+  });
+
+  it("«Ridai all'assistente»: la conferma resta nella sezione quando la riga sparisce, con il focus", async () => {
+    mocks.setContact.mockResolvedValue({
+      status: "success",
+      kind: "set_partner_assistant_contact",
+      operationId: OPERATION,
+      id: "93000000-0000-4000-8000-000000000005",
+      partnerId: partnerFixtureId(1),
+      version: 2,
+      stage: null,
+      co: null,
+      message: "Assistente aggiornato su questo contatto.",
+    });
+    click(button(render(), "Ridai all'assistente"));
+    await Promise.all(mocks.transitions);
+    // La pagina riletta non ha più il contatto in «Da vedere».
+    const tree = render({}, { toReview: [] });
+    const review = sectionOf(tree, "Da vedere");
+    expect(words(review)).toContain("Nessun contatto da vedere");
+    const outcome = descendants(review).find((node) => node.props.role === "status")!;
+    expect(words(outcome)).toBe(
+      "CO 001 · Garage Sintetico Uno: di nuovo all'assistente, riparte dalla ricerca.",
+    );
+    expect(outcome.props.tabIndex).toBe(-1);
+    const focus = vi.fn();
+    (outcome.props.ref as (node: unknown) => void)({ focus });
+    expect(focus).toHaveBeenCalledOnce();
+  });
+
+  it("i contatti di «Da vedere» arrivano al contesto: un invio incerto si legge con CO e nome", () => {
+    const provider = descendants(render()).find(
+      (node) => (node.props.value as { partnersById?: unknown } | undefined)?.partnersById,
+    )!;
+    const byId = (provider.props.value as { partnersById: ReadonlyMap<string, unknown> })
+      .partnersById;
+    expect(byId.get(partnerFixtureId(1))).toEqual({
+      id: partnerFixtureId(1),
+      co: 1,
+      name: "Garage Sintetico Uno",
+    });
   });
 
   it("«Ridai all'assistente» chiama setPartnerAssistantContact con active: true", () => {
@@ -515,7 +652,7 @@ describe("PartnerAssistantView", () => {
       status: "rejected",
       code: "partner_changed",
       message:
-        "Un collega ha appena modificato questo contatto. Ricarico i dati: controlla e riprova.",
+        "Un collega ha appena salvato una nuova versione delle regole. Ricarico i dati: controlla e riprova.",
       refresh: true,
     });
     typeRules(render(), "Regole di Ada.");
