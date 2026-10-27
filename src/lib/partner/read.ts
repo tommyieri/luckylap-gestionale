@@ -3,6 +3,11 @@
 // Il server legge le righe sotto RLS (server.ts) e le passa qui; l'anteprima locale passa le
 // righe sintetiche di fixtures.ts. Stesso percorso, stessi controlli: righe non valide,
 // riferimenti a contatti che non ci sono o doppioni danno PartnerReadError, mai dati parziali.
+import {
+  partnerAssistantContactFrom,
+  type PartnerAssistantContactView,
+  type PartnerAssistantRows,
+} from "./assistant";
 import { partnerDomain } from "./contacts";
 import {
   PARTNER_APPROACHES,
@@ -22,6 +27,7 @@ import {
   parsePartnerVariant,
   parsePartnerVariantSummary,
   type PartnerBlock,
+  type PartnerContact,
   type PartnerDetail,
   type PartnerDeviceImport,
   type PartnerMember,
@@ -136,7 +142,29 @@ export type PartnerDetailRows = {
   blocks: readonly unknown[];
   /** File dei dispositivi citati da registro e differenze. */
   deviceImports: readonly unknown[];
+  /** Righe dell'assistente; `null` se non si sono lette (per esempio prima delle migrazioni). */
+  assistant: PartnerAssistantRows | null;
 };
+
+/**
+ * Il blocco dell'assistente ha un controllo proprio: righe non lette o non valide (anche un valore
+ * sconosciuto, come una proposta fuori elenco) danno `null` e la scheda resta leggibile. `null`
+ * anche per un contatto senza lavoro né interruttore.
+ */
+function assistantOf(
+  partnerId: string,
+  contacts: readonly PartnerContact[],
+  rows: PartnerAssistantRows | null,
+): PartnerAssistantContactView | null {
+  if (rows === null) return null;
+  const present = (value: unknown) => value !== null && value !== undefined;
+  if (!present(rows.job) && !present(rows.switch)) return null;
+  try {
+    return partnerAssistantContactFrom({ ...rows, partnerId, contacts });
+  } catch {
+    return null;
+  }
+}
 
 export function partnerDetailFromRows(co: number, rows: PartnerDetailRows): PartnerDetail {
   const partner = parsePartnerDetailRow(rows.partner);
@@ -216,6 +244,7 @@ export function partnerDetailFromRows(co: number, rows: PartnerDetailRows): Part
       return { ...difference, device: source!.device, fileExportedAt: source!.exportedAt };
     }),
     blocks: [...blocks.values()],
+    assistant: assistantOf(partner.id, contacts, rows.assistant),
   };
 }
 

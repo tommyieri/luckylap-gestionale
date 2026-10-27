@@ -1,12 +1,14 @@
 import { describe, expect, it, vi } from "vitest";
 import type { SupabaseClient } from "@supabase/supabase-js";
 vi.mock("server-only", () => ({}));
-import { partnerFixtureId, partnerFixtureRows } from "./fixtures";
+import { partnerAssistantFixtureRows, partnerFixtureId, partnerFixtureRows } from "./fixtures";
 import {
   PARTNER_DETAIL_ACTIVITY_LIMIT,
   PARTNER_DETAIL_REVISION_LIMIT,
   PartnerUnavailableError,
   executePartnerCommand,
+  loadPartnerAssistantRules,
+  loadPartnerAssistantStatus,
   loadPartnerData,
   loadPartnerDetail,
   loadPartnerRules,
@@ -144,7 +146,13 @@ function fakeSupabase(
 
 function tables(extra: Partial<Record<string, Row[]>> = {}): Record<string, Row[]> {
   const r = partnerFixtureRows(TODAY);
+  const a = partnerAssistantFixtureRows(TODAY);
   return {
+    partner_assistant_contacts: a.switches,
+    partner_assistant_jobs: a.jobs,
+    partner_assistant_notes: a.notes,
+    partner_assistant_drafts: a.drafts,
+    partner_assistant_rules: a.rules,
     partners: r.partners,
     partner_contacts: r.contacts,
     partner_message_variants: r.variants,
@@ -288,6 +296,115 @@ describe("dettaglio di un contatto", () => {
   it("registro troncato: errore", async () => {
     await expect(
       loadPartnerDetail(fakeSupabase(tables(), { truncate: "partner_activities" }).client, 1),
+    ).rejects.toThrow(PartnerUnavailableError);
+  });
+});
+
+describe("assistente nella scheda", () => {
+  it("bozza pronta con le colonne dichiarate: niente lease, tentativi o motivo dell'interruttore", async () => {
+    const fake = fakeSupabase(tables());
+    const detail = (await loadPartnerDetail(fake.client, 2))!;
+    expect(detail.assistant?.job?.status).toBe("pronta");
+    expect(detail.assistant?.draft?.toAddress).toBe("info@raduno-due.example.test");
+    expect(detail.assistant?.research?.sources).toEqual([
+      "https://raduno-due.example.test/espositori",
+    ]);
+    const columns = (table: string) =>
+      fake.calls.filter((call) => call.table === table).flatMap((call) => call.columns.split(","));
+    expect(columns("partner_assistant_jobs")).not.toContain("lease_token");
+    expect(columns("partner_assistant_jobs")).not.toContain("attempts");
+    expect(columns("partner_assistant_contacts")).not.toContain("reason");
+    expect(columns("partner_assistant_drafts")).not.toContain("sha256");
+    // Solo le note e la bozza citate dal lavoro, solo di questo contatto.
+    const notes = fake.calls.find((call) => call.table === "partner_assistant_notes")!;
+    expect(notes.ops).toContainEqual(["eq", "partner_id", partnerFixtureId(2)]);
+    expect(notes.ops.find(([op]) => op === "in")?.[2]).toHaveLength(2);
+    const fermo = await loadPartnerDetail(fakeSupabase(tables()).client, 4);
+    expect(fermo?.assistant).toMatchObject({ active: false, switchVersion: 1, job: null });
+  });
+
+  it("contatto senza lavoro: assistant null, senza leggere note e bozze", async () => {
+    const fake = fakeSupabase(tables());
+    const detail = (await loadPartnerDetail(fake.client, 3))!;
+    expect(detail.assistant).toBeNull();
+    expect(fake.calls.some((call) => call.table === "partner_assistant_notes")).toBe(false);
+    expect(fake.calls.some((call) => call.table === "partner_assistant_drafts")).toBe(false);
+  });
+
+  it("errore sulle tabelle dell'assistente, anche prima delle migrazioni: assistant null, scheda leggibile", async () => {
+    for (const table of [
+      "partner_assistant_contacts",
+      "partner_assistant_jobs",
+      "partner_assistant_notes",
+      "partner_assistant_drafts",
+    ]) {
+      const detail = await loadPartnerDetail(
+        fakeSupabase(tables(), { failTable: table }).client,
+        2,
+      );
+      expect(detail?.partner.co, table).toBe(2);
+      expect(detail?.contacts, table).toHaveLength(4);
+      expect(detail?.assistant, table).toBeNull();
+    }
+    // Riga non valida (proposta sconosciuta): solo il blocco diventa null.
+    const data = tables();
+    const choice = data.partner_assistant_notes.find(
+      (note) => note.partner_id === partnerFixtureId(2) && note.kind === "scelta",
+    )!;
+    choice.content = { ...(choice.content as Row), request: "conto_vendita" };
+    const detail = await loadPartnerDetail(fakeSupabase(data).client, 2);
+    expect(detail?.assistant).toBeNull();
+    expect(detail?.variants).toHaveLength(1);
+    // Un errore del resto della scheda resta un errore.
+    await expect(
+      loadPartnerDetail(fakeSupabase(tables(), { failTable: "partner_contacts" }).client, 2),
+    ).rejects.toThrow(PartnerUnavailableError);
+  });
+});
+
+describe("stato e regole dell'assistente", () => {
+  const status = partnerAssistantFixtureRows(TODAY).status;
+
+  it("stato dalla RPC read_partner_assistant_status", async () => {
+    const fake = fakeSupabase(tables(), { rpc: () => ({ data: status, error: null }) });
+    const loaded = await loadPartnerAssistantStatus(fake.client);
+    expect(fake.rpcCalls.map((call) => call.name)).toEqual(["read_partner_assistant_status"]);
+    expect(loaded.mode).toBe("prepara");
+    expect(loaded.toReview[0]).toMatchObject({ co: 1, reason: "fatto_mancante" });
+  });
+
+  it("errore della RPC o risposta non valida: Partner non disponibile", async () => {
+    for (const rpc of [
+      () => ({ data: null, error: { code: "PGRST202", message: "not found" } }),
+      () => ({ data: { ...status, extra: true }, error: null }),
+      () => new Error("rete"),
+    ])
+      await expect(
+        loadPartnerAssistantStatus(fakeSupabase(tables(), { rpc }).client),
+      ).rejects.toThrow(PartnerUnavailableError);
+  });
+
+  it("regole: quella in vigore con il testo, la cronologia con gli autori", async () => {
+    const fake = fakeSupabase(tables());
+    const rules = await loadPartnerAssistantRules(fake.client);
+    expect(rules.current).toMatchObject({ version: 2, author: "Ada Prova" });
+    expect(rules.current.body).toContain("Regole sintetiche");
+    expect(rules.history.map((item) => [item.version, item.author])).toEqual([
+      [2, "Ada Prova"],
+      [1, "Regole iniziali"],
+    ]);
+    // La cronologia non legge i testi.
+    const history = fake.calls.filter(
+      (call) => call.table === "partner_assistant_rules" && !call.ops.some(([op]) => op === "eq"),
+    );
+    expect(history.flatMap((call) => call.columns.split(","))).not.toContain("body");
+    await expect(
+      loadPartnerAssistantRules(
+        fakeSupabase(tables(), { failTable: "partner_assistant_rules" }).client,
+      ),
+    ).rejects.toThrow(PartnerUnavailableError);
+    await expect(
+      loadPartnerAssistantRules(fakeSupabase(tables({ partner_assistant_rules: [] })).client),
     ).rejects.toThrow(PartnerUnavailableError);
   });
 });

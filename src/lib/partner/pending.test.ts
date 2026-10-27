@@ -149,7 +149,13 @@ describe("tentativi in sospeso", () => {
         assistant("set_partner_assistant_mode", { mode: "spento", expected_version: 4 }),
         null,
       ),
-    ).toEqual(["Modalità dell'assistente: «spento»"]);
+    ).toEqual(["Modalità dell'assistente: Spento"]);
+    expect(
+      pendingPartnerLines(
+        assistant("set_partner_assistant_mode", { mode: "prepara", expected_version: 4 }),
+        null,
+      ),
+    ).toEqual(["Modalità dell'assistente: Prepara"]);
     const partner = { partner_id: partnerFixtureId(1) };
     expect(
       pendingPartnerLines(

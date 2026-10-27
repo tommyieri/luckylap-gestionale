@@ -4,6 +4,7 @@ import { partnerActions } from "./contacts";
 import {
   PARTNER_FIXTURE_MEMBER_ID,
   PARTNER_PREVIEW_NOTICE,
+  partnerAssistantFixtureRows,
   partnerFixtureData,
   partnerFixtureDetail,
   partnerFixtureId,
@@ -12,6 +13,7 @@ import {
   partnerFixtureWorkspace,
   partnerLocalPreview,
 } from "./fixtures";
+import type { PartnerAssistantRows } from "./assistant";
 import { PartnerReadError } from "./model";
 import { partnerDetailFromRows, partnerWorkspaceFromRows } from "./read";
 
@@ -48,6 +50,8 @@ describe("anteprima locale di Partner", () => {
     expect(preview?.today).toBe(TODAY);
     expect(preview?.memberId).toBe(PARTNER_FIXTURE_MEMBER_ID);
     expect(preview?.workspace.partners).toHaveLength(6);
+    expect(preview?.assistant).toMatchObject({ mode: "prepara", configured: true });
+    expect(preview?.assistant.toReview.map((item) => item.co)).toEqual([1]);
     expect(PARTNER_PREVIEW_NOTICE).toBe(
       "Anteprima locale: dati sintetici, salvataggio disattivato.",
     );
@@ -129,6 +133,21 @@ describe("anteprima locale di Partner", () => {
     expect(partnerFixtureDetail(99, TODAY)).toBeNull();
   });
 
+  it("blocco dell'assistente: bozza pronta, Serve Tommi, interruttore fermo, null senza lavoro", () => {
+    const ready = partnerFixtureDetail(2, TODAY)!.assistant!;
+    expect(ready.job?.status).toBe("pronta");
+    expect(ready.draft?.toAddress).toBe("info@raduno-due.example.test");
+    expect(ready.choice?.proposedEmail).toBe("booking@raduno-due.example.test");
+    expect(partnerFixtureDetail(1, TODAY)?.assistant?.job).toMatchObject({
+      status: "serve_tommaso",
+      reason: "fatto_mancante",
+    });
+    expect(partnerFixtureDetail(4, TODAY)?.assistant).toMatchObject({ active: false, job: null });
+    // Contatti senza lavoro né interruttore: niente blocco dell'assistente.
+    for (const co of [3, 5, 6])
+      expect(partnerFixtureDetail(co, TODAY)?.assistant, `${co}`).toBe(null);
+  });
+
   it("dati e regole dell'ultimo import", () => {
     const data = partnerFixtureData(TODAY);
     expect(data.openDifferences).toBe(2);
@@ -194,6 +213,7 @@ describe("controlli di coerenza della lettura", () => {
       differences: [],
       blocks: [],
       deviceImports: [],
+      assistant: null,
     };
     expect(() => partnerDetailFromRows(1, detailRows)).toThrow(PartnerReadError);
     const withOld = {
@@ -215,5 +235,59 @@ describe("controlli di coerenza della lettura", () => {
         activityCount: 3,
       }),
     ).toThrow(PartnerReadError);
+  });
+
+  it("righe dell'assistente non leggibili o non valide: assistant null, la scheda resta leggibile", () => {
+    const r = rows();
+    const partner = r.partners[1];
+    const mine = <T extends { partner_id: string | null }>(items: T[]) =>
+      items.filter((item) => item.partner_id === partner.id);
+    const assistantRows = () => {
+      const a = partnerAssistantFixtureRows(TODAY);
+      return {
+        switch: null,
+        job: mine(a.jobs)[0] ?? null,
+        notes: mine(a.notes),
+        draft: mine(a.drafts)[0] ?? null,
+      };
+    };
+    const detailRows = (assistant: PartnerAssistantRows | null) => ({
+      partner,
+      contacts: mine(r.contacts),
+      variants: mine(r.variants),
+      revisions: mine(r.variants).map((variant) => ({ variantId: variant.id, rows: [], count: 0 })),
+      currentRevisions: [],
+      activities: [],
+      activityCount: 0,
+      differences: [],
+      blocks: [],
+      deviceImports: [],
+      assistant,
+    });
+    expect(partnerDetailFromRows(2, detailRows(assistantRows())).assistant?.job?.status).toBe(
+      "pronta",
+    );
+    // Tabelle non leggibili (per esempio prima delle migrazioni): il server passa null.
+    const unreadable = partnerDetailFromRows(2, detailRows(null));
+    expect(unreadable.assistant).toBeNull();
+    expect(unreadable.contacts).toHaveLength(4);
+    expect(unreadable.variants.map((variant) => variant.approach)).toEqual(["evento"]);
+    // Una proposta sconosciuta o uno stato fuori elenco annullano solo il blocco.
+    const unknownRequest = assistantRows();
+    const choice = unknownRequest.notes.find((note) => note.kind === "scelta")!;
+    choice.content = { ...(choice.content as object), request: "conto_vendita" };
+    const wrongStatus = assistantRows();
+    wrongStatus.job!.status = "inviata";
+    for (const assistant of [unknownRequest, wrongStatus]) {
+      const detail = partnerDetailFromRows(2, detailRows(assistant));
+      expect(detail.assistant).toBeNull();
+      expect(detail.partner.co).toBe(2);
+      expect(detail.contacts).toHaveLength(4);
+    }
+    // Nessun lavoro e nessun interruttore: niente blocco.
+    expect(
+      partnerDetailFromRows(2, detailRows({ switch: null, job: null, notes: [], draft: null }))
+        .assistant,
+    ).toBeNull();
   });
 });
