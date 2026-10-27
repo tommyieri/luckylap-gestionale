@@ -391,6 +391,10 @@ try {
         "select vault_secret_id, configured_at::text as configured_at from private.partner_assistant_scheduler_state",
       )
     ).rows[0];
+  // Ora fissa nel passato: il controllo non dipende dalla risoluzione dell'orologio.
+  await db.query(
+    "update private.partner_assistant_scheduler_state set configured_at = '2000-01-01 00:00:00+00'",
+  );
   const pointerBefore = await pointer();
   eq(await asService(() => configure(rotated, true)), { enabled: true, schedule_seconds: 120 });
   eq((await jobRow()).active, true, "Accensione esplicita: il job in pausa si riattiva");

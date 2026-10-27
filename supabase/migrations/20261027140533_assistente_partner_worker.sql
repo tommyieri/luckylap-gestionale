@@ -529,7 +529,7 @@ begin
   -- oltre all'evento, lease rilasciata e nessun tentativo consumato; il giro dopo rifà la scrittura
   -- con il contesto nuovo.
   perform private.partner_check(exists (select 1 from public.partner_contacts c
-    where c.id = v_contact and c.partner_id = j.partner_id));
+    where c.id = v_contact and c.partner_id = j.partner_id and c.kind = 'email'));
   if v_contact is distinct from (select e.contact_id from private.partner_assistant_email(j.partner_id) e) then
     update public.partner_assistant_jobs set lease_token = null, lease_expires_at = null, updated_at = now()
       where partner_id = j.partner_id;

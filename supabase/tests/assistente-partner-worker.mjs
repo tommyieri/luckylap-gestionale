@@ -1,4 +1,4 @@
-// test-db: pglite minimo 550
+// test-db: pglite minimo 553
 // Assistente Partner, compito 2 (_assistente_partner_worker.sql): coda dei contatti idonei, giri del
 // worker con lease, contesto, checkpoint, costi, avanzamento dei passi, tentativi, pausa e permessi.
 // Migrazioni applicate in ordine su PGlite, auth.uid() definita come in produzione, permessi
@@ -1196,8 +1196,16 @@ try {
     "select id as v from public.partner_contacts where partner_id = $1",
     [id(952)],
   );
+  // Un recapito dello stesso contatto che non è un'email non è mai stato nel contesto: 22023.
+  const phoneContact = (
+    await asOwner(
+      `insert into public.partner_contacts(partner_id, kind, value, active, position, created_by, updated_by)
+       values ($1, 'phone', '+39 000 000 0000', true, 9, $2, $2) returning id`,
+      [id(951), founder],
+    )
+  ).rows[0].id;
   const beforeForeign = await stepState(951);
-  for (const contactId of [otherContact, randomUUID()])
+  for (const contactId of [otherContact, randomUUID(), phoneContact])
     await rejects(
       () => completeDraft(jw, { contact_id: contactId }, randomUUID()),
       "22023",
