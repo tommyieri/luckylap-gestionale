@@ -307,15 +307,20 @@ export function reviewCall(context: PartnerAssistantContext): ClaudeCall {
 // Lettura delle risposte
 // ---------------------------------------------------------------------------
 
-/** Il JSON del primo blocco di testo, dopo i blocchi di thinking. Null se manca, se non è JSON,
- * se Claude ha rifiutato o se la risposta è tagliata. */
-export function firstJson(message: Anthropic.Message): unknown | null {
-  if (
+/** Una risposta che non è completa anche se ha del testo: Claude ha rifiutato, oppure la risposta
+ * è tagliata da max_tokens o dal contesto pieno. Vale per tutti i passi, ricerca compresa. */
+export function partnerAssistantCutShort(message: Anthropic.Message): boolean {
+  return (
     message.stop_reason === "refusal" ||
     message.stop_reason === "max_tokens" ||
     message.stop_reason === "model_context_window_exceeded"
-  )
-    return null;
+  );
+}
+
+/** Il JSON del primo blocco di testo, dopo i blocchi di thinking. Null se manca, se non è JSON,
+ * se Claude ha rifiutato o se la risposta è tagliata. */
+export function firstJson(message: Anthropic.Message): unknown | null {
+  if (partnerAssistantCutShort(message)) return null;
   const block = message.content.find(
     (block): block is Anthropic.TextBlock => block.type === "text",
   );

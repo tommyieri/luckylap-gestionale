@@ -8,6 +8,7 @@ import {
   PARTNER_ASSISTANT_CHOICE_SCHEMA,
   extractCall,
   firstJson,
+  partnerAssistantCutShort,
   researchCall,
   reviewCall,
   writeCall,
@@ -543,5 +544,19 @@ describe("firstJson", () => {
     expect(firstJson(message("end_turn", []))).toBeNull();
     expect(firstJson(message("end_turn", [thinking, text('{"a":')]))).toBeNull();
     expect(firstJson(message("end_turn", [text("Ecco il JSON richiesto")]))).toBeNull();
+  });
+
+  it("risposta non completa: rifiuto, max_tokens e contesto pieno, anche con del testo", () => {
+    const stops: [Anthropic.StopReason, boolean][] = [
+      ["refusal", true],
+      ["max_tokens", true],
+      ["model_context_window_exceeded", true],
+      ["end_turn", false],
+      ["stop_sequence", false],
+    ];
+    for (const [stopReason, cut] of stops)
+      expect(partnerAssistantCutShort(message(stopReason, [text("Il club ha un raduno a")]))).toBe(
+        cut,
+      );
   });
 });

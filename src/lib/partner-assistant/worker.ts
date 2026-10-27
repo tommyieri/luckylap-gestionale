@@ -24,7 +24,14 @@ import {
   type PartnerAssistantEnvironment,
 } from "./config";
 import { PARTNER_ASSISTANT_MODEL, partnerAssistantCostUsd } from "./cost";
-import { extractCall, firstJson, researchCall, reviewCall, writeCall } from "./prompts";
+import {
+  extractCall,
+  firstJson,
+  partnerAssistantCutShort,
+  researchCall,
+  reviewCall,
+  writeCall,
+} from "./prompts";
 import {
   createPartnerAssistantStore,
   PARTNER_ASSISTANT_RPC_TIMEOUT_MS,
@@ -362,6 +369,10 @@ export async function runPartnerAssistantStep(
       if (result.code === "attesa") return fail("attesa", "claude_attesa");
       return fail("riprova", result.code === "fallito" ? "risposta_non_valida" : result.code);
     }
+    // Il client dà ok a ogni stop_reason tranne pause_turn. Un rifiuto o una risposta tagliata
+    // (max_tokens, contesto pieno) non si salva, nemmeno come ricerca con del testo parziale: è
+    // una risposta non valida, cioè un tentativo consumato.
+    if (partnerAssistantCutShort(result.message)) return fail("riprova", "risposta_non_valida");
     let conclusion: Complete | null;
     try {
       conclusion = plan.conclude(result);

@@ -190,7 +190,11 @@ const usage = (input: number, searches = 0): PartnerAssistantUsage => ({
   cacheReadTokens: 0,
   webSearches: searches,
 });
-const answer = (content: Anthropic.ContentBlock[], usages = [usage(100)]): ClaudeResult => ({
+const answer = (
+  content: Anthropic.ContentBlock[],
+  usages = [usage(100)],
+  stopReason: Anthropic.StopReason = "end_turn",
+): ClaudeResult => ({
   ok: true,
   message: {
     id: "msg_synthetic",
@@ -198,7 +202,7 @@ const answer = (content: Anthropic.ContentBlock[], usages = [usage(100)]): Claud
     role: "assistant",
     model: PARTNER_ASSISTANT_MODEL,
     content,
-    stop_reason: "end_turn",
+    stop_reason: stopReason,
     stop_sequence: null,
     usage: { input_tokens: 100, output_tokens: 50 },
   } as unknown as Anthropic.Message,
@@ -638,6 +642,77 @@ describe("un passo dell'assistente Partner", () => {
     await run(state);
     expect(state.completeChoice).not.toHaveBeenCalled();
     expect(failedWith(state)).toEqual([[state.lease, "riprova", "risposta_non_valida"]]);
+  });
+
+  // Rifiuto, risposta tagliata da max_tokens, contesto pieno: la risposta non è completa anche
+  // quando ha del testo, e consuma un tentativo.
+  const cutShort: Anthropic.StopReason[] = [
+    "refusal",
+    "max_tokens",
+    "model_context_window_exceeded",
+  ];
+
+  it.each(cutShort)(
+    "ricerca interrotta (%s) con del testo: fail riprova, niente complete_research",
+    async (stopReason) => {
+      const state = setup("ricerca");
+      state.call.mockResolvedValue(
+        answer(
+          [
+            searchUse,
+            searchResults(["https://club-sintetico.example.test/"]),
+            text("Il club ha un raduno a", ["https://club-sintetico.example.test/raduno"]),
+          ],
+          [usage(100, 1)],
+          stopReason,
+        ),
+      );
+      expect(await run(state)).toEqual({ status: "complete", step: "ricerca" });
+      expect(state.call).toHaveBeenCalledOnce();
+      expect(state.completeResearch).not.toHaveBeenCalled();
+      expect(failedWith(state)).toEqual([[state.lease, "riprova", "risposta_non_valida"]]);
+      // La chiamata è costata lo stesso, ricerche web comprese.
+      expect(state.recordCall).toHaveBeenCalledOnce();
+      expect(state.recordCall.mock.calls[0]![0]).toMatchObject({
+        step: "ricerca",
+        webSearches: 1,
+        outcome: "ok",
+      });
+      expect(state.recordCall.mock.invocationCallOrder[0]!).toBeLessThan(
+        state.fail.mock.invocationCallOrder[0]!,
+      );
+    },
+  );
+
+  it.each(
+    cutShort.flatMap((stopReason): [PartnerAssistantStep, Anthropic.StopReason, unknown][] => [
+      ["estrazione", stopReason, extracted],
+      ["scrittura", stopReason, { subject: "Club Sintetico e LuckyLap", body: cleanBody }],
+      ["controllo", stopReason, { approved: true, problems: [] }],
+    ]),
+  )(
+    "%s interrotta (%s) con un JSON valido: fail riprova, nessuna complete",
+    async (step, stopReason, value) => {
+      const state = setup(step);
+      state.call.mockResolvedValue(answer([text(JSON.stringify(value))], undefined, stopReason));
+      expect(await run(state)).toEqual({ status: "complete", step });
+      for (const complete of state.completes) expect(complete).not.toHaveBeenCalled();
+      expect(failedWith(state)).toEqual([[state.lease, "riprova", "risposta_non_valida"]]);
+      expect(state.recordCall).toHaveBeenCalledOnce();
+    },
+  );
+
+  it("lo stesso JSON con end_turn conclude il passo", async () => {
+    for (const [step, value] of [
+      ["estrazione", extracted],
+      ["scrittura", { subject: "Club Sintetico e LuckyLap", body: cleanBody }],
+      ["controllo", { approved: true, problems: [] }],
+    ] as [PartnerAssistantStep, unknown][]) {
+      const state = setup(step);
+      state.call.mockResolvedValue(answer([text(JSON.stringify(value))], undefined, "end_turn"));
+      expect(await run(state)).toEqual({ status: "complete", step });
+      expect(state.fail).not.toHaveBeenCalled();
+    }
   });
 
   it("checkpoint non_idoneo: nessuna chiamata, fail rilascia", async () => {
