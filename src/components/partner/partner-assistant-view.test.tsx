@@ -171,6 +171,18 @@ const formOf = (tree: unknown, label: string) => {
   expect(found, label).toHaveLength(1);
   return found[0];
 };
+/** Le regole dopo il salvataggio di un collega: versione nuova in vigore, in cima alla cronologia. */
+const rulesAt = (version: number, body: string) => ({
+  current: { version, body, createdAt: "2026-10-22T08:30:00Z", author: "Bruno Prova" },
+  history: [
+    { version, createdAt: "2026-10-22T08:30:00Z", author: "Bruno Prova" },
+    ...fixture.rules.history,
+  ],
+});
+const rulesArea = (tree: unknown) =>
+  descendants(tree).find((node) => node.type === "textarea" && node.props.name === "regole")!;
+const typeRules = (tree: unknown, value: string) =>
+  (rulesArea(tree).props.onChange as (event: unknown) => void)({ target: { value } });
 const command = (kind: string, payload: Record<string, unknown>) => ({
   kind,
   operationId: OPERATION,
@@ -317,7 +329,7 @@ describe("PartnerAssistantView", () => {
     expect(spend).toContain("Spesa totale1,37 USD");
     expect(spend).toContain("Spesa di oggi0,85 USD");
     expect(spend).toContain("Credito rimasto, stimato23,63 USD");
-    expect(spend).toContain("25,00 USD di partenza meno la spesa registrata");
+    expect(spend).toContain("25,00 USD di partenza, ricariche comprese, meno la spesa registrata");
     expect(spend).toContain("Il numero esatto è nella Console Anthropic");
     const noCredit = words(render({}, { startingCreditUsd: null }));
     expect(noCredit).toContain("Inserisci il credito di partenza in «Modalità»");
@@ -325,6 +337,29 @@ describe("PartnerAssistantView", () => {
     expect(words(render({}, { startingCreditUsd: 1, spentUsd: 1.5 }))).toContain(
       "La spesa registrata supera il credito di partenza di 0,50 USD",
     );
+  });
+
+  it("credito: si scrive il totale caricato dall'inizio, così la stima regge dopo una ricarica", () => {
+    // Partenza 25 USD, tutti spesi, poi una ricarica di 50: si scrive 75, e restano 50.
+    const tree = render({}, { startingCreditUsd: 75, spentUsd: 25, pausedReason: "credito" });
+    expect(words(sectionOf(tree, "Spesa"))).toContain("Credito rimasto, stimato50,00 USD");
+    const mode = sectionOf(tree, "Modalità");
+    const hint = descendants(mode).find(
+      (node) => node.type === "p" && words(node).includes("più le ricariche"),
+    )!;
+    expect(words(hint)).toBe(
+      "Il credito che la Console Anthropic mostrava prima del primo giro, più le ricariche fatte " +
+        "da allora: la pagina toglie tutta la spesa registrata dall'inizio.",
+    );
+    const input = descendants(mode).find((node) => node.props.name === "credito")!;
+    expect(String(input.props["aria-describedby"]).split(" ")).toContain(hint.props.id);
+    const pause = words(sectionOf(tree, "Stato"));
+    expect(pause).toContain(
+      "Dopo la ricarica aggiungi l'importo ricaricato al credito di partenza in «Modalità» e salva",
+    );
+    // Il vecchio invito a scrivere il credito della Console darebbe 25 USD rimasti invece di 50.
+    expect(words(tree)).not.toContain("quando lo scrivi qui");
+    expect(words(tree)).not.toContain("salva il credito nuovo");
   });
 
   it("credito di partenza: campo numerico, salvato con la modalità e la versione", () => {
@@ -398,9 +433,9 @@ describe("PartnerAssistantView", () => {
     const article = descendants(tree).find((node) => node.type === "article")!;
     expect(
       descendants(article)
-        .filter((node) => /^h[2-4]$/.test(String(node.type)))
-        .map(text),
-    ).toEqual(["Regole sintetiche dell'assistente", "Tono", "Mai"]);
+        .filter((node) => /^h[2-6]$/.test(String(node.type)))
+        .map((node) => `${String(node.type)} ${text(node)}`),
+    ).toEqual(["h3 Regole sintetiche dell'assistente", "h4 Tono", "h4 Mai"]);
     expect(words(article)).toContain("Una sola domanda gentile.");
     expect(words(article)).not.toContain("#");
     expect(words(tree)).toContain("In vigore: versione 2, di Ada Prova, ieri alle 18:30.");
@@ -434,6 +469,112 @@ describe("PartnerAssistantView", () => {
         body: "Regole sintetiche, versione nuova.",
         expected_version: 2,
       }),
+    );
+  });
+
+  it("regole: la versione di un collega arriva con la pagina riletta, il tuo testo resta da parte", () => {
+    typeRules(render(), "Regole di Ada, partite dalla versione 2.");
+    // Bruno salva la versione 3; un comando qualunque della pagina (per esempio «Spento») la
+    // rilegge. Lo stato si aggiorna durante il render e React rifà subito il render.
+    const v3 = rulesAt(3, "Regole di Bruno, versione 3.");
+    render({ rules: v3 });
+    let tree = render({ rules: v3 });
+    expect(rulesArea(tree).props.value).toBe("Regole di Bruno, versione 3.");
+    // Niente da salvare: il campo ha il testo in vigore, non quello partito dalla versione 2.
+    expect(button(tree, "Salva come versione 4").props.disabled).toBe(true);
+    submit(formOf(tree, "Salva come versione 4"));
+    expect(mocks.saveRules).not.toHaveBeenCalled();
+    const rules = words(sectionOf(tree, "Regole"));
+    expect(rules).toContain("Il tuo testo");
+    expect(rules).toContain("Mentre scrivevi è arrivata la versione 3 delle regole");
+    expect(rules).toContain("Regole di Ada, partite dalla versione 2.");
+    // Riportato nel campo, il testo parte dalla versione 3 e si salva con quella.
+    typeRules(tree, "Regole di Ada, riportate sulla versione 3.");
+    tree = render({ rules: v3 });
+    submit(formOf(tree, "Salva come versione 4"));
+    expect(mocks.saveRules).toHaveBeenCalledExactlyOnceWith(
+      command("save_partner_assistant_rules", {
+        body: "Regole di Ada, riportate sulla versione 3.",
+        expected_version: 3,
+      }),
+    );
+    click(button(tree, "Fatto, chiudi"));
+    expect(words(render({ rules: v3 }))).not.toContain("Il tuo testo");
+  });
+
+  it("regole non modificate: la versione nuova arrivata si vede nel campo", () => {
+    expect(rulesArea(render()).props.value).toBe(fixture.rules.current.body);
+    const tree = render({ rules: rulesAt(3, "Regole di Bruno, versione 3.") });
+    expect(rulesArea(tree).props.value).toBe("Regole di Bruno, versione 3.");
+    expect(button(tree, "Salva come versione 4").props.disabled).toBe(true);
+    expect(words(tree)).not.toContain("Il tuo testo");
+  });
+
+  it("regole rifiutate con partner_changed: nessun secondo clic sovrascrive la versione nuova", async () => {
+    mocks.saveRules.mockResolvedValue({
+      status: "rejected",
+      code: "partner_changed",
+      message:
+        "Un collega ha appena modificato questo contatto. Ricarico i dati: controlla e riprova.",
+      refresh: true,
+    });
+    typeRules(render(), "Regole di Ada.");
+    const sent = command("save_partner_assistant_rules", {
+      body: "Regole di Ada.",
+      expected_version: 2,
+    });
+    submit(formOf(render(), "Salva come versione 3"));
+    await Promise.all(mocks.transitions);
+    expect(mocks.refresh).toHaveBeenCalledOnce();
+    // Prima che la pagina riletta arrivi, il secondo clic parte ancora dalla versione 2.
+    submit(formOf(render(), "Salva come versione 3"));
+    await Promise.all(mocks.transitions);
+    expect(mocks.saveRules.mock.calls).toEqual([[sent], [sent]]);
+    // Con la versione 3 nella pagina il tuo testo va da parte e non c'è niente da salvare.
+    const v3 = rulesAt(3, "Regole di Bruno, versione 3.");
+    render({ rules: v3 });
+    const tree = render({ rules: v3 });
+    expect(rulesArea(tree).props.value).toBe("Regole di Bruno, versione 3.");
+    expect(words(sectionOf(tree, "Regole"))).toContain("Regole di Ada.");
+    expect(button(tree, "Salva come versione 4").props.disabled).toBe(true);
+    submit(formOf(tree, "Salva come versione 4"));
+    expect(mocks.saveRules).toHaveBeenCalledTimes(2);
+  });
+
+  it("regole: il proprio salvataggio riuscito non diventa un conflitto", async () => {
+    mocks.saveRules.mockResolvedValue({
+      status: "success",
+      kind: "save_partner_assistant_rules",
+      operationId: OPERATION,
+      id: "93000000-0000-4000-8000-000000000003",
+      partnerId: null,
+      version: 3,
+      stage: null,
+      co: null,
+      message: "Regole salvate: versione 3.",
+    });
+    typeRules(render(), "Regole di Ada, versione 3.");
+    submit(formOf(render(), "Salva come versione 3"));
+    await Promise.all(mocks.transitions);
+    // La pagina riletta porta la versione 3 con il testo appena salvato.
+    const v3 = rulesAt(3, "Regole di Ada, versione 3.");
+    render({ rules: v3 });
+    let tree = render({ rules: v3 });
+    expect(rulesArea(tree).props.value).toBe("Regole di Ada, versione 3.");
+    expect(button(tree, "Salva come versione 4").props.disabled).toBe(true);
+    expect(words(tree)).not.toContain("Il tuo testo");
+    // Quello che scrivi mentre il salvataggio è in corso non si perde: resta da parte.
+    typeRules(tree, "Regole di Ada, versione 4.");
+    submit(formOf(render({ rules: v3 }), "Salva come versione 4"));
+    typeRules(render({ rules: v3 }), "Regole di Ada, versione 4, con una riga in più.");
+    // L'esito arriva prima della pagina riletta.
+    await Promise.all(mocks.transitions);
+    const v4 = rulesAt(4, "Regole di Ada, versione 4.");
+    render({ rules: v4 });
+    tree = render({ rules: v4 });
+    expect(rulesArea(tree).props.value).toBe("Regole di Ada, versione 4.");
+    expect(words(sectionOf(tree, "Regole"))).toContain(
+      "Regole di Ada, versione 4, con una riga in più.",
     );
   });
 

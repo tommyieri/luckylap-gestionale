@@ -35,30 +35,53 @@ export function PartnerRulesView({
         </p>
       ) : (
         <article className={styles.rules}>
-          {partnerRuleBlocks(rules.contextMd).map((block, index) => {
-            if (block.kind === "heading") {
-              const Heading = `h${block.level}` as "h2" | "h3" | "h4";
-              return <Heading key={index}>{block.text}</Heading>;
-            }
-            if (block.kind === "list")
-              return (
-                <ul key={index}>
-                  {block.items.map((item, itemIndex) => (
-                    <li key={itemIndex}>{item}</li>
-                  ))}
-                </ul>
-              );
-            if (block.kind === "table")
-              return (
-                <pre key={index} className={styles.rulesTable}>
-                  {block.text}
-                </pre>
-              );
-            return <p key={index}>{block.text}</p>;
-          })}
+          <PartnerRuleText text={rules.contextMd} />
           <p className={styles.importLine}>{researchImportLine(rules.import, today)}</p>
         </article>
       )}
     </div>
   );
+}
+
+/**
+ * Il testo delle regole come solo testo, con partnerRuleBlocks: titoli, punti elenco, tabelle a
+ * spaziatura fissa, paragrafi. `headingShift` abbassa i titoli di un livello (al massimo h4) quando
+ * la pagina li mette sotto un suo titolo, come le regole dell'assistente sotto «Regole».
+ */
+export function PartnerRuleText({
+  text,
+  headingShift = 0,
+}: {
+  text: string;
+  headingShift?: 0 | 1;
+}) {
+  return partnerRuleBlocks(text).map((block, index) => {
+    switch (block.kind) {
+      case "heading": {
+        const Heading = `h${Math.min(4, block.level + headingShift)}` as "h2" | "h3" | "h4";
+        return <Heading key={index}>{block.text}</Heading>;
+      }
+      case "list":
+        return (
+          <ul key={index}>
+            {block.items.map((item, itemIndex) => (
+              <li key={itemIndex}>{item}</li>
+            ))}
+          </ul>
+        );
+      case "table":
+        return (
+          <pre key={index} className={styles.rulesTable}>
+            {block.text}
+          </pre>
+        );
+      case "paragraph":
+        return <p key={index}>{block.text}</p>;
+      default: {
+        // Un tipo di blocco nuovo in partnerRuleBlocks va mostrato qui: TypeScript lo segnala.
+        const unknown: never = block;
+        return unknown;
+      }
+    }
+  });
 }

@@ -25,9 +25,10 @@ import {
   type PartnerMember,
   type PartnerSummary,
 } from "../../lib/partner/model";
-import { partnerRuleBlocks } from "../../lib/partner/rules";
 import { CommandFeedback, PartnerPendingRecovery, usePartnerCommand } from "./partner-command";
 import { PartnerProvider, usePartnerContext } from "./partner-context";
+import { CopyButton } from "./copy-button";
+import { PartnerRuleText } from "./partner-rules";
 import styles from "./partner.module.css";
 
 /*
@@ -152,8 +153,8 @@ function AssistantState({
       )}
       {status.pausedReason === "credito" && (
         <p className={styles.noteAmber}>
-          Credito finito: l'assistente è in pausa. Dopo la ricarica salva il credito nuovo in
-          «Modalità»: l'assistente riparte.
+          Credito finito: l'assistente è in pausa. Dopo la ricarica aggiungi l'importo ricaricato al
+          credito di partenza in «Modalità» e salva: l'assistente riparte.
         </p>
       )}
       {status.pausedReason === "errore_claude" && (
@@ -206,6 +207,7 @@ function AssistantMode({ status, now }: { status: PartnerAssistantStatus; now: s
   const noteId = useId();
   const creditId = useId();
   const creditErrorId = useId();
+  const creditHintId = useId();
   const [credit, setCredit] = useState(
     status.startingCreditUsd === null ? "" : String(status.startingCreditUsd),
   );
@@ -286,7 +288,7 @@ function AssistantMode({ status, now }: { status: PartnerAssistantStatus; now: s
             step={0.01}
             value={credit}
             aria-invalid={creditError ? true : undefined}
-            aria-describedby={creditError ? creditErrorId : undefined}
+            aria-describedby={creditError ? `${creditHintId} ${creditErrorId}` : creditHintId}
             onChange={(event) => setCredit(event.target.value)}
           />
         </label>
@@ -303,9 +305,9 @@ function AssistantMode({ status, now }: { status: PartnerAssistantStatus; now: s
           {creditError}
         </p>
       )}
-      <p className={styles.hint}>
-        Il credito che la Console Anthropic mostra quando lo scrivi qui: la pagina toglie la spesa
-        registrata.
+      <p id={creditHintId} className={styles.hint}>
+        Il credito che la Console Anthropic mostrava prima del primo giro, più le ricariche fatte da
+        allora: la pagina toglie tutta la spesa registrata dall'inizio.
       </p>
       <CommandFeedback command={command} />
     </section>
@@ -359,7 +361,7 @@ function AssistantSpend({ status }: { status: PartnerAssistantStatus }) {
         {starting === null || remaining === null
           ? "Inserisci il credito di partenza in «Modalità» per vedere quanto ne resta."
           : remaining >= 0
-            ? `${usd(starting)} di partenza meno la spesa registrata.`
+            ? `${usd(starting)} di partenza, ricariche comprese, meno la spesa registrata.`
             : `La spesa registrata supera il credito di partenza di ${usd(-remaining)}.`}
       </p>
       <p className={styles.hint}>Il numero esatto è nella Console Anthropic.</p>
@@ -452,45 +454,32 @@ function ReviewItem({
   );
 }
 
-/**
- * Il testo delle regole come solo testo, con partnerRuleBlocks: titoli, punti elenco, tabelle a
- * spaziatura fissa, paragrafi. I titoli scendono di un livello, sotto «Regole».
- */
-function RuleText({ text }: { text: string }) {
-  return partnerRuleBlocks(text).map((block, index) => {
-    if (block.kind === "heading") {
-      const Heading = `h${Math.min(4, block.level + 1)}` as "h3" | "h4";
-      return <Heading key={index}>{block.text}</Heading>;
-    }
-    if (block.kind === "list")
-      return (
-        <ul key={index}>
-          {block.items.map((item, itemIndex) => (
-            <li key={itemIndex}>{item}</li>
-          ))}
-        </ul>
-      );
-    if (block.kind === "table")
-      return (
-        <pre key={index} className={styles.rulesTable}>
-          {block.text}
-        </pre>
-      );
-    return <p key={index}>{block.text}</p>;
-  });
-}
+/** Testo non salvato e versione delle regole da cui è partito. */
+type RulesDraft = { body: string; base: number };
 
 function AssistantRules({ rules, today }: { rules: PartnerAssistantRulesView; today: string }) {
   const { preview } = usePartnerContext();
   const command = usePartnerCommand("assistente-regole");
   const fieldId = useId();
   const hintId = useId();
-  const [draft, setDraft] = useState(rules.current.body);
+  const [draft, setDraft] = useState<RulesDraft | null>(null);
   const [error, setError] = useState<string | null>(null);
+  // Il testo non salvato messo da parte quando è arrivata una versione nuova.
+  const [kept, setKept] = useState<string | null>(null);
   const { current } = rules;
+  // La pagina riletta (dopo un comando qualunque o un 40001) porta una versione nuova: il testo in
+  // vigore va nel campo e il tuo, partito da una versione superata, resta da parte (come i
+  // messaggi in partner-messages.tsx). Se la versione nuova è proprio il tuo testo, era il tuo
+  // salvataggio. Stato aggiornato durante il render: React rifà subito il render.
+  if (draft !== null && draft.base !== current.version) {
+    if (draft.body !== current.body) setKept(draft.body);
+    setDraft(null);
+    setError(null);
+  }
+  const text = draft?.body ?? current.body;
   const next = current.version + 1;
-  const changed = draft !== current.body;
-  const blank = draft.trim() === "";
+  const changed = draft !== null && draft.body !== current.body;
+  const blank = text.trim() === "";
   const by =
     current.author === PARTNER_ASSISTANT_RULES_FIRST_AUTHOR
       ? "le regole iniziali"
@@ -498,11 +487,11 @@ function AssistantRules({ rules, today }: { rules: PartnerAssistantRulesView; to
 
   function save(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
-    if (!changed || blank) return;
+    if (draft === null || !changed || blank) return;
     // Gli stessi limiti del comando: niente caratteri di controllo, al massimo 100000 caratteri.
-    const problem = hasControlCharacters(draft)
+    const problem = hasControlCharacters(draft.body)
       ? "Il testo ha caratteri invisibili non ammessi: toglili e riprova."
-      : charCount(draft) > RULES_MAX
+      : charCount(draft.body) > RULES_MAX
         ? "Il testo supera i 100000 caratteri."
         : null;
     if (problem) {
@@ -510,10 +499,13 @@ function AssistantRules({ rules, today }: { rules: PartnerAssistantRulesView; to
       return;
     }
     setError(null);
+    // La versione da cui è partito il testo: se nel frattempo ne è arrivata un'altra, il comando
+    // la rifiuta invece di sovrascriverla. Dopo il salvataggio la bozza la chiude la pagina
+    // riletta (sopra): così non si perde quello che scrivi mentre il salvataggio è in corso.
     command.run("save_partner_assistant_rules", {
       schema_version: 1,
-      body: draft,
-      expected_version: current.version,
+      body: draft.body,
+      expected_version: draft.base,
     });
   }
 
@@ -532,8 +524,29 @@ function AssistantRules({ rules, today }: { rules: PartnerAssistantRulesView; to
         solleciti) e l'assistente non le usa.
       </p>
       <article className={styles.rules}>
-        <RuleText text={current.body} />
+        <PartnerRuleText text={current.body} headingShift={1} />
       </article>
+      {kept !== null && (
+        <div className={styles.yourText}>
+          <div className={styles.draftHead}>
+            <p className={styles.miniTitle}>Il tuo testo</p>
+            <CopyButton text={kept} label="Copia" ariaLabel="Copia il tuo testo delle regole" />
+          </div>
+          <p className={styles.hint}>
+            Mentre scrivevi è arrivata la versione {current.version} delle regole: ora è nel campo
+            «Testo delle regole». Il tuo testo non salvato è qui: copialo e riportalo nel campo se
+            serve.
+          </p>
+          <p className={styles.preText}>{kept}</p>
+          <button
+            type="button"
+            className={`${styles.act} ${styles.actMini}`}
+            onClick={() => setKept(null)}
+          >
+            Fatto, chiudi
+          </button>
+        </div>
+      )}
       <details className={styles.disclosure}>
         <summary>Scrivi una nuova versione</summary>
         <form className={styles.rulesForm} onSubmit={save} noValidate>
@@ -545,10 +558,16 @@ function AssistantRules({ rules, today }: { rules: PartnerAssistantRulesView; to
               className={styles.rulesEditor}
               rows={24}
               maxLength={RULES_MAX}
-              value={draft}
+              value={text}
               aria-describedby={hintId}
               aria-invalid={error ? true : undefined}
-              onChange={(event) => setDraft(event.target.value)}
+              onChange={(event) => {
+                const body = event.target.value;
+                // La base resta quella da cui è partito il testo; tornato uguale, niente bozza.
+                setDraft(
+                  body === current.body ? null : { body, base: draft?.base ?? current.version },
+                );
+              }}
             />
           </label>
           <p id={hintId} className={styles.fieldHint}>
