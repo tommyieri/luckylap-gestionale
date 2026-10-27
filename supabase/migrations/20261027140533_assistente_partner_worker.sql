@@ -364,8 +364,9 @@ begin
         or (s #>> '{}') !~ '^https://[^\s/?#@]+([/?#]\S*)?$'));
   v_sources := array(select s #>> '{}' from jsonb_array_elements(p_payload -> 'sources') with ordinality t(s, i)
     order by i);
+  -- Anche in byte: un testo multibyte nei 60.000 caratteri supererebbe i 64 KiB della nota.
   perform private.partner_check(v_job_id is not null and v_token is not null and v_text ~ '\S'
-    and v_model ~ '^[A-Za-z0-9._:-]{1,100}$' and v_rules is not null);
+    and octet_length(v_text) <= 60000 and v_model ~ '^[A-Za-z0-9._:-]{1,100}$' and v_rules is not null);
   if v_actor is null then raise exception 'partner_assistant_not_configured' using errcode = '55000'; end if;
   replay := private.partner_assistant_begin(p_operation_id, 'complete_partner_assistant_research', v_actor, p_payload);
   if replay is not null then return replay; end if;
@@ -520,9 +521,9 @@ begin
   stop := private.partner_assistant_lock_step(v_job_id, v_token, 'scrittura');
   if stop is not null then return stop; end if;
   select * into j from public.partner_assistant_jobs where id = v_job_id;
-  -- Il destinatario è un'email del contatto, mai un indirizzo copiato.
-  perform private.partner_check(exists (select 1 from public.partner_contacts c
-    where c.id = v_contact and c.partner_id = j.partner_id and c.kind = 'email'));
+  -- Il destinatario è l'email scelta per il contatto, la stessa del contesto: mai un'altra email
+  -- (non attiva, senza link_value o non scelta) né un indirizzo copiato.
+  perform private.partner_check(v_contact = (select e.contact_id from private.partner_assistant_email(j.partner_id) e));
   insert into public.partner_assistant_drafts(partner_id, contact_id, partner_version, language, subject, body,
       signature, sha256, rules_version, research_note_id, operation_id, created_by)
     values (j.partner_id, v_contact, v_partner_version, v_language, v_subject, v_body, v_signature, v_sha, v_rules,

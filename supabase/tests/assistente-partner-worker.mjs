@@ -1,4 +1,4 @@
-// test-db: pglite minimo 513
+// test-db: pglite minimo 530
 // Assistente Partner, compito 2 (_assistente_partner_worker.sql): coda dei contatti idonei, giri del
 // worker con lease, contesto, checkpoint, costi, avanzamento dei passi, tentativi, pausa e permessi.
 // Migrazioni applicate in ordine su PGlite, auth.uid() definita come in produzione, permessi
@@ -833,6 +833,44 @@ try {
   eq(await context({ ...j, lease_token: randomUUID() }), { status: "lease_persa" });
   eq(await checkpoint(j), { status: "ok" });
 
+  // Il testo della ricerca è limitato anche in byte: 30.000 caratteri da 3 byte stanno nei 60.000
+  // caratteri ma non nei 60.000 byte, e la nota supererebbe i 64 KiB (23514). Errore di payload,
+  // niente scritto, lease intatta. Al limite (20.000 caratteri da 3 byte) la nota si salva: prova in
+  // una transazione annullata, così la ricerca resta quella qui sotto.
+  const beforeBytes = await stepState(951);
+  await rejects(
+    () => completeResearch(j, { ...research, text: "€".repeat(30000) }, randomUUID()),
+    "22023",
+    "invalid_partner_payload",
+  );
+  eq(await stepState(951), beforeBytes, "Testo oltre i 60.000 byte: niente scritto");
+  await db.exec("begin");
+  try {
+    await db.query("select set_config('request.jwt.claims', $1, true)", [
+      JSON.stringify({ role: "service_role" }),
+    ]);
+    await db.exec("set local role service_role");
+    eq(
+      (
+        await rpc("select public.complete_partner_assistant_research($1, $2::jsonb) r", [
+          randomUUID(),
+          JSON.stringify({
+            schema_version: 1,
+            job_id: j.job_id,
+            lease_token: j.lease_token,
+            ...research,
+            text: "€".repeat(20000),
+          }),
+        ])
+      ).status,
+      "done",
+      "60.000 byte: la nota sta nei 64 KiB",
+    );
+  } finally {
+    await db.exec("rollback");
+  }
+  eq(await stepState(951), beforeBytes, "Prova al limite annullata");
+
   // 5. Ricerca: dentro le RPC auth.uid() è l'assistente, il ruolo resta service_role.
   eq(
     await uidInside(() => completeResearch(j, research)),
@@ -1120,6 +1158,35 @@ try {
     "22023",
     "invalid_partner_payload",
   );
+  // Solo il recapito scelto per il contatto, quello del contesto: un'altra email dello stesso
+  // contatto (non attiva, senza link_value, oppure attiva ma non scelta) è un payload non valido.
+  const extraContacts = (
+    await asOwner(
+      `insert into public.partner_contacts(partner_id, kind, value, link_value, active, position, created_by,
+         updated_by)
+       values ($1, 'email', 'vecchia@pc-nord.example.test', 'vecchia@pc-nord.example.test', false, 1, $2, $2),
+         ($1, 'email', 'scritta male pc-nord.example.test', null, true, 2, $2, $2),
+         ($1, 'email', 'altra@pc-nord.example.test', 'altra@pc-nord.example.test', true, 3, $2, $2)
+       returning id`,
+      [id(951), founder],
+    )
+  ).rows.map((r) => r.id);
+  eq(
+    (await context(jw)).email.contact_id,
+    cw.email.contact_id,
+    "Le email in più non cambiano il recapito scelto",
+  );
+  const beforeContacts = await stepState(951);
+  for (const contactId of extraContacts)
+    await rejects(
+      () => completeDraft(jw, { contact_id: contactId }, randomUUID()),
+      "22023",
+      "invalid_partner_payload",
+    );
+  eq(await stepState(951), beforeContacts, "Recapito diverso da quello scelto: niente scritto");
+  await asOwner("delete from public.partner_contacts where id = any($1::uuid[])", [
+    `{${extraContacts.join(",")}}`,
+  ]);
   for (const bad of [
     { checks_ok: true, failures: ["lunghezza"] },
     { checks_ok: false, failures: [] },
