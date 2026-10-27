@@ -662,7 +662,7 @@ it("la risposta HTTP non contiene segreti né sb_secret", …);
 - [ ] **Passo 1: test che falliscono:**
   - parser con riga valida, chiave in più, numero negativo, data non valida;
   - le fixture passano i parser;
-  - `PartnerDetail` con `assistant: null` per un contatto senza lavoro;
+  - `PartnerDetail` con la vista vuota (`active: true`, `job`, `research`, `choice`, `draft` nulli) per un contatto senza lavoro né interruttore; `assistant: null` solo per «stato non leggibile» (decisione del controllore dopo la revisione del compito 10);
   - un errore sulle tabelle dell'assistente dà `assistant: null` e la scheda resta leggibile.
 - [ ] **Passo 2:** FAIL. **Passo 3:** implementare. **Passo 4:** PASS. **Passo 5:** commit (`Assistente Partner: letture e anteprima`).
 
