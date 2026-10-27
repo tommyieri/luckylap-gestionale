@@ -571,6 +571,7 @@ describe("PartnerAssistantView", () => {
     answer(success(2));
     await Promise.all(mocks.transitions);
     expect(waiting).not.toContain("di nuovo all'assistente");
+    expect(waiting).not.toContain("Assistente aggiornato su questo contatto.");
     expect(words(view())).toContain(
       "CO 002 · Garage Sintetico Due: di nuovo all'assistente, riparte dalla ricerca.",
     );
