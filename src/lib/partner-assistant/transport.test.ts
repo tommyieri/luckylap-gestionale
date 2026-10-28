@@ -7,6 +7,11 @@ import {
   PARTNER_ASSISTANT_RPC_NAMES,
   PARTNER_ASSISTANT_RPC_TIMEOUT_MS,
 } from "./store";
+import {
+  createPartnerAssistantSendFetch,
+  createPartnerAssistantSendStore,
+  PARTNER_ASSISTANT_SEND_RPC_NAMES,
+} from "./send-store";
 
 // Il codice installato di Supabase/PostgREST è quello vero; solo la rete è finta.
 const config = {
@@ -216,5 +221,96 @@ describe("trasporto con il client Supabase installato", () => {
     );
     expect(result).toEqual({ ok: false });
     expect(fetcher).not.toHaveBeenCalled();
+  });
+});
+
+const sendNames = [
+  "claim_partner_assistant_send",
+  "skip_partner_assistant_send",
+  "prepare_partner_assistant_send",
+  "start_partner_assistant_send",
+  "finish_partner_assistant_send",
+  "record_partner_assistant_append",
+  "pause_partner_assistant_send",
+  "release_partner_assistant_send",
+  "record_partner_assistant_environment",
+];
+
+describe("trasporto delle RPC d'invio dell'assistente Partner", () => {
+  it("le due liste sono separate", () => {
+    expect([...PARTNER_ASSISTANT_SEND_RPC_NAMES]).toEqual(sendNames);
+    for (const name of sendNames) expect(names).not.toContain(name);
+  });
+  it.each(sendNames)("lo store d'invio chiama /rest/v1/rpc/%s", async (name) => {
+    const fetcher = vi.fn().mockResolvedValue(Response.json(idle));
+    const response = await createPartnerAssistantSendFetch(config, fetcher)(rpcUrl(name), init());
+    expect(await response.json()).toEqual(idle);
+    expect(fetcher).toHaveBeenCalledOnce();
+    expect(fetcher.mock.calls[0]![1]).toMatchObject({
+      method: "POST",
+      redirect: "error",
+      cache: "no-store",
+      credentials: "omit",
+    });
+  });
+  it.each(names)("lo store d'invio non chiama %s: worker_transport_invalid", async (name) => {
+    const fetcher = vi.fn();
+    await expect(
+      createPartnerAssistantSendFetch(config, fetcher)(rpcUrl(name), init()),
+    ).rejects.toThrow("worker_transport_invalid");
+    expect(fetcher).not.toHaveBeenCalled();
+  });
+  it.each(sendNames)("il worker non chiama %s: worker_transport_invalid", async (name) => {
+    const fetcher = vi.fn();
+    await expect(
+      createPartnerAssistantFetch(config, fetcher)(rpcUrl(name), init()),
+    ).rejects.toThrow("worker_transport_invalid");
+    expect(fetcher).not.toHaveBeenCalled();
+  });
+  it.each<[string, string]>([
+    ["un comando del team", rpcUrl("start_partner_assistant_test")],
+    ["la lettura della pagina", rpcUrl("read_partner_assistant_send")],
+    ["un'altra origine", "https://attacker.test/rest/v1/rpc/claim_partner_assistant_send"],
+  ])("lo store d'invio non chiama %s", async (_, url) => {
+    const fetcher = vi.fn();
+    await expect(createPartnerAssistantSendFetch(config, fetcher)(url, init())).rejects.toThrow(
+      "worker_transport_invalid",
+    );
+    expect(fetcher).not.toHaveBeenCalled();
+  });
+  it("stessi limiti dello store: 1 MiB in uscita, contato in byte", async () => {
+    const fetcher = vi.fn().mockImplementation(async () => Response.json(idle));
+    const transport = createPartnerAssistantSendFetch(config, fetcher);
+    const url = rpcUrl("prepare_partner_assistant_send");
+    const over = JSON.stringify({ text: "a".repeat(PARTNER_ASSISTANT_RPC_MAX_BYTES - 10) });
+    await expect(transport(url, init(over))).rejects.toThrow("worker_transport_invalid");
+    expect(fetcher).not.toHaveBeenCalled();
+  });
+  it("ferma una risposta bloccata dopo 10 secondi", async () => {
+    vi.useFakeTimers();
+    const fetcher = vi.fn().mockResolvedValue(new Response(new ReadableStream()));
+    const pending = createPartnerAssistantSendFetch(config, fetcher)(
+      rpcUrl("claim_partner_assistant_send"),
+      init(),
+    );
+    const assertion = expect(pending).rejects.toThrow("worker_aborted");
+    await vi.advanceTimersByTimeAsync(PARTNER_ASSISTANT_RPC_TIMEOUT_MS);
+    await assertion;
+  });
+  it("con il client installato: solo la RPC d'invio, con la chiave e il corpo JSON", async () => {
+    const fetcher = vi.fn().mockResolvedValue(Response.json({ status: "done" }));
+    vi.stubGlobal("fetch", fetcher);
+    const result = await createPartnerAssistantSendStore(config).recordEnvironment(
+      { mailboxOk: false, testOk: false, testCount: 0 },
+      new AbortController().signal,
+    );
+    expect(result).toEqual({ ok: true, value: { status: "done" } });
+    expect(fetcher).toHaveBeenCalledOnce();
+    const [url, sent] = fetcher.mock.calls[0]!;
+    expect(String(url)).toBe(rpcUrl("record_partner_assistant_environment"));
+    expect(new Headers(sent.headers).get("apikey")).toBe(config.supabaseSecretKey);
+    expect(JSON.parse(sent.body)).toEqual({
+      p_payload: { schema_version: 1, mailbox_ok: false, test_ok: false, test_count: 0 },
+    });
   });
 });
