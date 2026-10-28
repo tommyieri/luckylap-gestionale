@@ -126,6 +126,9 @@ type Options = {
   smtp?: (input: SmtpInput) => Promise<PartnerAssistantSmtpResult>;
   /** Il clock del budget dopo una chiamata, per simulare il tempo che passa. */
   clockAfter?: Partial<Record<"claim" | "correspondence" | "start", number>>;
+  /** Una chiamata alla casella che non risponde: il clock arriva a fine budget e la promessa resta
+   * aperta, finché il timer del budget non interrompe il giro. */
+  hang?: "open" | "folders" | "correspondence" | "findMessageId";
 };
 
 let calls: string[];
@@ -143,6 +146,7 @@ function setup(options: Options) {
     append: [] as { path: string; raw: string; date: Date }[],
     recordAppend: [] as { messageRowId: string; found: boolean }[],
     skip: [] as { jobId: string | null; reason: string }[],
+    skipAborted: [] as boolean[],
     claim: [] as unknown[][],
     opened: 0,
   };
@@ -150,6 +154,12 @@ function setup(options: Options) {
   const after = (phase: keyof NonNullable<Options["clockAfter"]>) => {
     const value = options.clockAfter?.[phase];
     if (value !== undefined) clockNow = value;
+  };
+  /** Ferma la chiamata `phase` fino alla fine del budget, se il test lo chiede. */
+  const stuck = <T>(phase: NonNullable<Options["hang"]>, value: () => T): Promise<T> => {
+    if (options.hang !== phase) return Promise.resolve(value());
+    clockNow = PARTNER_ASSISTANT_SEND_BUDGET_MS;
+    return new Promise<T>(() => undefined);
   };
   const store: PartnerAssistantSendStore = {
     claim: vi.fn(async (...args: unknown[]) => {
@@ -167,9 +177,10 @@ function setup(options: Options) {
         },
       }) as never;
     }),
-    skip: vi.fn(async (_lease, jobId, reason) => {
+    skip: vi.fn(async (_lease, jobId, reason, signal) => {
       calls.push(jobId === null ? `skip:null:${reason}` : `skip:${reason}`);
       recorded.skip.push({ jobId, reason });
+      recorded.skipAborted.push(signal.aborted);
       return done;
     }),
     prepare: vi.fn(async (_lease, _operation, input) => {
@@ -212,17 +223,19 @@ function setup(options: Options) {
   const mailbox = {
     folders: vi.fn(async () => {
       calls.push("folders");
-      return options.folders === undefined ? folders : options.folders;
+      return stuck("folders", () => (options.folders === undefined ? folders : options.folders));
     }),
     correspondence: vi.fn(async (_folders: PartnerAssistantFolders, to: string, since: Date) => {
       calls.push("correspondence");
       recorded.correspondence.push({ address: to, since });
       after("correspondence");
-      return options.correspondence === undefined ? false : options.correspondence;
+      return stuck("correspondence", () =>
+        options.correspondence === undefined ? false : options.correspondence,
+      );
     }),
     findMessageId: vi.fn(async (_path: string, messageId: string) => {
       calls.push("findMessageId");
-      return options.find ? options.find(messageId) : [];
+      return stuck("findMessageId", () => (options.find ? options.find(messageId) : []));
     }),
     append: vi.fn(async (path: string, raw: string, date: Date) => {
       calls.push("append");
@@ -237,7 +250,11 @@ function setup(options: Options) {
     calls.push("open");
     recorded.opened += 1;
     const opening = options.open ?? "ok";
-    return opening === "ok" ? { ok: true as const, mailbox } : opening;
+    return stuck("open", () =>
+      opening === "ok"
+        ? { ok: true as const, mailbox }
+        : (opening as PartnerAssistantMailboxOpening),
+    );
   });
   const smtp = {
     send: vi.fn(async (input: SmtpInput) => {
@@ -271,6 +288,17 @@ async function runSend(options: Options = {}) {
     new AbortController().signal,
     state.dependencies,
   );
+}
+/** Un giro con una chiamata alla casella ferma: il timer del budget (finto) scade e la sblocca. */
+async function runUntilBudgetEnds(options: Options) {
+  vi.useFakeTimers();
+  try {
+    const running = runSend(options);
+    await vi.advanceTimersByTimeAsync(PARTNER_ASSISTANT_SEND_BUDGET_MS);
+    return await running;
+  } finally {
+    vi.useRealTimers();
+  }
 }
 const preparedRaw = () => state.recorded.prepare[0]!.raw;
 const correspondenceSince = () => state.recorded.correspondence[0]!.since;
@@ -560,6 +588,81 @@ describe("passo d'invio dell'assistente Partner", () => {
       "close",
       "release",
     ]);
+  });
+  describe("budget finito durante una chiamata alla casella: lo skip si registra con i suoi 10 secondi", () => {
+    // Fuoco 5: senza lo skip registrato il giro dopo, 2 minuti più tardi, rifà il login a IONOS
+    // con lo stesso candidato, e il passo con Claude resta fermo.
+    it("ricerca dei 12 mesi ferma: skip casella_incerta, complete, nessun SMTP", async () => {
+      expect(await runUntilBudgetEnds({ hang: "correspondence" })).toEqual({ status: "complete" });
+      expect(calls).toEqual([
+        "claim",
+        "open",
+        "folders",
+        "correspondence",
+        "skip:casella_incerta",
+        "close",
+        "release",
+      ]);
+      expect(state.recorded.skip).toEqual([{ jobId: candidate.jobId, reason: "casella_incerta" }]);
+      expect(state.recorded.skipAborted).toEqual([false]);
+      expect(released()).toEqual({
+        outcome: "casella_incerta",
+        smtpLogin: null,
+        imapLogin: "ok",
+      });
+    });
+    it("apertura arrivata dopo la scadenza: skip casella_incerta, release con imap_scadenza", async () => {
+      expect(await runUntilBudgetEnds({ hang: "open" })).toEqual({ status: "complete" });
+      expect(calls).toEqual(["claim", "open", "skip:casella_incerta", "release"]);
+      expect(state.recorded.skip).toEqual([{ jobId: candidate.jobId, reason: "casella_incerta" }]);
+      expect(released()).toEqual({
+        outcome: "imap_scadenza",
+        smtpLogin: null,
+        imapLogin: "imap_scadenza",
+      });
+    });
+    it("cartelle ferme: skip casella_incerta, complete", async () => {
+      expect(await runUntilBudgetEnds({ hang: "folders" })).toEqual({ status: "complete" });
+      expect(calls).toEqual([
+        "claim",
+        "open",
+        "folders",
+        "skip:casella_incerta",
+        "close",
+        "release",
+      ]);
+      expect(released()).toMatchObject({ outcome: "imap_cartelle" });
+    });
+    it("arretrato fermo, senza candidato: skip(null, casella_incerta) di fine giro, complete", async () => {
+      expect(
+        await runUntilBudgetEnds({ candidate: null, appends: [pending(1)], hang: "findMessageId" }),
+      ).toEqual({ status: "complete" });
+      expect(calls).toEqual([
+        "claim",
+        "open",
+        "folders",
+        "findMessageId",
+        "skip:null:casella_incerta",
+        "close",
+        "release",
+      ]);
+      expect(state.recorded.skipAborted).toEqual([false]);
+    });
+    it("arretrato fermo con un candidato: una sola attesa, sul candidato, nessuna ricerca né SMTP", async () => {
+      expect(await runUntilBudgetEnds({ appends: [pending(1)], hang: "findMessageId" })).toEqual({
+        status: "complete",
+      });
+      expect(calls).toEqual([
+        "claim",
+        "open",
+        "folders",
+        "findMessageId",
+        "skip:casella_incerta",
+        "close",
+        "release",
+      ]);
+      expect(state.recorded.skip).toEqual([{ jobId: candidate.jobId, reason: "casella_incerta" }]);
+    });
   });
   it("SMTP credenziali: finish scartato smtp_credenziali", async () => {
     await runSend({ smtp: failed({ kind: "credenziali", code: "smtp_535" }, "smtp_535") });

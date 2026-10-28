@@ -40,7 +40,8 @@ export const PARTNER_ASSISTANT_SEND_LEASE_SECONDS = 300;
 export const PARTNER_ASSISTANT_SMTP_MIN_MS = 75_000;
 /** L'SMTP scade a tempo rimasto meno questo margine. */
 export const PARTNER_ASSISTANT_SMTP_MARGIN_MS = 15_000;
-/** finish, skip e release dopo l'SMTP hanno questo tempo proprio, fuori dal budget. */
+/** finish, skip e release hanno questo tempo proprio, fuori dal budget: un 250 arrivato tardi
+ * va registrato, e così l'attesa di una casella che a budget finito non ha risposto (Fuoco 5). */
 export const PARTNER_ASSISTANT_SEND_RECORD_MS = 10_000;
 /** Il controllo dei 12 mesi nella casella. */
 export const PARTNER_ASSISTANT_MAILBOX_DAYS = 365;
@@ -145,8 +146,9 @@ export async function runPartnerAssistantSendStep(
         return { ok: false };
       }
     }
-    /** Una registrazione dopo l'SMTP: 10 secondi propri, fuori dal budget. Un 250 arrivato tardi
-     * va registrato. */
+    /** Una registrazione con 10 secondi propri, fuori dal budget: finish, skip e release. Un 250
+     * arrivato tardi va registrato; uno skip dopo una casella rimasta ferma fino a budget finito
+     * pure, altrimenti il giro dopo rifà il login e il passo con Claude resta fermo (Fuoco 5). */
     async function recordAfter<T>(
       task: (signal: AbortSignal) => Promise<StoreResult<T>>,
     ): Promise<StoreResult<T>> {
@@ -179,7 +181,6 @@ export async function runPartnerAssistantSendStep(
     let smtpLogin: string | null = null;
     let imapLogin: string | null = null;
     let status: PartnerAssistantSendRun["status"] = "complete";
-    let smtpStarted = false;
     // Assegnata dentro round(): il tipo esplicito evita che TypeScript la restringa a null.
     let mailbox = null as PartnerAssistantMailbox | null;
     /** Una sola attesa di 15 minuti per giro (Fuoco 5). */
@@ -193,8 +194,9 @@ export async function runPartnerAssistantSendStep(
         if (uncertainSkipped) return;
         uncertainSkipped = true;
       }
-      const run = smtpStarted ? recordAfter : database;
-      const skipped = await run((signal) => store.skip(lease, jobId, reason, signal));
+      // Sempre con i suoi 10 secondi: una ricerca IMAP ferma si sblocca solo a budget finito, e
+      // senza lo skip registrato il candidato tornerebbe al giro dopo, 2 minuti più tardi.
+      const skipped = await recordAfter((signal) => store.skip(lease, jobId, reason, signal));
       if (!skipped.ok) uncertain();
     };
 
@@ -415,7 +417,6 @@ export async function runPartnerAssistantSendStep(
 
       // 10. Un solo SMTP, con una scadenza rigida prima della fine del budget.
       phase = "smtp";
-      smtpStarted = true;
       const smtpController = new AbortController();
       const smtpTimer = setTimeout(
         () => smtpController.abort(),
