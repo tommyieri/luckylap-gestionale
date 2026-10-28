@@ -1,4 +1,5 @@
 -- Assistente Partner, consegna 2a (solo invio). Sezione 1: dati, guardie, registro e comandi del team.
+-- Sezione 2: calendario, coda e RPC d'invio del worker, lettura della pagina.
 --
 -- - Configurazione: limite delle prime email dopo la prima settimana (daily_first_limit, da 1 a 15,
 --   predefinito 10) e conferma della prova (data e autore). Interruttore per contatto: priorità
@@ -17,15 +18,26 @@
 --   se l'email può essere partita), il trigger dei solleciti (origine «assistente»: il promemoria va a
 --   chi riceve i passaggi), claim e checkpoint (girano anche in «prova» e «invio»), modalità
 --   («prova» e «invio» al founder, «invio» solo con la prova confermata), interruttore
---   (conversazione_esistente e invio_incerto restano a Tommi) e regole (un messaggio vivo o un
---   lavoro «inviata» non tornano in scrittura).
+--   (conversazione_esistente e invio_incerto restano a Tommi) e regole (un messaggio in corso,
+--   inviato o incerto o un lavoro «inviata» non tornano in scrittura).
 -- - Comandi del team nuovi, tutti del founder, come quelli Partner: private.<nome>(operation_id,
 --   payload) security definer, wrapper public.<nome> security invoker, ricevuta idempotente,
 --   eseguibili solo da authenticated. «Riprendi l'invio» prende solo lo stato della casella, mai la
 --   configurazione.
+-- - Sezione 2. Calendario: finestra del destinatario (lunedì-venerdì, 9:30-11:00 nel suo fuso),
+--   feste nazionali e paesi in due tabelle private, niente invii dal 21 dicembre al 7 gennaio.
+--   Limiti: 5 prime email al giorno nei primi 7 giorni dal primo invio vero, poi daily_first_limit;
+--   15 prove al giorno; tra due invii da 4 a 11 minuti. Ogni decisione usa partner_assistant_now().
+-- - RPC del worker (service_role, private security definer + wrapper public invoker): claim, skip,
+--   prepare, start, finish, copia in «Posta inviata», fermo della casella, rilascio, variabili. Il
+--   lock della casella è una lease nella riga di stato, presa sempre per prima (poi configurazione,
+--   contatto, lavoro). Un giro morto lascia il preparato scartato e l'«in invio» incerto, a Tommi.
+--   Esiti attesi come righe (idle, lease_persa, rifiutato, stop), mai eccezioni.
+-- - Lettura per i membri: read_partner_assistant_send, senza indirizzi né valori delle variabili.
 --
 -- Codici d'errore (messaggio = codice): 42501 partner_access_required, partner_assistant_founder_required,
--- partner_assistant_message_immutable; 22023 invalid_partner_payload, partner_not_found;
+-- partner_assistant_message_immutable, partner_assistant_worker_access_required;
+-- 22023 invalid_partner_payload, partner_not_found;
 -- 55000 partner_assistant_not_configured, partner_assistant_test_required, partner_assistant_test_mode_required,
 -- partner_assistant_test_empty, partner_assistant_test_missing; 40001 partner_changed;
 -- 23505 partner_idempotency_conflict.
@@ -515,8 +527,10 @@ begin
 end
 $$;
 
--- Come 20261028122704. Non tornano in scrittura le bozze con un messaggio vero vivo (pronto, in
--- corso, inviato o incerto) né i lavori «inviata», che restano al passo «controllo».
+-- Come 20261028122704. Non tornano in scrittura le bozze con un messaggio vero in corso, inviato o
+-- incerto, né i lavori «inviata», che restano al passo «controllo». Un messaggio solo preparato
+-- (pronto) non protegge la bozza: il lavoro torna in scrittura e start lo scarta (bozza_cambiata),
+-- così regole nuove salvate tra la preparazione e l'SMTP fermano l'invio.
 create or replace function private.save_partner_assistant_rules(p_operation_id uuid, p_payload jsonb) returns jsonb
 language plpgsql security definer set search_path = '' as $$
 declare
@@ -548,7 +562,7 @@ begin
         and (j.status = 'pronta' or (j.step = 'controllo' and j.status not in ('serve_tommaso', 'inviata')))
         and not exists (select 1 from public.partner_assistant_messages m
           where m.draft_id = j.draft_id and m.mode = 'invio'
-            and m.send_status in ('pronto', 'in_invio', 'inviato', 'incerto'))
+            and m.send_status in ('in_invio', 'inviato', 'incerto'))
       returning j.partner_id)
   select count(*) into v_requeued from requeued;
   result := jsonb_build_object('id', v_id, 'version', v_version, 'requeued', v_requeued, 'replayed', false);
@@ -776,5 +790,998 @@ grant execute on function
   private.resume_partner_assistant_send(uuid, jsonb), public.resume_partner_assistant_send(uuid, jsonb),
   private.set_partner_assistant_settings(uuid, jsonb), public.set_partner_assistant_settings(uuid, jsonb)
 to authenticated;
+
+-- ===========================================================================
+-- Sezione 2: calendario, coda e RPC d'invio
+-- ===========================================================================
+
+-- ---------------------------------------------------------------------------
+-- Feste e paesi
+-- ---------------------------------------------------------------------------
+
+-- Feste nazionali dal 29 ottobre 2026 al 31 gennaio 2027, senza le date tra il 21 dicembre e il 7
+-- gennaio (già senza invii). Regno Unito: Inghilterra e Galles; Svizzera: tutti i cantoni.
+create table private.partner_assistant_holidays (
+  country_code text not null check (country_code ~ '^[A-Z]{2}$'),
+  day date not null,
+  primary key (country_code, day)
+);
+insert into private.partner_assistant_holidays(country_code, day) values
+  ('IT', '2026-11-01'), ('IT', '2026-12-08'),
+  ('AT', '2026-11-01'), ('AT', '2026-12-08'),
+  ('FR', '2026-11-01'), ('FR', '2026-11-11'),
+  ('ES', '2026-11-01'), ('ES', '2026-12-06'), ('ES', '2026-12-08'),
+  ('BE', '2026-11-01'), ('BE', '2026-11-11');
+
+-- Il paese della scheda (partners.country, testo libero) confrontato dopo lower(btrim(...)).
+create table private.partner_assistant_countries (
+  alias text primary key check (alias = lower(alias)),
+  country_code text not null check (country_code ~ '^[A-Z]{2}$')
+);
+insert into private.partner_assistant_countries(alias, country_code) values
+  ('italia', 'IT'), ('italy', 'IT'), ('it', 'IT'),
+  ('regno unito', 'GB'), ('gran bretagna', 'GB'), ('inghilterra', 'GB'), ('united kingdom', 'GB'), ('uk', 'GB'),
+  ('england', 'GB'), ('gb', 'GB'),
+  ('germania', 'DE'), ('germany', 'DE'), ('deutschland', 'DE'), ('de', 'DE'),
+  ('austria', 'AT'), ('österreich', 'AT'), ('at', 'AT'),
+  ('svizzera', 'CH'), ('switzerland', 'CH'), ('schweiz', 'CH'), ('suisse', 'CH'), ('ch', 'CH'),
+  ('francia', 'FR'), ('france', 'FR'), ('fr', 'FR'),
+  ('spagna', 'ES'), ('spain', 'ES'), ('españa', 'ES'), ('es', 'ES'),
+  ('belgio', 'BE'), ('belgium', 'BE'), ('belgique', 'BE'), ('belgië', 'BE'), ('be', 'BE'),
+  ('paesi bassi', 'NL'), ('olanda', 'NL'), ('netherlands', 'NL'), ('nederland', 'NL'), ('nl', 'NL');
+
+alter table private.partner_assistant_holidays enable row level security;
+alter table private.partner_assistant_countries enable row level security;
+revoke all on table private.partner_assistant_holidays, private.partner_assistant_countries
+  from public, anon, authenticated, service_role;
+
+-- ---------------------------------------------------------------------------
+-- Calendario, indirizzi e limiti (privati, nessun grant)
+-- ---------------------------------------------------------------------------
+
+-- Il codice del paese, nullo se vuoto o sconosciuto (un paese sconosciuto non ha feste).
+create function private.partner_assistant_country_code(p_country text) returns text
+language sql stable security invoker set search_path = '' as $$
+  select c.country_code from private.partner_assistant_countries c where c.alias = lower(btrim(p_country))
+$$;
+
+-- Un fuso IANA che PostgreSQL conosce, scritto come Area/Luogo (al massimo Area/Zona/Luogo).
+create function private.partner_assistant_valid_timezone(p_timezone text) returns boolean
+language plpgsql stable security invoker set search_path = '' as $$
+begin
+  if p_timezone is null or p_timezone !~ '^[A-Za-z_]+(/[A-Za-z0-9_+-]+){1,2}$' then return false; end if;
+  perform now() at time zone p_timezone;
+  return true;
+exception when others then
+  return false;
+end
+$$;
+
+-- La finestra d'invio del destinatario: lunedì-venerdì, dalle 9:30 incluse alle 11:00 escluse nel
+-- suo fuso (Europe/Rome se manca o non è valido), fuori dal 21 dicembre-7 gennaio e dalle feste
+-- nazionali del paese della scheda.
+create function private.partner_assistant_window_open(p_timezone text, p_country text, p_at timestamptz)
+returns boolean
+language plpgsql stable security invoker set search_path = '' as $$
+declare
+  v_local timestamp;
+begin
+  if p_at is null then return false; end if;
+  v_local := p_at at time zone case when private.partner_assistant_valid_timezone(p_timezone) then p_timezone
+    else 'Europe/Rome' end;
+  return extract(isodow from v_local) between 1 and 5
+    and v_local::time >= time '09:30' and v_local::time < time '11:00'
+    and to_char(v_local::date, 'MM-DD') between '01-08' and '12-20'
+    and not exists (select 1 from private.partner_assistant_holidays h
+      where h.country_code = private.partner_assistant_country_code(p_country) and h.day = v_local::date);
+end
+$$;
+
+-- p_at se la finestra di Roma (Italia) è aperta; altrimenti il primo giorno, entro 40, alle 9:30 di
+-- Roma, dopo p_at, con la finestra aperta; nullo se nessuno.
+create function private.partner_assistant_next_window(p_at timestamptz) returns timestamptz
+language plpgsql stable security invoker set search_path = '' as $$
+declare
+  v_day date := private.partner_assistant_rome_day(p_at);
+  v_at timestamptz;
+begin
+  if p_at is null then return null; end if;
+  if private.partner_assistant_window_open('Europe/Rome', 'Italia', p_at) then return p_at; end if;
+  for i in 0..40 loop
+    v_at := ((v_day + i) + time '09:30') at time zone 'Europe/Rome';
+    if v_at > p_at and private.partner_assistant_window_open('Europe/Rome', 'Italia', v_at) then
+      return v_at;
+    end if;
+  end loop;
+  return null;
+end
+$$;
+
+-- L'indirizzo a cui si manda: minuscolo e senza spazi, solo se passa la regex stretta (la stessa di
+-- nodemailer) e sta in 254 caratteri. Altrimenti nullo: non arriva mai all'SMTP.
+create function private.partner_assistant_address(p_value text) returns text
+language sql immutable security invoker set search_path = '' as $$
+  select case when char_length(a.v) <= 254 and a.v ~ '^[a-z0-9._%+-]{1,64}@[a-z0-9-]+(\.[a-z0-9-]+)+$' then a.v end
+  from (select lower(btrim(p_value)) as v) a
+$$;
+
+-- Il giorno (Roma) della prima email vera partita o forse partita, il più vecchio.
+create function private.partner_assistant_first_real_day() returns date
+language sql stable security invoker set search_path = '' as $$
+  select min(m.send_day) from public.partner_assistant_messages m
+  where m.mode = 'invio' and m.kind = 'primo' and m.send_status in ('inviato', 'incerto')
+$$;
+
+-- Prime email vere del giorno: 5 nei primi 7 giorni di calendario dal primo invio vero, poi il
+-- limite della pagina.
+create function private.partner_assistant_first_limit(p_day date) returns integer
+language sql stable security invoker set search_path = '' as $$
+  select case when f.day is null or p_day <= f.day + 6 then 5
+    else (select c.daily_first_limit from private.partner_assistant_config c where c.singleton) end
+  from (select private.partner_assistant_first_real_day() as day) f
+$$;
+
+create function private.partner_assistant_first_sent(p_day date) returns integer
+language sql stable security invoker set search_path = '' as $$
+  select count(*)::integer from public.partner_assistant_messages m
+  where m.mode = 'invio' and m.send_day = p_day and m.send_status in ('in_invio', 'inviato', 'incerto')
+$$;
+
+create function private.partner_assistant_test_sent(p_day date) returns integer
+language sql stable security invoker set search_path = '' as $$
+  select count(*)::integer from public.partner_assistant_messages m
+  where m.mode = 'prova' and m.send_day = p_day and m.send_status in ('in_invio', 'inviato', 'incerto')
+$$;
+
+-- Il lock della casella: blocca lo stato e dice se la lease è quella del giro. Stretta: anche non
+-- scaduta. finish e la copia in «Posta inviata» bastano del token (una lease nuova lo cambia).
+create function private.partner_assistant_mail_guard(p_lease_token uuid, p_strict boolean) returns boolean
+language plpgsql security invoker set search_path = '' as $$
+declare s private.partner_assistant_mail_state%rowtype;
+begin
+  select * into s from private.partner_assistant_mail_state where singleton for update;
+  return p_lease_token is not null and s.lease_token is not distinct from p_lease_token
+    and (not coalesce(p_strict, true) or s.lease_expires_at > clock_timestamp());
+end
+$$;
+
+-- Un esito SMTP che conta per la casella, nel giorno di Roma. Tre temporanei: niente più invii fino
+-- a domani; due definitivi o uno spam: niente più invii finché Tommi non preme «Riprendi l'invio».
+-- Va chiamata con lo stato della casella già bloccato.
+create function private.partner_assistant_count_failure(p_kind text) returns void
+language plpgsql security invoker set search_path = '' as $$
+declare
+  v_now timestamptz := private.partner_assistant_now();
+  v_today date := private.partner_assistant_rome_day(private.partner_assistant_now());
+  s private.partner_assistant_mail_state%rowtype;
+begin
+  if p_kind is null or p_kind not in ('temporaneo', 'definitivo', 'spam') then
+    raise exception 'invalid_partner_payload' using errcode = '22023';
+  end if;
+  select * into s from private.partner_assistant_mail_state where singleton for update;
+  if s.failures_day is distinct from v_today then
+    update private.partner_assistant_mail_state set soft_failures = 0, hard_failures = 0, failures_day = v_today
+      where singleton returning * into s;
+  end if;
+  if p_kind = 'temporaneo' then
+    update private.partner_assistant_mail_state set soft_failures = soft_failures + 1 where singleton
+      returning * into s;
+    if s.soft_failures >= 3 and s.day_stopped_on is distinct from v_today then
+      update private.partner_assistant_mail_state set day_stopped_on = v_today where singleton;
+      insert into private.partner_assistant_events(step, outcome) values ('invio', 'fermo_oggi');
+    end if;
+  elsif p_kind = 'definitivo' then
+    update private.partner_assistant_mail_state set hard_failures = hard_failures + 1 where singleton
+      returning * into s;
+  end if;
+  if (p_kind = 'spam' or (p_kind = 'definitivo' and s.hard_failures >= 2)) and s.stop_reason is null then
+    update private.partner_assistant_mail_state set stop_reason = 'rimbalzi', stopped_at = v_now where singleton;
+    insert into private.partner_assistant_events(step, outcome) values ('invio', 'fermo_rimbalzi');
+  end if;
+end
+$$;
+
+-- Le coppie (bozza, indirizzo di prova) che una prova deve ancora mandare, bozza per bozza nell'ordine
+-- della prova: bozza ancora di un lavoro «pronta», indice sotto gli indirizzi della prova e quelli
+-- che il worker ha oggi, nessun messaggio della coppia che non sia scartato.
+create function private.partner_assistant_test_pairs(p_test_run_id uuid, p_recipients integer)
+returns table (draft_id uuid, test_index integer, job_id uuid, partner_id uuid)
+language plpgsql stable security invoker set search_path = '' as $$
+begin
+  return query
+    select x.draft, n.ix, j.id, j.partner_id
+    from private.partner_assistant_test_runs r
+      cross join lateral unnest(r.draft_ids) with ordinality as x(draft, pos)
+      cross join lateral generate_series(0, least(r.recipients, coalesce(p_recipients, 0)) - 1) as n(ix)
+      join public.partner_assistant_jobs j on j.draft_id = x.draft and j.status = 'pronta'
+    where r.id = p_test_run_id
+      and not exists (select 1 from public.partner_assistant_messages m
+        where m.test_run_id = r.id and m.draft_id = x.draft and m.test_index = n.ix
+          and m.send_status <> 'scartato')
+    order by x.pos, n.ix;
+end
+$$;
+
+-- Un lavoro «pronta» con quella bozza che esce dalla coda d'invio, con un evento: di nuovo alla
+-- ricerca o alla scrittura, oppure a Tommi con il motivo. Chi la chiama ha già bloccato contatto e
+-- lavoro. Falso se il lavoro non è più quello.
+create function private.partner_assistant_send_move(p_partner_id uuid, p_draft_id uuid, p_reason text)
+returns boolean
+language plpgsql security invoker set search_path = '' as $$
+begin
+  if p_reason = 'ricerca_scaduta' then
+    update public.partner_assistant_jobs set status = 'in_coda', step = 'ricerca', attempts = 0, rewrites = 0,
+        reason = null, lease_token = null, lease_expires_at = null, research_note_id = null, choice_note_id = null,
+        draft_id = null, next_attempt_at = now(), updated_at = now()
+      where partner_id = p_partner_id and status = 'pronta' and draft_id = p_draft_id;
+  elsif p_reason = 'recapito_cambiato' then
+    update public.partner_assistant_jobs set status = 'in_coda', step = 'scrittura', attempts = 0, rewrites = 0,
+        reason = null, lease_token = null, lease_expires_at = null, draft_id = null, next_attempt_at = now(),
+        updated_at = now()
+      where partner_id = p_partner_id and status = 'pronta' and draft_id = p_draft_id;
+  elsif p_reason = 'regole_superate' then
+    -- Come save_partner_assistant_rules: la bozza resta, il passo di scrittura la rifà.
+    update public.partner_assistant_jobs set status = 'in_coda', step = 'scrittura', attempts = 0, rewrites = 0,
+        reason = null, lease_token = null, lease_expires_at = null, next_attempt_at = now(), updated_at = now()
+      where partner_id = p_partner_id and status = 'pronta' and draft_id = p_draft_id;
+  elsif p_reason in ('bozza_scaduta', 'indirizzo_non_valido', 'conversazione_esistente', 'impronta') then
+    update public.partner_assistant_jobs set status = 'serve_tommaso', reason = p_reason, lease_token = null,
+        lease_expires_at = null, updated_at = now()
+      where partner_id = p_partner_id and status = 'pronta' and draft_id = p_draft_id;
+  else
+    raise exception 'invalid_partner_payload' using errcode = '22023';
+  end if;
+  if not found then return false; end if;
+  insert into private.partner_assistant_events(partner_id, step, outcome) values (p_partner_id, 'invio', p_reason);
+  return true;
+end
+$$;
+
+-- ---------------------------------------------------------------------------
+-- RPC del worker: il passo d'invio
+-- ---------------------------------------------------------------------------
+
+-- Un giro d'invio. La riga della casella è il lock: un giro alla volta. Nell'ordine: modalità e
+-- configurazione, lease attiva di un altro giro, recupero dei giri morti, copie arretrate in «Posta
+-- inviata», cancelli del giorno (fermo, attesa, intervallo, limite), poi il candidato: in invio il
+-- primo della coda d'invio con la finestra del destinatario aperta, dopo aver tolto dalla coda le
+-- righe che non possono più partire; in prova la prima coppia ancora da mandare dell'ultima prova.
+create function private.claim_partner_assistant_send(p_worker_id uuid, p_lease_seconds integer,
+  p_test_recipients integer) returns jsonb
+language plpgsql security definer set search_path = '' as $$
+declare
+  s private.partner_assistant_mail_state%rowtype;
+  c private.partner_assistant_config%rowtype;
+  j public.partner_assistant_jobs%rowtype;
+  v_now timestamptz; v_today date; v_rules integer; v_reason text; v_appends jsonb := '[]'::jsonb;
+  v_partner uuid; v_draft uuid; v_run uuid; v_index integer; v_remaining boolean := false;
+  v_move_partners uuid[] := '{}'; v_move_drafts uuid[] := '{}'; v_move_reasons text[] := '{}';
+  v_candidate jsonb; v_token uuid; r record;
+begin
+  perform private.partner_assistant_service_required();
+  perform private.partner_assistant_as_actor();
+  if p_worker_id is null or p_lease_seconds is null or p_lease_seconds not between 60 and 600
+    or p_test_recipients is null or p_test_recipients not between 0 and 5 then
+    raise exception 'invalid_partner_payload' using errcode = '22023';
+  end if;
+  v_now := private.partner_assistant_now();
+  v_today := private.partner_assistant_rome_day(v_now);
+  -- 1. La casella per prima, poi la configurazione.
+  select * into s from private.partner_assistant_mail_state where singleton for update;
+  update private.partner_assistant_mail_state set last_tick_at = clock_timestamp() where singleton;
+  select * into c from private.partner_assistant_config where singleton for share;
+  -- 2. Niente da fare.
+  if c.mode in ('spento', 'prepara') then return jsonb_build_object('status', 'idle', 'reason', c.mode); end if;
+  if c.actor_id is null or c.handoff_to is null then
+    return jsonb_build_object('status', 'idle', 'reason', 'non_configurato');
+  end if;
+  if s.lease_expires_at > clock_timestamp() then return jsonb_build_object('status', 'idle', 'reason', 'occupato'); end if;
+  -- 3. Giri morti (nessuna lease attiva): un messaggio preparato non è partito; uno in invio può
+  -- essere partito, quindi resta incerto e il contatto passa a Tommi. Prima i contatti, poi i lavori.
+  if exists (select 1 from public.partner_assistant_messages m where m.send_status in ('pronto', 'in_invio')) then
+    perform 1 from public.partners p
+      where p.id in (select m.partner_id from public.partner_assistant_messages m
+        where m.send_status in ('pronto', 'in_invio'))
+      order by p.id for share;
+    perform 1 from public.partner_assistant_jobs l
+      where l.partner_id in (select m.partner_id from public.partner_assistant_messages m
+        where m.mode = 'invio' and m.send_status = 'in_invio')
+      order by l.partner_id for update;
+    with dead as (
+      update public.partner_assistant_messages m
+        set send_status = case m.send_status when 'pronto' then 'scartato' else 'incerto' end,
+          outcome = case m.send_status when 'pronto' then 'pronto_abbandonato' else 'in_invio_abbandonato' end,
+          sent_at = case m.send_status when 'in_invio' then v_now else m.sent_at end,
+          updated_at = now()
+        where m.send_status in ('pronto', 'in_invio')
+        returning m.partner_id, m.mode, m.send_status),
+    uncertain as (
+      update public.partner_assistant_jobs l set status = 'serve_tommaso', reason = 'invio_incerto',
+          lease_token = null, lease_expires_at = null, updated_at = now()
+        where l.partner_id in (select d.partner_id from dead d where d.mode = 'invio' and d.send_status = 'incerto')
+        returning l.partner_id)
+    insert into private.partner_assistant_events(partner_id, step, outcome)
+      select d.partner_id, 'invio', 'invio_abbandonato' from dead d;
+  end if;
+  -- 4. Copie arretrate in «Posta inviata», non durante un fermo della casella o un'attesa.
+  if s.stop_reason is distinct from 'casella' and (s.backoff_until is null or s.backoff_until <= v_now) then
+    select coalesce(jsonb_agg(jsonb_build_object('message_row_id', a.id, 'message_id', a.message_id, 'raw', a.raw,
+        'sent_at', a.sent_at) order by a.sent_at, a.id), '[]'::jsonb)
+      into v_appends
+      from (select m.id, m.message_id, m.raw, m.sent_at from public.partner_assistant_messages m
+        where m.send_status = 'inviato' and m.appended_at is null and m.sent_at >= v_now - interval '7 days'
+        order by m.sent_at, m.id limit 3) a;
+  end if;
+  -- 5. I cancelli del candidato.
+  v_reason := case
+    when s.stop_reason is not null then 'fermo'
+    when s.day_stopped_on = v_today then 'fermo_oggi'
+    when s.backoff_until > v_now then 'attesa'
+    when s.next_send_after > v_now then 'intervallo'
+    when c.mode = 'invio' and private.partner_assistant_first_sent(v_today)
+      >= private.partner_assistant_first_limit(v_today) then 'limite'
+    when c.mode = 'prova' and private.partner_assistant_test_sent(v_today) >= 15 then 'limite'
+  end;
+  if v_reason is null and c.mode = 'invio' then
+    -- 6. Una passata sulla coda d'invio, senza lock: il primo motivo definitivo di ogni riga, e per le
+    -- righe senza motivo la finestra del destinatario. Il candidato è la prima riga senza motivo con
+    -- la finestra aperta; escono dalla coda tutte le righe con un motivo che vengono prima.
+    select max(x.version) into v_rules from public.partner_assistant_rules x;
+    for r in
+      select o.partner_id, o.draft_id, p.country, sc.content ->> 'timezone' as timezone,
+        case
+          when o.research_at <= v_now - interval '21 days' then 'ricerca_scaduta'
+          when k.id is null then 'recapito_cambiato'
+          when d.rules_version < v_rules then 'regole_superate'
+          when o.event_starts_on is not null and o.event_starts_on <= v_today then 'bozza_scaduta'
+          when private.partner_assistant_address(k.link_value) is null then 'indirizzo_non_valido'
+          when exists (select 1 from public.partner_assistant_messages m
+              where m.mode = 'invio' and m.partner_id <> o.partner_id
+                and m.to_address = private.partner_assistant_address(k.link_value)
+                and m.send_status in ('pronto', 'in_invio', 'inviato', 'incerto')
+                and m.created_at >= v_now - interval '365 days') then 'conversazione_esistente'
+        end as reason
+      from private.partner_assistant_send_order() o
+        join public.partners p on p.id = o.partner_id
+        join public.partner_assistant_drafts d on d.id = o.draft_id
+        join public.partner_assistant_jobs l on l.id = o.job_id
+        left join public.partner_assistant_notes sc on sc.id = l.choice_note_id
+        left join public.partner_contacts k on k.id = d.contact_id and k.kind = 'email' and k.active
+          and k.link_value is not null
+      order by o.rank
+    loop
+      if r.reason is not null then
+        v_move_partners := v_move_partners || r.partner_id;
+        v_move_drafts := v_move_drafts || r.draft_id;
+        v_move_reasons := v_move_reasons || r.reason;
+      elsif private.partner_assistant_window_open(r.timezone, r.country, v_now) then
+        v_partner := r.partner_id;
+        v_draft := r.draft_id;
+        exit;
+      else
+        v_remaining := true;
+      end if;
+    end loop;
+    -- Le righe da spostare: contatti, poi lavori, in ordine di partner_id; ognuna ricontrollata.
+    if cardinality(v_move_partners) > 0 then
+      perform 1 from public.partners p where p.id = any(v_move_partners) order by p.id for share;
+      perform 1 from public.partner_assistant_jobs l where l.partner_id = any(v_move_partners)
+        order by l.partner_id for update;
+      for i in 1..cardinality(v_move_partners) loop
+        perform private.partner_assistant_send_move(v_move_partners[i], v_move_drafts[i], v_move_reasons[i]);
+      end loop;
+    end if;
+    -- 7. Nessun candidato: fuori finestra se restano righe, altrimenti la coda è vuota.
+    if v_partner is null then v_reason := case when v_remaining then 'fuori_finestra' else 'vuota' end; end if;
+  elsif v_reason is null and c.mode = 'prova' then
+    select t.id into v_run from private.partner_assistant_test_runs t order by t.requested_at desc, t.id desc limit 1;
+    select x.partner_id, x.draft_id, x.test_index into v_partner, v_draft, v_index
+      from private.partner_assistant_test_pairs(v_run, p_test_recipients) x limit 1;
+    if v_partner is null then v_reason := 'vuota'; v_run := null; end if;
+  end if;
+  -- 8. Il candidato: contatto, poi lavoro (chi arriva secondo non lo trova). Ancora «pronta» con la
+  -- stessa bozza e, in invio, ancora idoneo.
+  if v_partner is not null then
+    perform 1 from public.partners where id = v_partner for share;
+    select * into j from public.partner_assistant_jobs
+      where partner_id = v_partner and status = 'pronta' and draft_id = v_draft
+      for update skip locked;
+    if not found or (c.mode = 'invio' and not private.partner_assistant_eligible(v_partner)) then
+      v_partner := null; v_run := null; v_index := null; v_reason := 'vuota';
+    end if;
+  end if;
+  if v_partner is not null then
+    select jsonb_build_object('job_id', j.id, 'partner_id', p.id, 'co', p.co, 'name', p.name, 'mode', c.mode,
+        'draft', jsonb_build_object('draft_id', d.id, 'language', d.language, 'subject', d.subject, 'body', d.body,
+          'signature', d.signature, 'sha256', d.sha256, 'rules_version', d.rules_version, 'created_at', d.created_at),
+        'choice', jsonb_build_object('contact_kind', sc.content ->> 'contact_kind', 'request', sc.content ->> 'request',
+          'event_starts_on', coalesce(sc.content ->> 'event_starts_on', '')),
+        'register', sc.content ->> 'register',
+        'address', private.partner_assistant_address(k.link_value),
+        'test_run_id', v_run, 'test_index', v_index)
+      into v_candidate
+      from public.partners p
+        join public.partner_assistant_drafts d on d.id = v_draft
+        left join public.partner_assistant_notes sc on sc.id = j.choice_note_id
+        left join public.partner_contacts k on k.id = d.contact_id and k.kind = 'email' and k.active
+          and k.link_value is not null
+      where p.id = v_partner;
+  end if;
+  if v_candidate is null and jsonb_array_length(v_appends) = 0 then
+    return jsonb_build_object('status', 'idle', 'reason', v_reason);
+  end if;
+  -- Una lease nuova, anche per le sole copie: record_partner_assistant_append la controlla.
+  update private.partner_assistant_mail_state set lease_token = gen_random_uuid(),
+      lease_expires_at = clock_timestamp() + make_interval(secs => p_lease_seconds)
+    where singleton
+    returning lease_token into v_token;
+  return jsonb_build_object('status', 'claimed', 'lease_token', v_token, 'mode', c.mode, 'appends', v_appends,
+    'candidate', v_candidate);
+end
+$$;
+
+-- Il worker lascia il candidato: conversazione trovata nella casella, bozza scaduta al ricontrollo
+-- delle date, oppure casella che non risponde (attesa di 15 minuti, anche senza lavoro per una copia
+-- arretrata che non si chiude). Gli argomenti si controllano prima della lease.
+create function private.skip_partner_assistant_send(p_lease_token uuid, p_job_id uuid, p_reason text) returns jsonb
+language plpgsql security definer set search_path = '' as $$
+declare
+  c private.partner_assistant_config%rowtype;
+  j public.partner_assistant_jobs%rowtype;
+  v_now timestamptz; v_partner uuid; v_event date;
+begin
+  perform private.partner_assistant_service_required();
+  perform private.partner_assistant_as_actor();
+  if p_reason is null or p_reason not in ('conversazione_esistente', 'bozza_scaduta', 'casella_incerta')
+    or (p_job_id is null and p_reason <> 'casella_incerta') then
+    raise exception 'invalid_partner_payload' using errcode = '22023';
+  end if;
+  if not private.partner_assistant_mail_guard(p_lease_token, true) then
+    return jsonb_build_object('status', 'lease_persa');
+  end if;
+  v_now := private.partner_assistant_now();
+  select * into c from private.partner_assistant_config where singleton for share;
+  if p_reason = 'casella_incerta' then
+    update private.partner_assistant_mail_state set backoff_until = v_now + interval '15 minutes' where singleton;
+  end if;
+  if p_job_id is not null then
+    select l.partner_id into v_partner from public.partner_assistant_jobs l where l.id = p_job_id;
+    if v_partner is not null then
+      perform 1 from public.partners where id = v_partner for share;
+      select * into j from public.partner_assistant_jobs where id = p_job_id for update;
+    end if;
+  end if;
+  if j.status = 'pronta' and c.mode = 'invio' and p_reason = 'conversazione_esistente' then
+    perform private.partner_assistant_send_move(j.partner_id, j.draft_id, 'conversazione_esistente');
+    return jsonb_build_object('status', 'done');
+  elsif j.status = 'pronta' and c.mode = 'invio' and p_reason = 'bozza_scaduta' then
+    select nullif(n.content ->> 'event_starts_on', '')::date into v_event
+      from public.partner_assistant_notes n where n.id = j.choice_note_id;
+    if (v_event is null or v_event > private.partner_assistant_rome_day(v_now))
+      and j.rewrites = 0 and c.paused_reason is distinct from 'credito' then
+      -- Una riscrittura con la stessa scelta: la riga della maglietta o la data del corpo cambiano.
+      update public.partner_assistant_jobs set status = 'in_coda', step = 'scrittura', draft_id = null, rewrites = 1,
+          attempts = 0, reason = null, lease_token = null, lease_expires_at = null, next_attempt_at = now(),
+          updated_at = now()
+        where partner_id = j.partner_id;
+      insert into private.partner_assistant_events(partner_id, step, outcome)
+        values (j.partner_id, 'invio', 'bozza_scaduta');
+    else
+      perform private.partner_assistant_send_move(j.partner_id, j.draft_id, 'bozza_scaduta');
+    end if;
+    return jsonb_build_object('status', 'done');
+  end if;
+  insert into private.partner_assistant_events(partner_id, step, outcome) values (v_partner, 'invio', p_reason);
+  return jsonb_build_object('status', 'done');
+end
+$$;
+
+-- Il messaggio pronto per l'SMTP, dopo i controlli che non dipendono dal modello: modalità, fermi,
+-- bozza, impronta approvata e testo composto, poi (in invio) contatto, recapito, regole, età della
+-- ricerca, date, conversazioni, casella, limite e finestra; (in prova) destinatario e limite. Il
+-- primo rifiuto è la risposta; alcuni spostano subito il lavoro.
+create function private.prepare_partner_assistant_send(p_lease_token uuid, p_operation_id uuid, p_payload jsonb)
+returns jsonb
+language plpgsql security definer set search_path = '' as $$
+declare
+  v_keys text[] := array['schema_version', 'job_id', 'draft_id', 'mode', 'test_run_id', 'test_index', 'message_id',
+    'to_address', 'subject', 'text', 'opt_out', 'raw', 'mailbox_check'];
+  v_actor uuid; v_job uuid; v_draft uuid; v_mode text; v_run uuid; v_index bigint; v_message_id text; v_to text;
+  v_subject text; v_text text; v_opt_out text; v_raw text; v_check text;
+  s private.partner_assistant_mail_state%rowtype;
+  c private.partner_assistant_config%rowtype;
+  j public.partner_assistant_jobs%rowtype;
+  d public.partner_assistant_drafts%rowtype;
+  t private.partner_assistant_test_runs%rowtype;
+  v_partner uuid; v_country text; v_choice jsonb; v_research timestamptz; v_address text; v_rules integer;
+  v_digest text; v_event date; v_now timestamptz; v_today date; v_reason text; v_id uuid;
+begin
+  perform private.partner_assistant_service_required();
+  v_actor := private.partner_assistant_as_actor();
+  perform private.partner_payload(p_payload, v_keys, v_keys);
+  v_job := private.partner_uuid(p_payload, 'job_id');
+  v_draft := private.partner_uuid(p_payload, 'draft_id');
+  v_mode := private.partner_enum(p_payload, 'mode', array['prova', 'invio']);
+  v_run := private.partner_uuid(p_payload, 'test_run_id');
+  v_index := private.partner_bigint(p_payload, 'test_index', 0, 4);
+  v_message_id := private.partner_text(p_payload, 'message_id', 200);
+  v_to := private.partner_text(p_payload, 'to_address', 254);
+  v_subject := private.partner_text(p_payload, 'subject', 300);
+  v_text := private.partner_text(p_payload, 'text', 20000);
+  v_opt_out := private.partner_text(p_payload, 'opt_out', 1000);
+  v_raw := private.partner_text(p_payload, 'raw', 65536);
+  v_check := private.partner_enum(p_payload, 'mailbox_check', array['vuota', 'trovata', 'incerta']);
+  perform private.partner_check(p_lease_token is not null and p_operation_id is not null and v_job is not null
+    and v_draft is not null and v_mode is not null
+    and v_message_id ~ '^<[0-9a-f-]{36}@[a-z0-9-]+(\.[a-z0-9-]+)+>$'
+    and v_to = private.partner_assistant_address(v_to)
+    and char_length(v_subject) >= 1 and char_length(v_text) >= 1 and v_opt_out is not null
+    and octet_length(v_raw) = char_length(v_raw) and v_check is not null);
+  if v_actor is null then raise exception 'partner_assistant_not_configured' using errcode = '55000'; end if;
+  if not private.partner_assistant_mail_guard(p_lease_token, true) then
+    return jsonb_build_object('status', 'lease_persa');
+  end if;
+  select * into s from private.partner_assistant_mail_state where singleton;
+  select * into c from private.partner_assistant_config where singleton for share;
+  v_now := private.partner_assistant_now();
+  v_today := private.partner_assistant_rome_day(v_now);
+  select l.partner_id into v_partner from public.partner_assistant_jobs l where l.id = v_job;
+  if v_partner is not null then
+    select p.country into v_country from public.partners p where p.id = v_partner for share;
+    select * into j from public.partner_assistant_jobs where id = v_job for update;
+  end if;
+  select * into d from public.partner_assistant_drafts where id = v_draft;
+  if v_run is not null then select * into t from private.partner_assistant_test_runs where id = v_run; end if;
+  select n.content into v_choice from public.partner_assistant_notes n where n.id = j.choice_note_id;
+  select n.created_at into v_research from public.partner_assistant_notes n where n.id = d.research_note_id;
+  select private.partner_assistant_address(k.link_value) into v_address from public.partner_contacts k
+    where k.id = d.contact_id and k.kind = 'email' and k.active and k.link_value is not null;
+  select max(x.version) into v_rules from public.partner_assistant_rules x;
+  v_digest := encode(sha256(convert_to(d.subject || E'\n\n' || d.body || E'\n\n' || d.signature, 'UTF8')), 'hex');
+  v_event := nullif(v_choice ->> 'event_starts_on', '')::date;
+  v_reason := case
+    when v_mode is distinct from c.mode
+      or (v_mode = 'prova' and not coalesce(v_run is not null and v_index is not null and t.id is not null
+        and v_draft = any(t.draft_ids) and v_index < t.recipients, false))
+      or (v_mode = 'invio' and (v_run is not null or v_index is not null)) then 'modalita_cambiata'
+    when s.stop_reason is not null or s.day_stopped_on = v_today or s.backoff_until > v_now then 'fermo'
+    when j.id is null or j.status <> 'pronta' or j.draft_id is distinct from v_draft or d.id is null then 'bozza_cambiata'
+    when v_digest is distinct from d.sha256
+      or not exists (select 1 from public.partner_assistant_notes n
+        where n.partner_id = d.partner_id and n.kind = 'controllo' and n.content -> 'approved' = 'true'::jsonb
+          and n.content ->> 'sha256' = v_digest and n.created_at >= d.created_at)
+      or v_subject is distinct from d.subject
+      or v_text is distinct from d.body || E'\n\n' || d.signature || E'\n\n' || v_opt_out
+      or v_opt_out !~ '^[^\r\n<>@]{20,240}$' or v_opt_out ~* 'http' or v_opt_out ~ '[0-9]'
+      or position(E'\r\nMessage-ID: ' || v_message_id || E'\r\n' in v_raw) = 0 then 'impronta'
+    when v_mode = 'invio' and not private.partner_assistant_eligible(j.partner_id) then 'non_idoneo'
+    when v_mode = 'invio' and v_to is distinct from v_address then 'recapito_cambiato'
+    when v_mode = 'invio' and d.rules_version < v_rules then 'regole_superate'
+    when v_mode = 'invio' and v_research <= v_now - interval '21 days' then 'ricerca_scaduta'
+    when v_mode = 'invio' and v_event <= v_today then 'bozza_scaduta'
+    when v_mode = 'invio' and exists (select 1 from public.partner_assistant_messages m
+        where m.mode = 'invio' and m.partner_id <> j.partner_id and m.to_address = v_to
+          and m.send_status in ('pronto', 'in_invio', 'inviato', 'incerto')
+          and m.created_at >= v_now - interval '365 days') then 'conversazione_esistente'
+    when v_mode = 'invio' and v_check <> 'vuota' then 'casella'
+    when v_mode = 'invio' and private.partner_assistant_first_sent(v_today)
+      >= private.partner_assistant_first_limit(v_today) then 'limite'
+    when v_mode = 'invio' and not private.partner_assistant_window_open(v_choice ->> 'timezone', v_country, v_now)
+      then 'finestra_chiusa'
+    when v_mode = 'prova' and exists (select 1 from public.partner_contacts k
+        where k.link_value is not null and lower(k.link_value) = v_to) then 'destinatario_prova'
+    when v_mode = 'prova' and private.partner_assistant_test_sent(v_today) >= 15 then 'limite'
+  end;
+  if v_reason is not null then
+    if v_reason in ('impronta', 'bozza_scaduta', 'conversazione_esistente', 'regole_superate', 'recapito_cambiato',
+        'ricerca_scaduta') then
+      perform private.partner_assistant_send_move(j.partner_id, v_draft, v_reason);
+    else
+      insert into private.partner_assistant_events(partner_id, step, outcome) values (v_partner, 'invio', v_reason);
+    end if;
+    return jsonb_build_object('status', 'rifiutato', 'reason', v_reason);
+  end if;
+  begin
+    insert into public.partner_assistant_messages(partner_id, draft_id, kind, mode, send_status, test_run_id, test_index,
+        message_id, to_address, subject, body, raw, sha256, rules_version, lease_token, operation_id, created_by,
+        created_at, updated_at)
+      values (j.partner_id, v_draft, 'primo', v_mode, 'pronto', v_run, v_index, v_message_id, v_to, v_subject, v_text,
+        v_raw, encode(sha256(convert_to(v_raw, 'UTF8')), 'hex'), d.rules_version, p_lease_token, p_operation_id,
+        v_actor, v_now, now())
+      returning id into v_id;
+  exception when unique_violation then
+    return jsonb_build_object('status', 'rifiutato', 'reason', 'doppione');
+  end;
+  if v_mode = 'prova' then
+    insert into private.partner_assistant_events(partner_id, step, outcome)
+      values (j.partner_id, 'invio', 'prova_casella_' || v_check);
+  end if;
+  return jsonb_build_object('status', 'pronto', 'message_row_id', v_id);
+end
+$$;
+
+-- Subito prima dell'SMTP. Aspetta un «Ferma l'assistente» (configurazione), un «Non contattare»
+-- (contatto) e regole nuove (lavoro) ancora da confermare, poi ricontrolla: se qualcosa è cambiato
+-- il messaggio si scarta e niente parte.
+create function private.start_partner_assistant_send(p_lease_token uuid, p_message_row_id uuid) returns jsonb
+language plpgsql security definer set search_path = '' as $$
+declare
+  s private.partner_assistant_mail_state%rowtype;
+  c private.partner_assistant_config%rowtype;
+  j public.partner_assistant_jobs%rowtype;
+  m public.partner_assistant_messages%rowtype;
+  v_now timestamptz; v_today date; v_country text; v_timezone text; v_address text; v_reason text;
+begin
+  perform private.partner_assistant_service_required();
+  perform private.partner_assistant_as_actor();
+  if p_lease_token is null or p_message_row_id is null then
+    raise exception 'invalid_partner_payload' using errcode = '22023';
+  end if;
+  if not private.partner_assistant_mail_guard(p_lease_token, true) then
+    return jsonb_build_object('status', 'lease_persa');
+  end if;
+  select * into s from private.partner_assistant_mail_state where singleton;
+  select * into c from private.partner_assistant_config where singleton for share;
+  select * into m from public.partner_assistant_messages where id = p_message_row_id;
+  if not found then return jsonb_build_object('status', 'lease_persa'); end if;
+  select p.country into v_country from public.partners p where p.id = m.partner_id for share;
+  select * into j from public.partner_assistant_jobs where partner_id = m.partner_id for update;
+  select * into m from public.partner_assistant_messages where id = p_message_row_id for update;
+  if not found or m.lease_token is distinct from p_lease_token or m.send_status <> 'pronto' then
+    return jsonb_build_object('status', 'lease_persa');
+  end if;
+  v_now := private.partner_assistant_now();
+  v_today := private.partner_assistant_rome_day(v_now);
+  select n.content ->> 'timezone' into v_timezone from public.partner_assistant_notes n where n.id = j.choice_note_id;
+  select private.partner_assistant_address(k.link_value) into v_address
+    from public.partner_assistant_drafts d join public.partner_contacts k on k.id = d.contact_id
+    where d.id = m.draft_id and k.kind = 'email' and k.active and k.link_value is not null;
+  v_reason := case
+    when j.partner_id is null or j.status <> 'pronta' or j.draft_id is distinct from m.draft_id then 'bozza_cambiata'
+    when c.mode is distinct from m.mode then 'modalita_cambiata'
+    when s.stop_reason is not null or s.day_stopped_on = v_today or s.backoff_until > v_now then 'fermo'
+    when m.mode = 'invio' and not private.partner_assistant_eligible(m.partner_id) then 'non_idoneo'
+    when m.mode = 'invio' and m.to_address is distinct from v_address then 'recapito_cambiato'
+    when m.mode = 'invio' and not private.partner_assistant_window_open(v_timezone, v_country, v_now)
+      then 'finestra_chiusa'
+  end;
+  if v_reason is not null then
+    update public.partner_assistant_messages set send_status = 'scartato', outcome = v_reason, updated_at = now()
+      where id = m.id;
+    insert into private.partner_assistant_events(partner_id, step, outcome) values (m.partner_id, 'invio', v_reason);
+    return jsonb_build_object('status', 'stop', 'reason', v_reason);
+  end if;
+  update public.partner_assistant_messages set send_status = 'in_invio', send_day = v_today, updated_at = now()
+    where id = m.id;
+  return jsonb_build_object('status', 'in_invio');
+end
+$$;
+
+-- L'esito dell'SMTP, con la ricevuta: un secondo arrivo è una ripetizione. Con il token della lease
+-- anche scaduta (un 250 arrivato tardi va registrato), ma solo su un messaggio ancora in invio.
+create function private.finish_partner_assistant_send(p_lease_token uuid, p_operation_id uuid, p_payload jsonb)
+returns jsonb
+language plpgsql security definer set search_path = '' as $$
+declare
+  v_keys text[] := array['schema_version', 'message_row_id', 'outcome', 'smtp_code', 'enhanced_code', 'spam', 'reason'];
+  v_actor uuid; v_message uuid; v_outcome text; v_code bigint; v_enhanced text; v_spam boolean; v_reason text;
+  v_partner uuid; v_now timestamptz; v_after text; v_event text;
+  p public.partners%rowtype;
+  m public.partner_assistant_messages%rowtype;
+  replay jsonb; result jsonb;
+begin
+  perform private.partner_assistant_service_required();
+  v_actor := private.partner_assistant_as_actor();
+  perform private.partner_payload(p_payload, v_keys, v_keys);
+  v_message := private.partner_uuid(p_payload, 'message_row_id');
+  v_outcome := private.partner_enum(p_payload, 'outcome', array['inviato', 'incerto', 'respinto', 'scartato']);
+  v_code := private.partner_bigint(p_payload, 'smtp_code', 200, 599);
+  v_enhanced := private.partner_text(p_payload, 'enhanced_code', 20);
+  v_spam := private.partner_bool(p_payload, 'spam');
+  v_reason := private.partner_text(p_payload, 'reason', 80);
+  perform private.partner_check(p_lease_token is not null and v_message is not null and v_outcome is not null
+    and (v_enhanced is null or v_enhanced ~ '^[245]\.[0-9]{1,3}\.[0-9]{1,3}$')
+    and case when v_outcome = 'scartato'
+      then coalesce(v_reason in ('smtp_temporaneo', 'smtp_non_partito', 'smtp_credenziali', 'smtp_bloccato'), false)
+      else v_reason is null or v_reason ~ '^[a-z][a-z0-9_]{0,79}$' end);
+  if v_actor is null then raise exception 'partner_assistant_not_configured' using errcode = '55000'; end if;
+  replay := private.partner_assistant_begin(p_operation_id, 'finish_partner_assistant_send', v_actor, p_payload);
+  if replay is not null then return replay; end if;
+  if not private.partner_assistant_mail_guard(p_lease_token, false) then
+    return jsonb_build_object('status', 'lease_persa');
+  end if;
+  select x.partner_id into v_partner from public.partner_assistant_messages x where x.id = v_message;
+  if not found then return jsonb_build_object('status', 'lease_persa'); end if;
+  select * into p from public.partners where id = v_partner for update;
+  perform 1 from public.partner_assistant_jobs where partner_id = v_partner for update;
+  select * into m from public.partner_assistant_messages where id = v_message for update;
+  if not found or m.lease_token is distinct from p_lease_token or m.send_status <> 'in_invio' then
+    return jsonb_build_object('status', 'lease_persa');
+  end if;
+  v_now := private.partner_assistant_now();
+  update public.partner_assistant_messages set send_status = v_outcome, smtp_code = v_code, enhanced_code = v_enhanced,
+      outcome = v_reason, sent_at = case when v_outcome in ('inviato', 'incerto') then v_now end, updated_at = now()
+    where id = m.id;
+  if v_outcome in ('inviato', 'incerto', 'respinto') then
+    update private.partner_assistant_mail_state
+      set next_send_after = v_now + make_interval(secs => 240 + floor(random() * 421))
+      where singleton;
+  end if;
+  v_event := case when m.mode = 'prova' and v_outcome = 'inviato' then 'prova_inviata'
+    else m.mode || '_' || v_outcome end;
+  insert into private.partner_assistant_events(partner_id, step, outcome) values (v_partner, 'invio', v_event);
+  if v_outcome = 'inviato' and m.mode = 'invio' then
+    -- La prima email è partita: «Contattato», la riga del registro dell'assistente (il trigger crea
+    -- il promemoria di sollecito per chi riceve i passaggi) e il lavoro chiuso.
+    v_after := case when p.stage = 'da_contattare' then 'contattato' else p.stage end;
+    if v_after <> p.stage then
+      perform private.apply_partner_stage(p.id, v_after, v_actor, p_operation_id, false);
+    end if;
+    perform private.partner_log(p_operation_id, p.id, 'inviato', v_actor, p_stage_before => p.stage,
+      p_stage_after => v_after, p_channel => 'email', p_message_kind => 'primo', p_body => '',
+      p_origin => 'assistente');
+    update public.partner_assistant_jobs set status = 'inviata', reason = null, lease_token = null,
+        lease_expires_at = null, updated_at = now()
+      where partner_id = v_partner;
+  elsif v_outcome = 'incerto' and m.mode = 'invio' then
+    -- Mai un nuovo tentativo: può essere partita.
+    update public.partner_assistant_jobs set status = 'serve_tommaso', reason = 'invio_incerto', lease_token = null,
+        lease_expires_at = null, updated_at = now()
+      where partner_id = v_partner;
+  elsif v_outcome = 'respinto' then
+    perform private.partner_assistant_count_failure(case when v_enhanced like '5.7.%' or coalesce(v_spam, false)
+      then 'spam' else 'definitivo' end);
+    if m.mode = 'invio' then
+      update public.partner_assistant_jobs set status = 'serve_tommaso',
+          reason = case when v_enhanced like '5.1.%' then 'indirizzo_non_valido' else 'invio_rifiutato' end,
+          lease_token = null, lease_expires_at = null, updated_at = now()
+        where partner_id = v_partner;
+    end if;
+  elsif v_outcome = 'scartato' then
+    -- Non partita: il lavoro resta «pronta» e si riprova al giro dopo, salvo i fermi.
+    if v_reason in ('smtp_temporaneo', 'smtp_non_partito') then
+      perform private.partner_assistant_count_failure('temporaneo');
+    elsif v_reason = 'smtp_bloccato' then
+      perform private.partner_assistant_count_failure('spam');
+    elsif v_reason = 'smtp_credenziali' then
+      update private.partner_assistant_mail_state set stop_reason = 'casella', stopped_at = v_now where singleton;
+      insert into private.partner_assistant_events(step, outcome) values ('invio', 'fermo_casella');
+    end if;
+  end if;
+  result := jsonb_build_object('status', 'done', 'send_status', v_outcome, 'replayed', false);
+  return private.partner_assistant_finish(p_operation_id, 'finish_partner_assistant_send', v_actor, p_payload, result);
+end
+$$;
+
+-- La copia in «Posta inviata» è fatta (o c'era già).
+create function private.record_partner_assistant_append(p_lease_token uuid, p_message_row_id uuid, p_payload jsonb)
+returns jsonb
+language plpgsql security definer set search_path = '' as $$
+declare v_found boolean; v_partner uuid;
+begin
+  perform private.partner_assistant_service_required();
+  perform private.partner_assistant_as_actor();
+  perform private.partner_payload(p_payload, array['schema_version', 'found'], array['schema_version', 'found']);
+  v_found := private.partner_bool(p_payload, 'found');
+  perform private.partner_check(p_lease_token is not null and p_message_row_id is not null and v_found is not null);
+  if not private.partner_assistant_mail_guard(p_lease_token, false) then
+    return jsonb_build_object('status', 'lease_persa');
+  end if;
+  select m.partner_id into v_partner from public.partner_assistant_messages m where m.id = p_message_row_id;
+  if v_partner is not null then
+    perform 1 from public.partners where id = v_partner for share;
+    update public.partner_assistant_messages set appended_at = private.partner_assistant_now(), updated_at = now()
+      where id = p_message_row_id and send_status = 'inviato' and appended_at is null;
+    if found then
+      insert into private.partner_assistant_events(partner_id, step, outcome)
+        values (v_partner, 'invio', case when v_found then 'copia_trovata' else 'copia_salvata' end);
+    end if;
+  end if;
+  return jsonb_build_object('status', 'done');
+end
+$$;
+
+-- Credenziali IMAP rifiutate: niente più invii finché Tommi non preme «Riprendi l'invio».
+create function private.pause_partner_assistant_send(p_lease_token uuid, p_reason text) returns jsonb
+language plpgsql security definer set search_path = '' as $$
+begin
+  perform private.partner_assistant_service_required();
+  perform private.partner_assistant_as_actor();
+  if p_reason is distinct from 'casella' then
+    raise exception 'invalid_partner_payload' using errcode = '22023';
+  end if;
+  if not private.partner_assistant_mail_guard(p_lease_token, true) then
+    return jsonb_build_object('status', 'lease_persa');
+  end if;
+  update private.partner_assistant_mail_state set stop_reason = 'casella', stopped_at = private.partner_assistant_now()
+    where singleton;
+  insert into private.partner_assistant_events(step, outcome) values ('invio', 'fermo_casella');
+  return jsonb_build_object('status', 'done', 'stop_reason', 'casella');
+end
+$$;
+
+-- Fine del giro: toglie la lease, salva l'esito e gli accessi (codici, ok = riuscito; nulli: nessun
+-- accesso in questo giro).
+create function private.release_partner_assistant_send(p_lease_token uuid, p_payload jsonb) returns jsonb
+language plpgsql security definer set search_path = '' as $$
+declare
+  v_keys text[] := array['schema_version', 'outcome', 'smtp_login', 'imap_login'];
+  v_outcome text; v_smtp text; v_imap text; v_now timestamptz;
+begin
+  perform private.partner_assistant_service_required();
+  perform private.partner_assistant_as_actor();
+  perform private.partner_payload(p_payload, v_keys, v_keys);
+  v_outcome := private.partner_text(p_payload, 'outcome', 80);
+  v_smtp := private.partner_text(p_payload, 'smtp_login', 80);
+  v_imap := private.partner_text(p_payload, 'imap_login', 80);
+  perform private.partner_check(p_lease_token is not null and v_outcome ~ '^[a-z][a-z0-9_]{0,79}$'
+    and (v_smtp is null or v_smtp ~ '^[a-z][a-z0-9_]{0,79}$') and (v_imap is null or v_imap ~ '^[a-z][a-z0-9_]{0,79}$'));
+  if not private.partner_assistant_mail_guard(p_lease_token, true) then
+    return jsonb_build_object('status', 'lease_persa');
+  end if;
+  v_now := private.partner_assistant_now();
+  update private.partner_assistant_mail_state set lease_token = null, lease_expires_at = null, last_outcome = v_outcome,
+      smtp_login_at = case when v_smtp is null then smtp_login_at else v_now end,
+      smtp_login_code = coalesce(v_smtp, smtp_login_code),
+      imap_login_at = case when v_imap is null then imap_login_at else v_now end,
+      imap_login_code = coalesce(v_imap, imap_login_code)
+    where singleton;
+  return jsonb_build_object('status', 'done');
+end
+$$;
+
+-- Variabili della posta, a ogni giro dopo il controllo del bearer, anche senza posta: solo se ci
+-- sono e quanti indirizzi di prova, mai i valori. Nessuna lease, nessun altro lock.
+create function private.record_partner_assistant_environment(p_payload jsonb) returns jsonb
+language plpgsql security definer set search_path = '' as $$
+declare
+  v_keys text[] := array['schema_version', 'mailbox_ok', 'test_ok', 'test_count'];
+  v_mailbox boolean; v_test boolean; v_count bigint;
+begin
+  perform private.partner_assistant_service_required();
+  perform private.partner_assistant_as_actor();
+  perform private.partner_payload(p_payload, v_keys, v_keys);
+  v_mailbox := private.partner_bool(p_payload, 'mailbox_ok');
+  v_test := private.partner_bool(p_payload, 'test_ok');
+  v_count := private.partner_bigint(p_payload, 'test_count', 0, 5);
+  perform private.partner_check(v_mailbox is not null and v_test is not null and v_count is not null
+    and v_test = (v_count between 1 and 5));
+  perform 1 from private.partner_assistant_mail_state where singleton for update;
+  update private.partner_assistant_mail_state set env_mailbox_ok = v_mailbox, env_test_ok = v_test,
+      env_test_count = v_count, env_checked_at = private.partner_assistant_now()
+    where singleton;
+  return jsonb_build_object('status', 'done');
+end
+$$;
+
+-- ---------------------------------------------------------------------------
+-- Lettura della pagina
+-- ---------------------------------------------------------------------------
+
+-- Lo stato dell'invio per i membri: fermi e attese, limiti del giorno, prova, finestra di Roma,
+-- coda, variabili e accessi (mai valori), ultimi messaggi senza indirizzi, priorità d'invio.
+create function private.read_partner_assistant_send() returns jsonb
+language plpgsql stable security definer set search_path = '' as $$
+declare
+  s private.partner_assistant_mail_state%rowtype;
+  c private.partner_assistant_config%rowtype;
+  v_now timestamptz := private.partner_assistant_now();
+  v_today date := private.partner_assistant_rome_day(private.partner_assistant_now());
+begin
+  perform private.partner_actor();
+  select * into s from private.partner_assistant_mail_state where singleton;
+  select * into c from private.partner_assistant_config where singleton;
+  return jsonb_build_object(
+    'stop_reason', s.stop_reason,
+    'stopped_at', s.stopped_at,
+    'day_stopped_on', s.day_stopped_on,
+    'backoff_until', s.backoff_until,
+    'next_send_after', s.next_send_after,
+    'last_tick_at', s.last_tick_at,
+    'last_outcome', s.last_outcome,
+    'daily_first_limit', c.daily_first_limit,
+    'first_limit_today', private.partner_assistant_first_limit(v_today),
+    'first_sent_today', private.partner_assistant_first_sent(v_today),
+    'first_real_send_on', private.partner_assistant_first_real_day(),
+    'test_sent_today', private.partner_assistant_test_sent(v_today),
+    'test_limit', 15,
+    'test_confirmed_at', c.test_confirmed_at,
+    'test_confirmed_by', (select f.display_name from public.profiles f where f.user_id = c.test_confirmed_by),
+    'test_run', (select jsonb_build_object('requested_at', t.requested_at, 'drafts', cardinality(t.draft_ids),
+        'recipients', t.recipients,
+        'sent', (select count(*) from public.partner_assistant_messages m
+          where m.test_run_id = t.id and m.send_status = 'inviato'))
+      from private.partner_assistant_test_runs t order by t.requested_at desc, t.id desc limit 1),
+    'window_open_rome', private.partner_assistant_window_open('Europe/Rome', 'Italia', v_now),
+    'next_window_rome', private.partner_assistant_next_window(v_now),
+    'ready', (select count(*) from private.partner_assistant_send_order()),
+    'env_checked_at', s.env_checked_at,
+    'env_mailbox_ok', s.env_mailbox_ok,
+    'env_test_ok', s.env_test_ok,
+    'env_test_count', s.env_test_count,
+    'smtp_login_at', s.smtp_login_at,
+    'smtp_login_code', s.smtp_login_code,
+    'imap_login_at', s.imap_login_at,
+    'imap_login_code', s.imap_login_code,
+    'recent', (select coalesce(jsonb_agg(jsonb_build_object('at', x.at, 'co', x.co, 'name', x.name, 'mode', x.mode,
+        'status', x.send_status, 'subject', x.subject) order by x.at desc, x.id desc), '[]'::jsonb)
+      from (select m.id, coalesce(m.sent_at, m.created_at) as at, p.co, p.name, m.mode, m.send_status, m.subject
+        from public.partner_assistant_messages m join public.partners p on p.id = m.partner_id
+        order by coalesce(m.sent_at, m.created_at) desc, m.id desc limit 20) x),
+    'priorities', (select coalesce(jsonb_agg(jsonb_build_object('co', x.co, 'name', x.name,
+        'send_priority', x.send_priority) order by x.send_priority desc, x.co), '[]'::jsonb)
+      from (select p.co, p.name, k.send_priority
+        from public.partner_assistant_contacts k join public.partners p on p.id = k.partner_id
+        where k.send_priority > 0 order by k.send_priority desc, p.co limit 50) x)
+  );
+end
+$$;
+
+-- ---------------------------------------------------------------------------
+-- Wrapper pubblici
+-- ---------------------------------------------------------------------------
+
+create function public.claim_partner_assistant_send(p_worker_id uuid, p_lease_seconds integer, p_test_recipients integer)
+returns jsonb
+language sql security invoker set search_path = '' as $$ select private.claim_partner_assistant_send(p_worker_id, p_lease_seconds, p_test_recipients) $$;
+create function public.skip_partner_assistant_send(p_lease_token uuid, p_job_id uuid, p_reason text) returns jsonb
+language sql security invoker set search_path = '' as $$ select private.skip_partner_assistant_send(p_lease_token, p_job_id, p_reason) $$;
+create function public.prepare_partner_assistant_send(p_lease_token uuid, p_operation_id uuid, p_payload jsonb)
+returns jsonb
+language sql security invoker set search_path = '' as $$ select private.prepare_partner_assistant_send(p_lease_token, p_operation_id, p_payload) $$;
+create function public.start_partner_assistant_send(p_lease_token uuid, p_message_row_id uuid) returns jsonb
+language sql security invoker set search_path = '' as $$ select private.start_partner_assistant_send(p_lease_token, p_message_row_id) $$;
+create function public.finish_partner_assistant_send(p_lease_token uuid, p_operation_id uuid, p_payload jsonb)
+returns jsonb
+language sql security invoker set search_path = '' as $$ select private.finish_partner_assistant_send(p_lease_token, p_operation_id, p_payload) $$;
+create function public.record_partner_assistant_append(p_lease_token uuid, p_message_row_id uuid, p_payload jsonb)
+returns jsonb
+language sql security invoker set search_path = '' as $$ select private.record_partner_assistant_append(p_lease_token, p_message_row_id, p_payload) $$;
+create function public.pause_partner_assistant_send(p_lease_token uuid, p_reason text) returns jsonb
+language sql security invoker set search_path = '' as $$ select private.pause_partner_assistant_send(p_lease_token, p_reason) $$;
+create function public.release_partner_assistant_send(p_lease_token uuid, p_payload jsonb) returns jsonb
+language sql security invoker set search_path = '' as $$ select private.release_partner_assistant_send(p_lease_token, p_payload) $$;
+create function public.record_partner_assistant_environment(p_payload jsonb) returns jsonb
+language sql security invoker set search_path = '' as $$ select private.record_partner_assistant_environment(p_payload) $$;
+create function public.read_partner_assistant_send() returns jsonb
+language sql stable security invoker set search_path = '' as $$ select private.read_partner_assistant_send() $$;
+
+-- ---------------------------------------------------------------------------
+-- Permessi della sezione 2
+-- ---------------------------------------------------------------------------
+
+-- EXECUTE tolto a tutti, poi le RPC del worker (private e wrapper) solo a service_role e la lettura
+-- solo ad authenticated. Le funzioni di supporto restano senza grant.
+revoke all on function
+  private.partner_assistant_country_code(text), private.partner_assistant_valid_timezone(text),
+  private.partner_assistant_window_open(text, text, timestamptz), private.partner_assistant_next_window(timestamptz),
+  private.partner_assistant_address(text), private.partner_assistant_first_real_day(),
+  private.partner_assistant_first_limit(date), private.partner_assistant_first_sent(date),
+  private.partner_assistant_test_sent(date), private.partner_assistant_mail_guard(uuid, boolean),
+  private.partner_assistant_count_failure(text), private.partner_assistant_test_pairs(uuid, integer),
+  private.partner_assistant_send_move(uuid, uuid, text),
+  private.claim_partner_assistant_send(uuid, integer, integer), public.claim_partner_assistant_send(uuid, integer, integer),
+  private.skip_partner_assistant_send(uuid, uuid, text), public.skip_partner_assistant_send(uuid, uuid, text),
+  private.prepare_partner_assistant_send(uuid, uuid, jsonb), public.prepare_partner_assistant_send(uuid, uuid, jsonb),
+  private.start_partner_assistant_send(uuid, uuid), public.start_partner_assistant_send(uuid, uuid),
+  private.finish_partner_assistant_send(uuid, uuid, jsonb), public.finish_partner_assistant_send(uuid, uuid, jsonb),
+  private.record_partner_assistant_append(uuid, uuid, jsonb), public.record_partner_assistant_append(uuid, uuid, jsonb),
+  private.pause_partner_assistant_send(uuid, text), public.pause_partner_assistant_send(uuid, text),
+  private.release_partner_assistant_send(uuid, jsonb), public.release_partner_assistant_send(uuid, jsonb),
+  private.record_partner_assistant_environment(jsonb), public.record_partner_assistant_environment(jsonb),
+  private.read_partner_assistant_send(), public.read_partner_assistant_send()
+from public, anon, authenticated, service_role;
+grant execute on function
+  private.claim_partner_assistant_send(uuid, integer, integer), public.claim_partner_assistant_send(uuid, integer, integer),
+  private.skip_partner_assistant_send(uuid, uuid, text), public.skip_partner_assistant_send(uuid, uuid, text),
+  private.prepare_partner_assistant_send(uuid, uuid, jsonb), public.prepare_partner_assistant_send(uuid, uuid, jsonb),
+  private.start_partner_assistant_send(uuid, uuid), public.start_partner_assistant_send(uuid, uuid),
+  private.finish_partner_assistant_send(uuid, uuid, jsonb), public.finish_partner_assistant_send(uuid, uuid, jsonb),
+  private.record_partner_assistant_append(uuid, uuid, jsonb), public.record_partner_assistant_append(uuid, uuid, jsonb),
+  private.pause_partner_assistant_send(uuid, text), public.pause_partner_assistant_send(uuid, text),
+  private.release_partner_assistant_send(uuid, jsonb), public.release_partner_assistant_send(uuid, jsonb),
+  private.record_partner_assistant_environment(jsonb), public.record_partner_assistant_environment(jsonb)
+to service_role;
+grant execute on function private.read_partner_assistant_send(), public.read_partner_assistant_send() to authenticated;
 
 commit;

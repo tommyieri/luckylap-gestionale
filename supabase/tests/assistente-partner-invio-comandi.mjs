@@ -1,4 +1,4 @@
-// test-db: pglite minimo 240
+// test-db: pglite minimo 241
 // Assistente Partner, consegna 2a, compito 1 (_assistente_partner_invio.sql, sezione 1): limite delle
 // prime email, conferma della prova, priorità d'invio, stato della casella con variabili e accessi,
 // messaggi con la guardia, ordine d'invio, «Manda la prova», «Riprendi l'invio», modalità «prova» e
@@ -1271,7 +1271,10 @@ try {
   eq((await job(p(985))).reason, "invio_incerto", "Il motivo resta");
   await readyFirst(987);
   await readyFirst(988);
-  await insertMessage({ partner: p(987), mode: "invio", send_status: "pronto" });
+  await insertMessage({ partner: p(987), mode: "invio", send_status: "in_invio" });
+  // Un messaggio solo preparato non protegge la bozza: start lo scarta (bozza_cambiata).
+  await readyFirst(974);
+  await insertMessage({ partner: p(974), mode: "invio", send_status: "pronto" });
   await readyFirst(993);
   await insertMessage({ partner: p(993), mode: "invio", send_status: "inviato" });
   await setJob(p(993), { status: "inviata" });
@@ -1282,7 +1285,12 @@ try {
     expected_version: 1,
   });
   eq(saved.version, 2);
-  eq((await job(p(987))).status, "pronta", "un messaggio vivo protegge la bozza");
+  eq((await job(p(987))).status, "pronta", "un messaggio in invio protegge la bozza");
+  eq(
+    [(await job(p(974))).status, (await job(p(974))).step],
+    ["in_coda", "scrittura"],
+    "un messaggio solo preparato non la protegge",
+  );
   eq((await job(p(988))).step, "scrittura");
   eq(
     [(await job(p(993))).status, (await job(p(993))).step],
