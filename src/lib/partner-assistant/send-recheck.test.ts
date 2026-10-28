@@ -129,6 +129,38 @@ describe("partnerAssistantBodyDates", () => {
     ).toEqual([]);
   });
 
+  // Correzione giro 2: il primo giorno di un intervallo che finisce con una data numerica, o con un
+  // giorno della settimana o un articolo davanti al giorno dopo.
+  it.each([
+    ["dal 19 al 21/11", ["2026-11-19", "2026-11-21"]],
+    ["19-21/11", ["2026-11-19", "2026-11-21"]],
+    ["19 e 21/11/2026", ["2026-11-19", "2026-11-21"]],
+    ["19.-21.11.2026", ["2026-11-19", "2026-11-21"]],
+    ["vom 19. bis 21.11.", ["2026-11-19", "2026-11-21"]],
+    ["19-21/11/26", ["2026-11-19", "2026-11-21"]],
+    ["il 19, 20 e 21/11", ["2026-11-19", "2026-11-20", "2026-11-21"]],
+    ["dal 30/12 al 2/1", ["2026-12-30", "2027-01-02"]],
+    ["sabato 14 e domenica 15 novembre", ["2026-11-14", "2026-11-15"]],
+    ["il 19 o il 21 novembre", ["2026-11-19", "2026-11-21"]],
+    ["19th and the 21st of November", ["2026-11-19", "2026-11-21"]],
+    ["Samstag, 14. und Sonntag, 15. November", ["2026-11-14", "2026-11-15"]],
+    ["samedi 14 et dimanche 15 novembre", ["2026-11-14", "2026-11-15"]],
+    ["el sábado 14 y el domingo 15 de noviembre", ["2026-11-14", "2026-11-15"]],
+    ["l'8 e l'11 novembre", ["2026-11-08", "2026-11-11"]],
+    ["sabato 14 e domenica 15/11", ["2026-11-14", "2026-11-15"]],
+  ])("giro 2: %s → %j", (t, d) =>
+    expect(partnerAssistantBodyDates(`… ${t} …`, "2026-10-28")).toEqual(d),
+  );
+
+  it("giro 2: orari, numeri puntati e date all'americana non diventano intervalli", () => {
+    expect(
+      partnerAssistantBodyDates(
+        "dalle 10.30 alle 12.30, 10-12.30, 11/19/2026, 19.-21.11.202, 1-2.3.4, Nov 19 and 21.",
+        "2026-10-28",
+      ),
+    ).toEqual([]);
+  });
+
   it("senza anno: lo stesso giorno della bozza resta in quell'anno", () =>
     expect(partnerAssistantBodyDates("il 28 ottobre", "2026-10-28")).toEqual(["2026-10-28"]));
 });
@@ -200,6 +232,21 @@ describe("partnerAssistantSendRecheck", () => {
     expect(
       partnerAssistantSendRecheck(withBody(club, "Ci vediamo il 19/11, alle 10."), "2026-11-20").ok,
     ).toBe(false);
+  });
+
+  it("giro 2: il primo giorno di un intervallo numerico o con il giorno della settimana basta per scartare", () => {
+    expect(
+      partnerAssistantSendRecheck(withBody(club, "Ci vediamo dal 19 al 21/11."), "2026-11-20"),
+    ).toEqual({ ok: false, reason: "bozza_scaduta" });
+    expect(
+      partnerAssistantSendRecheck(
+        withBody(club, "Ci vediamo sabato 14 e domenica 15 novembre."),
+        "2026-11-14",
+      ),
+    ).toEqual({ ok: false, reason: "bozza_scaduta" });
+    expect(
+      partnerAssistantSendRecheck(withBody(club, "Ci vediamo dal 19 al 21/11."), "2026-11-18"),
+    ).toEqual({ ok: true });
   });
 
   it("giro 1: una data già passata alla bozza, con l'anno, non scade (il fatto del complimento)", () => {

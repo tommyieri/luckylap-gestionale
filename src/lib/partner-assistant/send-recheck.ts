@@ -121,10 +121,23 @@ const DAY = `([0-9]{1,2})${SUFFIX}`;
 const LINK = "(?:(?:de|del|of)\\s+)?";
 const YEAR = `([0-9]{4})${END}`;
 const YEAR_AFTER = `(?:,?\\s+${LINK}${YEAR})?`;
+// I giorni della settimana, che possono stare davanti al giorno dopo in un elenco («sabato 14 e
+// domenica 15 novembre», «Samstag, 14. und Sonntag, 15. November»).
+const WEEKDAY = `(?:${[
+  "lunedì|lunedi|martedì|martedi|mercoledì|mercoledi|giovedì|giovedi|venerdì|venerdi|sabato|domenica",
+  "monday|tuesday|wednesday|thursday|friday|saturday|sunday",
+  "montag|dienstag|mittwoch|donnerstag|freitag|samstag|sonnabend|sonntag",
+  "lundi|mardi|mercredi|jeudi|vendredi|samedi|dimanche",
+  "lunes|martes|miércoles|miercoles|jueves|viernes|sábado|sabado|domingo",
+].join("|")})`;
+// Un articolo davanti al giorno o al giorno della settimana: «il 21», «l'11», «the 21st», «el
+// domingo 15», «Sonntag, den 15.».
+const ARTICLE = "(?:l['’]|(?:il|lo|the|le|el|den|dem|am)\\s+)?";
 // Tra due giorni dello stesso mese: «19-21», «19/21», «19.-21.», «dal 19 al 21», «19 e 21»,
-// «19, 20 e 21», «vom 19. bis 21.», «du 19 au 21», «del 19 al 21», «19 and 21».
-const RANGE_LINK =
-  "(?:\\s*[-–—,/]\\s*|\\s+(?:al|ai|e|ed|o|a|and|or|to|through|till|until|bis|und|oder|au|et|ou|à|y|hasta)\\s+)";
+// «19, 20 e 21», «vom 19. bis 21.», «du 19 au 21», «del 19 al 21», «19 and 21»; poi, davanti al
+// giorno dopo, un giorno della settimana e un articolo facoltativi («il 19 o il 21», «19th and the
+// 21st», «sabato 14 e domenica 15», «el sábado 14 y el domingo 15», «l'11»).
+const RANGE_LINK = `(?:\\s*[-–—,/]\\s*|\\s+(?:al|ai|e|ed|o|a|and|or|to|through|till|until|bis|und|oder|au|et|ou|à|y|hasta)\\s+)${ARTICLE}(?:${WEEKDAY},?\\s+${ARTICLE})?`;
 
 type Found = { start: number; end: number; year: string | null; month: number; day: string };
 
@@ -145,6 +158,14 @@ const MONTH_DAY = new RegExp(`${START}${MONTH}\\s+${DAY}${END}${YEAR_AFTER}`, "g
 // primo giorno, così non copre l'ultimo.
 const RANGE = new RegExp(
   `${START}${DAY}(?=(?:${RANGE_LINK}[0-9]{1,2}${SUFFIX})+\\s+${LINK}${MONTH}${END}${YEAR_AFTER})`,
+  "giu",
+);
+// Lo stesso quando l'ultimo giorno è una data numerica («dal 19 al 21/11», «19-21/11»,
+// «19 e 21/11/2026», «19.-21.11.2026», «vom 19. bis 21.11.»): mese e anno come in NUMERIC. I
+// giorni in mezzo sono presi il meno possibile: in «19-21/11/26» l'ultimo giorno è «21/11/26», non
+// «11/26» con «/» come legame.
+const RANGE_NUMERIC = new RegExp(
+  `${START}${DAY}(?=(?:${RANGE_LINK}[0-9]{1,2}${SUFFIX})*?${RANGE_LINK}[0-9]{1,2}([./])([0-9]{1,2})(?:\\2([0-9]{4}|[0-9]{2})|\\2?)(?![\\p{L}\\p{N}]|[./]\\p{N}))`,
   "giu",
 );
 
@@ -183,6 +204,14 @@ function* found(text: string): Generator<Found> {
       end: m.index + m[0].length,
       year: m[3] ?? null,
       month: monthOf(m[2]),
+      day: m[1],
+    };
+  for (const m of text.matchAll(RANGE_NUMERIC))
+    yield {
+      start: m.index,
+      end: m.index + m[0].length,
+      year: m[4] === undefined ? null : m[4].length === 2 ? `20${m[4]}` : m[4],
+      month: +m[3],
       day: m[1],
     };
 }
