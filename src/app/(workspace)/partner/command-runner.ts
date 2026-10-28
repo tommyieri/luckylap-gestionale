@@ -3,10 +3,14 @@ import { revalidatePath } from "next/cache";
 import { createSupabaseServerClient } from "../../../lib/supabase/server";
 import { isLocalPreviewEnabled } from "../../../lib/runtime";
 import {
+  PARTNER_ASSISTANT_ACTION_MESSAGES,
   PARTNER_UNCERTAIN_MESSAGE,
+  parsePartnerCommand,
+  type PartnerAssistantActionRejection,
   type PartnerCommandKind,
   type PartnerCommandResult,
 } from "../../../lib/partner/commands";
+import { partnerAssistantMailConfig } from "../../../lib/partner-assistant/mail-config";
 import { executePartnerCommand } from "../../../lib/partner/server";
 import {
   PARTNER_ASSISTANT_PATH,
@@ -35,10 +39,57 @@ const ASSISTANT_KINDS: readonly PartnerCommandKind[] = [
   "set_partner_assistant_mode",
   "set_partner_assistant_contact",
   "save_partner_assistant_rules",
+  "start_partner_assistant_test",
+  "confirm_partner_assistant_test",
+  "set_partner_assistant_send_priority",
+  "resume_partner_assistant_send",
+  "set_partner_assistant_settings",
 ];
 
+const assistantRejection = (code: PartnerAssistantActionRejection): PartnerCommandResult => ({
+  status: "rejected",
+  code,
+  message: PARTNER_ASSISTANT_ACTION_MESSAGES[code],
+  refresh: false,
+});
+
 /**
- * Corpo comune delle Server Action di Partner: anteprima mai verso Supabase, client con i
+ * La posta dell'assistente, controllata sul server prima della RPC: «Prova» e «Invio» solo con la
+ * casella configurata; «Manda la prova» solo con gli indirizzi di prova, e con lo stesso numero
+ * che la pagina ha mostrato a Tommi (`recipients`). Un comando non valido o di un altro tipo passa
+ * oltre: lo rifiuta executePartnerCommand. Una ripetizione passa oltre: la ricevuta dà l'esito del
+ * primo invio. Nessun valore della posta esce da qui.
+ */
+function assistantMailRejection(
+  kind: PartnerCommandKind,
+  value: unknown,
+  now: Date,
+): PartnerCommandResult | null {
+  if (kind !== "set_partner_assistant_mode" && kind !== "start_partner_assistant_test") return null;
+  const command = parsePartnerCommand(value, now);
+  if (command === null || command.kind !== kind) return null;
+  // «Verifica lo stesso invio» ripete un invio forse già arrivato: decide la ricevuta del database,
+  // non la posta di adesso. Senza posta il worker non manda comunque niente.
+  if (command.retry) return null;
+  if (
+    kind === "set_partner_assistant_mode" &&
+    !["prova", "invio"].includes(command.payload.mode as string)
+  )
+    return null;
+  const mail = partnerAssistantMailConfig();
+  if (mail === null) return assistantRejection("partner_assistant_mail_not_configured");
+  if (kind === "start_partner_assistant_test") {
+    if (mail.testTo.length === 0)
+      return assistantRejection("partner_assistant_mail_not_configured");
+    if (command.payload.recipients !== mail.testTo.length)
+      return assistantRejection("partner_assistant_test_to_changed");
+  }
+  return null;
+}
+
+/**
+ * Corpo comune delle Server Action di Partner: anteprima mai verso Supabase, poi la posta
+ * dell'assistente per «Prova», «Invio» e «Manda la prova» (senza RPC se manca), client con i
  * cookie scrivibili, membro verificato prima di tutto (executePartnerCommand), solo il comando
  * della propria azione, poi la pagina riletta. Un'eccezione qui vuol dire esito da verificare.
  */
@@ -48,8 +99,11 @@ export async function runPartnerCommandAction(
 ): Promise<PartnerCommandResult> {
   if (isLocalPreviewEnabled()) return PARTNER_PREVIEW_REJECTION;
   try {
+    const now = new Date();
+    const mailRejection = assistantMailRejection(kind, value, now);
+    if (mailRejection !== null) return mailRejection;
     const supabase = await createSupabaseServerClient({ writable: true });
-    const result = await executePartnerCommand(supabase, value, new Date(), { kind });
+    const result = await executePartnerCommand(supabase, value, now, { kind });
     // Dopo un salvataggio, o quando un collega ha cambiato il contatto, la pagina si rilegge.
     if (result.status === "success" || (result.status === "rejected" && result.refresh)) {
       revalidatePath(PARTNER_PATH);

@@ -495,6 +495,30 @@ describe("testi derivati", () => {
     );
   });
 
+  it("la prima email dell'assistente: origine «assistente», «dall'assistente»", () => {
+    const sent = parsePartnerActivity(
+      activityRow({
+        origin: "assistente",
+        occurred_at: "2026-10-29T08:42:00Z",
+        created_at: "2026-10-29T08:42:00Z",
+        approach: null,
+        created_by: id(990),
+      }),
+    );
+    expect(sent.origin).toBe("assistente");
+    expect(partnerActivityLine(sent, members)).toBe("29 ott · dall'assistente · Inviato via email");
+    // Anche un invio dell'assistente di pochi minuti fa chiede conferma prima di «Segna inviato».
+    expect(recentSentActivity([sent], new Date("2026-10-29T08:50:00Z"))).toBe(sent);
+    expect(recentSentQuestion(sent, members)).toBe(
+      "Già segnato inviato alle 09:42 dall'assistente. Segnare di nuovo?",
+    );
+    const fromFile = parsePartnerActivity(
+      activityRow({ origin: "file", created_at: "2026-10-22T08:45:00Z" }),
+    );
+    expect(recentSentActivity([fromFile], new Date("2026-10-22T08:50:00Z"))).toBeNull();
+    expect(() => parsePartnerActivity(activityRow({ origin: "worker" }))).toThrow();
+  });
+
   it("varianti visibili, messaggi pronti, motivo breve", () => {
     expect(isVisibleVariant({ researchRemovedAt: at, edited: false })).toBe(false);
     expect(isVisibleVariant({ researchRemovedAt: at, edited: true })).toBe(true);

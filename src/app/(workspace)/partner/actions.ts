@@ -46,7 +46,10 @@ export async function resolvePartnerDifference(command: unknown): Promise<Partne
   return runPartnerCommandAction("resolve_partner_difference", command);
 }
 
-/** Modalità dell'assistente: «prova» e «invio» solo a Tommi, e non in questa consegna. */
+/**
+ * Modalità dell'assistente: «prova» e «invio» solo a Tommi, con la posta dell'assistente
+ * configurata; «invio» dopo una prova confermata.
+ */
 export async function setPartnerAssistantMode(command: unknown): Promise<PartnerCommandResult> {
   return runPartnerCommandAction("set_partner_assistant_mode", command);
 }
@@ -58,4 +61,31 @@ export async function setPartnerAssistantContact(command: unknown): Promise<Part
 
 export async function savePartnerAssistantRules(command: unknown): Promise<PartnerCommandResult> {
   return runPartnerCommandAction("save_partner_assistant_rules", command);
+}
+
+/** «Manda la prova»: da 1 a 3 bozze pronte verso ogni indirizzo di prova. Solo Tommi. */
+export async function startPartnerAssistantTest(command: unknown): Promise<PartnerCommandResult> {
+  return runPartnerCommandAction("start_partner_assistant_test", command);
+}
+
+/** «La prova è arrivata in posta in arrivo». Solo Tommi. */
+export async function confirmPartnerAssistantTest(command: unknown): Promise<PartnerCommandResult> {
+  return runPartnerCommandAction("confirm_partner_assistant_test", command);
+}
+
+/** «Manda per primo»: la precedenza d'invio del contatto, da 0 a 9. Solo Tommi. */
+export async function setPartnerAssistantSendPriority(
+  command: unknown,
+): Promise<PartnerCommandResult> {
+  return runPartnerCommandAction("set_partner_assistant_send_priority", command);
+}
+
+/** «Riprendi l'invio» dopo un fermo della casella o dei rifiuti. Solo Tommi. */
+export async function resumePartnerAssistantSend(command: unknown): Promise<PartnerCommandResult> {
+  return runPartnerCommandAction("resume_partner_assistant_send", command);
+}
+
+/** Il limite delle prime email al giorno dopo la prima settimana. Solo Tommi. */
+export async function setPartnerAssistantSettings(command: unknown): Promise<PartnerCommandResult> {
+  return runPartnerCommandAction("set_partner_assistant_settings", command);
 }

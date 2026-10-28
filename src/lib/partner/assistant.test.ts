@@ -8,6 +8,10 @@ import {
 import {
   PARTNER_ASSISTANT_COUNT_LABELS,
   PARTNER_ASSISTANT_EVENT_LABELS,
+  PARTNER_ASSISTANT_EVENT_STEPS,
+  PARTNER_ASSISTANT_JOB_STATUSES,
+  PARTNER_ASSISTANT_SEND_STATUS_LABELS,
+  PARTNER_ASSISTANT_STOP_LABELS,
   PARTNER_ASSISTANT_INACTIVE,
   PARTNER_ASSISTANT_MODE_LABELS,
   PARTNER_ASSISTANT_REASON_LABELS,
@@ -19,14 +23,18 @@ import {
   parsePartnerAssistantCredit,
   partnerAssistantContactFrom,
   partnerAssistantEventLabel,
+  partnerAssistantLoginLine,
   partnerAssistantReasonInline,
   partnerAssistantReasonLabel,
   partnerAssistantRulesFrom,
+  partnerAssistantSendFrom,
   partnerAssistantStatusFrom,
+  type PartnerAssistantContactView,
 } from "./assistant";
 import {
   partnerAssistantFixture,
   partnerAssistantFixtureRows,
+  partnerFixtureDetail,
   partnerFixtureId,
   partnerFixtureRows,
 } from "./fixtures";
@@ -206,12 +214,307 @@ describe("stato dell'assistente (read_partner_assistant_status)", () => {
       (row) => (row.mode = "acceso"),
       (row) => (row.paused_reason = "rete"),
       (row) => (row.configured = "sì"),
-      (row) => (row.last_events[0].step = "invio"),
+      (row) => (row.last_events[0].step = "spedizione"),
       (row) => (row.last_events[0].outcome = "Fatto!"),
       (row) => (row.to_review[0].reason = ""),
       (row) => (row.to_review[0].name = ""),
     ];
     for (const change of changes) expect(broken(change)).toThrow(PartnerReadError);
+  });
+});
+
+describe("stato con l'invio", () => {
+  it("un evento d'invio (step «invio») si legge", () => {
+    const row = statusRow();
+    row.last_events.unshift({
+      created_at: "2026-10-22T08:59:00+00:00",
+      co: 951,
+      step: "invio",
+      outcome: "invio_inviato",
+    });
+    expect(partnerAssistantStatusFrom(row).lastEvents[0]).toEqual({
+      createdAt: "2026-10-22T08:59:00+00:00",
+      co: 951,
+      step: "invio",
+      outcome: "invio_inviato",
+    });
+    expect(PARTNER_ASSISTANT_EVENT_STEPS).toEqual([
+      "ricerca",
+      "estrazione",
+      "scrittura",
+      "controllo",
+      "invio",
+    ]);
+  });
+
+  it("un lavoro «inviata» si legge, con la sua etichetta", () => {
+    expect(PARTNER_ASSISTANT_JOB_STATUSES).toContain("inviata");
+    const rows = contactRows(2);
+    rows.job!.status = "inviata";
+    const view = partnerAssistantContactFrom(rows);
+    expect(view.job?.status).toBe("inviata");
+    expect(PARTNER_ASSISTANT_STATUS_LABELS.inviata).toBe("Email inviata");
+  });
+});
+
+/** La risposta di read_partner_assistant_send, con le chiavi della migrazione. */
+const sendRow = (): Record<string, unknown> & {
+  test_run: Record<string, unknown> | null;
+  recent: Record<string, unknown>[];
+  priorities: Record<string, unknown>[];
+} => ({
+  stop_reason: null,
+  stopped_at: null,
+  day_stopped_on: null,
+  backoff_until: null,
+  next_send_after: "2026-10-30T08:47:00+00:00",
+  last_tick_at: "2026-10-30T08:40:00.123456+00:00",
+  last_outcome: "copia_salvata",
+  daily_first_limit: 10,
+  first_limit_today: 5,
+  first_sent_today: 2,
+  first_real_send_on: "2026-10-30",
+  test_sent_today: 0,
+  test_limit: 15,
+  test_confirmed_at: "2026-10-29T10:12:00+00:00",
+  test_confirmed_by: "Ada Prova",
+  test_run: {
+    requested_at: "2026-10-29T09:00:00+00:00",
+    drafts: 2,
+    recipients: 3,
+    sent: 6,
+  },
+  window_open_rome: true,
+  next_window_rome: "2026-10-30T08:40:00+00:00",
+  ready: 4,
+  env_checked_at: "2026-10-30T08:40:00+00:00",
+  env_mailbox_ok: true,
+  env_test_ok: true,
+  env_test_count: 3,
+  smtp_login_at: "2026-10-30T08:41:00+00:00",
+  smtp_login_code: "ok",
+  imap_login_at: null,
+  imap_login_code: null,
+  recent: [
+    {
+      at: "2026-10-30T08:41:12+00:00",
+      co: 951,
+      name: "Club Sintetico",
+      mode: "invio",
+      status: "inviato",
+      subject: "Club Sintetico and LuckyLap",
+    },
+    {
+      at: "2026-10-29T09:20:00+00:00",
+      co: 952,
+      name: "Raduno Sintetico",
+      mode: "prova",
+      status: "inviato",
+      subject: "Raduno Sintetico and LuckyLap",
+    },
+  ],
+  priorities: [{ co: 951, name: "Club Sintetico", send_priority: 9 }],
+});
+const brokenSend = (change: (row: ReturnType<typeof sendRow>) => void) => {
+  const row = sendRow();
+  change(row);
+  return () => partnerAssistantSendFrom(row);
+};
+
+describe("invio dell'assistente (read_partner_assistant_send)", () => {
+  it("riga valida: le chiavi della migrazione in camelCase", () => {
+    expect(partnerAssistantSendFrom(sendRow())).toEqual({
+      stopReason: null,
+      stoppedAt: null,
+      dayStoppedOn: null,
+      backoffUntil: null,
+      nextSendAfter: "2026-10-30T08:47:00+00:00",
+      lastTickAt: "2026-10-30T08:40:00.123456+00:00",
+      lastOutcome: "copia_salvata",
+      dailyFirstLimit: 10,
+      firstLimitToday: 5,
+      firstSentToday: 2,
+      firstRealSendOn: "2026-10-30",
+      testSentToday: 0,
+      testLimit: 15,
+      testConfirmedAt: "2026-10-29T10:12:00+00:00",
+      testConfirmedBy: "Ada Prova",
+      testRun: { requestedAt: "2026-10-29T09:00:00+00:00", drafts: 2, recipients: 3, sent: 6 },
+      windowOpenRome: true,
+      nextWindowRome: "2026-10-30T08:40:00+00:00",
+      ready: 4,
+      envCheckedAt: "2026-10-30T08:40:00+00:00",
+      envMailboxOk: true,
+      envTestOk: true,
+      envTestCount: 3,
+      smtpLoginAt: "2026-10-30T08:41:00+00:00",
+      smtpLoginCode: "ok",
+      imapLoginAt: null,
+      imapLoginCode: null,
+      recent: [
+        {
+          at: "2026-10-30T08:41:12+00:00",
+          co: 951,
+          name: "Club Sintetico",
+          mode: "invio",
+          status: "inviato",
+          subject: "Club Sintetico and LuckyLap",
+        },
+        {
+          at: "2026-10-29T09:20:00+00:00",
+          co: 952,
+          name: "Raduno Sintetico",
+          mode: "prova",
+          status: "inviato",
+          subject: "Raduno Sintetico and LuckyLap",
+        },
+      ],
+      priorities: [{ co: 951, name: "Club Sintetico", sendPriority: 9 }],
+    });
+  });
+
+  it("fermo, variabili mai controllate, nessuna prova: valori nulli ammessi", () => {
+    const send = partnerAssistantSendFrom({
+      ...sendRow(),
+      stop_reason: "rimbalzi",
+      stopped_at: "2026-10-30T08:45:00+00:00",
+      day_stopped_on: "2026-10-30",
+      backoff_until: "2026-10-30T09:00:00+00:00",
+      next_send_after: null,
+      last_tick_at: null,
+      last_outcome: null,
+      first_real_send_on: null,
+      test_confirmed_at: null,
+      test_confirmed_by: null,
+      test_run: null,
+      next_window_rome: null,
+      env_checked_at: null,
+      env_mailbox_ok: null,
+      env_test_ok: null,
+      env_test_count: null,
+      smtp_login_at: null,
+      smtp_login_code: null,
+      recent: [],
+      priorities: [],
+    });
+    expect(send).toMatchObject({
+      stopReason: "rimbalzi",
+      dayStoppedOn: "2026-10-30",
+      testRun: null,
+      envTestCount: null,
+      recent: [],
+      priorities: [],
+    });
+  });
+
+  it("chiave in più o in meno, anche dentro prova, messaggi e priorità: errore", () => {
+    const changes: ((row: ReturnType<typeof sendRow>) => void)[] = [
+      (row) => (row.extra = 1),
+      (row) => delete row.env_test_count,
+      (row) => (row.test_run!.to_address = "prova1@example.test"),
+      (row) => delete row.test_run!.sent,
+      (row) => (row.recent[0].to_address = "info@club-951.example.test"),
+      (row) => delete row.recent[0].subject,
+      (row) => (row.priorities[0].id = id(1)),
+    ];
+    for (const change of changes) expect(brokenSend(change)).toThrow(PartnerReadError);
+    // Le chiavi in camelCase non sono quelle della RPC.
+    expect(() => partnerAssistantSendFrom(partnerAssistantSendFrom(sendRow()))).toThrow(
+      PartnerReadError,
+    );
+    for (const value of [null, [], "invio", 1])
+      expect(() => partnerAssistantSendFrom(value)).toThrow(PartnerReadError);
+  });
+
+  it("data non valida: errore", () => {
+    const changes: ((row: ReturnType<typeof sendRow>) => void)[] = [
+      (row) => (row.stopped_at = "2026-02-30T10:00:00Z"),
+      (row) => (row.next_send_after = "domani"),
+      (row) => (row.day_stopped_on = "2026-10-32"),
+      (row) => (row.first_real_send_on = "2026-10-30T08:00:00Z"),
+      (row) => (row.test_run!.requested_at = ""),
+      (row) => (row.recent[0].at = null),
+      (row) => (row.smtp_login_at = "2026-10-30"),
+    ];
+    for (const change of changes) expect(brokenSend(change)).toThrow(PartnerReadError);
+  });
+
+  it("numeri fuori dai limiti: errore", () => {
+    const changes: ((row: ReturnType<typeof sendRow>) => void)[] = [
+      (row) => (row.env_test_count = 6),
+      (row) => (row.env_test_count = -1),
+      (row) => (row.daily_first_limit = 16),
+      (row) => (row.daily_first_limit = 0),
+      (row) => (row.first_limit_today = 0),
+      (row) => (row.first_sent_today = -1),
+      (row) => (row.test_sent_today = 1.5),
+      (row) => (row.ready = -1),
+      (row) => (row.test_run!.drafts = 4),
+      (row) => (row.test_run!.recipients = 0),
+      (row) => (row.test_run!.sent = -1),
+      (row) => (row.recent[0].co = 0),
+      (row) => (row.priorities[0].send_priority = 0),
+      (row) => (row.priorities[0].send_priority = 10),
+      (row) => (row.recent = Array.from({ length: 21 }, () => ({ ...row.recent[0] }))),
+      (row) => (row.priorities = Array.from({ length: 51 }, () => ({ ...row.priorities[0] }))),
+    ];
+    for (const change of changes) expect(brokenSend(change)).toThrow(PartnerReadError);
+  });
+
+  it("codici: solo minuscole, cifre e trattini bassi, mai testo del server", () => {
+    const changes: ((row: ReturnType<typeof sendRow>) => void)[] = [
+      (row) => (row.smtp_login_code = "535 5.7.8 Authentication credentials invalid"),
+      (row) => (row.smtp_login_code = "Smtp_eauth"),
+      (row) => (row.imap_login_code = "x".repeat(81)),
+      (row) => (row.last_outcome = ""),
+      (row) => (row.stop_reason = "spam"),
+      (row) => (row.recent[0].status = "consegnato"),
+      (row) => (row.recent[0].mode = "spento"),
+      (row) => (row.window_open_rome = "sì"),
+      (row) => (row.env_mailbox_ok = 1),
+      (row) => (row.test_confirmed_by = ""),
+      (row) => (row.recent[0].subject = ""),
+    ];
+    for (const change of changes) expect(brokenSend(change)).toThrow(PartnerReadError);
+  });
+
+  it("riga dell'accesso: mai provato, riuscito o non riuscito con il codice", () => {
+    expect(partnerAssistantLoginLine(null, null)).toBe("mai provato");
+    expect(partnerAssistantLoginLine("2026-10-30T08:41:00+00:00", "ok")).toBe("riuscito alle 9:41");
+    expect(partnerAssistantLoginLine("2026-10-30T08:41:00+00:00", "smtp_eauth")).toBe(
+      "non riuscito alle 9:41 (smtp_eauth)",
+    );
+    expect(partnerAssistantLoginLine("2026-10-30T14:05:00+00:00", "imap_auth")).toBe(
+      "non riuscito alle 15:05 (imap_auth)",
+    );
+  });
+
+  it("etichette dei messaggi e dei fermi", () => {
+    expect(PARTNER_ASSISTANT_SEND_STATUS_LABELS).toEqual({
+      pronto: "Pronta",
+      in_invio: "In invio",
+      inviato: "Inviata",
+      incerto: "Incerta",
+      respinto: "Respinta",
+      scartato: "Non partita",
+    });
+    expect(PARTNER_ASSISTANT_STOP_LABELS).toEqual({
+      casella: "La casella ha rifiutato la password.",
+      rimbalzi: "Il server di posta ha rifiutato delle email.",
+    });
+    // Gli stati dei messaggi e i fermi sono quelli dei check della migrazione.
+    const sql = readFileSync(
+      join(ROOT, "supabase/migrations/20261028164029_assistente_partner_invio.sql"),
+      "utf8",
+    );
+    const list = (pattern: RegExp) =>
+      [...(pattern.exec(sql)?.[1] ?? "").matchAll(/'([a-z_]+)'/g)].map((m) => m[1]);
+    expect(Object.keys(PARTNER_ASSISTANT_SEND_STATUS_LABELS)).toEqual(
+      list(/check \(send_status in \(([^)]*)\)\)/),
+    );
+    expect(Object.keys(PARTNER_ASSISTANT_STOP_LABELS)).toEqual(
+      list(/stop_reason text check \(stop_reason in \(([^)]*)\)\)/),
+    );
   });
 });
 
@@ -228,6 +531,12 @@ function contactRows(co: number, today = TODAY) {
     job: assistant.jobs.find((row) => row.partner_id === partnerId) ?? null,
     notes: assistant.notes.filter((row) => row.partner_id === partnerId),
     draft: assistant.drafts.find((row) => row.partner_id === partnerId) ?? null,
+    messages: assistant.messages.filter(
+      (row) =>
+        row.partner_id === partnerId &&
+        row.mode === "invio" &&
+        ["inviato", "incerto", "respinto"].includes(row.send_status as string),
+    ),
   };
 }
 
@@ -235,7 +544,10 @@ describe("blocco dell'assistente nella scheda", () => {
   it("bozza pronta: ricerca, scelta e bozza con l'indirizzo del recapito", () => {
     const view = partnerAssistantContactFrom(contactRows(2));
     expect(view.active).toBe(true);
-    expect(view.switchVersion).toBeNull();
+    // «Manda per primo»: la riga dell'interruttore porta la priorità d'invio.
+    expect(view.switchVersion).toBe(1);
+    expect(view.sendPriority).toBe(9);
+    expect(view.sends).toEqual([]);
     expect(view.job).toMatchObject({ status: "pronta", step: "controllo", reason: null });
     expect(view.research?.sources).toEqual(["https://raduno-due.example.test/espositori"]);
     expect(view.research?.text).toContain("Raduno Sintetico Due");
@@ -264,6 +576,8 @@ describe("blocco dell'assistente nella scheda", () => {
     expect(partnerAssistantContactFrom(contactRows(4))).toEqual({
       active: false,
       switchVersion: 1,
+      sendPriority: 0,
+      sends: [],
       job: null,
       research: null,
       choice: null,
@@ -275,11 +589,62 @@ describe("blocco dell'assistente nella scheda", () => {
     expect(partnerAssistantContactFrom(contactRows(3))).toEqual({
       active: true,
       switchVersion: null,
+      sendPriority: 0,
+      sends: [],
       job: null,
       research: null,
       choice: null,
       draft: null,
     });
+  });
+
+  it("prima email inviata dall'assistente: lavoro «inviata» e invii, il più recente prima", () => {
+    const view = partnerAssistantContactFrom(contactRows(6));
+    expect(view.job).toMatchObject({ status: "inviata", reason: null });
+    expect(view.sends).toEqual([
+      { at: `${TODAY}T08:41:12.000Z`, status: "inviato", subject: expect.any(String) },
+    ]);
+    expect(PARTNER_ASSISTANT_STATUS_LABELS[view.job!.status]).toBe("Email inviata");
+    // Un rifiuto non ha sent_at: vale la data del messaggio. Al massimo cinque, dal più recente.
+    const rows = contactRows(6);
+    const sent = rows.messages[0];
+    rows.messages = [
+      { ...sent, send_status: "respinto", sent_at: null, created_at: `${TODAY}T07:00:00.000Z` },
+      sent,
+      { ...sent, send_status: "incerto", sent_at: `${TODAY}T09:30:00Z` },
+    ];
+    expect(partnerAssistantContactFrom(rows).sends.map((item) => [item.at, item.status])).toEqual([
+      [`${TODAY}T09:30:00Z`, "incerto"],
+      [`${TODAY}T08:41:12.000Z`, "inviato"],
+      [`${TODAY}T07:00:00.000Z`, "respinto"],
+    ]);
+  });
+
+  it("invii e priorità che non tornano: errore", () => {
+    const changes: ((rows: ReturnType<typeof contactRows>) => void)[] = [
+      (rows) => (rows.messages[0].mode = "prova"),
+      (rows) => (rows.messages[0].send_status = "pronto"),
+      (rows) => (rows.messages[0].send_status = "scartato"),
+      (rows) => (rows.messages[0].partner_id = id(2)),
+      (rows) => (rows.messages[0].subject = ""),
+      (rows) => (rows.messages[0].sent_at = null),
+      (rows) => (rows.messages[0].sent_at = "2026-02-30T09:00:00Z"),
+      (rows) => (rows.messages = Array.from({ length: 6 }, () => ({ ...rows.messages[0] }))),
+    ];
+    for (const change of changes) {
+      const rows = contactRows(6);
+      change(rows);
+      expect(() => partnerAssistantContactFrom(rows)).toThrow(PartnerReadError);
+    }
+    for (const value of [10, -1, 1.5, "9", null]) {
+      const rows = contactRows(2);
+      rows.switch!.send_priority = value;
+      expect(() => partnerAssistantContactFrom(rows), String(value)).toThrow(PartnerReadError);
+    }
+    // Gli invii sono storia del contatto, non del lavoro: si leggono anche senza lavoro.
+    const orphan = contactRows(3);
+    orphan.messages = contactRows(6).messages.map((row) => ({ ...row, partner_id: id(3) }));
+    expect(partnerAssistantContactFrom(orphan).sends).toHaveLength(1);
   });
 
   it("recapito cancellato: la bozza resta senza indirizzo", () => {
@@ -309,7 +674,7 @@ describe("blocco dell'assistente nella scheda", () => {
         const choice = rows.notes.find((note) => note.kind === "scelta")!;
         choice.content = { ...(choice.content as object), language: "pt" };
       },
-      (rows) => (rows.job!.status = "inviata"),
+      (rows) => (rows.job!.status = "inviato"),
       (rows) => (rows.job!.write_on = "2026-02-30"),
       (rows) => (rows.job!.updated_at = "ieri"),
       (rows) => (rows.draft = null),
@@ -371,6 +736,7 @@ describe("etichette in italiano", () => {
       attesa: "In attesa della data",
       pronta: "Bozza pronta",
       serve_tommaso: "Serve Tommi",
+      inviata: "Email inviata",
     });
     expect(PARTNER_ASSISTANT_REQUEST_LABELS).toEqual({
       merch_cobranding: "Merch co-firmato",
@@ -467,6 +833,51 @@ describe("etichette in italiano", () => {
     );
   });
 
+  it("una frase per ogni motivo dell'invio, come li scrive la migrazione", () => {
+    const sql = readFileSync(
+      join(ROOT, "supabase/migrations/20261028164029_assistente_partner_invio.sql"),
+      "utf8",
+    );
+    const all = (text: string, pattern: RegExp) => [...text.matchAll(pattern)].map((m) => m[1]);
+    // I motivi dei lavori passati a Tommi nella migrazione dell'invio.
+    const fromSql = new Set([
+      ...all(sql, /status = 'serve_tommaso', reason = '([a-z_]+)'/g),
+      ...all(sql, /then 'indirizzo_non_valido' else '([a-z_]+)' end/g),
+      ...all(
+        sql,
+        /elsif p_reason in \(([^)]*)\) then\s+update public\.partner_assistant_jobs set status = 'serve_tommaso'/g,
+      ).flatMap((list) => all(list, /'([a-z_]+)'/g)),
+    ]);
+    expect([...fromSql].sort()).toEqual(
+      [
+        "bozza_scaduta",
+        "conversazione_esistente",
+        "impronta",
+        "indirizzo_non_valido",
+        "invio_incerto",
+        "invio_rifiutato",
+      ].sort(),
+    );
+    expect(PARTNER_ASSISTANT_REASON_LABELS).toMatchObject({
+      bozza_scaduta:
+        "Bozza scaduta: l'evento è già iniziato o una data citata è passata. L'assistente la riscrive una volta, se c'è credito; poi decide Tommi.",
+      conversazione_esistente:
+        "Conversazione recente nella casella: nella posta degli ultimi 12 mesi c'è già uno scambio con questo indirizzo. L'assistente non scrive; decide Tommi.",
+      invio_incerto:
+        "Invio incerto: controlla in «Posta inviata» se l'email è partita. L'assistente non la rimanda.",
+      indirizzo_non_valido:
+        "Indirizzo non valido: il server di posta lo rifiuta, oppure è scritto in un modo che l'assistente non usa.",
+      invio_rifiutato: "Il server di posta ha rifiutato l'email.",
+      impronta: "Il testo da inviare non era quello approvato: l'email non è partita.",
+    });
+    for (const reason of fromSql) {
+      const label = (PARTNER_ASSISTANT_REASON_LABELS as Record<string, string>)[reason];
+      expect(label, reason).toMatch(/^[A-ZÈ].*\.$/);
+      expect(label, reason).not.toContain("Tommaso");
+      expect(partnerAssistantReasonLabel(reason)).toBe(label);
+    }
+  });
+
   it("dopo i due punti il motivo comincia in minuscolo, tranne i nomi", () => {
     expect(partnerAssistantReasonInline("fatto_mancante")).toBe(
       "la ricerca non ha trovato un fatto vero e recente da citare.",
@@ -502,6 +913,44 @@ describe("etichette in italiano", () => {
         "lease_persa",
       ],
       senzaPasso: ["pausa_credito", "pausa_errore_claude"],
+      // Consegna 2a: gli eventi con step «invio» (comandi del founder e RPC del worker).
+      invio: [
+        "prova_avviata",
+        "prova_casella_vuota",
+        "prova_casella_trovata",
+        "prova_casella_incerta",
+        "prova_inviata",
+        "prova_incerto",
+        "prova_respinto",
+        "prova_scartato",
+        "invio_inviato",
+        "invio_incerto",
+        "invio_respinto",
+        "invio_scartato",
+        "invio_abbandonato",
+        "copia_salvata",
+        "copia_trovata",
+        "ricerca_scaduta",
+        "recapito_cambiato",
+        "regole_superate",
+        "bozza_scaduta",
+        "indirizzo_non_valido",
+        "conversazione_esistente",
+        "impronta",
+        "casella_incerta",
+        "casella",
+        "limite",
+        "finestra_chiusa",
+        "destinatario_prova",
+        "modalita_cambiata",
+        "bozza_cambiata",
+        "fermo",
+        "non_idoneo",
+        "fermo_casella",
+        "fermo_rimbalzi",
+        "fermo_oggi",
+        "invio_ripreso",
+      ],
     };
     const listed = new Set(Object.values(byStep).flat());
     // Gli esiti scritti come testo nella migrazione del worker sono tutti nell'elenco.
@@ -530,6 +979,50 @@ describe("etichette in italiano", () => {
       ]),
     );
     for (const code of literal) expect(listed.has(code), code).toBe(true);
+    // Gli esiti dell'invio scritti come testo nella migrazione della consegna 2a: tutti con una
+    // frase. Gli esiti composti (`prova_casella_` più il controllo, modalità ed esito di finish)
+    // si ricostruiscono dagli elenchi chiusi della SQL.
+    const invio = readFileSync(
+      join(ROOT, "supabase/migrations/20261028164029_assistente_partner_invio.sql"),
+      "utf8",
+    );
+    const sendLiteral = [
+      ...all(invio, /values \('invio', '([a-z_]+)'\)/g),
+      ...all(invio, /values \([a-z_.]+, 'invio', '([a-z_]+)'\)/g),
+      ...all(invio, /select d\.partner_id, 'invio', '([a-z_]+)'/g),
+      ...all(invio, /v_event := case when [^;]*? then '([a-z_]+)'/g),
+      ...all(invio, /case when v_found then '([a-z_]+)'/g),
+      ...all(invio, /case when v_found then '[a-z_]+' else '([a-z_]+)' end/g),
+      // Rifiuti di prepare e di start, spostamenti della pulizia del claim, motivi di skip.
+      ...all(invio, /v_reason := case\s+when (?:v_mode|j\.partner_id)([\s\S]*?)\n  end;/g).flatMap(
+        (body) => all(body, /then '([a-z_]+)'/g),
+      ),
+      ...all(invio, /case\s+when o\.research_at([\s\S]*?)end as reason/g).flatMap((body) =>
+        all(body, /then '([a-z_]+)'/g),
+      ),
+      ...all(invio, /p_reason not in \(([^)]*)\)/g).flatMap((list) => all(list, /'([a-z_]+)'/g)),
+      ...["vuota", "trovata", "incerta"].map((check) => `prova_casella_${check}`),
+      // Gli esiti di finish diversi da `prova_inviata`: modalità ed esito.
+      ...["prova", "invio"].flatMap((mode) =>
+        ["inviato", "incerto", "respinto", "scartato"].map((outcome) => `${mode}_${outcome}`),
+      ),
+    ].filter((code) => code !== "prova_inviato");
+    expect(sendLiteral).toEqual(
+      expect.arrayContaining([
+        "prova_avviata",
+        "invio_ripreso",
+        "fermo_oggi",
+        "fermo_rimbalzi",
+        "fermo_casella",
+        "invio_abbandonato",
+        "copia_salvata",
+        "copia_trovata",
+        "indirizzo_non_valido",
+        "casella_incerta",
+        "finestra_chiusa",
+      ]),
+    );
+    for (const code of sendLiteral) expect(listed.has(code), code).toBe(true);
 
     expect(Object.keys(PARTNER_ASSISTANT_EVENT_LABELS).sort()).toEqual([...listed].sort());
     for (const code of listed) {
@@ -596,6 +1089,27 @@ describe("dati sintetici dell'assistente", () => {
       serveTommaso: jobs("serve_tommaso"),
       ferma: rows.switches.filter((row) => !row.active).length,
     });
+  });
+
+  it("le fixture dell'invio passano i lettori: due invii, nessun fermo, una priorità", () => {
+    const { send } = partnerAssistantFixture(TODAY);
+    expect(send.stopReason).toBeNull();
+    expect(send.recent).toHaveLength(2);
+    expect(send.recent.map((item) => item.at)).toEqual(
+      [...send.recent.map((item) => item.at)].sort().reverse(),
+    );
+    expect(send.priorities).toEqual([{ co: 2, name: "Raduno Sintetico Due", sendPriority: 9 }]);
+    // La scheda con la priorità e quella con la prima email inviata.
+    const raduno = partnerFixtureDetail(2, TODAY)!.assistant as PartnerAssistantContactView;
+    expect(raduno.sendPriority).toBe(9);
+    const club = partnerFixtureDetail(6, TODAY)!.assistant as PartnerAssistantContactView;
+    expect(club.job?.status).toBe("inviata");
+    expect(club.sends.map((item) => item.status)).toEqual(["inviato"]);
+    // I messaggi della lista recente sono quelli delle righe sintetiche.
+    const rows = partnerAssistantFixtureRows(TODAY);
+    expect(send.recent.map((item) => [item.co, item.mode, item.status, item.subject])).toEqual(
+      rows.messages.map((row) => [6, row.mode, row.send_status, row.subject]).reverse(),
+    );
   });
 
   it("la bozza sintetica ha l'impronta vera di oggetto, corpo e firma", () => {

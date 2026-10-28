@@ -19,18 +19,23 @@ vi.mock("../../../lib/partner/server", () => ({
 }));
 
 import {
+  confirmPartnerAssistantTest,
   recordPartnerActivity,
   removePartnerContact,
   resolvePartnerDifference,
   restorePartnerMessage,
+  resumePartnerAssistantSend,
   savePartner,
   savePartnerAssistantRules,
   savePartnerContact,
   savePartnerMessage,
   setPartnerAssistantContact,
   setPartnerAssistantMode,
+  setPartnerAssistantSendPriority,
+  setPartnerAssistantSettings,
   setPartnerDoNotContact,
   setPartnerState,
+  startPartnerAssistantTest,
 } from "./actions";
 import { importPartnerDeviceFile, previewPartnerDeviceFile } from "./dati/actions";
 
@@ -50,10 +55,51 @@ const ACTIONS = [
   [setPartnerAssistantMode, "set_partner_assistant_mode"],
   [setPartnerAssistantContact, "set_partner_assistant_contact"],
   [savePartnerAssistantRules, "save_partner_assistant_rules"],
+  [startPartnerAssistantTest, "start_partner_assistant_test"],
+  [confirmPartnerAssistantTest, "confirm_partner_assistant_test"],
+  [setPartnerAssistantSendPriority, "set_partner_assistant_send_priority"],
+  [resumePartnerAssistantSend, "resume_partner_assistant_send"],
+  [setPartnerAssistantSettings, "set_partner_assistant_settings"],
 ] as const;
+const ASSISTANT_ACTIONS = [
+  setPartnerAssistantMode,
+  setPartnerAssistantContact,
+  savePartnerAssistantRules,
+  startPartnerAssistantTest,
+  confirmPartnerAssistantTest,
+  setPartnerAssistantSendPriority,
+  resumePartnerAssistantSend,
+  setPartnerAssistantSettings,
+];
+
+/** Casella e indirizzi di prova sintetici (example.test): tre indirizzi di prova. */
+const MAIL = {
+  PARTNER_MAIL_USER: "casella@luckylap.example.test",
+  PARTNER_MAIL_PASSWORD: "password-sintetica",
+  PARTNER_TEST_TO: "prova1@example.test,prova2@example.test,prova3@example.test",
+};
+const stubMail = (values: Partial<Record<keyof typeof MAIL, string>>) => {
+  for (const key of Object.keys(MAIL) as (keyof typeof MAIL)[]) vi.stubEnv(key, values[key] ?? "");
+  // Vuoti: valgono i predefiniti, qualunque cosa ci sia nell'ambiente di chi lancia i test.
+  for (const key of ["PARTNER_MAIL_FROM_NAME", "PARTNER_MAIL_SMTP_HOST", "PARTNER_MAIL_IMAP_HOST"])
+    vi.stubEnv(key, "");
+};
+const OPERATION = "70000000-0000-4000-8000-000000009000";
+const modeCommand = (mode: string) => ({
+  kind: "set_partner_assistant_mode",
+  operationId: OPERATION,
+  payload: { schema_version: 1, mode, expected_version: 3 },
+});
+const testCommand = (recipients: number) => ({
+  kind: "start_partner_assistant_test",
+  operationId: OPERATION,
+  payload: { schema_version: 1, drafts: 2, recipients },
+});
 
 beforeEach(() => {
   vi.clearAllMocks();
+  vi.unstubAllEnvs();
+  stubMail(MAIL);
   mocks.preview = false;
   mocks.createClient.mockResolvedValue(mocks.client);
   mocks.execute.mockResolvedValue(success);
@@ -96,11 +142,7 @@ describe("Server Action dei comandi Partner", () => {
   });
 
   it("i comandi dell'assistente rileggono /partner e /partner/assistente", async () => {
-    for (const action of [
-      setPartnerAssistantMode,
-      setPartnerAssistantContact,
-      savePartnerAssistantRules,
-    ]) {
+    for (const action of ASSISTANT_ACTIONS) {
       mocks.revalidatePath.mockClear();
       await action(command);
       expect(mocks.revalidatePath.mock.calls).toEqual([["/partner"], ["/partner/assistente"]]);
@@ -129,6 +171,75 @@ describe("Server Action dei comandi Partner", () => {
     expect(mocks.revalidatePath).not.toHaveBeenCalled();
   });
 
+  it("«Prova» e «Invio» senza la posta dell'assistente: rifiuto senza RPC", async () => {
+    const notConfigured = {
+      status: "rejected",
+      code: "partner_assistant_mail_not_configured",
+      message:
+        "La posta dell'assistente non è configurata: «Prova» e «Invio» non sono disponibili.",
+      refresh: false,
+    };
+    for (const missing of [
+      { ...MAIL, PARTNER_MAIL_USER: "" },
+      { ...MAIL, PARTNER_MAIL_PASSWORD: "" },
+      { ...MAIL, PARTNER_MAIL_USER: "non-un-indirizzo" },
+    ]) {
+      stubMail(missing);
+      for (const mode of ["invio", "prova"])
+        await expect(setPartnerAssistantMode(modeCommand(mode)), mode).resolves.toEqual(
+          notConfigured,
+        );
+      await expect(startPartnerAssistantTest(testCommand(3))).resolves.toEqual(notConfigured);
+    }
+    expect(mocks.createClient).not.toHaveBeenCalled();
+    expect(mocks.execute).not.toHaveBeenCalled();
+    expect(mocks.revalidatePath).not.toHaveBeenCalled();
+    // «Spento» e «Prepara» non mandano email: passano anche senza posta.
+    for (const mode of ["spento", "prepara"]) {
+      mocks.execute.mockClear();
+      await expect(setPartnerAssistantMode(modeCommand(mode))).resolves.toEqual(success);
+      expect(mocks.execute, mode).toHaveBeenCalledTimes(1);
+    }
+  });
+
+  it("«Manda la prova»: senza indirizzi di prova o con un numero diverso, rifiuto senza RPC", async () => {
+    stubMail({ ...MAIL, PARTNER_TEST_TO: "" });
+    await expect(startPartnerAssistantTest(testCommand(1))).resolves.toMatchObject({
+      status: "rejected",
+      code: "partner_assistant_mail_not_configured",
+      refresh: false,
+    });
+    // Senza indirizzi di prova «Prova» si può scegliere: la casella c'è.
+    await expect(setPartnerAssistantMode(modeCommand("prova"))).resolves.toEqual(success);
+    mocks.execute.mockClear();
+    mocks.revalidatePath.mockClear();
+    stubMail(MAIL);
+    await expect(startPartnerAssistantTest(testCommand(2))).resolves.toEqual({
+      status: "rejected",
+      code: "partner_assistant_test_to_changed",
+      message: "Gli indirizzi di prova sono cambiati: ricarica la pagina e riprova.",
+      refresh: false,
+    });
+    expect(mocks.execute).not.toHaveBeenCalled();
+    expect(mocks.revalidatePath).not.toHaveBeenCalled();
+    await expect(startPartnerAssistantTest(testCommand(3))).resolves.toEqual(success);
+    expect(mocks.execute).toHaveBeenCalledTimes(1);
+    expect(mocks.execute.mock.calls[0][1]).toEqual(testCommand(3));
+    await expect(setPartnerAssistantMode(modeCommand("invio"))).resolves.toEqual(success);
+  });
+
+  it("«Verifica lo stesso invio»: la ripetizione va alla ricevuta, non alla posta di adesso", async () => {
+    stubMail({ ...MAIL, PARTNER_MAIL_USER: "" });
+    await expect(
+      setPartnerAssistantMode({ ...modeCommand("invio"), retry: true }),
+    ).resolves.toEqual(success);
+    stubMail(MAIL);
+    await expect(startPartnerAssistantTest({ ...testCommand(2), retry: true })).resolves.toEqual(
+      success,
+    );
+    expect(mocks.execute).toHaveBeenCalledTimes(2);
+  });
+
   it("un errore imprevisto diventa «Salvataggio non confermato», mai un'eccezione", async () => {
     mocks.createClient.mockRejectedValueOnce(new Error("cookie"));
     await expect(setPartnerState(command)).resolves.toEqual({
@@ -142,6 +253,14 @@ describe("Server Action dei comandi Partner", () => {
 
   it("anteprima locale: nessuna chiamata a Supabase, salvataggio disattivato", async () => {
     mocks.preview = true;
+    // L'anteprima viene prima del controllo della posta.
+    stubMail({});
+    await expect(setPartnerAssistantMode(modeCommand("invio"))).resolves.toMatchObject({
+      code: "preview",
+    });
+    await expect(startPartnerAssistantTest(testCommand(2))).resolves.toMatchObject({
+      code: "preview",
+    });
     for (const [action] of ACTIONS)
       await expect(action(command)).resolves.toEqual({
         status: "rejected",

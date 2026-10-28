@@ -13,6 +13,7 @@ import {
   PartnerUnavailableError,
   executePartnerCommand,
   loadPartnerAssistantRules,
+  loadPartnerAssistantSend,
   loadPartnerAssistantStatus,
   loadPartnerData,
   loadPartnerDetail,
@@ -167,6 +168,7 @@ function tables(extra: Partial<Record<string, Row[]>> = {}): Record<string, Row[
     partner_assistant_notes: a.notes,
     partner_assistant_drafts: a.drafts,
     partner_assistant_rules: a.rules,
+    partner_assistant_messages: a.messages,
     partners: r.partners,
     partner_contacts: r.contacts,
     partner_message_variants: r.variants,
@@ -336,12 +338,76 @@ describe("assistente nella scheda", () => {
     expect(fermo?.assistant).toMatchObject({ active: false, switchVersion: 1, job: null });
   });
 
+  it("priorità d'invio e prime email dell'assistente: solo «invio», solo esiti, al massimo 5", async () => {
+    const fake = fakeSupabase(tables());
+    const raduno = (await loadPartnerDetail(fake.client, 2))!
+      .assistant as PartnerAssistantContactView;
+    expect(raduno.sendPriority).toBe(9);
+    expect(raduno.sends).toEqual([]);
+    const columns = (table: string) =>
+      fake.calls.filter((call) => call.table === table).flatMap((call) => call.columns.split(","));
+    expect(columns("partner_assistant_contacts")).toEqual([
+      "partner_id",
+      "active",
+      "send_priority",
+      "version",
+    ]);
+    // Niente indirizzo, testo, MIME, impronta, codici SMTP o lease dei messaggi.
+    expect(columns("partner_assistant_messages")).toEqual([
+      "partner_id",
+      "mode",
+      "send_status",
+      "subject",
+      "sent_at",
+      "created_at",
+    ]);
+    const messages = fake.calls.find((call) => call.table === "partner_assistant_messages")!;
+    expect(messages.ops).toEqual([
+      ["eq", "partner_id", partnerFixtureId(2)],
+      ["eq", "mode", "invio"],
+      ["in", "send_status", ["inviato", "incerto", "respinto"]],
+      ["limit", 5],
+    ]);
+    const club = (await loadPartnerDetail(fakeSupabase(tables()).client, 6))!
+      .assistant as PartnerAssistantContactView;
+    expect(club.job?.status).toBe("inviata");
+    expect(club.sends).toEqual([
+      expect.objectContaining({ status: "inviato", subject: expect.any(String) }),
+    ]);
+    // Le prove e i messaggi non partiti restano fuori; il più recente prima, al massimo 5.
+    const data = tables();
+    const sent = data.partner_assistant_messages.find(
+      (row) => row.partner_id === partnerFixtureId(6) && row.mode === "invio",
+    )!;
+    data.partner_assistant_messages.push(
+      ...Array.from({ length: 6 }, (_, index) => ({
+        ...sent,
+        id: partnerFixtureId(1700 + index),
+        send_status: "respinto",
+        sent_at: null,
+        created_at: `${TODAY}T0${index}:00:00.000Z`,
+      })),
+      { ...sent, id: partnerFixtureId(1710), send_status: "scartato", sent_at: null },
+    );
+    const many = (await loadPartnerDetail(fakeSupabase(data).client, 6))!
+      .assistant as PartnerAssistantContactView;
+    expect(many.sends.map((item) => item.status)).toEqual([
+      "inviato",
+      "respinto",
+      "respinto",
+      "respinto",
+      "respinto",
+    ]);
+  });
+
   it("contatto senza lavoro: blocco vuoto e attivo (non null), senza leggere note e bozze", async () => {
     const fake = fakeSupabase(tables());
     const detail = (await loadPartnerDetail(fake.client, 3))!;
     expect(detail.assistant).toEqual({
       active: true,
       switchVersion: null,
+      sendPriority: 0,
+      sends: [],
       job: null,
       research: null,
       choice: null,
@@ -357,6 +423,7 @@ describe("assistente nella scheda", () => {
       "partner_assistant_jobs",
       "partner_assistant_notes",
       "partner_assistant_drafts",
+      "partner_assistant_messages",
     ]) {
       const detail = await loadPartnerDetail(
         fakeSupabase(tables(), { failTable: table }).client,
@@ -472,6 +539,34 @@ describe("stato e regole dell'assistente", () => {
     ])
       await expect(
         loadPartnerAssistantStatus(fakeSupabase(tables(), { rpc }).client),
+      ).rejects.toThrow(PartnerUnavailableError);
+  });
+
+  it("invio dalla RPC read_partner_assistant_send", async () => {
+    const send = partnerAssistantFixtureRows(TODAY).send;
+    const fake = fakeSupabase(tables(), { rpc: () => ({ data: send, error: null }) });
+    const loaded = await loadPartnerAssistantSend(fake.client);
+    expect(fake.rpcCalls).toEqual([{ name: "read_partner_assistant_send", args: undefined }]);
+    expect(loaded.stopReason).toBeNull();
+    expect(loaded.recent).toHaveLength(2);
+    expect(loaded.priorities).toEqual([{ co: 2, name: "Raduno Sintetico Due", sendPriority: 9 }]);
+    // Ogni errore, anche la funzione che non c'è, e ogni risposta non valida: non disponibile.
+    for (const rpc of [
+      () => ({ data: null, error: { code: "57014", message: "statement timeout" } }),
+      () => ({
+        data: null,
+        error: {
+          code: "PGRST202",
+          message:
+            "Could not find the function public.read_partner_assistant_send without parameters in the schema cache",
+        },
+      }),
+      () => ({ data: { ...send, extra: true }, error: null }),
+      () => ({ data: { ...send, smtp_login_code: "535 Authentication failed" }, error: null }),
+      () => new Error("rete"),
+    ])
+      await expect(
+        loadPartnerAssistantSend(fakeSupabase(tables(), { rpc }).client),
       ).rejects.toThrow(PartnerUnavailableError);
   });
 

@@ -3,7 +3,9 @@
 // da e verso le chiavi SQL e controlla ogni valore che legge.
 
 export type PartnerAssistantStep = "ricerca" | "estrazione" | "scrittura" | "controllo";
-export type PartnerAssistantJobStatus = "in_coda" | "attesa" | "pronta" | "serve_tommaso";
+/** `inviata`: dopo la prima email vera (consegna 2a); la scrivono solo le RPC d'invio. */
+export type PartnerAssistantJobStatus =
+  "in_coda" | "attesa" | "pronta" | "serve_tommaso" | "inviata";
 export type PartnerAssistantLanguage = "it" | "en" | "de" | "fr" | "es";
 export type PartnerAssistantContactKind = "club" | "brand" | "media" | "evento" | "negozio";
 export type PartnerAssistantRegister = "voi" | "lei" | "you" | "sie" | "vous" | "usted";
