@@ -150,12 +150,20 @@ describe("anteprima locale di Partner", () => {
       reason: "fatto_mancante",
     });
     expect(partnerFixtureDetail(4, TODAY)?.assistant).toMatchObject({ active: false, job: null });
+    // Precedenza d'invio sul contatto 2, prima email già inviata al contatto 6.
+    expect(ready.sendPriority).toBe(9);
+    expect(view(partnerFixtureDetail(6, TODAY))).toMatchObject({
+      job: { status: "inviata" },
+      sends: [{ status: "inviato" }],
+    });
     // Contatti senza lavoro né interruttore: il blocco c'è, con l'interruttore attivo e senza
     // lavoro. `null` vuol dire solo «stato non leggibile».
-    for (const co of [3, 5, 6])
+    for (const co of [3, 5])
       expect(partnerFixtureDetail(co, TODAY)?.assistant, `${co}`).toEqual({
         active: true,
         switchVersion: null,
+        sendPriority: 0,
+        sends: [],
         job: null,
         research: null,
         choice: null,
@@ -264,6 +272,7 @@ describe("controlli di coerenza della lettura", () => {
         job: mine(a.jobs)[0] ?? null,
         notes: mine(a.notes),
         draft: mine(a.drafts)[0] ?? null,
+        messages: [],
       };
     };
     const detailRows = (
@@ -292,7 +301,7 @@ describe("controlli di coerenza della lettura", () => {
     const choice = unknownRequest.notes.find((note) => note.kind === "scelta")!;
     choice.content = { ...(choice.content as object), request: "conto_vendita" };
     const wrongStatus = assistantRows();
-    wrongStatus.job!.status = "inviata";
+    wrongStatus.job!.status = "spedita";
     for (const assistant of [unknownRequest, wrongStatus]) {
       const detail = partnerDetailFromRows(2, detailRows(assistant));
       expect(detail.assistant).toBeNull();
@@ -302,11 +311,15 @@ describe("controlli di coerenza della lettura", () => {
     // Nessun lavoro e nessun interruttore: righe lette, quindi un blocco vuoto e attivo, distinto
     // dal `null` delle righe non lette o non valide.
     expect(
-      partnerDetailFromRows(2, detailRows({ switch: null, job: null, notes: [], draft: null }))
-        .assistant,
+      partnerDetailFromRows(
+        2,
+        detailRows({ switch: null, job: null, notes: [], draft: null, messages: [] }),
+      ).assistant,
     ).toEqual({
       active: true,
       switchVersion: null,
+      sendPriority: 0,
+      sends: [],
       job: null,
       research: null,
       choice: null,

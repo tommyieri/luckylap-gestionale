@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import {
+  PARTNER_ASSISTANT_ACTION_MESSAGES,
   PARTNER_COMMAND_KINDS,
   PARTNER_ERROR_MESSAGES,
   parsePartnerCommand,
@@ -29,13 +30,15 @@ const command = (kind: string, payload: Record<string, unknown>, extra = {}) =>
     NOW,
   );
 /**
- * SQL dei comandi del team: modulo Partner e assistente. Le migrazioni del worker e dello
- * scheduler (`_assistente_partner_worker.sql`, `_assistente_partner_scheduler.sql`) restano fuori:
- * i loro codici d'errore non arrivano mai alla pagina.
+ * SQL dei comandi del team: modulo Partner, assistente e invio dell'assistente (consegna 2a). Le
+ * migrazioni del worker e dello scheduler (`_assistente_partner_worker.sql`,
+ * `_assistente_partner_scheduler.sql`) restano fuori: i loro codici d'errore non arrivano mai alla
+ * pagina. Della migrazione dell'invio contano i comandi del team (sezione 1); le RPC del worker
+ * (sezione 2) alzano solo codici che la pagina conosce già o che non le arrivano mai.
  */
 const teamSql = () => {
   const migrations = join(__dirname, "../../../supabase/migrations");
-  return ["_partner_module.sql", "_assistente_partner.sql"]
+  return ["_partner_module.sql", "_assistente_partner.sql", "_assistente_partner_invio.sql"]
     .map((suffix) =>
       readFileSync(
         join(
@@ -94,10 +97,16 @@ const VALID: Record<string, Record<string, unknown>> = {
     reason: "Lo segue il team.",
   },
   save_partner_assistant_rules: { body: "# Regole\n\n- Tono cordiale.", expected_version: 1 },
+  start_partner_assistant_test: { drafts: 2, recipients: 3 },
+  confirm_partner_assistant_test: { expected_version: 4 },
+  set_partner_assistant_send_priority: { partner_id: PARTNER, send_priority: 9 },
+  resume_partner_assistant_send: {},
+  set_partner_assistant_settings: { expected_version: 4, daily_first_limit: 8 },
 };
 
 describe("controllo dei comandi sul server", () => {
-  it("accetta un comando valido per ognuno dei tredici tipi", () => {
+  it("accetta un comando valido per ognuno dei diciotto tipi", () => {
+    expect(PARTNER_COMMAND_KINDS).toHaveLength(18);
     expect(Object.keys(VALID)).toEqual([...PARTNER_COMMAND_KINDS]);
     for (const kind of PARTNER_COMMAND_KINDS)
       expect(command(kind, VALID[kind]), kind).toMatchObject({
@@ -224,6 +233,45 @@ describe("controllo dei comandi sul server", () => {
       }),
     ).toBeNull();
     expect(command("restore_partner_message", { variant_id: PARTNER })).toBeNull();
+  });
+
+  it("comandi dell'invio: limiti delle chiavi come le funzioni SQL", () => {
+    const test = (payload: Record<string, unknown>) =>
+      command("start_partner_assistant_test", payload);
+    expect(test({ drafts: 1, recipients: 1 })).not.toBeNull();
+    expect(test({ drafts: 3, recipients: 5 })).not.toBeNull();
+    for (const payload of [
+      { drafts: 4, recipients: 1 },
+      { drafts: 0, recipients: 1 },
+      { drafts: 1, recipients: 0 },
+      { drafts: 1, recipients: 6 },
+      { drafts: 1.5, recipients: 2 },
+      { drafts: "2", recipients: 2 },
+      { drafts: 2 },
+      { recipients: 2 },
+      { drafts: null, recipients: 2 },
+    ])
+      expect(test(payload), JSON.stringify(payload)).toBeNull();
+    const priority = (value: unknown) =>
+      command("set_partner_assistant_send_priority", { partner_id: PARTNER, send_priority: value });
+    expect(priority(0)).not.toBeNull();
+    expect(priority(9)).not.toBeNull();
+    for (const value of [10, -1, 2.5, "9", null]) expect(priority(value), String(value)).toBeNull();
+    expect(
+      command("set_partner_assistant_send_priority", { partner_id: "x", send_priority: 1 }),
+    ).toBeNull();
+    const limit = (value: unknown) =>
+      command("set_partner_assistant_settings", { expected_version: 4, daily_first_limit: value });
+    expect(limit(1)).not.toBeNull();
+    expect(limit(15)).not.toBeNull();
+    for (const value of [0, 16, 7.5, "8", null]) expect(limit(value), String(value)).toBeNull();
+    expect(command("set_partner_assistant_settings", { daily_first_limit: 8 })).toBeNull();
+    expect(
+      command("set_partner_assistant_settings", { expected_version: 0, daily_first_limit: 8 }),
+    ).toBeNull();
+    expect(command("confirm_partner_assistant_test", {})).toBeNull();
+    expect(command("confirm_partner_assistant_test", { expected_version: 0 })).toBeNull();
+    expect(command("resume_partner_assistant_send", { reason: "ripresa" })).toBeNull();
   });
 
   it("scheda: creazione con i quattro campi richiesti, modifica con versione e almeno un campo", () => {
@@ -630,7 +678,7 @@ describe("esiti dei comandi", () => {
     ).toEqual({
       status: "rejected",
       code: "partner_assistant_founder_required",
-      message: "Solo Tommi può mandare l'assistente in prova o in invio.",
+      message: "Solo Tommi può farlo.",
       refresh: false,
     });
     expect(
@@ -649,6 +697,49 @@ describe("esiti dei comandi", () => {
         false,
       ),
     ).toBeNull();
+  });
+
+  it("errori dei comandi dell'invio", () => {
+    const message = (code: string, message: string) =>
+      partnerCommandRejection({ code, message }, false)?.message;
+    expect(message("55000", "partner_assistant_test_required")).toBe(
+      "Prima di «Invio» serve una prova confermata da Tommi.",
+    );
+    expect(message("55000", "partner_assistant_test_missing")).toBe(
+      "Nessuna email di prova è ancora partita.",
+    );
+    expect(message("55000", "partner_assistant_test_mode_required")).toBe(
+      "La prova si manda con l'assistente in «Prova».",
+    );
+    expect(message("55000", "partner_assistant_test_empty")).toBe(
+      "Non ci sono bozze pronte da mandare in prova.",
+    );
+    expect(message("22023", "partner_assistant_test_empty")).toBeUndefined();
+    // Conferma della prova e limite: il conflitto è sulle impostazioni dell'assistente.
+    const changed = { code: "40001", message: "partner_changed" };
+    for (const kind of [
+      "confirm_partner_assistant_test",
+      "set_partner_assistant_settings",
+    ] as const)
+      expect(partnerCommandRejection(changed, false, kind)?.message, kind).toBe(
+        "Un collega ha appena cambiato le impostazioni dell'assistente. Ricarico i dati: controlla e riprova.",
+      );
+  });
+
+  it("i rifiuti dell'azione non sono codici del database", () => {
+    expect(PARTNER_ASSISTANT_ACTION_MESSAGES).toEqual({
+      partner_assistant_mail_not_configured:
+        "La posta dell'assistente non è configurata: «Prova» e «Invio» non sono disponibili.",
+      partner_assistant_test_to_changed:
+        "Gli indirizzi di prova sono cambiati: ricarica la pagina e riprova.",
+    });
+    const sql = teamSql();
+    for (const code of Object.keys(PARTNER_ASSISTANT_ACTION_MESSAGES)) {
+      expect(Object.hasOwn(PARTNER_ERROR_MESSAGES, code), code).toBe(false);
+      expect(sql, code).not.toContain(code);
+      // Anche se il database lo scrivesse, non sarebbe un esito certo.
+      expect(partnerCommandRejection({ code: "55000", message: code }, false), code).toBeNull();
+    }
   });
 
   it("codice sconosciuto o SQLSTATE diverso: esito da verificare", () => {
@@ -681,7 +772,11 @@ describe("esiti dei comandi", () => {
           (match) =>
             !match[1].includes("research") &&
             !match[1].startsWith("partner_batch") &&
-            match[1] !== "partner_import_incomplete",
+            match[1] !== "partner_import_incomplete" &&
+            // Solo il trigger dei messaggi, che nessun comando del team tocca.
+            match[1] !== "partner_assistant_message_immutable" &&
+            // Solo le RPC d'invio del worker (sezione 2): non arriva mai alla pagina.
+            match[1] !== "partner_assistant_worker_access_required",
         )
         .map((match) => `${match[1]}:${match[2]}`),
     );
@@ -816,6 +911,113 @@ describe("esiti dei comandi", () => {
         replayed: false,
       }),
     ).toBeNull();
+  });
+
+  it("comandi dell'invio: conferme dal risultato, anche senza versione", () => {
+    // «Manda la prova» e «Riprendi l'invio» non hanno versione: senza, l'esito sarebbe null.
+    const test = partnerCommandOutcome(parsed("start_partner_assistant_test"), {
+      id: partnerFixtureId(10),
+      test_run_id: partnerFixtureId(10),
+      drafts: 2,
+      recipients: 3,
+      replayed: false,
+    });
+    expect(test).toMatchObject({
+      status: "success",
+      kind: "start_partner_assistant_test",
+      id: partnerFixtureId(10),
+      partnerId: null,
+      version: null,
+      message: "Prova avviata: partono 6 email di prova, una ogni 4-11 minuti.",
+    });
+    // Il numero viene dal risultato (le bozze trovate), non dalla richiesta.
+    expect(
+      partnerCommandOutcome(parsed("start_partner_assistant_test"), {
+        id: partnerFixtureId(10),
+        test_run_id: partnerFixtureId(10),
+        drafts: 1,
+        recipients: 3,
+        replayed: true,
+      })?.message,
+    ).toBe(
+      "Prova avviata: partono 3 email di prova, una ogni 4-11 minuti. Era già registrato: nessun doppione.",
+    );
+    const resumed = partnerCommandOutcome(parsed("resume_partner_assistant_send"), {
+      id: partnerFixtureId(11),
+      status: "ripreso",
+      replayed: false,
+    });
+    expect(resumed).toMatchObject({ status: "success", version: null, message: "Invii ripresi." });
+    const confirmed = partnerCommandOutcome(parsed("confirm_partner_assistant_test"), {
+      id: partnerFixtureId(12),
+      version: 5,
+      test_confirmed_at: "2026-10-22T10:00:00+00:00",
+      replayed: false,
+    });
+    expect(confirmed).toMatchObject({
+      version: 5,
+      message: "Prova confermata: ora si può scegliere «Invio».",
+    });
+    const priority = partnerCommandOutcome(parsed("set_partner_assistant_send_priority"), {
+      id: partnerFixtureId(13),
+      partner_id: PARTNER,
+      send_priority: 9,
+      version: 2,
+      replayed: false,
+    });
+    expect(priority).toMatchObject({
+      partnerId: PARTNER,
+      version: 2,
+      message: "Precedenza d'invio salvata.",
+    });
+    const settings = partnerCommandOutcome(parsed("set_partner_assistant_settings"), {
+      id: partnerFixtureId(14),
+      version: 6,
+      daily_first_limit: 8,
+      replayed: false,
+    });
+    expect(settings).toMatchObject({
+      version: 6,
+      message:
+        "Limite salvato: dopo la prima settimana partono al massimo 8 prime email al giorno.",
+    });
+    // Forme che non tornano: esito da verificare.
+    for (const [kind, value] of [
+      ["start_partner_assistant_test", { id: PARTNER, test_run_id: PARTNER, replayed: false }],
+      [
+        "start_partner_assistant_test",
+        { id: PARTNER, test_run_id: PARTNER, drafts: 4, recipients: 3, replayed: false },
+      ],
+      [
+        "start_partner_assistant_test",
+        { id: PARTNER, test_run_id: PARTNER, drafts: 2, recipients: 0, replayed: false },
+      ],
+      [
+        "start_partner_assistant_test",
+        {
+          id: PARTNER,
+          test_run_id: partnerFixtureId(3),
+          drafts: 2,
+          recipients: 3,
+          replayed: false,
+        },
+      ],
+      ["resume_partner_assistant_send", { id: PARTNER, status: "fermo", replayed: false }],
+      ["set_partner_assistant_settings", { id: PARTNER, version: 6, replayed: false }],
+      [
+        "set_partner_assistant_settings",
+        { id: PARTNER, version: 6, daily_first_limit: 16, replayed: false },
+      ],
+      ["confirm_partner_assistant_test", { id: PARTNER, replayed: false }],
+      [
+        "set_partner_assistant_send_priority",
+        { id: PARTNER, send_priority: 9, version: 2, replayed: false },
+      ],
+    ] as const)
+      expect(
+        partnerCommandOutcome(parsed(kind), value),
+        `${kind} ${JSON.stringify(value)}`,
+      ).toBeNull();
   });
 
   it("risposte con forma sbagliata: esito da verificare", () => {

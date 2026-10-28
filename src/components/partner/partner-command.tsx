@@ -3,18 +3,23 @@
 import { useCallback, useEffect, useRef, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import {
+  confirmPartnerAssistantTest,
   recordPartnerActivity,
   removePartnerContact,
   resolvePartnerDifference,
   restorePartnerMessage,
+  resumePartnerAssistantSend,
   savePartner,
   savePartnerAssistantRules,
   savePartnerContact,
   savePartnerMessage,
   setPartnerAssistantContact,
   setPartnerAssistantMode,
+  setPartnerAssistantSendPriority,
+  setPartnerAssistantSettings,
   setPartnerDoNotContact,
   setPartnerState,
+  startPartnerAssistantTest,
 } from "../../app/(workspace)/partner/actions";
 import { importPartnerDeviceFile } from "../../app/(workspace)/partner/dati/actions";
 import {
@@ -55,6 +60,11 @@ const ACTIONS: Record<PartnerCommandKind, (command: unknown) => Promise<PartnerC
   set_partner_assistant_mode: setPartnerAssistantMode,
   set_partner_assistant_contact: setPartnerAssistantContact,
   save_partner_assistant_rules: savePartnerAssistantRules,
+  start_partner_assistant_test: startPartnerAssistantTest,
+  confirm_partner_assistant_test: confirmPartnerAssistantTest,
+  set_partner_assistant_send_priority: setPartnerAssistantSendPriority,
+  resume_partner_assistant_send: resumePartnerAssistantSend,
+  set_partner_assistant_settings: setPartnerAssistantSettings,
 };
 
 export const PARTNER_UNCERTAIN_TITLE = PARTNER_UNCERTAIN_MESSAGE;

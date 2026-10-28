@@ -4,12 +4,16 @@ import { verifiedMember } from "../auth/server";
 import { readTeamPages } from "../team/read";
 import {
   PARTNER_ASSISTANT_INACTIVE,
+  PARTNER_ASSISTANT_SENDS_LIMIT,
+  PARTNER_ASSISTANT_SEND_OUTCOMES,
   isPartnerAssistantMissing,
   partnerAssistantRulesFrom,
+  partnerAssistantSendFrom,
   partnerAssistantStatusFrom,
   type PartnerAssistantInactive,
   type PartnerAssistantRows,
   type PartnerAssistantRulesView,
+  type PartnerAssistantSendStatus,
   type PartnerAssistantStatus,
 } from "./assistant";
 import {
@@ -87,9 +91,11 @@ const DEVICE_IMPORT_COLUMNS =
 
 /**
  * Blocco dell'assistente nella scheda: niente lease né tentativi del lavoro, niente motivo
- * dell'interruttore, niente impronta né operation_id della bozza.
+ * dell'interruttore, niente impronta né operation_id della bozza. Dei messaggi solo modalità,
+ * esito, oggetto e date: mai indirizzo, testo, MIME, impronta, codici SMTP o lease.
  */
-const ASSISTANT_SWITCH_COLUMNS = "partner_id,active,version";
+const ASSISTANT_SWITCH_COLUMNS = "partner_id,active,send_priority,version";
+const ASSISTANT_MESSAGE_COLUMNS = "partner_id,mode,send_status,subject,sent_at,created_at";
 const ASSISTANT_JOB_COLUMNS =
   "partner_id,status,step,reason,write_on,research_note_id,choice_note_id,draft_id,updated_at";
 const ASSISTANT_NOTE_COLUMNS = "id,partner_id,kind,content,sources,created_at";
@@ -316,15 +322,16 @@ export async function loadPartnerDetail(
 }
 
 /**
- * Righe dell'assistente per la scheda: interruttore e lavoro del contatto, poi solo le note e la
- * bozza citate dal lavoro. Senza le tabelle (migrazioni non applicate) PARTNER_ASSISTANT_INACTIVE.
- * Lancia se una lettura non riesce; chi chiama ne fa `null`.
+ * Righe dell'assistente per la scheda: interruttore e lavoro del contatto, le ultime prime email
+ * vere con un esito, poi solo le note e la bozza citate dal lavoro. Senza le tabelle (migrazioni
+ * non applicate) PARTNER_ASSISTANT_INACTIVE. Lancia se una lettura non riesce, anche quella dei
+ * messaggi; chi chiama ne fa `null`.
  */
 async function readPartnerAssistant(
   supabase: SupabaseClient,
   partnerId: string,
 ): Promise<PartnerAssistantRows | PartnerAssistantInactive> {
-  const [toggle, job] = await Promise.all([
+  const [toggle, job, messages] = await Promise.all([
     supabase
       .from("partner_assistant_contacts")
       .select(ASSISTANT_SWITCH_COLUMNS)
@@ -335,10 +342,21 @@ async function readPartnerAssistant(
       .select(ASSISTANT_JOB_COLUMNS)
       .eq("partner_id", partnerId)
       .maybeSingle(),
+    supabase
+      .from("partner_assistant_messages")
+      .select(ASSISTANT_MESSAGE_COLUMNS)
+      .eq("partner_id", partnerId)
+      .eq("mode", "invio")
+      .in("send_status", [...PARTNER_ASSISTANT_SEND_OUTCOMES])
+      .order("created_at", { ascending: false })
+      .order("id", { ascending: false })
+      .limit(PARTNER_ASSISTANT_SENDS_LIMIT),
   ]);
   if (isPartnerAssistantMissing(toggle.error) || isPartnerAssistantMissing(job.error))
     return PARTNER_ASSISTANT_INACTIVE;
   ensure(!toggle.error && !job.error);
+  // La tabella dei messaggi nasce con la consegna 2a: anche se manca, è un errore del blocco.
+  const sends = rowsOf(messages);
   const field = (key: string) =>
     job.data === null ? null : (job.data as Record<string, unknown>)[key];
   const noteIds = [field("research_note_id"), field("choice_note_id")].filter(isPartnerId);
@@ -365,7 +383,7 @@ async function readPartnerAssistant(
           })
       : Promise.resolve(null),
   ]);
-  return { switch: toggle.data, job: job.data, notes, draft };
+  return { switch: toggle.data, job: job.data, notes, draft, messages: sends };
 }
 
 /**
@@ -380,6 +398,20 @@ export async function loadPartnerAssistantStatus(
     if (isPartnerAssistantMissing(error)) return PARTNER_ASSISTANT_INACTIVE;
     ensure(!error);
     return partnerAssistantStatusFrom(data);
+  });
+}
+
+/**
+ * /partner/assistente: lo stato dell'invio da read_partner_assistant_send (consegna 2a). Ogni
+ * errore, anche la funzione che non c'è ancora, e ogni risposta non valida: Partner non disponibile.
+ */
+export async function loadPartnerAssistantSend(
+  supabase: SupabaseClient,
+): Promise<PartnerAssistantSendStatus> {
+  return guarded(async () => {
+    const { data, error } = await supabase.rpc("read_partner_assistant_send");
+    ensure(!error);
+    return partnerAssistantSendFrom(data);
   });
 }
 

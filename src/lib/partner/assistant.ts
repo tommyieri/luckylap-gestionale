@@ -7,6 +7,9 @@
 // - Il blocco della scheda viene dalle tabelle public.partner_assistant_*: interruttore, lavoro, le
 //   note e la bozza citate dal lavoro. L'indirizzo della bozza è quello del recapito del gestionale.
 // - Le regole: quella in vigore con il testo, la cronologia senza.
+// - L'invio (consegna 2a): read_partner_assistant_send (migrazione
+//   20261028164029_assistente_partner_invio) con le stesse chiavi in camelCase, e nella scheda la
+//   precedenza d'invio e le ultime prime email dell'assistente, senza indirizzi né testi.
 import type {
   PartnerAssistantJobStatus,
   PartnerAssistantLanguage,
@@ -14,7 +17,7 @@ import type {
   PartnerAssistantStep,
 } from "../partner-assistant/types";
 import { PARTNER_ASSISTANT_MODES } from "./commands";
-import { isCalendarDay } from "./dates";
+import { instantTime, isCalendarDay } from "./dates";
 import {
   PARTNER_NAME_MAX,
   PartnerReadError,
@@ -32,6 +35,7 @@ export const PARTNER_ASSISTANT_JOB_STATUSES = [
   "attesa",
   "pronta",
   "serve_tommaso",
+  "inviata",
 ] as const satisfies readonly PartnerAssistantJobStatus[];
 export const PARTNER_ASSISTANT_STEPS = [
   "ricerca",
@@ -39,6 +43,9 @@ export const PARTNER_ASSISTANT_STEPS = [
   "scrittura",
   "controllo",
 ] as const satisfies readonly PartnerAssistantStep[];
+/** I passi degli eventi: quelli dei lavori più «invio», degli eventi delle RPC d'invio. */
+export const PARTNER_ASSISTANT_EVENT_STEPS = [...PARTNER_ASSISTANT_STEPS, "invio"] as const;
+export type PartnerAssistantEventStep = (typeof PARTNER_ASSISTANT_EVENT_STEPS)[number];
 /** Le proposte dell'elenco chiuso (Appendice A), come le salva la nota «scelta». */
 export const PARTNER_ASSISTANT_REQUESTS = [
   "merch_cobranding",
@@ -71,6 +78,7 @@ export const PARTNER_ASSISTANT_STATUS_LABELS: Record<PartnerAssistantJobStatus, 
   attesa: "In attesa della data",
   pronta: "Bozza pronta",
   serve_tommaso: "Serve Tommi",
+  inviata: "Email inviata",
 };
 
 /** I conteggi della coda (read_partner_assistant_status), con le etichette della pagina. */
@@ -120,6 +128,17 @@ export const PARTNER_ASSISTANT_REASON_LABELS = {
   non_idoneo: "Il contatto non è più tra quelli che l'assistente può seguire.",
   dato_cancellato:
     "Un dato del contatto è stato cancellato: ridallo all'assistente se vuoi rifare ricerca e bozza.",
+  // Consegna 2a: i lavori passati a Tommi dalle RPC d'invio.
+  bozza_scaduta:
+    "Bozza scaduta: l'evento è già iniziato o una data citata è passata. L'assistente la riscrive una volta, se c'è credito; poi decide Tommi.",
+  conversazione_esistente:
+    "Conversazione recente nella casella: nella posta degli ultimi 12 mesi c'è già uno scambio con questo indirizzo. L'assistente non scrive; decide Tommi.",
+  invio_incerto:
+    "Invio incerto: controlla in «Posta inviata» se l'email è partita. L'assistente non la rimanda.",
+  indirizzo_non_valido:
+    "Indirizzo non valido: il server di posta lo rifiuta, oppure è scritto in un modo che l'assistente non usa.",
+  invio_rifiutato: "Il server di posta ha rifiutato l'email.",
+  impronta: "Il testo da inviare non era quello approvato: l'email non è partita.",
 } as const;
 export type PartnerAssistantReason = keyof typeof PARTNER_ASSISTANT_REASON_LABELS;
 
@@ -175,6 +194,42 @@ export const PARTNER_ASSISTANT_EVENT_LABELS = {
   lease_persa: "Passo oltre il tempo concesso",
   pausa_credito: "In pausa: credito finito",
   pausa_errore_claude: "In pausa: errore di Claude",
+  // Consegna 2a, step «invio» (migrazione 20261028164029_assistente_partner_invio): comandi del
+  // founder, rifiuti di prepare e start, spostamenti della coda d'invio, esiti di finish, copie in
+  // «Posta inviata» e fermi della casella.
+  prova_avviata: "Prova avviata da Tommi",
+  prova_casella_vuota: "Prova: nessuno scambio recente nella casella",
+  prova_casella_trovata: "Prova: scambio recente trovato nella casella",
+  prova_casella_incerta: "Prova: ricerca nella casella senza risposta",
+  prova_inviata: "Email di prova inviata",
+  prova_incerto: "Email di prova incerta",
+  prova_respinto: "Email di prova respinta dal server",
+  prova_scartato: "Email di prova non partita",
+  invio_inviato: "Prima email inviata",
+  invio_incerto: "Invio incerto: passa a Tommi",
+  invio_respinto: "Email respinta dal server: passa a Tommi",
+  invio_scartato: "Email non partita",
+  invio_abbandonato: "Giro interrotto prima dell'esito dell'invio",
+  copia_salvata: "Copia salvata in «Posta inviata»",
+  copia_trovata: "Copia già presente in «Posta inviata»",
+  ricerca_scaduta: "Ricerca di oltre 21 giorni: la rifà",
+  recapito_cambiato: "Email del contatto cambiata: riscrive la bozza",
+  bozza_scaduta: "Bozza scaduta: riscrive o passa a Tommi",
+  indirizzo_non_valido: "Indirizzo non valido: passa a Tommi",
+  conversazione_esistente: "Scambio recente nella casella: passa a Tommi",
+  impronta: "Testo diverso da quello approvato: passa a Tommi",
+  casella_incerta: "Casella senza risposta: riprova tra 15 minuti",
+  casella: "Casella non controllata: l'email non parte",
+  limite: "Limite del giorno raggiunto",
+  finestra_chiusa: "Fuori dall'orario del destinatario",
+  destinatario_prova: "Indirizzo di prova tra i recapiti: prova fermata",
+  modalita_cambiata: "Modalità cambiata: l'email non parte",
+  bozza_cambiata: "Bozza cambiata: l'email non parte",
+  fermo: "Invii fermi: l'email non parte",
+  fermo_casella: "Invii fermi: la casella ha rifiutato la password",
+  fermo_rimbalzi: "Invii fermi: il server ha rifiutato delle email",
+  fermo_oggi: "Invii fermi fino a domani",
+  invio_ripreso: "Invii ripresi da Tommi",
 } as const;
 export type PartnerAssistantEventOutcome = keyof typeof PARTNER_ASSISTANT_EVENT_LABELS;
 
@@ -184,6 +239,29 @@ export function partnerAssistantEventLabel(outcome: string): string {
     ? PARTNER_ASSISTANT_EVENT_LABELS[outcome as PartnerAssistantEventOutcome]
     : outcome;
 }
+
+/** Stati dei messaggi dell'assistente (public.partner_assistant_messages.send_status). */
+export const PARTNER_ASSISTANT_SEND_STATUS_LABELS = {
+  pronto: "Pronta",
+  in_invio: "In invio",
+  inviato: "Inviata",
+  incerto: "Incerta",
+  respinto: "Respinta",
+  scartato: "Non partita",
+} as const;
+export type PartnerAssistantMessageStatus = keyof typeof PARTNER_ASSISTANT_SEND_STATUS_LABELS;
+const MESSAGE_STATUSES = Object.keys(
+  PARTNER_ASSISTANT_SEND_STATUS_LABELS,
+) as PartnerAssistantMessageStatus[];
+
+/** Fermi della casella che solo «Riprendi l'invio» toglie. */
+export const PARTNER_ASSISTANT_STOP_LABELS = {
+  casella: "La casella ha rifiutato la password.",
+  rimbalzi: "Il server di posta ha rifiutato delle email.",
+} as const;
+export type PartnerAssistantStopReason = keyof typeof PARTNER_ASSISTANT_STOP_LABELS;
+const STOP_REASONS = Object.keys(PARTNER_ASSISTANT_STOP_LABELS) as PartnerAssistantStopReason[];
+const MESSAGE_MODES = ["prova", "invio"] as const;
 
 const usdFormat = new Intl.NumberFormat("it-IT", {
   minimumFractionDigits: 2,
@@ -233,6 +311,8 @@ const bool = (value: unknown, what: string): boolean =>
   typeof value === "boolean" ? value : fail(what);
 const integer = (value: unknown, min: number, what: string): number =>
   typeof value === "number" && Number.isSafeInteger(value) && value >= min ? value : fail(what);
+const between = (value: unknown, min: number, max: number, what: string): number =>
+  integer(value, min, what) <= max ? (value as number) : fail(what);
 /** Importo in dollari: numero finito, mai negativo. */
 const usd = (value: unknown, what: string): number =>
   typeof value === "number" && Number.isFinite(value) && value >= 0 ? value : fail(what);
@@ -323,7 +403,8 @@ export type PartnerAssistantStatus = {
   lastEvents: {
     createdAt: string;
     co: number | null;
-    step: PartnerAssistantStep | null;
+    /** `invio` per gli eventi delle RPC d'invio (consegna 2a). */
+    step: PartnerAssistantEventStep | null;
     outcome: string;
   }[];
 };
@@ -384,11 +465,174 @@ export function partnerAssistantStatusFrom(value: unknown): PartnerAssistantStat
       return {
         createdAt: instant(event.created_at, what),
         co: event.co === null ? null : isPartnerCo(event.co) ? event.co : fail(what),
-        step: nullable((v, w) => oneOf(PARTNER_ASSISTANT_STEPS, v, w))(event.step, what),
+        step: nullable((v, w) => oneOf(PARTNER_ASSISTANT_EVENT_STEPS, v, w))(event.step, what),
         outcome: code(event.outcome, what),
       };
     }),
   };
+}
+
+// ---------------------------------------------------------------------------
+// Invio: read_partner_assistant_send
+// ---------------------------------------------------------------------------
+
+/**
+ * Lo stato dell'invio per la pagina: fermi e attese, limiti del giorno, prova, finestra di Roma,
+ * coda, variabili e accessi (solo esiti e codici, mai valori), ultimi messaggi senza indirizzi,
+ * precedenze d'invio.
+ */
+export type PartnerAssistantSendStatus = {
+  stopReason: PartnerAssistantStopReason | null;
+  stoppedAt: string | null;
+  /** Giorno di Roma in cui gli invii sono fermi fino al giorno dopo. */
+  dayStoppedOn: string | null;
+  backoffUntil: string | null;
+  nextSendAfter: string | null;
+  lastTickAt: string | null;
+  lastOutcome: string | null;
+  dailyFirstLimit: number;
+  firstLimitToday: number;
+  firstSentToday: number;
+  /** Giorno di Roma della prima email vera; `null` prima della prima. */
+  firstRealSendOn: string | null;
+  testSentToday: number;
+  testLimit: number;
+  testConfirmedAt: string | null;
+  /** Nome del profilo di chi ha confermato la prova. */
+  testConfirmedBy: string | null;
+  /** L'ultima prova avviata; `sent` = suoi messaggi inviati. */
+  testRun: { requestedAt: string; drafts: number; recipients: number; sent: number } | null;
+  windowOpenRome: boolean;
+  nextWindowRome: string | null;
+  /** Bozze nella coda d'invio. */
+  ready: number;
+  envCheckedAt: string | null;
+  envMailboxOk: boolean | null;
+  envTestOk: boolean | null;
+  envTestCount: number | null;
+  smtpLoginAt: string | null;
+  smtpLoginCode: string | null;
+  imapLoginAt: string | null;
+  imapLoginCode: string | null;
+  /** Ultimi 20 messaggi, il più recente prima: `at` è l'invio o, senza, la preparazione. */
+  recent: {
+    at: string;
+    co: number;
+    name: string;
+    mode: (typeof MESSAGE_MODES)[number];
+    status: PartnerAssistantMessageStatus;
+    subject: string;
+  }[];
+  /** Contatti con una precedenza d'invio (al massimo 50). */
+  priorities: { co: number; name: string; sendPriority: number }[];
+};
+
+const SEND_KEYS = [
+  "stop_reason",
+  "stopped_at",
+  "day_stopped_on",
+  "backoff_until",
+  "next_send_after",
+  "last_tick_at",
+  "last_outcome",
+  "daily_first_limit",
+  "first_limit_today",
+  "first_sent_today",
+  "first_real_send_on",
+  "test_sent_today",
+  "test_limit",
+  "test_confirmed_at",
+  "test_confirmed_by",
+  "test_run",
+  "window_open_rome",
+  "next_window_rome",
+  "ready",
+  "env_checked_at",
+  "env_mailbox_ok",
+  "env_test_ok",
+  "env_test_count",
+  "smtp_login_at",
+  "smtp_login_code",
+  "imap_login_at",
+  "imap_login_code",
+  "recent",
+  "priorities",
+] as const;
+
+const co = (value: unknown, what: string): number => (isPartnerCo(value) ? value : fail(what));
+const nameOf = (value: unknown, what: string): string => text(value, 1, PARTNER_NAME_MAX, what);
+
+export function partnerAssistantSendFrom(value: unknown): PartnerAssistantSendStatus {
+  const what = "Invio dell'assistente";
+  const r = exact(value, SEND_KEYS, what);
+  const run =
+    r.test_run === null
+      ? null
+      : exact(r.test_run, ["requested_at", "drafts", "recipients", "sent"], what);
+  return {
+    stopReason: nullable((v, w) => oneOf(STOP_REASONS, v, w))(r.stop_reason, what),
+    stoppedAt: nullable(instant)(r.stopped_at, what),
+    dayStoppedOn: nullable(day)(r.day_stopped_on, what),
+    backoffUntil: nullable(instant)(r.backoff_until, what),
+    nextSendAfter: nullable(instant)(r.next_send_after, what),
+    lastTickAt: nullable(instant)(r.last_tick_at, what),
+    lastOutcome: nullable(code)(r.last_outcome, what),
+    dailyFirstLimit: between(r.daily_first_limit, 1, 15, what),
+    firstLimitToday: between(r.first_limit_today, 1, 15, what),
+    firstSentToday: integer(r.first_sent_today, 0, what),
+    firstRealSendOn: nullable(day)(r.first_real_send_on, what),
+    testSentToday: integer(r.test_sent_today, 0, what),
+    testLimit: integer(r.test_limit, 1, what),
+    testConfirmedAt: nullable(instant)(r.test_confirmed_at, what),
+    testConfirmedBy: nullable(nameOf)(r.test_confirmed_by, what),
+    testRun:
+      run === null
+        ? null
+        : {
+            requestedAt: instant(run.requested_at, what),
+            drafts: between(run.drafts, 1, 3, what),
+            recipients: between(run.recipients, 1, 5, what),
+            sent: between(run.sent, 0, 15, what),
+          },
+    windowOpenRome: bool(r.window_open_rome, what),
+    nextWindowRome: nullable(instant)(r.next_window_rome, what),
+    ready: integer(r.ready, 0, what),
+    envCheckedAt: nullable(instant)(r.env_checked_at, what),
+    envMailboxOk: nullable(bool)(r.env_mailbox_ok, what),
+    envTestOk: nullable(bool)(r.env_test_ok, what),
+    envTestCount: nullable((v, w) => between(v, 0, 5, w))(r.env_test_count, what),
+    smtpLoginAt: nullable(instant)(r.smtp_login_at, what),
+    smtpLoginCode: nullable(code)(r.smtp_login_code, what),
+    imapLoginAt: nullable(instant)(r.imap_login_at, what),
+    imapLoginCode: nullable(code)(r.imap_login_code, what),
+    recent: list(r.recent, 20, what).map((item) => {
+      const message = exact(item, ["at", "co", "name", "mode", "status", "subject"], what);
+      return {
+        at: instant(message.at, what),
+        co: co(message.co, what),
+        name: nameOf(message.name, what),
+        mode: oneOf(MESSAGE_MODES, message.mode, what),
+        status: oneOf(MESSAGE_STATUSES, message.status, what),
+        subject: text(message.subject, 1, 300, what),
+      };
+    }),
+    priorities: list(r.priorities, 50, what).map((item) => {
+      const priority = exact(item, ["co", "name", "send_priority"], what);
+      return {
+        co: co(priority.co, what),
+        name: nameOf(priority.name, what),
+        sendPriority: between(priority.send_priority, 1, 9, what),
+      };
+    }),
+  };
+}
+
+/** Riga dell'ultimo accesso SMTP o IMAP: «mai provato», «riuscito alle 9:41», «non riuscito alle 9:41 (smtp_eauth)». */
+export function partnerAssistantLoginLine(at: string | null, code: string | null): string {
+  if (at === null) return "mai provato";
+  const time = (instantTime(at) ?? "").replace(/^0(?=\d)/, "");
+  if (code === "ok") return `riuscito alle ${time}`;
+  return code === null ? `non riuscito alle ${time}` : `non riuscito alle ${time} (${code})`;
 }
 
 // ---------------------------------------------------------------------------
@@ -406,6 +650,13 @@ export type PartnerAssistantContactView = {
   active: boolean;
   /** Versione della riga dell'interruttore; `null` se non c'è. */
   switchVersion: number | null;
+  /** Precedenza d'invio («Manda per primo»), da 0 a 9; 0 senza riga. */
+  sendPriority: number;
+  /**
+   * Le prime email vere dell'assistente con un esito (al massimo 5, la più recente prima): `at` è
+   * l'invio o, per una respinta senza invio, la preparazione. Senza indirizzi né testi.
+   */
+  sends: { at: string; status: PartnerAssistantSendOutcome; subject: string }[];
   job: {
     status: PartnerAssistantJobStatus;
     step: PartnerAssistantStep;
@@ -434,12 +685,22 @@ export type PartnerAssistantContactView = {
   } | null;
 };
 
-/** Righe lette per un contatto: interruttore, lavoro, note e bozza citate dal lavoro. */
+/** Esiti delle prime email mostrati nella scheda. */
+export const PARTNER_ASSISTANT_SEND_OUTCOMES = ["inviato", "incerto", "respinto"] as const;
+export type PartnerAssistantSendOutcome = (typeof PARTNER_ASSISTANT_SEND_OUTCOMES)[number];
+/** Ultime prime email lette nella scheda. */
+export const PARTNER_ASSISTANT_SENDS_LIMIT = 5;
+
+/**
+ * Righe lette per un contatto: interruttore, lavoro, note e bozza citate dal lavoro, ultime prime
+ * email dell'assistente con un esito.
+ */
 export type PartnerAssistantRows = {
   switch: unknown;
   job: unknown;
   notes: readonly unknown[];
   draft: unknown;
+  messages: readonly unknown[];
 };
 export type PartnerAssistantContactRows = PartnerAssistantRows & {
   partnerId: string;
@@ -488,9 +749,29 @@ export function partnerAssistantContactFrom(
     draft === null ? null : rows.contacts.find((item) => item.id === id(draft.contact_id, what));
   if (draft !== null && contact?.partnerId !== rows.partnerId) fail(what);
 
+  const sends = list(rows.messages, PARTNER_ASSISTANT_SENDS_LIMIT, what)
+    .map((value) => {
+      const message = own(value);
+      if (message.mode !== "invio") fail(what);
+      const status = oneOf(PARTNER_ASSISTANT_SEND_OUTCOMES, message.send_status, what);
+      // Inviata o incerta ha sempre l'ora dell'invio (vincolo della tabella).
+      const sentAt =
+        status === "respinto"
+          ? nullable(instant)(message.sent_at, what)
+          : instant(message.sent_at, what);
+      return {
+        at: sentAt ?? instant(message.created_at, what),
+        status,
+        subject: text(message.subject, 1, 300, what),
+      };
+    })
+    .sort((a, b) => Date.parse(b.at) - Date.parse(a.at));
+
   return {
     active: toggle === null ? true : bool(toggle.active, what),
     switchVersion: toggle === null ? null : integer(toggle.version, 1, what),
+    sendPriority: toggle === null ? 0 : between(toggle.send_priority, 0, 9, what),
+    sends,
     job:
       job === null
         ? null

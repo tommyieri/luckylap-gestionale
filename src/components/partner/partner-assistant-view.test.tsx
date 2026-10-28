@@ -74,6 +74,11 @@ vi.mock("../../app/(workspace)/partner/actions", () => ({
   setPartnerAssistantMode: mocks.setMode,
   setPartnerAssistantContact: mocks.setContact,
   savePartnerAssistantRules: mocks.saveRules,
+  startPartnerAssistantTest: mocks.other,
+  confirmPartnerAssistantTest: mocks.other,
+  setPartnerAssistantSendPriority: mocks.other,
+  resumePartnerAssistantSend: mocks.other,
+  setPartnerAssistantSettings: mocks.other,
 }));
 vi.mock("../../app/(workspace)/partner/dati/actions", () => ({
   importPartnerDeviceFile: mocks.other,

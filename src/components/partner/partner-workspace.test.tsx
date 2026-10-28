@@ -18,6 +18,11 @@ vi.mock("../../app/(workspace)/partner/actions", () => {
     setPartnerAssistantMode: action,
     setPartnerAssistantContact: action,
     savePartnerAssistantRules: action,
+    startPartnerAssistantTest: action,
+    confirmPartnerAssistantTest: action,
+    setPartnerAssistantSendPriority: action,
+    resumePartnerAssistantSend: action,
+    setPartnerAssistantSettings: action,
   };
 });
 vi.mock("../../app/(workspace)/partner/dati/actions", () => ({
