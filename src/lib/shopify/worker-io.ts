@@ -74,3 +74,84 @@ export async function workerJson(
     reader.releaseLock();
   }
 }
+
+export const workerUuid = (value: unknown): value is string =>
+  typeof value === "string" &&
+  /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(value) &&
+  !/^0{8}-0{4}-0{4}-0{4}-0{12}$/.test(value);
+export const workerRecord = (value: unknown): Record<string, unknown> | null =>
+  value && typeof value === "object" && !Array.isArray(value)
+    ? (value as Record<string, unknown>)
+    : null;
+/** A code, never free text or an address: it ends up in events and logs. */
+export const safeWorkerReason = (value: unknown): value is string =>
+  typeof value === "string" && /^[a-z][a-z0-9_]{0,79}$/.test(value);
+
+export type WorkerRpcTransport = {
+  supabaseUrl: string;
+  rpcNames: readonly string[];
+  timeoutMs: number;
+  maxResponseBytes: number;
+  /** When set, the body must be text within this many UTF-8 bytes. */
+  maxRequestBytes?: number;
+};
+
+/** Bound bytes BEFORE PostgREST's parser and never forward apikey on redirect.
+ * Shared by every private worker: only the RPC names and the limits differ. */
+export function createWorkerRpcFetch(
+  transport: WorkerRpcTransport,
+  fetcher: typeof fetch = fetch,
+): typeof fetch {
+  const origin = new URL(transport.supabaseUrl).origin;
+  const rpcPaths = new Set(transport.rpcNames.map((name) => `/rest/v1/rpc/${name}`));
+  const { timeoutMs, maxResponseBytes, maxRequestBytes } = transport;
+  return async (input, init) => {
+    const url = new URL(input instanceof Request ? input.url : String(input));
+    const method = init?.method ?? (input instanceof Request ? input.method : "GET");
+    const parentSignal = init?.signal ?? (input instanceof Request ? input.signal : null);
+    const body = init?.body;
+    if (
+      url.origin !== origin ||
+      !rpcPaths.has(url.pathname) ||
+      url.search ||
+      url.hash ||
+      url.username ||
+      url.password ||
+      method !== "POST" ||
+      !parentSignal ||
+      // PostgREST always sends JSON text: count bytes, a character can take up to three.
+      (maxRequestBytes !== undefined &&
+        (typeof body !== "string" ||
+          body.length > maxRequestBytes ||
+          new TextEncoder().encode(body).byteLength > maxRequestBytes))
+    )
+      throw new Error("worker_transport_invalid");
+    return boundedPhase(parentSignal, timeoutMs, async (signal) => {
+      const response = await abortable(
+        fetcher(input, {
+          ...init,
+          method: "POST",
+          signal,
+          redirect: "error",
+          cache: "no-store",
+          credentials: "omit",
+        }),
+        signal,
+      );
+      if (!response.ok) {
+        // Never parse error bodies. RPC errors remain uncertain to the caller.
+        void response.body?.cancel().catch(() => undefined);
+        return Response.json(
+          { code: "worker_database_unavailable", message: "worker_database_unavailable" },
+          { status: response.status },
+        );
+      }
+      if (response.redirected || response.status !== 200) {
+        void response.body?.cancel().catch(() => undefined);
+        throw new Error("worker_response_invalid");
+      }
+      const value = await workerJson(response, signal, maxResponseBytes);
+      return Response.json(value);
+    });
+  };
+}

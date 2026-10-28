@@ -7,7 +7,13 @@ import {
   type CanonicalShopifyOrder,
 } from "./canonical-model";
 import type { ShopifyWorkerConfig } from "./worker-config";
-import { abortable, boundedPhase, workerJson } from "./worker-io";
+import {
+  abortable,
+  createWorkerRpcFetch,
+  safeWorkerReason,
+  workerRecord as record,
+  workerUuid as uuid,
+} from "./worker-io";
 
 export type ShopifyClaimedJob = {
   job_id: string;
@@ -40,14 +46,6 @@ export type ShopifyWorkerStore = {
     signal: AbortSignal,
   ): Promise<WorkerStoreResult<ShopifyWorkerReceipt>>;
 };
-const uuid = (value: unknown): value is string =>
-  typeof value === "string" &&
-  /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(value) &&
-  !/^0{8}-0{4}-0{4}-0{4}-0{12}$/.test(value);
-const record = (value: unknown): Record<string, unknown> | null =>
-  value && typeof value === "object" && !Array.isArray(value)
-    ? (value as Record<string, unknown>)
-    : null;
 const statuses: readonly ShopifyApplyStatus[] = [
   "applied",
   "replayed",
@@ -56,64 +54,23 @@ const statuses: readonly ShopifyApplyStatus[] = [
   "review",
   "retry",
 ];
-export const safeShopifyWorkerReason = (value: unknown): value is string =>
-  typeof value === "string" && /^[a-z][a-z0-9_]{0,79}$/.test(value);
+export const safeShopifyWorkerReason = safeWorkerReason;
 export const SHOPIFY_WORKER_RPC_MAX_BYTES = 64 * 1024;
-const rpcPaths = new Set(
-  ["claim_shopify_order_jobs", "apply_shopify_order", "finish_shopify_read_job"].map(
-    (name) => `/rest/v1/rpc/${name}`,
-  ),
-);
 
 /** Bound bytes BEFORE PostgREST's parser and never forward apikey on redirect. */
 export function createShopifyWorkerFetch(
   config: Pick<ShopifyWorkerConfig, "supabaseUrl">,
   fetcher: typeof fetch = fetch,
 ): typeof fetch {
-  const origin = new URL(config.supabaseUrl).origin;
-  return async (input, init) => {
-    const url = new URL(input instanceof Request ? input.url : String(input));
-    const method = init?.method ?? (input instanceof Request ? input.method : "GET");
-    const parentSignal = init?.signal ?? (input instanceof Request ? input.signal : null);
-    if (
-      url.origin !== origin ||
-      !rpcPaths.has(url.pathname) ||
-      url.search ||
-      url.hash ||
-      url.username ||
-      url.password ||
-      method !== "POST" ||
-      !parentSignal
-    )
-      throw new Error("worker_transport_invalid");
-    return boundedPhase(parentSignal, 4000, async (signal) => {
-      const response = await abortable(
-        fetcher(input, {
-          ...init,
-          method: "POST",
-          signal,
-          redirect: "error",
-          cache: "no-store",
-          credentials: "omit",
-        }),
-        signal,
-      );
-      if (!response.ok) {
-        // Never parse error bodies. RPC errors remain uncertain to the caller.
-        void response.body?.cancel().catch(() => undefined);
-        return Response.json(
-          { code: "worker_database_unavailable", message: "worker_database_unavailable" },
-          { status: response.status },
-        );
-      }
-      if (response.redirected || response.status !== 200) {
-        void response.body?.cancel().catch(() => undefined);
-        throw new Error("worker_response_invalid");
-      }
-      const value = await workerJson(response, signal, SHOPIFY_WORKER_RPC_MAX_BYTES);
-      return Response.json(value);
-    });
-  };
+  return createWorkerRpcFetch(
+    {
+      supabaseUrl: config.supabaseUrl,
+      rpcNames: ["claim_shopify_order_jobs", "apply_shopify_order", "finish_shopify_read_job"],
+      timeoutMs: 4000,
+      maxResponseBytes: SHOPIFY_WORKER_RPC_MAX_BYTES,
+    },
+    fetcher,
+  );
 }
 
 export function shopifyClaimFrom(value: unknown): ShopifyClaimedJob[] | null {

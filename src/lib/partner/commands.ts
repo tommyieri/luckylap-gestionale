@@ -1,4 +1,5 @@
-// Partner: comandi del team (spec 02 §2.6, §5.11). Funzioni pure, usabili nel browser e sul server.
+// Partner: comandi del team (spec 02 §2.6, §5.11), compresi i tre dell'assistente Partner
+// (modalità, interruttore per contatto, regole). Funzioni pure, usabili nel browser e sul server.
 //
 // - `parsePartnerCommand` ricontrolla sul server ogni comando con le stesse regole delle funzioni
 //   SQL (chiavi richieste e ammesse, tipi, lunghezze, schema_version = 1). `created_by` non è una
@@ -61,10 +62,16 @@ export const PARTNER_COMMAND_KINDS = [
   "set_partner_do_not_contact",
   "resolve_partner_difference",
   "import_partner_device_file",
+  "set_partner_assistant_mode",
+  "set_partner_assistant_contact",
+  "save_partner_assistant_rules",
 ] as const;
 export type PartnerCommandKind = (typeof PARTNER_COMMAND_KINDS)[number];
 export const isPartnerCommandKind = (value: unknown): value is PartnerCommandKind =>
   typeof value === "string" && (PARTNER_COMMAND_KINDS as readonly string[]).includes(value);
+
+/** Modalità dell'assistente Partner. «prova» e «invio» arrivano con la seconda consegna. */
+export const PARTNER_ASSISTANT_MODES = ["spento", "prepara", "prova", "invio"] as const;
 
 export type PartnerPayload = Record<string, unknown> & { schema_version: 1 };
 export type PartnerCommand = {
@@ -110,15 +117,14 @@ function uuidOf(p: Record<string, unknown>, key: string): string | null {
   if (value !== null && !isPartnerId(value)) invalid();
   return value;
 }
-function versionOf(p: Record<string, unknown>, key: string): number | null {
+function versionOf(
+  p: Record<string, unknown>,
+  key: string,
+  max: number = PARTNER_VERSION_MAX,
+): number | null {
   const value = p[key];
   if (value === undefined || value === null) return null;
-  if (
-    typeof value !== "number" ||
-    !Number.isSafeInteger(value) ||
-    value < 1 ||
-    value > PARTNER_VERSION_MAX
-  )
+  if (typeof value !== "number" || !Number.isSafeInteger(value) || value < 1 || value > max)
     invalid();
   return value as number;
 }
@@ -376,6 +382,47 @@ const validators: Record<PartnerCommandKind, (p: Record<string, unknown>, now: D
   },
   import_partner_device_file(p, now) {
     check(validatePartnerDevicePayload(p, now) !== null);
+  },
+  set_partner_assistant_mode(p) {
+    keys(
+      p,
+      ["schema_version", "mode", "expected_version"],
+      ["schema_version", "mode", "expected_version", "starting_credit_usd"],
+    );
+    check(
+      enumOf(p, "mode", PARTNER_ASSISTANT_MODES) !== null &&
+        versionOf(p, "expected_version") !== null,
+    );
+    // Credito di partenza: facoltativo, da 0 a 10.000 dollari con al massimo due decimali. Il
+    // database legge il numero come lo scrive JSON.stringify, cioè String(value).
+    const credit = p.starting_credit_usd;
+    if (credit !== undefined && credit !== null)
+      check(
+        typeof credit === "number" &&
+          credit >= 0 &&
+          credit <= 10000 &&
+          /^\d+(\.\d{1,2})?$/.test(String(credit)),
+      );
+  },
+  set_partner_assistant_contact(p) {
+    keys(
+      p,
+      ["schema_version", "partner_id", "active"],
+      ["schema_version", "partner_id", "active", "reason"],
+    );
+    textOf(p, "reason", 240);
+    check(uuidOf(p, "partner_id") !== null && boolOf(p, "active") !== null);
+  },
+  save_partner_assistant_rules(p) {
+    keys(
+      p,
+      ["schema_version", "body", "expected_version"],
+      ["schema_version", "body", "expected_version"],
+    );
+    const body = textOf(p, "body", 100000);
+    check(
+      body !== null && btrim(body) !== "" && versionOf(p, "expected_version", 2147483647) !== null,
+    );
   },
 };
 
@@ -716,7 +763,10 @@ export type PartnerCommandSuccess = {
   status: "success";
   kind: PartnerCommandKind;
   operationId: string;
-  /** Id restituito dal comando: contatto, variante, recapito, differenza o import. */
+  /**
+   * Id restituito dal comando: contatto, variante, recapito, differenza, import, oppure
+   * configurazione, interruttore o regole dell'assistente.
+   */
   id: string;
   partnerId: string | null;
   version: number | null;
@@ -802,15 +852,40 @@ export const PARTNER_ERROR_MESSAGES: Record<string, { sqlstate: string; message:
     sqlstate: "22023",
     message: "I numeri CO disponibili sono finiti: il contatto non è stato aggiunto.",
   },
+  partner_assistant_founder_required: {
+    sqlstate: "42501",
+    message: "Solo Tommi può mandare l'assistente in prova o in invio.",
+  },
+  partner_assistant_mode_unavailable: {
+    sqlstate: "22023",
+    message: "Prova e invio arrivano con la seconda consegna.",
+  },
+  partner_assistant_not_configured: {
+    sqlstate: "55000",
+    message: "L'assistente non è ancora configurato: serve il passo di avvio con Tommi.",
+  },
+};
+
+/**
+ * Conflitto di versione dei comandi che non toccano un contatto: modalità e credito sono le
+ * impostazioni dell'assistente, le regole sono le regole.
+ */
+const PARTNER_CHANGED_MESSAGES: Partial<Record<PartnerCommandKind, string>> = {
+  set_partner_assistant_mode:
+    "Un collega ha appena cambiato le impostazioni dell'assistente. Ricarico i dati: controlla e riprova.",
+  save_partner_assistant_rules:
+    "Un collega ha appena salvato una nuova versione delle regole. Ricarico i dati: controlla e riprova.",
 };
 
 /**
  * Errore della RPC → rifiuto definitivo, oppure `null` (esito da verificare). In una
  * ripetizione, accesso e payload non validi non dicono se il primo invio è andato a buon fine.
+ * Con il tipo del comando, il conflitto di versione dice che cosa è cambiato.
  */
 export function partnerCommandRejection(
   error: { code?: string | null; message?: string | null },
   retry: boolean,
+  kind?: PartnerCommandKind,
 ): Extract<PartnerCommandResult, { status: "rejected" }> | null {
   const known = error.message ? PARTNER_ERROR_MESSAGES[error.message] : undefined;
   if (!known || known.sqlstate !== error.code) return null;
@@ -819,11 +894,12 @@ export function partnerCommandRejection(
     (error.message === "partner_access_required" || error.message === "invalid_partner_payload")
   )
     return null;
+  const changed = error.message === "partner_changed";
   return {
     status: "rejected",
     code: error.message!,
-    message: known.message,
-    refresh: error.message === "partner_changed",
+    message: (changed && kind && PARTNER_CHANGED_MESSAGES[kind]) || known.message,
+    refresh: changed,
   };
 }
 
@@ -878,6 +954,12 @@ function successMessage(command: PartnerCommand, data: Record<string, unknown>):
       const counts = parsePartnerDevicePlanCounts(data);
       return counts ? describePartnerDeviceImport(counts) : "File importato.";
     }
+    case "set_partner_assistant_mode":
+      return "Modalità dell'assistente salvata.";
+    case "set_partner_assistant_contact":
+      return "Assistente aggiornato su questo contatto.";
+    case "save_partner_assistant_rules":
+      return "Regole dell'assistente salvate.";
   }
 }
 
@@ -899,6 +981,8 @@ export function partnerCommandOutcome(
     return null;
   if (command.kind === "save_partner" && !isPartnerCo(value.co)) return null;
   if (command.kind === "set_partner_do_not_contact" && typeof value.blocked !== "boolean")
+    return null;
+  if (command.kind === "set_partner_assistant_contact" && !isPartnerId(value.partner_id))
     return null;
   const counts =
     command.kind === "import_partner_device_file" ? parsePartnerDevicePlanCounts(value) : null;

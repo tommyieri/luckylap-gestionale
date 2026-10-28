@@ -10,6 +10,7 @@ import {
 } from "react";
 import Link from "next/link";
 import { History, Mail, RotateCcw } from "lucide-react";
+import { PARTNER_ASSISTANT_INACTIVE } from "../../lib/partner/assistant";
 import {
   partnerActivityPayload,
   partnerMessagePayload,
@@ -716,10 +717,10 @@ export function PartnerMessages({ detail, blocked }: { detail: PartnerDetail; bl
             </button>
           </div>
         )}
-        <p className={styles.hint}>
-          Per un testo che rispetta le regole di CONTESTO.md, chiedilo a Claude con il comando
-          messaggi nel repository Partner.
-        </p>
+        {/* Senza le migrazioni dell'assistente il blocco «Assistente» non c'è. */}
+        {!blocked && detail.assistant !== PARTNER_ASSISTANT_INACTIVE && (
+          <p className={styles.hint}>Le bozze dell'assistente sono nel blocco «Assistente».</p>
+        )}
         {skipped && <p className={styles.hint}>Approcci scartati: {skipped}</p>}
         <p>
           <Link href={PARTNER_RULES_PATH} prefetch={false} className="text-button">

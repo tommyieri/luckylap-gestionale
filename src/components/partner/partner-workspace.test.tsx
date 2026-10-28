@@ -15,6 +15,9 @@ vi.mock("../../app/(workspace)/partner/actions", () => {
     removePartnerContact: action,
     setPartnerDoNotContact: action,
     resolvePartnerDifference: action,
+    setPartnerAssistantMode: action,
+    setPartnerAssistantContact: action,
+    savePartnerAssistantRules: action,
   };
 });
 vi.mock("../../app/(workspace)/partner/dati/actions", () => ({
@@ -24,25 +27,44 @@ vi.mock("../../app/(workspace)/partner/dati/actions", () => ({
 
 import { PartnerDataView } from "./partner-data-view";
 import { PartnerWorkspace, partnerDetailGone } from "./partner-workspace";
+import styles from "./partner.module.css";
 import {
   PARTNER_FIXTURE_MEMBER_ID,
+  partnerAssistantFixture,
   partnerFixtureData,
   partnerFixtureDetail,
   partnerFixtureWorkspace,
 } from "../../lib/partner/fixtures";
-import type { PartnerWorkspace as PartnerWorkspaceData } from "../../lib/partner/model";
+import {
+  PARTNER_ASSISTANT_INACTIVE,
+  type PartnerAssistantStatus,
+} from "../../lib/partner/assistant";
+import type {
+  PartnerDetail,
+  PartnerWorkspace as PartnerWorkspaceData,
+} from "../../lib/partner/model";
 
 const TODAY = "2026-10-22";
 
 function render(
   query: Record<string, string> = {},
-  options: { workspace?: PartnerWorkspaceData; preview?: boolean } = {},
+  options: {
+    workspace?: PartnerWorkspaceData;
+    preview?: boolean;
+    assistant?: PartnerAssistantStatus | null;
+    /** Cambia la scheda aperta prima di renderla. */
+    detail?: (detail: PartnerDetail) => PartnerDetail;
+  } = {},
 ) {
   const co = Number(query.co);
+  const detail = query.co ? partnerFixtureDetail(co, TODAY) : null;
   return renderToStaticMarkup(
     <PartnerWorkspace
       workspace={options.workspace ?? partnerFixtureWorkspace(TODAY)}
-      detail={query.co ? partnerFixtureDetail(co, TODAY) : null}
+      detail={detail && options.detail ? options.detail(detail) : detail}
+      assistant={
+        options.assistant === undefined ? partnerAssistantFixture(TODAY).status : options.assistant
+      }
       today={TODAY}
       memberId={PARTNER_FIXTURE_MEMBER_ID}
       preview={options.preview ?? false}
@@ -132,6 +154,38 @@ describe("PartnerWorkspace", () => {
     expect(text(details)).toContain("niente link per scrivere o chiamare");
   });
 
+  it("senza messaggio pronto rimanda alle bozze dell'assistente, non al repository Partner", () => {
+    const html = render({ periodo: "4", stato: "tutti", co: "5" });
+    const start = html.indexOf('id="messaggi-5"');
+    expect(start).toBeGreaterThan(0);
+    const messages = text(html.slice(start, html.indexOf("</section>", start)));
+    expect(messages).toContain("Nessun messaggio pronto per questo contatto.");
+    expect(messages).toContain("Le bozze dell'assistente sono nel blocco «Assistente».");
+    expect(messages).not.toContain("repository Partner");
+    expect(messages).not.toContain("chiedilo a Claude");
+  });
+
+  it("assistente non attivo: niente rimando al blocco «Assistente», che non c'è", () => {
+    const html = render(
+      { periodo: "4", stato: "tutti", co: "5" },
+      { detail: (detail) => ({ ...detail, assistant: PARTNER_ASSISTANT_INACTIVE }) },
+    );
+    const start = html.indexOf('id="messaggi-5"');
+    expect(start).toBeGreaterThan(0);
+    const messages = text(html.slice(start, html.indexOf("</section>", start)));
+    expect(messages).toContain("Nessun messaggio pronto per questo contatto.");
+    expect(messages).not.toContain("Le bozze dell'assistente");
+    expect(html).not.toContain('id="assistente-5"');
+  });
+
+  it("contatto in «Non contattare»: niente rimando alle bozze dell'assistente", () => {
+    const html = render({ periodo: "3", stato: "tutti", co: "4" });
+    const start = html.indexOf('id="messaggi-4"');
+    const messages = text(html.slice(start, html.indexOf("</section>", start)));
+    expect(messages).toContain("niente messaggi nuovi");
+    expect(messages).not.toContain("Le bozze dell'assistente");
+  });
+
   it("«Copia» sta accanto all'email che copia, anche quando il canale preferito è un altro", () => {
     const second = row(render(), 2);
     expect(second).toMatch(
@@ -186,6 +240,19 @@ describe("PartnerWorkspace", () => {
     const html = render({}, { workspace: empty });
     expect(text(html)).toContain("La ricerca Partner non è ancora stata importata.");
     expect(html).toContain('href="/partner/dati"');
+  });
+
+  it("piede: «Assistente» accanto a «Regole per scrivere i messaggi»", () => {
+    const html = render();
+    const footer = html.slice(html.indexOf("<footer"), html.indexOf("</footer>"));
+    const links = [...footer.matchAll(/<a [^>]*href="([^"]+)"[^>]*>(.*?)<\/a>/g)]
+      .map((match) => [match[1], text(match[2]).trim()])
+      .filter(([href]) => !href.includes("/lookbook/"));
+    expect(links).toEqual([
+      ["/partner/dati", "Dati, import e lookbook"],
+      ["/partner/regole", "Regole per scrivere i messaggi"],
+      ["/partner/assistente", "Assistente"],
+    ]);
   });
 
   it("dettagli aperti: messaggi, registro, recapiti, scheda e lista «non contattare»", () => {
@@ -262,6 +329,41 @@ describe("PartnerWorkspace", () => {
     expect(row(html, 1)).toMatch(/<select id="stato-1"[^>]*disabled/);
   });
 
+  it("striscia dell'assistente: il primo elemento della pagina, prima del titolo", () => {
+    const html = render();
+    const strip = `<section class="${styles.assistantStrip}"`;
+    expect(html.startsWith(`<div class="${styles.workspace}">${strip}`)).toBe(true);
+    expect(html.indexOf(strip)).toBeLessThan(html.indexOf("<h1>Partner</h1>"));
+    expect(text(html)).toContain("Assistente: prepara · 1 bozza pronta · 1,37 USD spesi");
+    expect(buttons(html).map((b) => b.text)).toContain("Ferma l'assistente");
+  });
+
+  it("stato dell'assistente non leggibile: la pagina Partner si vede lo stesso", () => {
+    const html = render({ co: "2" }, { assistant: null });
+    expect(html).toContain("<h1>Partner</h1>");
+    expect(html.match(/<li id="lead-\d+"/g)).toEqual(['<li id="lead-1"', '<li id="lead-2"']);
+    expect(html).toContain('id="dettagli-2"');
+    expect(html).toContain(`<section class="${styles.assistantStrip}" data-attention="true"`);
+    expect(text(html)).toContain("Stato dell'assistente non leggibile");
+    expect(buttons(html).map((b) => b.text)).not.toContain("Ferma l'assistente");
+  });
+
+  it("scheda aperta: il blocco «Assistente» tra «Esito» e i messaggi", () => {
+    for (const co of ["2", "6"]) {
+      const html = render({ co });
+      const details = html.slice(html.indexOf(`id="dettagli-${co}"`));
+      const block = details.indexOf(">Assistente</h4>");
+      expect(block, co).toBeGreaterThan(0);
+      expect(block, co).toBeLessThan(details.indexOf(`id="messaggi-${co}"`));
+      expect(block, co).toBeGreaterThan(details.indexOf("Prossima azione"));
+    }
+    const agreed = render({ co: "6" });
+    expect(agreed.indexOf(">Esito</h4>")).toBeLessThan(agreed.indexOf(">Assistente</h4>"));
+    const ready = text(render({ co: "2" }));
+    expect(ready).toContain("Bozza pronta");
+    expect(ready).toContain("Assistente su questo contatto: attivo");
+  });
+
   it("lookbook nel piede, dalla route dei membri", () => {
     const html = render();
     for (const code of ["negozi", "eventi", "collab", "porsche_club", "club"])
@@ -280,5 +382,22 @@ describe("PartnerDataView", () => {
     expect(t).toContain("File esportato (.json)");
     expect(html).toMatch(/<h3[^>]*id="dati-file-importati"[^>]*>File già importati<\/h3>/);
     expect(html).toContain('aria-labelledby="dati-file-importati"');
+  });
+
+  it("ricerca non ancora importata: arriva con l'import, senza dire «Claude»", () => {
+    const html = renderToStaticMarkup(
+      <PartnerDataView
+        data={{ ...partnerFixtureData(TODAY), imports: [] }}
+        today={TODAY}
+        preview
+        userId={null}
+      />,
+    );
+    const research = text(html.slice(html.indexOf('id="dati-ricerca"'), html.indexOf("dati-file")));
+    expect(research).toContain(
+      "La ricerca Partner non è ancora stata importata: la carica Tommi con l'import.",
+    );
+    expect(research).not.toContain("Claude");
+    expect(research).not.toContain("repository");
   });
 });

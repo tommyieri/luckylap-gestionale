@@ -4,7 +4,8 @@
 // lo ripete identico e la ricevuta del database restituisce l'esito di allora, senza doppioni.
 // La chiave contiene l'utente, così un altro account sullo stesso browser non lo vede.
 // Ogni accesso allo storage è protetto: in navigazione privata il tentativo resta in memoria.
-import { parsePartnerCommand, type PartnerCommand } from "./commands";
+import { PARTNER_ASSISTANT_MODE_LABELS } from "./assistant";
+import { PARTNER_ASSISTANT_MODES, parsePartnerCommand, type PartnerCommand } from "./commands";
 import {
   PARTNER_APPROACH_LABELS,
   PARTNER_RECORDABLE_KINDS,
@@ -154,6 +155,17 @@ export function pendingPartnerLines(
       break;
     case "import_partner_device_file":
       lines.push(`Import del file del ${p.device === "computer" ? "computer" : "telefono"}`);
+      break;
+    case "set_partner_assistant_mode": {
+      const mode = PARTNER_ASSISTANT_MODES.find((item) => item === p.mode);
+      if (mode) lines.push(`Modalità dell'assistente: ${PARTNER_ASSISTANT_MODE_LABELS[mode]}`);
+      break;
+    }
+    case "set_partner_assistant_contact":
+      lines.push(`Assistente su questo contatto: ${p.active === true ? "attivo" : "fermo"}`);
+      break;
+    case "save_partner_assistant_rules":
+      lines.push("Modifica delle regole dell'assistente");
       break;
   }
   return lines;

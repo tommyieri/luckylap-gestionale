@@ -16,6 +16,9 @@ import type { PartnerMember, PartnerSummary } from "../../lib/partner/model";
  * registri condivisi tra i componenti: i tentativi incerti già mostrati in un modulo (così il
  * riquadro in alto non li ripete) e i testi non salvati (per «Hai modifiche non salvate»).
  */
+/** Quanto serve di un contatto per scriverlo nei tentativi da verificare: «CO 001 · Nome». */
+export type PartnerContextPartner = Pick<PartnerSummary, "id" | "co" | "name">;
+
 export type PartnerContextValue = {
   /** Anteprima locale: dati sintetici, ogni pulsante di scrittura spento. */
   preview: boolean;
@@ -24,7 +27,7 @@ export type PartnerContextValue = {
   /** Giorno di Roma «AAAA-MM-GG», calcolato sul server. */
   today: string;
   members: PartnerMember[];
-  partnersById: ReadonlyMap<string, PartnerSummary>;
+  partnersById: ReadonlyMap<string, PartnerContextPartner>;
   liveScopes: readonly string[];
   setLiveScope: (scope: string, live: boolean) => void;
   setDirty: (key: string, dirty: boolean) => void;
@@ -45,7 +48,7 @@ export function PartnerProvider({
   userId: string | null;
   today: string;
   members: PartnerMember[];
-  partners: readonly PartnerSummary[];
+  partners: readonly PartnerContextPartner[];
   children: ReactNode;
 }) {
   const [liveScopes, setLiveScopes] = useState<string[]>([]);

@@ -5,6 +5,7 @@ import { isPartnerCo, isPartnerLookbookCode, type PartnerLookbookCode } from "./
 export const PARTNER_PATH = "/partner";
 export const PARTNER_DATA_PATH = "/partner/dati";
 export const PARTNER_RULES_PATH = "/partner/regole";
+export const PARTNER_ASSISTANT_PATH = "/partner/assistente";
 
 /** Ancora della riga: `lead-12`. */
 export const partnerLeadAnchor = (co: number) => `lead-${co}`;

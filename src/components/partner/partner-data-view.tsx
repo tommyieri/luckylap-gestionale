@@ -86,8 +86,7 @@ export function PartnerDataView({
           </>
         ) : (
           <p className={styles.dataLine}>
-            La ricerca Partner non è ancora stata importata. La importa Claude dal repository
-            luckylap-partner.
+            La ricerca Partner non è ancora stata importata: la carica Tommi con l'import.
           </p>
         )}
         <p className={styles.dataLine}>

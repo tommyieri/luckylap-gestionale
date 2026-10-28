@@ -28,6 +28,25 @@ const command = (kind: string, payload: Record<string, unknown>, extra = {}) =>
     { kind, operationId: OP, payload: { schema_version: 1, ...payload }, ...extra },
     NOW,
   );
+/**
+ * SQL dei comandi del team: modulo Partner e assistente. Le migrazioni del worker e dello
+ * scheduler (`_assistente_partner_worker.sql`, `_assistente_partner_scheduler.sql`) restano fuori:
+ * i loro codici d'errore non arrivano mai alla pagina.
+ */
+const teamSql = () => {
+  const migrations = join(__dirname, "../../../supabase/migrations");
+  return ["_partner_module.sql", "_assistente_partner.sql"]
+    .map((suffix) =>
+      readFileSync(
+        join(
+          migrations,
+          readdirSync(migrations).find((n) => n.endsWith(suffix))!,
+        ),
+        "utf8",
+      ),
+    )
+    .join("\n");
+};
 
 const VALID: Record<string, Record<string, unknown>> = {
   set_partner_state: { partner_id: PARTNER, expected_version: 3, stage: "risposto" },
@@ -68,10 +87,17 @@ const VALID: Record<string, Record<string, unknown>> = {
     approaches: { L001: "collab" },
     names: { L001: "Garage Sintetico" },
   },
+  set_partner_assistant_mode: { mode: "prepara", expected_version: 1, starting_credit_usd: 20 },
+  set_partner_assistant_contact: {
+    partner_id: PARTNER,
+    active: false,
+    reason: "Lo segue il team.",
+  },
+  save_partner_assistant_rules: { body: "# Regole\n\n- Tono cordiale.", expected_version: 1 },
 };
 
 describe("controllo dei comandi sul server", () => {
-  it("accetta un comando valido per ognuno dei dieci tipi", () => {
+  it("accetta un comando valido per ognuno dei tredici tipi", () => {
     expect(Object.keys(VALID)).toEqual([...PARTNER_COMMAND_KINDS]);
     for (const kind of PARTNER_COMMAND_KINDS)
       expect(command(kind, VALID[kind]), kind).toMatchObject({
@@ -82,14 +108,7 @@ describe("controllo dei comandi sul server", () => {
   });
 
   it("le chiavi ammesse sono quelle delle funzioni SQL: mai created_by", () => {
-    const migrations = join(__dirname, "../../../supabase/migrations");
-    const sql = readFileSync(
-      join(
-        migrations,
-        readdirSync(migrations).find((n) => n.endsWith("_partner_module.sql"))!,
-      ),
-      "utf8",
-    );
+    const sql = teamSql();
     for (const kind of PARTNER_COMMAND_KINDS) {
       expect(command(kind, { ...VALID[kind], created_by: partnerFixtureId(2) }), kind).toBeNull();
       expect(command(kind, { ...VALID[kind], actor_id: partnerFixtureId(2) }), kind).toBeNull();
@@ -249,6 +268,66 @@ describe("controllo dei comandi sul server", () => {
     ).toBeNull();
     const { names: _names, ...noNames } = file;
     expect(command("import_partner_device_file", noNames)).toBeNull();
+  });
+
+  it("modalità dell'assistente: le quattro modalità, versione e credito da 0 a 10.000", () => {
+    const mode = VALID.set_partner_assistant_mode;
+    // «prova» e «invio» passano il controllo: il database risponde con il codice giusto.
+    for (const value of ["spento", "prepara", "prova", "invio"])
+      expect(command("set_partner_assistant_mode", { ...mode, mode: value }), value).not.toBeNull();
+    expect(command("set_partner_assistant_mode", { ...mode, mode: "acceso" })).toBeNull();
+    expect(command("set_partner_assistant_mode", { ...mode, mode: null })).toBeNull();
+    const { expected_version: _version, ...noVersion } = mode;
+    expect(command("set_partner_assistant_mode", noVersion)).toBeNull();
+    expect(command("set_partner_assistant_mode", { ...mode, expected_version: 0 })).toBeNull();
+    const { starting_credit_usd: _credit, ...noCredit } = mode;
+    expect(command("set_partner_assistant_mode", noCredit)).not.toBeNull();
+    for (const credit of [null, 0, 12.34, 0.07, 10000])
+      expect(
+        command("set_partner_assistant_mode", { ...mode, starting_credit_usd: credit }),
+        String(credit),
+      ).not.toBeNull();
+    for (const credit of [-1, 10000.01, 1.005, 1e-7, "20", true])
+      expect(
+        command("set_partner_assistant_mode", { ...mode, starting_credit_usd: credit }),
+        String(credit),
+      ).toBeNull();
+  });
+
+  it("interruttore per contatto: attivo o fermo, motivo facoltativo fino a 240 caratteri", () => {
+    const base = { partner_id: PARTNER, active: true };
+    expect(command("set_partner_assistant_contact", base)).not.toBeNull();
+    expect(command("set_partner_assistant_contact", { ...base, reason: "" })).not.toBeNull();
+    expect(command("set_partner_assistant_contact", { ...base, reason: null })).not.toBeNull();
+    expect(
+      command("set_partner_assistant_contact", { ...base, reason: "x".repeat(240) }),
+    ).not.toBeNull();
+    expect(
+      command("set_partner_assistant_contact", { ...base, reason: "x".repeat(241) }),
+    ).toBeNull();
+    expect(command("set_partner_assistant_contact", { partner_id: PARTNER })).toBeNull();
+    expect(command("set_partner_assistant_contact", { ...base, active: "no" })).toBeNull();
+    expect(command("set_partner_assistant_contact", { ...base, partner_id: "x" })).toBeNull();
+  });
+
+  it("regole dell'assistente: testo da 1 a 100.000 caratteri e versione", () => {
+    const rules = VALID.save_partner_assistant_rules;
+    expect(
+      command("save_partner_assistant_rules", { ...rules, body: "x".repeat(100000) }),
+    ).not.toBeNull();
+    expect(
+      command("save_partner_assistant_rules", { ...rules, body: "x".repeat(100001) }),
+    ).toBeNull();
+    expect(command("save_partner_assistant_rules", { ...rules, body: "" })).toBeNull();
+    expect(command("save_partner_assistant_rules", { ...rules, body: "   " })).toBeNull();
+    expect(command("save_partner_assistant_rules", { ...rules, body: "a\u0000b" })).toBeNull();
+    expect(
+      command("save_partner_assistant_rules", { ...rules, expected_version: 2147483647 }),
+    ).not.toBeNull();
+    expect(
+      command("save_partner_assistant_rules", { ...rules, expected_version: 2147483648 }),
+    ).toBeNull();
+    expect(command("save_partner_assistant_rules", { body: rules.body })).toBeNull();
   });
 });
 
@@ -511,6 +590,21 @@ describe("esiti dei comandi", () => {
         "Un collega ha appena modificato questo contatto. Ricarico i dati: controlla e riprova.",
       refresh: true,
     });
+    // Modalità e regole non sono un contatto: il conflitto dice che cosa è cambiato.
+    const changed = { code: "40001", message: "partner_changed" };
+    expect(partnerCommandRejection(changed, false, "set_partner_assistant_mode")).toEqual({
+      status: "rejected",
+      code: "partner_changed",
+      message:
+        "Un collega ha appena cambiato le impostazioni dell'assistente. Ricarico i dati: controlla e riprova.",
+      refresh: true,
+    });
+    expect(partnerCommandRejection(changed, false, "save_partner_assistant_rules")?.message).toBe(
+      "Un collega ha appena salvato una nuova versione delle regole. Ricarico i dati: controlla e riprova.",
+    );
+    expect(partnerCommandRejection(changed, false, "set_partner_state")?.message).toBe(
+      "Un collega ha appena modificato questo contatto. Ricarico i dati: controlla e riprova.",
+    );
     expect(
       partnerCommandRejection({ code: "42501", message: "partner_access_required" }, false)
         ?.message,
@@ -525,6 +619,36 @@ describe("esiti dei comandi", () => {
     expect(
       partnerCommandRejection({ code: "22023", message: "partner_owner_inactive" }, false)?.code,
     ).toBe("partner_owner_inactive");
+  });
+
+  it("errori dei comandi dell'assistente", () => {
+    expect(
+      partnerCommandRejection(
+        { code: "42501", message: "partner_assistant_founder_required" },
+        false,
+      ),
+    ).toEqual({
+      status: "rejected",
+      code: "partner_assistant_founder_required",
+      message: "Solo Tommi può mandare l'assistente in prova o in invio.",
+      refresh: false,
+    });
+    expect(
+      partnerCommandRejection(
+        { code: "22023", message: "partner_assistant_mode_unavailable" },
+        false,
+      )?.message,
+    ).toBe("Prova e invio arrivano con la seconda consegna.");
+    expect(
+      partnerCommandRejection({ code: "55000", message: "partner_assistant_not_configured" }, false)
+        ?.message,
+    ).toBe("L'assistente non è ancora configurato: serve il passo di avvio con Tommi.");
+    expect(
+      partnerCommandRejection(
+        { code: "22023", message: "partner_assistant_founder_required" },
+        false,
+      ),
+    ).toBeNull();
   });
 
   it("codice sconosciuto o SQLSTATE diverso: esito da verificare", () => {
@@ -549,15 +673,8 @@ describe("esiti dei comandi", () => {
     ).toBe("rejected");
   });
 
-  it("ogni codice d'errore della migrazione ha il suo messaggio", () => {
-    const migrations = join(__dirname, "../../../supabase/migrations");
-    const sql = readFileSync(
-      join(
-        migrations,
-        readdirSync(migrations).find((n) => n.endsWith("_partner_module.sql"))!,
-      ),
-      "utf8",
-    );
+  it("ogni codice d'errore delle migrazioni dei comandi ha il suo messaggio", () => {
+    const sql = teamSql();
     const raised = new Set(
       [...sql.matchAll(/raise exception '([a-z_]+)' using errcode = '([0-9A-Z]{5})'/g)]
         .filter(
@@ -646,6 +763,59 @@ describe("esiti dei comandi", () => {
     expect(erased(2)).toBe(
       "Dato cancellato, anche dai destinatari dei messaggi. Toglilo anche dalla ricerca.",
     );
+  });
+
+  it("comandi dell'assistente: conferme, versione e contatto dal risultato", () => {
+    const mode = partnerCommandOutcome(parsed("set_partner_assistant_mode"), {
+      id: partnerFixtureId(7),
+      version: 2,
+      mode: "prepara",
+      replayed: false,
+    });
+    expect(mode).toMatchObject({
+      status: "success",
+      kind: "set_partner_assistant_mode",
+      id: partnerFixtureId(7),
+      partnerId: null,
+      version: 2,
+      message: "Modalità dell'assistente salvata.",
+    });
+    const contact = partnerCommandOutcome(parsed("set_partner_assistant_contact"), {
+      id: partnerFixtureId(8),
+      partner_id: PARTNER,
+      version: 3,
+      replayed: false,
+    });
+    expect(contact).toMatchObject({
+      partnerId: PARTNER,
+      version: 3,
+      message: "Assistente aggiornato su questo contatto.",
+    });
+    const rules = partnerCommandOutcome(parsed("save_partner_assistant_rules"), {
+      id: partnerFixtureId(9),
+      version: 2,
+      requeued: 1,
+      replayed: true,
+    });
+    expect(rules).toMatchObject({
+      partnerId: null,
+      version: 2,
+      message: "Regole dell'assistente salvate. Era già registrato: nessun doppione.",
+    });
+    expect(
+      partnerCommandOutcome(parsed("set_partner_assistant_contact"), {
+        id: partnerFixtureId(8),
+        version: 3,
+        replayed: false,
+      }),
+    ).toBeNull();
+    expect(
+      partnerCommandOutcome(parsed("save_partner_assistant_rules"), {
+        id: partnerFixtureId(9),
+        requeued: 0,
+        replayed: false,
+      }),
+    ).toBeNull();
   });
 
   it("risposte con forma sbagliata: esito da verificare", () => {

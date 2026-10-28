@@ -53,6 +53,60 @@
   margin-bottom: 16px;
 }
 
+/*
+ * Striscia dell'assistente in cima a /partner, sul modello di «Area aperta»: frase da 14 px in
+ * ink-2 e pulsante a destra anche quando va a capo. Spento, in pausa o non leggibile: fondo ambra.
+ */
+.assistantStrip {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px 16px;
+  margin-bottom: 20px;
+  padding-bottom: 12px;
+  border-bottom: 1px solid var(--rule-soft);
+}
+.assistantStrip[data-attention] {
+  padding: 10px 12px;
+  border-bottom-color: var(--amber);
+  background: var(--amber-wash);
+}
+.assistantStripText {
+  display: flex;
+  flex: 1 1 280px;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+  color: var(--ink-2);
+  font-size: var(--text-sm);
+  line-height: 1.5;
+}
+.assistantStripText svg {
+  flex-shrink: 0;
+  color: var(--green);
+}
+.assistantStrip[data-attention] .assistantStripText {
+  color: var(--ink);
+  font-weight: 600;
+}
+.assistantStrip[data-attention] .assistantStripText svg {
+  color: var(--amber);
+}
+.assistantStripActions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px 16px;
+  margin-left: auto;
+}
+.assistantStripFeedback {
+  flex-basis: 100%;
+}
+.assistantStripFeedback:empty {
+  display: none;
+}
+
 /* Sezioni: sottolineatura d'inchiostro da 3 px sulla scelta, niente fascia verde. */
 .sections {
   display: flex;
@@ -558,6 +612,13 @@
   color: var(--ink);
 }
 .act[aria-pressed="true"] {
+  background: var(--ink);
+  color: var(--paper);
+}
+/* La scelta in vigore resta piena anche con i pulsanti spenti (comando in corso, anteprima). */
+.act[aria-pressed="true"]:disabled,
+.act[aria-pressed="true"]:disabled:hover {
+  opacity: 1;
   background: var(--ink);
   color: var(--paper);
 }
@@ -1389,6 +1450,81 @@
   font-family: ui-monospace, "SF Mono", Menlo, Consolas, monospace;
   font-size: var(--text-sm);
   line-height: 1.5;
+}
+
+/* /partner/assistente: modalità in inversione d'inchiostro, conteggi in Condensed, regole. */
+.assistantModes {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 8px;
+  max-width: 520px;
+}
+.assistantCredit {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  gap: 8px 12px;
+}
+.assistantCredit .field {
+  flex: 0 1 220px;
+}
+.assistantCounts {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+  margin: 0;
+  border-top: 1px solid var(--rule);
+}
+.assistantCounts div {
+  display: grid;
+  align-content: start;
+  gap: 2px;
+  padding: 10px 12px 10px 0;
+  border-bottom: 1px solid var(--rule-soft);
+}
+.assistantCounts dt {
+  color: var(--muted);
+  font-size: var(--text-sm);
+}
+.assistantCounts dd {
+  margin: 0;
+  color: var(--ink);
+  font-family: var(--f-cond);
+  font-size: var(--text-xl);
+  font-weight: 700;
+}
+.assistantReview {
+  display: grid;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  border-top: 1px solid var(--rule);
+}
+.assistantReview li {
+  display: grid;
+  gap: 4px;
+  padding: 8px 0 12px;
+  border-bottom: 1px solid var(--rule);
+  overflow-wrap: anywhere;
+}
+.reviewName {
+  display: inline-flex;
+  align-items: center;
+  justify-self: start;
+  min-height: var(--tap);
+  color: var(--ink);
+  font-family: var(--f-cond);
+  font-size: var(--text-lg);
+  font-weight: 700;
+}
+.rulesForm {
+  display: grid;
+  gap: 10px;
+  padding-top: 8px;
+}
+.field textarea.rulesEditor {
+  min-height: max(24em, 60vh);
+  font-size: var(--text-md);
+  line-height: 1.55;
 }
 
 /* Schermi medi: il canale scende sotto la tappa. */

@@ -29,6 +29,7 @@ import {
   type PartnerViewSection,
 } from "../../lib/partner/filters";
 import {
+  PARTNER_ASSISTANT_PATH,
   PARTNER_DATA_PATH,
   PARTNER_PATH,
   PARTNER_RULES_PATH,
@@ -46,6 +47,8 @@ import {
   type PartnerWorkspace as PartnerWorkspaceData,
 } from "../../lib/partner/model";
 import { partnerPeriod, partnerPeriods, type PartnerPeriodNumber } from "../../lib/partner/periods";
+import type { PartnerAssistantInactive, PartnerAssistantStatus } from "../../lib/partner/assistant";
+import { PartnerAssistantStrip } from "./partner-assistant-strip";
 import { PartnerCardForm } from "./partner-card-form";
 import { PartnerPendingRecovery } from "./partner-command";
 import { PartnerProvider, usePartnerContext } from "./partner-context";
@@ -62,6 +65,11 @@ export type PartnerWorkspaceProps = {
   workspace: PartnerWorkspaceData;
   /** Dettaglio del contatto `co` dell'indirizzo, letto dal server. */
   detail: PartnerDetail | null;
+  /**
+   * Stato dell'assistente per la striscia in cima; `null` se non è leggibile,
+   * PARTNER_ASSISTANT_INACTIVE (niente striscia) senza le sue migrazioni.
+   */
+  assistant: PartnerAssistantStatus | PartnerAssistantInactive | null;
   /** Giorno di Roma, dal server. */
   today: string;
   /** Membro della sessione, per «Seguiti da me». */
@@ -115,6 +123,7 @@ const urlOf = (view: PartnerView) => `${PARTNER_PATH}?${partnerViewQuery(view)}`
 function WorkspaceBody({
   workspace,
   detail,
+  assistant,
   today,
   memberId,
   preview,
@@ -317,6 +326,7 @@ function WorkspaceBody({
 
   return (
     <div className={styles.workspace}>
+      <PartnerAssistantStrip status={assistant} />
       <header className={styles.heading}>
         <h1>Partner</h1>
         <p className={styles.totals}>{totalsLine(sections)}</p>
@@ -580,6 +590,9 @@ function WorkspaceBody({
           </Link>
           <Link href={PARTNER_RULES_PATH} prefetch={false} className="text-button">
             Regole per scrivere i messaggi
+          </Link>
+          <Link href={PARTNER_ASSISTANT_PATH} prefetch={false} className="text-button">
+            Assistente
           </Link>
         </div>
         {adding && (

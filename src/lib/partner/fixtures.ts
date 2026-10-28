@@ -4,7 +4,17 @@
 // numeri +39 000 000 00xx, nomi di persone di fantasia. Le righe hanno la forma delle tabelle e
 // passano dagli stessi parser della lettura vera (read.ts). Mesi e date sono calcolati da oggi,
 // così l'anteprima mostra sempre tutti e cinque i periodi. Nessuna chiamata a Supabase.
+//
+// L'assistente Partner ha righe a parte (partnerAssistantFixtureRows): una bozza pronta per il
+// contatto 2, un passaggio a Tommi per il contatto 1, l'interruttore fermo sul contatto 4. Le bozze
+// citano https://luckylap.com e la firma porta solo il numero finto +39 000 000 0000.
 import { isLocalPreviewEnabled } from "../runtime";
+import {
+  partnerAssistantRulesFrom,
+  partnerAssistantStatusFrom,
+  type PartnerAssistantRulesView,
+  type PartnerAssistantStatus,
+} from "./assistant";
 import { partnerLinkValue } from "./contacts";
 import { addDays, addMonths, romeDay } from "./dates";
 import {
@@ -646,7 +656,7 @@ export function partnerFixtureRows(today: string) {
       context_md: PARTNER_FIXTURE_CONTEXT,
     },
   ];
-  const profiles = MEMBERS.map(([n, name]) => ({ user_id: id(n), display_name: name }));
+  const profiles = fixtureProfiles();
   const memberships = MEMBERS.map(([n]) => ({ user_id: id(n), active: true }));
   return {
     partners,
@@ -660,6 +670,328 @@ export function partnerFixtureRows(today: string) {
     deviceImports,
     profiles,
     memberships,
+  };
+}
+
+const fixtureProfiles = () =>
+  MEMBERS.map(([n, name]) => ({ user_id: partnerFixtureId(n), display_name: name }));
+
+/** Il profilo dell'assistente: autore di note e bozze, senza membership. */
+const PARTNER_FIXTURE_ASSISTANT_ID = partnerFixtureId(990);
+/** L'unico numero nelle firme sintetiche: quello vero arriva da PARTNER_ASSISTANT_PHONE. */
+const FIXTURE_PHONE = "+39 000 000 0000";
+const FIXTURE_MODEL = "claude-opus-5-5";
+
+/** Riga sintetica di una tabella public.partner_assistant_*: i test cambiano i suoi campi. */
+type AssistantFixtureRow = Record<string, unknown> & { id: string; partner_id: string };
+
+/** I campi della nota «scelta» (Appendice C), con la proposta e la decisione. */
+const choiceContent = (fields: Record<string, unknown>) => ({
+  contact_kind: "negozio",
+  porsche_community: false,
+  reason_it: "",
+  write_now: true,
+  write_on: "",
+  recipient_email: "",
+  recipient_email_source: "",
+  recipient_email_published_by_org: false,
+  person_name: "",
+  person_title: "",
+  language: "en",
+  register: "you",
+  swiss: false,
+  timezone: "",
+  fact_text: "",
+  fact_date: "",
+  fact_source: "",
+  event_name: "",
+  event_starts_on: "",
+  event_city: "",
+  event_country: "",
+  event_reachable: false,
+  notes_it: "",
+  request: "vendita_negozio",
+  decision: { kind: "scrivi" },
+  ...fields,
+});
+
+/**
+ * Righe sintetiche dell'assistente con la forma delle tabelle public.partner_assistant_* e della
+ * risposta di read_partner_assistant_status. Contatto 2: ricerca, scelta e bozza pronta. Contatto 1:
+ * passato a Tommi sei giorni fa senza un fatto da citare, poi scritto a mano dal team. Contatto 4:
+ * interruttore fermo, senza lavoro. Gli altri: niente.
+ */
+export function partnerAssistantFixtureRows(today: string) {
+  const id = partnerFixtureId;
+  const before = addDays(today, -6);
+  const emailOf = (partner: number) =>
+    partnerFixtureRows(today).contacts.find(
+      (contact) => contact.partner_id === id(partner) && contact.kind === "email",
+    )!.id;
+  const switches: AssistantFixtureRow[] = [
+    {
+      id: id(965),
+      partner_id: id(4),
+      active: false,
+      reason: "Ci scrive solo il team.",
+      version: 1,
+      updated_by: id(902),
+      updated_at: at(before, "10:00:00"),
+    },
+  ];
+  const job = (
+    n: number,
+    partner: number,
+    fields: Record<string, unknown>,
+  ): AssistantFixtureRow => ({
+    id: id(n),
+    partner_id: id(partner),
+    status: "in_coda",
+    step: "ricerca",
+    lease_token: null,
+    lease_expires_at: null,
+    attempts: 0,
+    rewrites: 0,
+    write_on: null,
+    next_attempt_at: at(today, "08:00:00"),
+    reason: null,
+    research_note_id: null,
+    choice_note_id: null,
+    draft_id: null,
+    created_at: at(before, "08:00:00"),
+    ...fields,
+  });
+  const jobs = [
+    job(961, 1, {
+      status: "serve_tommaso",
+      step: "estrazione",
+      reason: "fatto_mancante",
+      research_note_id: id(971),
+      choice_note_id: id(972),
+      updated_at: at(before, "08:08:00"),
+    }),
+    job(962, 2, {
+      status: "pronta",
+      step: "controllo",
+      research_note_id: id(973),
+      choice_note_id: id(974),
+      draft_id: id(981),
+      created_at: at(today, "08:20:00"),
+      updated_at: at(today, "08:50:00"),
+    }),
+  ];
+  const note = (
+    n: number,
+    partner: number,
+    kind: "ricerca" | "scelta",
+    content: Record<string, unknown>,
+    created: string,
+    sources: string[] = [],
+  ): AssistantFixtureRow => ({
+    id: id(n),
+    partner_id: id(partner),
+    kind,
+    content,
+    sources,
+    // Il contatto 1 è di sei giorni fa, prima della versione 2 delle regole.
+    rules_version: partner === 1 ? 1 : 2,
+    model: FIXTURE_MODEL,
+    operation_id: id(n + 1000),
+    created_by: PARTNER_FIXTURE_ASSISTANT_ID,
+    created_at: created,
+  });
+  const eventStart = addDays(today, 34);
+  const notes = [
+    note(
+      971,
+      1,
+      "ricerca",
+      {
+        text: "Garage Sintetico Uno (testo sintetico): concept store car-culture a Monaco con clienti appassionati di auto storiche. Sul sito e sui social nessuna notizia degli ultimi mesi.",
+      },
+      at(before, "08:06:00"),
+      ["https://www.garage-uno.example.test/chi-siamo"],
+    ),
+    note(
+      972,
+      1,
+      "scelta",
+      choiceContent({
+        contact_kind: "negozio",
+        reason_it:
+          "Concept store car-culture con clienti appassionati: la vendita in negozio è la proposta naturale.",
+        recipient_email: "info@garage-uno.example.test",
+        recipient_email_source: "https://www.garage-uno.example.test/chi-siamo",
+        recipient_email_published_by_org: true,
+        language: "de",
+        register: "sie",
+        timezone: "Europe/Berlin",
+        request: "vendita_negozio",
+        decision: { kind: "blocca", reason: "fatto_mancante" },
+      }),
+      at(before, "08:08:00"),
+    ),
+    note(
+      973,
+      2,
+      "ricerca",
+      {
+        text: "Raduno Sintetico Due (testo sintetico): raduno di tre giorni a Zandvoort con pista aperta. Il programma annuncia una nuova area espositori vicino ai box; per gli espositori scrive booking@raduno-due.example.test.",
+      },
+      at(today, "08:44:00"),
+      ["https://raduno-due.example.test/espositori"],
+    ),
+    note(
+      974,
+      2,
+      "scelta",
+      choiceContent({
+        contact_kind: "evento",
+        reason_it:
+          "Il raduno è nei Paesi Bassi, fuori portata per uno stand: proponiamo magliette co-firmate dell'evento.",
+        recipient_email: "booking@raduno-due.example.test",
+        recipient_email_source: "https://raduno-due.example.test/espositori",
+        recipient_email_published_by_org: true,
+        language: "en",
+        register: "you",
+        timezone: "Europe/Amsterdam",
+        fact_text: "Nuova area espositori vicino ai box.",
+        fact_date: addDays(today, -9),
+        fact_source: "https://raduno-due.example.test/programma",
+        event_name: "Raduno Sintetico Due",
+        event_starts_on: eventStart,
+        event_city: "Zandvoort",
+        event_country: "Paesi Bassi",
+        event_reachable: false,
+        request: "merch_cobranding",
+      }),
+      at(today, "08:46:00"),
+    ),
+  ];
+  const drafts: AssistantFixtureRow[] = [
+    {
+      id: id(981),
+      partner_id: id(2),
+      contact_id: emailOf(2),
+      partner_version: 2,
+      language: "en",
+      subject: "Raduno Sintetico Due and LuckyLap",
+      body: [
+        "Good morning,",
+        "Congratulations on the new exhibitor area next to the pits: this is a synthetic draft for the local preview.",
+        "I'm Tommaso from LuckyLap – we're a group of young car enthusiasts in Milan. We design every T-shirt and draw every car ourselves, and have them embroidered in Italy on organic cotton.",
+        "Our T-shirts have travelled to more than ten countries. The collection is at https://luckylap.com for a first look.",
+        "We'd love to make co-branded T-shirts with you, with your logo embroidered alongside our cars.",
+        "It would give you an exclusive piece to offer at the event, and we'd look after design, embroidery and delivery.",
+        "Would that be of interest for this edition?",
+        "I'd be grateful for a number so we can talk it through; mine is just below.",
+        "Many thanks, and warm wishes from Milan,",
+      ].join("\n"),
+      signature: [
+        "Tommaso",
+        "Founder, LuckyLap",
+        FIXTURE_PHONE,
+        "https://luckylap.com | Instagram @lucky.lap",
+      ].join("\n"),
+      // partnerAssistantDraftSha256 di oggetto, corpo e firma qui sopra (lo verifica un test).
+      sha256: "2095c09b9bf401c937a93a61fe044191eb81adca777ee4f86b1ff1092e029740",
+      rules_version: 2,
+      research_note_id: id(973),
+      operation_id: id(1981),
+      created_by: PARTNER_FIXTURE_ASSISTANT_ID,
+      created_at: at(today, "08:48:00"),
+    },
+  ];
+  const rules = [
+    {
+      id: id(985),
+      version: 1,
+      body: "# Regole sintetiche dell'assistente, versione 1\n\nTesto di prova per l'anteprima locale: le regole vere sono nel database.\n",
+      created_by: null,
+      created_at: at(addDays(today, -7), "07:00:00"),
+    },
+    {
+      id: id(986),
+      version: 2,
+      body: [
+        "# Regole sintetiche dell'assistente",
+        "",
+        "Testo di prova per l'anteprima locale: le regole vere sono nel database.",
+        "",
+        "## Tono",
+        "",
+        "- Cordiale e caldo, mai da venditore.",
+        "- Una sola domanda gentile.",
+        "",
+        "## Mai",
+        "",
+        "- Prezzi, sconti, quantità.",
+        "- Punti esclamativi.",
+        "",
+      ].join("\n"),
+      created_by: id(901),
+      created_at: at(addDays(today, -1), "16:30:00"),
+    },
+  ];
+  const event = (time: string, co: number | null, step: string | null, outcome: string) => ({
+    created_at: time,
+    co,
+    step,
+    outcome,
+  });
+  // Lo stato come lo dà read_partner_assistant_status, coerente con le righe qui sopra.
+  const status = {
+    mode: "prepara",
+    configured: true,
+    paused_reason: null,
+    backoff_until: null,
+    last_tick_at: at(today, "08:58:00"),
+    version: 2,
+    starting_credit_usd: 25,
+    spent_usd: 1.372415,
+    spent_today_usd: 0.846102,
+    counts: {
+      in_coda: jobs.filter((item) => item.status === "in_coda").length,
+      attesa: jobs.filter((item) => item.status === "attesa").length,
+      pronta: jobs.filter((item) => item.status === "pronta").length,
+      serve_tommaso: jobs.filter((item) => item.status === "serve_tommaso").length,
+      ferma: switches.filter((item) => !item.active).length,
+    },
+    to_review: [
+      {
+        co: 1,
+        name: SPECS[0].name,
+        reason: "fatto_mancante",
+        updated_at: at(before, "08:08:00"),
+      },
+    ],
+    last_events: [
+      event(at(today, "08:50:00"), 2, "controllo", "pronta"),
+      event(at(today, "08:48:00"), 2, "scrittura", "controlli_superati"),
+      event(at(today, "08:46:00"), 2, "estrazione", "scrivi"),
+      event(at(today, "08:44:00"), 2, "ricerca", "salvata"),
+      event(at(today, "08:32:00"), 2, "ricerca", "timeout"),
+      event(at(before, "08:08:00"), 1, "estrazione", "fatto_mancante"),
+      event(at(before, "08:06:00"), 1, "ricerca", "salvata"),
+    ],
+  };
+  return { switches, jobs, notes, drafts, rules, status };
+}
+
+/** Stato e regole dell'assistente per l'anteprima, passati dagli stessi parser della lettura. */
+export function partnerAssistantFixture(today: string): {
+  status: PartnerAssistantStatus;
+  rules: PartnerAssistantRulesView;
+} {
+  const rows = partnerAssistantFixtureRows(today);
+  const latest = rows.rules.reduce((a, b) => (b.version > a.version ? b : a));
+  return {
+    status: partnerAssistantStatusFrom(rows.status),
+    rules: partnerAssistantRulesFrom({
+      current: latest,
+      history: rows.rules,
+      profiles: fixtureProfiles(),
+    }),
   };
 }
 
@@ -702,6 +1034,7 @@ export function partnerFixtureDetail(co: number, today: string): PartnerDetail |
     items.filter((item) => item.partner_id === partner.id);
   const variants = mine(rows.variants);
   const activities = mine(rows.activities);
+  const assistant = partnerAssistantFixtureRows(today);
   return partnerDetailFromRows(co, {
     partner,
     contacts: mine(rows.contacts),
@@ -716,6 +1049,12 @@ export function partnerFixtureDetail(co: number, today: string): PartnerDetail |
     differences: mine(rows.differences),
     blocks: mine(rows.blocks),
     deviceImports: rows.deviceImports,
+    assistant: {
+      switch: mine(assistant.switches)[0] ?? null,
+      job: mine(assistant.jobs)[0] ?? null,
+      notes: mine(assistant.notes),
+      draft: mine(assistant.drafts)[0] ?? null,
+    },
   });
 }
 
@@ -743,10 +1082,21 @@ type PreviewEnvironment = Parameters<typeof isLocalPreviewEnabled>[0];
 export function partnerLocalPreview(
   now: Date = new Date(),
   environment?: PreviewEnvironment,
-): { today: string; memberId: string; workspace: PartnerWorkspace } | null {
+): {
+  today: string;
+  memberId: string;
+  workspace: PartnerWorkspace;
+  /** Lo stato dell'assistente per la striscia di /partner. */
+  assistant: PartnerAssistantStatus;
+} | null {
   if (!isLocalPreviewEnabled(environment)) return null;
   const today = romeDay(now);
-  return { today, memberId: PARTNER_FIXTURE_MEMBER_ID, workspace: partnerFixtureWorkspace(today) };
+  return {
+    today,
+    memberId: PARTNER_FIXTURE_MEMBER_ID,
+    workspace: partnerFixtureWorkspace(today),
+    assistant: partnerAssistantFixture(today).status,
+  };
 }
 
 /** Una scheda sintetica per i test, con i campi da cambiare. */

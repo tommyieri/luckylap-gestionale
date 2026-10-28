@@ -1,0 +1,244 @@
+{
+  "today": "2026-10-27",
+  "partners": [
+    {
+      "co": 951,
+      "name": "Porsche Club Sintetico Nord",
+      "contact_month": "2026-11",
+      "priority": "alta",
+      "sections": ["collab"],
+      "country": "Regno Unito",
+      "contacts": [
+        { "kind": "email", "value": "segreteria@pc-nord.example.test", "verified": true }
+      ],
+      "expected": 1,
+      "address": "segreteria@pc-nord.example.test"
+    },
+    {
+      "co": 952,
+      "name": "Fiera Sintetica Lombarda",
+      "contact_month": "2026-11",
+      "priority": "alta",
+      "sections": ["eventi"],
+      "country": "Italia",
+      "contacts": [{ "kind": "email", "value": "info@fiera-lombarda.example.test" }],
+      "expected": 2,
+      "address": "info@fiera-lombarda.example.test"
+    },
+    {
+      "co": 953,
+      "name": "Negozio Sintetico Tre",
+      "contact_month": "2026-10",
+      "priority": "media",
+      "sections": ["vendita"],
+      "country": "Germania",
+      "contacts": [
+        { "kind": "email", "value": "info@negozio-tre.example.test", "position": 0 },
+        {
+          "kind": "email",
+          "value": "titolare@negozio-tre.example.test",
+          "verified": true,
+          "position": 1
+        }
+      ],
+      "expected": 4,
+      "address": "titolare@negozio-tre.example.test"
+    },
+    {
+      "co": 954,
+      "name": "Rivista Sintetica Quattro",
+      "contact_month": "2026-12",
+      "priority": "bassa",
+      "sections": ["collab"],
+      "country": "Francia",
+      "contacts": [{ "kind": "email", "value": "redazione@rivista-quattro.example.test" }],
+      "expected": 5,
+      "address": "redazione@rivista-quattro.example.test"
+    },
+    {
+      "co": 955,
+      "name": "Club Sintetico Cinque",
+      "contact_month": "2027-01",
+      "priority": "alta",
+      "sections": ["collab"],
+      "country": "Svizzera",
+      "contacts": [{ "kind": "email", "value": "club@cinque.example.test" }],
+      "expected": 6,
+      "address": "club@cinque.example.test"
+    },
+    {
+      "co": 956,
+      "name": "Raduno Sintetico Sei",
+      "contact_month": "2027-06",
+      "priority": "media",
+      "sections": ["eventi"],
+      "country": "Austria",
+      "contacts": [{ "kind": "email", "value": "info@raduno-sei.example.test" }],
+      "expected": 8,
+      "address": "info@raduno-sei.example.test"
+    },
+    {
+      "co": 957,
+      "name": "Brand Sintetico Sette",
+      "contact_month": "2026-09",
+      "priority": "media",
+      "sections": ["collab"],
+      "country": "Italia",
+      "contacts": [{ "kind": "email", "value": "ciao@brand-sette.example.test" }],
+      "expected": 3,
+      "address": "ciao@brand-sette.example.test"
+    },
+    {
+      "co": 958,
+      "name": "Garage Sintetico Otto",
+      "contact_month": "2026-11",
+      "priority": "alta",
+      "sections": ["vendita"],
+      "country": "Italia",
+      "contacts": [{ "kind": "email", "value": "info@garage-otto.example.test" }],
+      "owner": "consultant",
+      "expected": null,
+      "excluded": "seguito da una persona del team (owner_id)"
+    },
+    {
+      "co": 959,
+      "name": "Club Sintetico Nove",
+      "contact_month": "2026-11",
+      "priority": "alta",
+      "sections": ["collab"],
+      "country": "Italia",
+      "contacts": [{ "kind": "email", "value": "info@club-nove.example.test" }],
+      "activities": [{ "kind": "chiamata", "origin": "team" }],
+      "expected": null,
+      "excluded": "attività chiamata del team"
+    },
+    {
+      "co": 960,
+      "name": "Negozio Sintetico Dieci",
+      "contact_month": "2026-11",
+      "priority": "alta",
+      "sections": ["vendita"],
+      "country": "Italia",
+      "stage": "contattato",
+      "contacts": [{ "kind": "email", "value": "info@negozio-dieci.example.test" }],
+      "expected": null,
+      "excluded": "stage contattato"
+    },
+    {
+      "co": 961,
+      "name": "Evento Sintetico Undici",
+      "contact_month": "2026-11",
+      "priority": "alta",
+      "sections": ["eventi"],
+      "country": "Italia",
+      "research_removed": true,
+      "contacts": [{ "kind": "email", "value": "info@evento-undici.example.test" }],
+      "expected": null,
+      "excluded": "research_removed_at impostato"
+    },
+    {
+      "co": 962,
+      "name": "Club Sintetico Dodici",
+      "contact_month": "2026-11",
+      "priority": "alta",
+      "sections": ["collab"],
+      "country": "Italia",
+      "contacts": [{ "kind": "email", "value": "info@club-dodici.example.test" }],
+      "do_not_contact": { "partner": true },
+      "expected": null,
+      "excluded": "Non contattare sul contatto"
+    },
+    {
+      "co": 963,
+      "name": "Club Sintetico Tredici",
+      "contact_month": "2026-11",
+      "priority": "alta",
+      "sections": ["collab"],
+      "country": "Italia",
+      "contacts": [
+        { "kind": "email", "value": "info@club-tredici.example.test" },
+        { "kind": "web", "value": "https://club-tredici.example.test" }
+      ],
+      "do_not_contact": { "domain": "club-tredici.example.test" },
+      "expected": null,
+      "excluded": "Non contattare sul dominio del recapito web"
+    },
+    {
+      "co": 964,
+      "name": "Negozio Sintetico Quattordici",
+      "contact_month": "2026-11",
+      "priority": "alta",
+      "sections": ["vendita"],
+      "country": "Italia",
+      "contacts": [
+        { "kind": "email", "value": "info@negozio-14.example.test", "active": false },
+        { "kind": "instagram", "value": "@negozio_14_sintetico" }
+      ],
+      "expected": null,
+      "excluded": "email non attiva, solo Instagram"
+    },
+    {
+      "co": 965,
+      "name": "Creator Sintetico Quindici",
+      "contact_month": "2026-11",
+      "priority": "alta",
+      "sections": ["collab"],
+      "country": "Italia",
+      "contacts": [{ "kind": "email", "erased": true }],
+      "expected": null,
+      "excluded": "email cancellata (erased_at)"
+    },
+    {
+      "co": 966,
+      "name": "Club Sintetico Sedici",
+      "contact_month": "2026-11",
+      "priority": "alta",
+      "sections": ["collab"],
+      "country": "Italia",
+      "contacts": [{ "kind": "email", "value": "info@club-sedici.example.test" }],
+      "assistant": { "active": false },
+      "expected": null,
+      "excluded": "interruttore dell'assistente fermo"
+    },
+    {
+      "co": 968,
+      "name": "Studio Sintetico Diciotto",
+      "contact_month": "2027-03",
+      "priority": "bassa",
+      "sections": ["collab"],
+      "country": "Italia",
+      "contacts": [{ "kind": "email", "value": "bruno.prova@posta-generica.example.test" }],
+      "expected": 9,
+      "address": "bruno.prova@posta-generica.example.test"
+    },
+    {
+      "co": 969,
+      "name": "Officina Sintetica Diciannove",
+      "contact_month": "2027-02",
+      "priority": "media",
+      "sections": ["vendita"],
+      "country": "Italia",
+      "contacts": [{ "kind": "email", "value": "info@officina-19.example.test" }],
+      "activities": [{ "kind": "recapito", "origin": "team" }],
+      "expected": 7,
+      "address": "info@officina-19.example.test"
+    },
+    {
+      "co": 970,
+      "name": "Raduno Sintetico Venti",
+      "contact_month": "2027-04",
+      "priority": "bassa",
+      "sections": ["eventi"],
+      "country": "Italia",
+      "contacts": [
+        {
+          "kind": "email",
+          "value": "info@raduno-20.example.test, stampa@raduno-20.example.test",
+          "link_value": "info@raduno-20.example.test"
+        }
+      ],
+      "expected": 10,
+      "address": "info@raduno-20.example.test"
+    }
+  ]
+}

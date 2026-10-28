@@ -3,6 +3,16 @@ import type { SupabaseClient } from "@supabase/supabase-js";
 import { verifiedMember } from "../auth/server";
 import { readTeamPages } from "../team/read";
 import {
+  PARTNER_ASSISTANT_INACTIVE,
+  isPartnerAssistantMissing,
+  partnerAssistantRulesFrom,
+  partnerAssistantStatusFrom,
+  type PartnerAssistantInactive,
+  type PartnerAssistantRows,
+  type PartnerAssistantRulesView,
+  type PartnerAssistantStatus,
+} from "./assistant";
+import {
   PARTNER_ERROR_MESSAGES,
   PARTNER_UNCERTAIN_MESSAGE,
   parsePartnerCommand,
@@ -34,6 +44,9 @@ import {
  * membership; ogni lettura usa la sessione del membro sotto RLS. Letture complete o niente:
  * pagine con keyset (readTeamPages), conteggi esatti verificati, riferimenti controllati in
  * read.ts. Ogni errore diventa PartnerUnavailableError: la pagina non mostra dati parziali.
+ * Unica eccezione, il blocco dell'assistente nella scheda: con un errore suo diventa `null` e la
+ * scheda resta leggibile. Prima che le migrazioni dell'assistente siano applicate, funzione e
+ * tabelle mancanti danno PARTNER_ASSISTANT_INACTIVE: striscia e blocco non si mostrano.
  */
 
 export class PartnerUnavailableError extends Error {
@@ -71,6 +84,19 @@ const ACTIVITY_COLUMNS =
 const DIFFERENCE_COLUMNS = `${PARTNER_OPEN_DIFFERENCE_COLUMNS},team_value,incoming_value,created_at,device_import_id`;
 const DEVICE_IMPORT_COLUMNS =
   "id,operation_id,device,exported_at,stages_applied,texts_applied,approaches_applied,differences,ignored,unknown,imported_by,imported_at";
+
+/**
+ * Blocco dell'assistente nella scheda: niente lease né tentativi del lavoro, niente motivo
+ * dell'interruttore, niente impronta né operation_id della bozza.
+ */
+const ASSISTANT_SWITCH_COLUMNS = "partner_id,active,version";
+const ASSISTANT_JOB_COLUMNS =
+  "partner_id,status,step,reason,write_on,research_note_id,choice_note_id,draft_id,updated_at";
+const ASSISTANT_NOTE_COLUMNS = "id,partner_id,kind,content,sources,created_at";
+const ASSISTANT_DRAFT_COLUMNS =
+  "id,partner_id,contact_id,subject,body,signature,rules_version,created_at";
+/** Cronologia delle regole, senza il testo: il testo si legge solo per quella in vigore. */
+const ASSISTANT_RULES_COLUMNS = "id,version,created_by,created_at";
 
 /** Ultime attività e revisioni lette nel dettaglio (spec 02 §6). */
 export const PARTNER_DETAIL_ACTIVITY_LIMIT = 100;
@@ -193,25 +219,28 @@ export async function loadPartnerDetail(
     const partnerId = (found.data as Record<string, unknown>).id;
     ensure(isPartnerId(partnerId));
     const read = reader(supabase);
-    const [contacts, variants, differences, activityResult, ownBlocks] = await Promise.all([
-      read("partner_contacts", CONTACT_COLUMNS, [["eq", "partner_id", partnerId]]),
-      read("partner_message_variants", VARIANT_COLUMNS, [["eq", "partner_id", partnerId]]),
-      read("partner_import_differences", DIFFERENCE_COLUMNS, [
-        ["eq", "partner_id", partnerId],
-        ["eq", "status", "open"],
-      ]),
-      supabase
-        .from("partner_activities")
-        .select(ACTIVITY_COLUMNS, { count: "exact" })
-        .eq("partner_id", partnerId)
-        .order("occurred_at", { ascending: false })
-        .order("id", { ascending: false })
-        .limit(PARTNER_DETAIL_ACTIVITY_LIMIT),
-      read("partner_do_not_contact", PARTNER_BLOCK_COLUMNS, [
-        ["eq", "partner_id", partnerId],
-        ["eq", "active", true],
-      ]),
-    ]);
+    const [contacts, variants, differences, activityResult, ownBlocks, assistant] =
+      await Promise.all([
+        read("partner_contacts", CONTACT_COLUMNS, [["eq", "partner_id", partnerId]]),
+        read("partner_message_variants", VARIANT_COLUMNS, [["eq", "partner_id", partnerId]]),
+        read("partner_import_differences", DIFFERENCE_COLUMNS, [
+          ["eq", "partner_id", partnerId],
+          ["eq", "status", "open"],
+        ]),
+        supabase
+          .from("partner_activities")
+          .select(ACTIVITY_COLUMNS, { count: "exact" })
+          .eq("partner_id", partnerId)
+          .order("occurred_at", { ascending: false })
+          .order("id", { ascending: false })
+          .limit(PARTNER_DETAIL_ACTIVITY_LIMIT),
+        read("partner_do_not_contact", PARTNER_BLOCK_COLUMNS, [
+          ["eq", "partner_id", partnerId],
+          ["eq", "active", true],
+        ]),
+        // Catch proprio: un errore delle tabelle dell'assistente non oscura la scheda.
+        readPartnerAssistant(supabase, partnerId as string).catch(() => null),
+      ]);
     const activities = limited(activityResult, PARTNER_DETAIL_ACTIVITY_LIMIT);
     const field = (row: unknown, key: string) => (row as Record<string, unknown>)[key];
     const ids = (rows: unknown[], key: string) => [
@@ -281,7 +310,132 @@ export async function loadPartnerDetail(
       differences,
       blocks: [...blocks.values()],
       deviceImports: [...deviceImports.values()],
+      assistant,
     });
+  });
+}
+
+/**
+ * Righe dell'assistente per la scheda: interruttore e lavoro del contatto, poi solo le note e la
+ * bozza citate dal lavoro. Senza le tabelle (migrazioni non applicate) PARTNER_ASSISTANT_INACTIVE.
+ * Lancia se una lettura non riesce; chi chiama ne fa `null`.
+ */
+async function readPartnerAssistant(
+  supabase: SupabaseClient,
+  partnerId: string,
+): Promise<PartnerAssistantRows | PartnerAssistantInactive> {
+  const [toggle, job] = await Promise.all([
+    supabase
+      .from("partner_assistant_contacts")
+      .select(ASSISTANT_SWITCH_COLUMNS)
+      .eq("partner_id", partnerId)
+      .maybeSingle(),
+    supabase
+      .from("partner_assistant_jobs")
+      .select(ASSISTANT_JOB_COLUMNS)
+      .eq("partner_id", partnerId)
+      .maybeSingle(),
+  ]);
+  if (isPartnerAssistantMissing(toggle.error) || isPartnerAssistantMissing(job.error))
+    return PARTNER_ASSISTANT_INACTIVE;
+  ensure(!toggle.error && !job.error);
+  const field = (key: string) =>
+    job.data === null ? null : (job.data as Record<string, unknown>)[key];
+  const noteIds = [field("research_note_id"), field("choice_note_id")].filter(isPartnerId);
+  const draftId = field("draft_id");
+  const [notes, draft] = await Promise.all([
+    noteIds.length
+      ? supabase
+          .from("partner_assistant_notes")
+          .select(ASSISTANT_NOTE_COLUMNS)
+          .eq("partner_id", partnerId)
+          .in("id", noteIds)
+          .then(rowsOf)
+      : Promise.resolve([]),
+    isPartnerId(draftId)
+      ? supabase
+          .from("partner_assistant_drafts")
+          .select(ASSISTANT_DRAFT_COLUMNS)
+          .eq("partner_id", partnerId)
+          .eq("id", draftId)
+          .maybeSingle()
+          .then((result) => {
+            ensure(!result.error);
+            return result.data as unknown;
+          })
+      : Promise.resolve(null),
+  ]);
+  return { switch: toggle.data, job: job.data, notes, draft };
+}
+
+/**
+ * Striscia di /partner e pagina /partner/assistente: lo stato da read_partner_assistant_status.
+ * Senza la funzione (migrazioni non applicate) PARTNER_ASSISTANT_INACTIVE, non un errore.
+ */
+export async function loadPartnerAssistantStatus(
+  supabase: SupabaseClient,
+): Promise<PartnerAssistantStatus | PartnerAssistantInactive> {
+  return guarded(async () => {
+    const { data, error } = await supabase.rpc("read_partner_assistant_status");
+    if (isPartnerAssistantMissing(error)) return PARTNER_ASSISTANT_INACTIVE;
+    ensure(!error);
+    return partnerAssistantStatusFrom(data);
+  });
+}
+
+/** /partner/assistente: le regole in vigore con il testo e la cronologia con gli autori. */
+export async function loadPartnerAssistantRules(
+  supabase: SupabaseClient,
+): Promise<PartnerAssistantRulesView> {
+  return guarded(async () => {
+    const read = reader(supabase);
+    const history = await read("partner_assistant_rules", ASSISTANT_RULES_COLUMNS);
+    const field = (row: unknown, key: string) => (row as Record<string, unknown>)[key];
+    const versions = history.map((row) => field(row, "version"));
+    ensure(versions.length > 0 && versions.every(Number.isSafeInteger));
+    // Le regole sono append-only: la versione più alta letta qui ha sempre il suo testo.
+    const latest = Math.max(...(versions as number[]));
+    const authors = [...new Set(history.map((row) => field(row, "created_by")))].filter(
+      isPartnerId,
+    );
+    const [current, profiles] = await Promise.all([
+      supabase
+        .from("partner_assistant_rules")
+        .select(`${ASSISTANT_RULES_COLUMNS},body`)
+        .eq("version", latest)
+        .maybeSingle(),
+      authors.length
+        ? read("profiles", "user_id,display_name", [["in", "user_id", authors]], "user_id")
+        : Promise.resolve([]),
+    ]);
+    ensure(!current.error && current.data !== null);
+    return partnerAssistantRulesFrom({ current: current.data, history, profiles });
+  });
+}
+
+/**
+ * /partner/assistente: l'id delle schede passate a Tommi, dal CO. Lo stato dell'assistente dà
+ * solo CO e nome, mentre «Ridai all'assistente» manda l'id. Un CO senza scheda manca anche qui.
+ */
+export async function loadPartnerIdsByCo(
+  supabase: SupabaseClient,
+  cos: readonly number[],
+): Promise<Record<number, string>> {
+  if (cos.length === 0) return {};
+  return guarded(async () => {
+    const rows = rowsOf(
+      await supabase
+        .from("partners")
+        .select("id,co")
+        .in("co", [...cos]),
+    );
+    const ids: Record<number, string> = {};
+    for (const row of rows) {
+      const { id, co } = row as Record<string, unknown>;
+      ensure(isPartnerId(id) && isPartnerCo(co) && cos.includes(co) && !Object.hasOwn(ids, co));
+      ids[co as number] = id as string;
+    }
+    return ids;
   });
 }
 
@@ -380,7 +534,7 @@ export async function executePartnerCommand(
       p_operation_id: command.operationId,
       p_payload: command.payload,
     });
-    if (error) return partnerCommandRejection(error, command.retry) ?? uncertain();
+    if (error) return partnerCommandRejection(error, command.retry, command.kind) ?? uncertain();
     const outcome = partnerCommandOutcome(command, data);
     if (!outcome) return uncertain();
     return command.kind === "record_partner_activity" && command.payload.kind === "inviato"

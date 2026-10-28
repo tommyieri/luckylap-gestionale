@@ -57,23 +57,27 @@ export function shopifyWorkerConfig(
   if (
     !validShopifyTokenCredentials(config) ||
     !/^[A-Za-z0-9_-]{32,256}$/.test(config.workerSecret) ||
-    !/^sb_secret_[\x21-\x7e]{8,4096}$/.test(config.supabaseSecretKey)
+    !/^sb_secret_[\x21-\x7e]{8,4096}$/.test(config.supabaseSecretKey) ||
+    !validWorkerSupabaseUrl(config.supabaseUrl)
   )
     return null;
+  return config;
+}
+
+/** Shared by every private worker: https only (http only on this machine), origin only. */
+export function validWorkerSupabaseUrl(value: string): boolean {
   try {
-    const url = new URL(config.supabaseUrl);
+    const url = new URL(value);
     const local = ["localhost", "127.0.0.1", "[::1]"].includes(url.hostname);
-    if (
+    return !(
       (url.protocol !== "https:" && !(local && url.protocol === "http:")) ||
       url.username ||
       url.password ||
       url.pathname !== "/" ||
       url.search ||
       url.hash
-    )
-      return null;
+    );
   } catch {
-    return null;
+    return false;
   }
-  return config;
 }

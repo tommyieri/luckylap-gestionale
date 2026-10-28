@@ -4,10 +4,15 @@ import { PartnerWorkspace } from "@/components/partner/partner-workspace";
 import { RefreshButton } from "@/components/refresh-button";
 import { PanelActions, WorkspacePanel } from "@/components/workspace-panel";
 import { requireMember } from "@/lib/auth/current-member";
+import type { PartnerAssistantInactive, PartnerAssistantStatus } from "@/lib/partner/assistant";
 import { partnerFixtureDetail, partnerLocalPreview } from "@/lib/partner/fixtures";
 import { isPartnerCo, type PartnerDetail } from "@/lib/partner/model";
 import { partnerToday } from "@/lib/partner/periods";
-import { loadPartnerDetail, loadPartnerWorkspace } from "@/lib/partner/server";
+import {
+  loadPartnerAssistantStatus,
+  loadPartnerDetail,
+  loadPartnerWorkspace,
+} from "@/lib/partner/server";
 
 export const dynamic = "force-dynamic";
 export const metadata: Metadata = { title: "Partner" };
@@ -46,6 +51,7 @@ export default async function PartnerPage({ searchParams }: { searchParams: Sear
         <PartnerWorkspace
           workspace={preview.workspace}
           detail={co ? partnerFixtureDetail(co, preview.today) : null}
+          assistant={preview.assistant}
           today={preview.today}
           memberId={preview.memberId}
           preview
@@ -64,11 +70,18 @@ export default async function PartnerPage({ searchParams }: { searchParams: Sear
         }}
       />
     );
-  let loaded: [Awaited<ReturnType<typeof loadPartnerWorkspace>>, PartnerDetail | null];
+  let loaded: [
+    Awaited<ReturnType<typeof loadPartnerWorkspace>>,
+    PartnerDetail | null,
+    PartnerAssistantStatus | PartnerAssistantInactive | null,
+  ];
   try {
     loaded = await Promise.all([
       loadPartnerWorkspace(current.supabase),
       co ? loadPartnerDetail(current.supabase, co) : Promise.resolve(null),
+      // Catch proprio: senza lo stato dell'assistente la striscia lo dice e la pagina resta;
+      // senza le sue migrazioni lo stato è «non attivo» e la striscia non c'è.
+      loadPartnerAssistantStatus(current.supabase).catch(() => null),
     ]);
   } catch {
     return (
@@ -83,11 +96,12 @@ export default async function PartnerPage({ searchParams }: { searchParams: Sear
       </WorkspacePanel>
     );
   }
-  const [workspace, detail] = loaded;
+  const [workspace, detail, assistant] = loaded;
   return (
     <PartnerWorkspace
       workspace={workspace}
       detail={detail}
+      assistant={assistant}
       today={partnerToday()}
       memberId={current.member.userId}
       preview={false}

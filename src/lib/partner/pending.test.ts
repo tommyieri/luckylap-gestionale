@@ -137,4 +137,49 @@ describe("tentativi in sospeso", () => {
     for (const line of [...lines, ...pendingPartnerLines(activityCommand, null)])
       expect(line).not.toMatch(/[0-9a-f]{8}-[0-9a-f]{4}/);
   });
+
+  it("righe dei comandi dell'assistente, senza il testo delle regole", () => {
+    const assistant = (kind: string, payload: Record<string, unknown>) =>
+      parsePartnerCommand(
+        { kind, operationId: partnerFixtureId(9003), payload: { schema_version: 1, ...payload } },
+        NOW,
+      ) as PartnerCommand;
+    expect(
+      pendingPartnerLines(
+        assistant("set_partner_assistant_mode", { mode: "spento", expected_version: 4 }),
+        null,
+      ),
+    ).toEqual(["Modalità dell'assistente: Spento"]);
+    expect(
+      pendingPartnerLines(
+        assistant("set_partner_assistant_mode", { mode: "prepara", expected_version: 4 }),
+        null,
+      ),
+    ).toEqual(["Modalità dell'assistente: Prepara"]);
+    const partner = { partner_id: partnerFixtureId(1) };
+    expect(
+      pendingPartnerLines(
+        assistant("set_partner_assistant_contact", { ...partner, active: false }),
+        {
+          co: 12,
+          name: "Garage Sintetico",
+        },
+      ),
+    ).toEqual(["Contatto: CO 012 · Garage Sintetico", "Assistente su questo contatto: fermo"]);
+    expect(
+      pendingPartnerLines(
+        assistant("set_partner_assistant_contact", { ...partner, active: true }),
+        null,
+      ),
+    ).toEqual(["Assistente su questo contatto: attivo"]);
+    expect(
+      pendingPartnerLines(
+        assistant("save_partner_assistant_rules", {
+          body: "Regole sintetiche",
+          expected_version: 1,
+        }),
+        null,
+      ),
+    ).toEqual(["Modifica delle regole dell'assistente"]);
+  });
 });

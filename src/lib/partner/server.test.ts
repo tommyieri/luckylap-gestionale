@@ -1,14 +1,22 @@
 import { describe, expect, it, vi } from "vitest";
 import type { SupabaseClient } from "@supabase/supabase-js";
 vi.mock("server-only", () => ({}));
-import { partnerFixtureId, partnerFixtureRows } from "./fixtures";
+import {
+  PARTNER_ASSISTANT_INACTIVE,
+  type PartnerAssistantContactView,
+  type PartnerAssistantStatus,
+} from "./assistant";
+import { partnerAssistantFixtureRows, partnerFixtureId, partnerFixtureRows } from "./fixtures";
 import {
   PARTNER_DETAIL_ACTIVITY_LIMIT,
   PARTNER_DETAIL_REVISION_LIMIT,
   PartnerUnavailableError,
   executePartnerCommand,
+  loadPartnerAssistantRules,
+  loadPartnerAssistantStatus,
   loadPartnerData,
   loadPartnerDetail,
+  loadPartnerIdsByCo,
   loadPartnerRules,
   loadPartnerWorkspace,
   previewPartnerDeviceFile,
@@ -40,6 +48,10 @@ function fakeSupabase(
     user?: string | null;
     rpc?: (name: string, args: Record<string, unknown>) => unknown;
     failTable?: string;
+    /** Codice dell'errore di `failTable` (PostgREST o PostgreSQL); senza, solo il messaggio. */
+    failCode?: string;
+    /** Messaggio dell'errore di `failTable`; senza, «boom». */
+    failMessage?: string;
     /** Toglie una riga dalla prima pagina di questa tabella, lasciando il conteggio. */
     truncate?: string;
   } = {},
@@ -112,10 +124,14 @@ function fakeSupabase(
         },
         then(resolve: (value: unknown) => unknown, reject?: (error: unknown) => unknown) {
           if (options.failTable === table)
-            return Promise.resolve({ data: null, error: { message: "boom" }, count: null }).then(
-              resolve,
-              reject,
-            );
+            return Promise.resolve({
+              data: null,
+              error: {
+                message: options.failMessage ?? "boom",
+                ...(options.failCode ? { code: options.failCode } : {}),
+              },
+              count: null,
+            }).then(resolve, reject);
           const rows = (tables[table] ?? []).filter((row) => filters.every((f) => f(row)));
           rows.sort((a, b) => {
             for (const [column, ascending] of sorts) {
@@ -144,7 +160,13 @@ function fakeSupabase(
 
 function tables(extra: Partial<Record<string, Row[]>> = {}): Record<string, Row[]> {
   const r = partnerFixtureRows(TODAY);
+  const a = partnerAssistantFixtureRows(TODAY);
   return {
+    partner_assistant_contacts: a.switches,
+    partner_assistant_jobs: a.jobs,
+    partner_assistant_notes: a.notes,
+    partner_assistant_drafts: a.drafts,
+    partner_assistant_rules: a.rules,
     partners: r.partners,
     partner_contacts: r.contacts,
     partner_message_variants: r.variants,
@@ -292,6 +314,225 @@ describe("dettaglio di un contatto", () => {
   });
 });
 
+describe("assistente nella scheda", () => {
+  it("bozza pronta con le colonne dichiarate: niente lease, tentativi o motivo dell'interruttore", async () => {
+    const fake = fakeSupabase(tables());
+    const detail = (await loadPartnerDetail(fake.client, 2))!;
+    const assistant = detail.assistant as PartnerAssistantContactView;
+    expect(assistant.job?.status).toBe("pronta");
+    expect(assistant.draft?.toAddress).toBe("info@raduno-due.example.test");
+    expect(assistant.research?.sources).toEqual(["https://raduno-due.example.test/espositori"]);
+    const columns = (table: string) =>
+      fake.calls.filter((call) => call.table === table).flatMap((call) => call.columns.split(","));
+    expect(columns("partner_assistant_jobs")).not.toContain("lease_token");
+    expect(columns("partner_assistant_jobs")).not.toContain("attempts");
+    expect(columns("partner_assistant_contacts")).not.toContain("reason");
+    expect(columns("partner_assistant_drafts")).not.toContain("sha256");
+    // Solo le note e la bozza citate dal lavoro, solo di questo contatto.
+    const notes = fake.calls.find((call) => call.table === "partner_assistant_notes")!;
+    expect(notes.ops).toContainEqual(["eq", "partner_id", partnerFixtureId(2)]);
+    expect(notes.ops.find(([op]) => op === "in")?.[2]).toHaveLength(2);
+    const fermo = await loadPartnerDetail(fakeSupabase(tables()).client, 4);
+    expect(fermo?.assistant).toMatchObject({ active: false, switchVersion: 1, job: null });
+  });
+
+  it("contatto senza lavoro: blocco vuoto e attivo (non null), senza leggere note e bozze", async () => {
+    const fake = fakeSupabase(tables());
+    const detail = (await loadPartnerDetail(fake.client, 3))!;
+    expect(detail.assistant).toEqual({
+      active: true,
+      switchVersion: null,
+      job: null,
+      research: null,
+      choice: null,
+      draft: null,
+    });
+    expect(fake.calls.some((call) => call.table === "partner_assistant_notes")).toBe(false);
+    expect(fake.calls.some((call) => call.table === "partner_assistant_drafts")).toBe(false);
+  });
+
+  it("errore di lettura sulle tabelle dell'assistente: assistant null, scheda leggibile", async () => {
+    for (const table of [
+      "partner_assistant_contacts",
+      "partner_assistant_jobs",
+      "partner_assistant_notes",
+      "partner_assistant_drafts",
+    ]) {
+      const detail = await loadPartnerDetail(
+        fakeSupabase(tables(), { failTable: table }).client,
+        2,
+      );
+      expect(detail?.partner.co, table).toBe(2);
+      expect(detail?.contacts, table).toHaveLength(4);
+      expect(detail?.assistant, table).toBeNull();
+    }
+    // Riga non valida (proposta sconosciuta): solo il blocco diventa null.
+    const data = tables();
+    const choice = data.partner_assistant_notes.find(
+      (note) => note.partner_id === partnerFixtureId(2) && note.kind === "scelta",
+    )!;
+    choice.content = { ...(choice.content as Row), request: "conto_vendita" };
+    const detail = await loadPartnerDetail(fakeSupabase(data).client, 2);
+    expect(detail?.assistant).toBeNull();
+    expect(detail?.variants).toHaveLength(1);
+    // Un errore del resto della scheda resta un errore.
+    await expect(
+      loadPartnerDetail(fakeSupabase(tables(), { failTable: "partner_contacts" }).client, 2),
+    ).rejects.toThrow(PartnerUnavailableError);
+  });
+
+  it("tabelle dell'assistente che non ci sono ancora: blocco non attivo, senza avviso", async () => {
+    // I messaggi di PostgREST e di PostgreSQL per una tabella che non c'è.
+    const missing = {
+      PGRST205: (table: string) => `Could not find the table 'public.${table}' in the schema cache`,
+      "42P01": (table: string) => `relation "public.${table}" does not exist`,
+    };
+    for (const [failCode, message] of Object.entries(missing))
+      for (const table of ["partner_assistant_contacts", "partner_assistant_jobs"]) {
+        const fake = fakeSupabase(tables(), {
+          failTable: table,
+          failCode,
+          failMessage: message(table),
+        });
+        const detail = await loadPartnerDetail(fake.client, 2);
+        expect(detail?.assistant, `${table} ${failCode}`).toBe(PARTNER_ASSISTANT_INACTIVE);
+        expect(detail?.contacts, table).toHaveLength(4);
+        // Senza le tabelle non si leggono note e bozze.
+        expect(fake.calls.some((call) => call.table === "partner_assistant_notes")).toBe(false);
+      }
+    // Un altro codice, o lo stesso codice per un oggetto che non è dell'assistente (un bug),
+    // resta «non leggibile».
+    for (const [failCode, failMessage] of [
+      ["57014", "canceling statement due to statement timeout"],
+      ["42P01", 'missing FROM-clause entry for table "j"'],
+      ["42883", "operator does not exist: uuid = text"],
+    ]) {
+      const other = await loadPartnerDetail(
+        fakeSupabase(tables(), { failTable: "partner_assistant_jobs", failCode, failMessage })
+          .client,
+        2,
+      );
+      expect(other?.assistant, failMessage).toBeNull();
+    }
+  });
+});
+
+describe("stato e regole dell'assistente", () => {
+  const status = partnerAssistantFixtureRows(TODAY).status;
+
+  it("stato dalla RPC read_partner_assistant_status", async () => {
+    const fake = fakeSupabase(tables(), { rpc: () => ({ data: status, error: null }) });
+    const loaded = (await loadPartnerAssistantStatus(fake.client)) as PartnerAssistantStatus;
+    expect(fake.rpcCalls.map((call) => call.name)).toEqual(["read_partner_assistant_status"]);
+    expect(loaded.mode).toBe("prepara");
+    expect(loaded.toReview[0]).toMatchObject({ co: 1, reason: "fatto_mancante" });
+  });
+
+  it("funzione dell'assistente che non c'è ancora: stato non attivo, non un errore", async () => {
+    // I messaggi di PostgREST e di PostgreSQL quando manca la funzione o una sua tabella.
+    for (const [code, message] of [
+      [
+        "PGRST202",
+        "Could not find the function public.read_partner_assistant_status without parameters in the schema cache",
+      ],
+      ["42883", "function public.read_partner_assistant_status() does not exist"],
+      [
+        "PGRST205",
+        "Could not find the table 'public.partner_assistant_config' in the schema cache",
+      ],
+      ["42P01", 'relation "private.partner_assistant_config" does not exist'],
+    ]) {
+      const fake = fakeSupabase(tables(), {
+        rpc: () => ({ data: null, error: { code, message } }),
+      });
+      expect(await loadPartnerAssistantStatus(fake.client), code).toBe(PARTNER_ASSISTANT_INACTIVE);
+    }
+  });
+
+  it("stesso codice per un oggetto che non è dell'assistente: un bug, Partner non disponibile", async () => {
+    for (const [code, message] of [
+      ["42883", "operator does not exist: uuid = text"],
+      ["42883", "function public.partner_text(text) does not exist"],
+      ["42P01", 'missing FROM-clause entry for table "j"'],
+    ])
+      await expect(
+        loadPartnerAssistantStatus(
+          fakeSupabase(tables(), { rpc: () => ({ data: null, error: { code, message } }) }).client,
+        ),
+        message,
+      ).rejects.toThrow(PartnerUnavailableError);
+  });
+
+  it("errore della RPC o risposta non valida: Partner non disponibile", async () => {
+    for (const rpc of [
+      () => ({ data: null, error: { code: "57014", message: "statement timeout" } }),
+      () => ({ data: null, error: { message: "boom" } }),
+      () => ({ data: { ...status, extra: true }, error: null }),
+      () => new Error("rete"),
+    ])
+      await expect(
+        loadPartnerAssistantStatus(fakeSupabase(tables(), { rpc }).client),
+      ).rejects.toThrow(PartnerUnavailableError);
+  });
+
+  it("regole: quella in vigore con il testo, la cronologia con gli autori", async () => {
+    const fake = fakeSupabase(tables());
+    const rules = await loadPartnerAssistantRules(fake.client);
+    expect(rules.current).toMatchObject({ version: 2, author: "Ada Prova" });
+    expect(rules.current.body).toContain("Regole sintetiche");
+    expect(rules.history.map((item) => [item.version, item.author])).toEqual([
+      [2, "Ada Prova"],
+      [1, "Regole iniziali"],
+    ]);
+    // La cronologia non legge i testi.
+    const history = fake.calls.filter(
+      (call) => call.table === "partner_assistant_rules" && !call.ops.some(([op]) => op === "eq"),
+    );
+    expect(history.flatMap((call) => call.columns.split(","))).not.toContain("body");
+    await expect(
+      loadPartnerAssistantRules(
+        fakeSupabase(tables(), { failTable: "partner_assistant_rules" }).client,
+      ),
+    ).rejects.toThrow(PartnerUnavailableError);
+    await expect(
+      loadPartnerAssistantRules(fakeSupabase(tables({ partner_assistant_rules: [] })).client),
+    ).rejects.toThrow(PartnerUnavailableError);
+  });
+
+  it("«Ridai all'assistente»: l'id della scheda dal CO, solo id e CO", async () => {
+    const fake = fakeSupabase(tables());
+    expect(await loadPartnerIdsByCo(fake.client, [2, 1])).toEqual({
+      1: partnerFixtureId(1),
+      2: partnerFixtureId(2),
+    });
+    expect(fake.calls).toEqual([
+      { table: "partners", columns: "id,co", head: false, ops: [["in", "co", [2, 1]]] },
+    ]);
+    // CO senza scheda: manca anche nella risposta, e la pagina non offre il pulsante.
+    expect(await loadPartnerIdsByCo(fakeSupabase(tables()).client, [1, 999])).toEqual({
+      1: partnerFixtureId(1),
+    });
+  });
+
+  it("nessun CO da vedere: nessuna lettura; errore o riga non valida: Partner non disponibile", async () => {
+    const fake = fakeSupabase(tables());
+    expect(await loadPartnerIdsByCo(fake.client, [])).toEqual({});
+    expect(fake.calls).toEqual([]);
+    await expect(
+      loadPartnerIdsByCo(fakeSupabase(tables(), { failTable: "partners" }).client, [1]),
+    ).rejects.toThrow(PartnerUnavailableError);
+    const partners = partnerFixtureRows(TODAY).partners;
+    // Id non valido o due schede con lo stesso CO.
+    for (const broken of [
+      [{ ...partners[0], id: "non-un-id" }],
+      [partners[0], { ...partners[1], co: 1 }],
+    ])
+      await expect(
+        loadPartnerIdsByCo(fakeSupabase(tables({ partners: broken })).client, [1]),
+      ).rejects.toThrow(PartnerUnavailableError);
+  });
+});
+
 describe("dati e regole", () => {
   it("import, file importati e differenze aperte", async () => {
     const data = await loadPartnerData(fakeSupabase(tables()).client);
@@ -398,6 +639,42 @@ describe("comandi del team", () => {
         message: text,
         refresh: code === "40001",
       });
+    }
+  });
+
+  it("conflitto di versione su modalità e regole: lo dice per l'assistente, non per il contatto", async () => {
+    const assistantCommand = (kind: string, payload: Record<string, unknown>) => ({
+      kind,
+      operationId: "93000000-0000-4000-8000-000000000009",
+      payload: { schema_version: 1, ...payload },
+      retry: false,
+    });
+    const cases: [ReturnType<typeof assistantCommand>, string][] = [
+      [
+        assistantCommand("set_partner_assistant_mode", { mode: "prepara", expected_version: 2 }),
+        "impostazioni dell'assistente",
+      ],
+      [
+        assistantCommand("save_partner_assistant_rules", {
+          body: "Regole sintetiche.",
+          expected_version: 2,
+        }),
+        "regole",
+      ],
+    ];
+    for (const [command, words] of cases) {
+      const fake = fakeSupabase(tables(), {
+        rpc: () => ({ data: null, error: { code: "40001", message: "partner_changed" } }),
+      });
+      const result = await executePartnerCommand(fake.client, command, NOW);
+      expect(result, command.kind).toMatchObject({
+        status: "rejected",
+        code: "partner_changed",
+        refresh: true,
+      });
+      const message = (result as { message: string }).message;
+      expect(message, command.kind).toContain(words);
+      expect(message, command.kind).not.toContain("contatto");
     }
   });
 

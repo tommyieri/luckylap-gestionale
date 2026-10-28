@@ -8,8 +8,11 @@ import {
   resolvePartnerDifference,
   restorePartnerMessage,
   savePartner,
+  savePartnerAssistantRules,
   savePartnerContact,
   savePartnerMessage,
+  setPartnerAssistantContact,
+  setPartnerAssistantMode,
   setPartnerDoNotContact,
   setPartnerState,
 } from "../../app/(workspace)/partner/actions";
@@ -49,6 +52,9 @@ const ACTIONS: Record<PartnerCommandKind, (command: unknown) => Promise<PartnerC
   set_partner_do_not_contact: setPartnerDoNotContact,
   resolve_partner_difference: resolvePartnerDifference,
   import_partner_device_file: importPartnerDeviceFile,
+  set_partner_assistant_mode: setPartnerAssistantMode,
+  set_partner_assistant_contact: setPartnerAssistantContact,
+  save_partner_assistant_rules: savePartnerAssistantRules,
 };
 
 export const PARTNER_UNCERTAIN_TITLE = PARTNER_UNCERTAIN_MESSAGE;
@@ -193,30 +199,50 @@ export function CommandFeedback({
   command,
   onRetry,
   compact = false,
+  focus = false,
+  success,
 }: {
   command: ReturnType<typeof usePartnerCommand>;
   onRetry?: () => void;
   compact?: boolean;
+  /**
+   * Il focus va sull'esito appena arriva: per i controlli che spariscono o si spengono dopo il
+   * comando, così chi usa la tastiera non torna in cima alla pagina.
+   */
+  focus?: boolean;
+  /** Frase della conferma al posto di quella del comando, per esempio con il contatto. */
+  success?: string;
 }) {
   const { partnersById } = usePartnerContext();
   const { state } = command;
+  // Ogni esito è un oggetto nuovo: il ref cambia e React lo richiama con l'elemento dell'esito.
+  const focusRef = useCallback(
+    (node: HTMLElement | null) => {
+      if (node && state.status !== "idle") node.focus();
+    },
+    [state],
+  );
+  const focusable = focus ? { tabIndex: -1, ref: focusRef } : {};
   if (state.status === "idle") return null;
   if (state.status === "success")
     return (
-      <p role="status" className={styles.feedbackOk}>
-        {state.message}
+      <p role="status" className={styles.feedbackOk} {...focusable}>
+        {success ?? state.message}
       </p>
     );
   if (state.status === "rejected")
     return (
-      <p role="alert" className={styles.feedbackError}>
+      <p role="alert" className={styles.feedbackError} {...focusable}>
         {state.message}
       </p>
     );
   const partnerId = state.command.payload.partner_id;
   const partner = typeof partnerId === "string" ? (partnersById.get(partnerId) ?? null) : null;
   return (
-    <div className={compact ? styles.feedbackAttemptCompact : styles.feedbackAttempt}>
+    <div
+      className={compact ? styles.feedbackAttemptCompact : styles.feedbackAttempt}
+      {...focusable}
+    >
       <PendingAttempt
         title={PARTNER_UNCERTAIN_TITLE}
         lines={pendingPartnerLines(state.command, partner)}
