@@ -96,6 +96,9 @@ export const PARTNER_ASSISTANT_COUNT_LABELS: Record<
 /** Stato non leggibile: la stessa frase nella striscia di /partner e nel blocco della scheda. */
 export const PARTNER_ASSISTANT_UNREADABLE =
   "Stato dell'assistente non leggibile: ricarica la pagina tra poco.";
+/** Lo stato dell'invio (read_partner_assistant_send) non leggibile: striscia e pagina. */
+export const PARTNER_ASSISTANT_SEND_UNREADABLE =
+  "Stato degli invii non leggibile: ricarica la pagina tra poco.";
 
 export const PARTNER_ASSISTANT_REQUEST_LABELS: Record<PartnerAssistantRequest, string> = {
   merch_cobranding: "Merch co-firmato",

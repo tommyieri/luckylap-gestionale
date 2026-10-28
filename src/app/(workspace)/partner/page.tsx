@@ -4,11 +4,21 @@ import { PartnerWorkspace } from "@/components/partner/partner-workspace";
 import { RefreshButton } from "@/components/refresh-button";
 import { PanelActions, WorkspacePanel } from "@/components/workspace-panel";
 import { requireMember } from "@/lib/auth/current-member";
-import type { PartnerAssistantInactive, PartnerAssistantStatus } from "@/lib/partner/assistant";
-import { partnerFixtureDetail, partnerLocalPreview } from "@/lib/partner/fixtures";
+import type {
+  PartnerAssistantInactive,
+  PartnerAssistantSendStatus,
+  PartnerAssistantStatus,
+} from "@/lib/partner/assistant";
+import { partnerAssistantMailConfig } from "@/lib/partner-assistant/mail-config";
+import {
+  partnerAssistantFixture,
+  partnerFixtureDetail,
+  partnerLocalPreview,
+} from "@/lib/partner/fixtures";
 import { isPartnerCo, type PartnerDetail } from "@/lib/partner/model";
 import { partnerToday } from "@/lib/partner/periods";
 import {
+  loadPartnerAssistantSend,
   loadPartnerAssistantStatus,
   loadPartnerDetail,
   loadPartnerWorkspace,
@@ -38,7 +48,9 @@ function coFrom(query: Record<string, string>): number | null {
 
 /**
  * Partner (spec 02 §5): il roadbook dei contatti dentro il guscio. Filtri, periodo e sezione
- * lavorano nel browser; `co` nell'indirizzo apre i dettagli, letti qui dal server.
+ * lavorano nel browser; `co` nell'indirizzo apre i dettagli, letti qui dal server. Per la striscia
+ * dell'assistente anche lo stato dell'invio e se la posta dell'assistente è configurata (solo
+ * l'esito); `founder` mostra a Tommi «Manda per primo» nella scheda.
  */
 export default async function PartnerPage({ searchParams }: { searchParams: SearchParams }) {
   const [params, current] = await Promise.all([searchParams, requireMember()]);
@@ -52,6 +64,10 @@ export default async function PartnerPage({ searchParams }: { searchParams: Sear
           workspace={preview.workspace}
           detail={co ? partnerFixtureDetail(co, preview.today) : null}
           assistant={preview.assistant}
+          // In anteprima si vede tutto con le fixture: i comandi restano spenti.
+          send={partnerAssistantFixture(preview.today).send}
+          mailConfigured
+          founder
           today={preview.today}
           memberId={preview.memberId}
           preview
@@ -74,6 +90,7 @@ export default async function PartnerPage({ searchParams }: { searchParams: Sear
     Awaited<ReturnType<typeof loadPartnerWorkspace>>,
     PartnerDetail | null,
     PartnerAssistantStatus | PartnerAssistantInactive | null,
+    PartnerAssistantSendStatus | null,
   ];
   try {
     loaded = await Promise.all([
@@ -82,6 +99,8 @@ export default async function PartnerPage({ searchParams }: { searchParams: Sear
       // Catch proprio: senza lo stato dell'assistente la striscia lo dice e la pagina resta;
       // senza le sue migrazioni lo stato è «non attivo» e la striscia non c'è.
       loadPartnerAssistantStatus(current.supabase).catch(() => null),
+      // Lo stesso per l'invio: senza, in «Prova» e «Invio» la striscia lo dice in ambra.
+      loadPartnerAssistantSend(current.supabase).catch(() => null),
     ]);
   } catch {
     return (
@@ -96,12 +115,15 @@ export default async function PartnerPage({ searchParams }: { searchParams: Sear
       </WorkspacePanel>
     );
   }
-  const [workspace, detail, assistant] = loaded;
+  const [workspace, detail, assistant, send] = loaded;
   return (
     <PartnerWorkspace
       workspace={workspace}
       detail={detail}
       assistant={assistant}
+      send={send}
+      mailConfigured={partnerAssistantMailConfig() !== null}
+      founder={current.member.role === "founder"}
       today={partnerToday()}
       memberId={current.member.userId}
       preview={false}

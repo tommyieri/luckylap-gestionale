@@ -15,6 +15,7 @@ const mocks = vi.hoisted(() => ({
   contexts: [] as { context: unknown; value: unknown }[],
   transitions: [] as Promise<unknown>[],
   setContact: vi.fn(),
+  setPriority: vi.fn(),
   other: vi.fn(),
 }));
 vi.mock("react", async () => {
@@ -73,7 +74,7 @@ vi.mock("../../app/(workspace)/partner/actions", () => ({
   savePartnerAssistantRules: mocks.other,
   startPartnerAssistantTest: mocks.other,
   confirmPartnerAssistantTest: mocks.other,
-  setPartnerAssistantSendPriority: mocks.other,
+  setPartnerAssistantSendPriority: mocks.setPriority,
   resumePartnerAssistantSend: mocks.other,
   setPartnerAssistantSettings: mocks.other,
 }));
@@ -130,6 +131,7 @@ function render(
     ) => PartnerAssistantContactView | typeof PARTNER_ASSISTANT_INACTIVE | null;
     partner?: Partial<PartnerSummary>;
     preview?: boolean;
+    founder?: boolean;
   } = {},
 ) {
   mocks.index = 0;
@@ -143,6 +145,7 @@ function render(
     <PartnerProvider
       preview={preview}
       userId={preview ? null : PARTNER_FIXTURE_MEMBER_ID}
+      founder={options.founder ?? false}
       today={TODAY}
       members={workspace.members}
       partners={workspace.partners}
@@ -194,10 +197,11 @@ beforeEach(() => {
   mocks.states = [];
   mocks.transitions = [];
   vi.stubGlobal("crypto", { randomUUID: vi.fn(() => OPERATION) });
-  mocks.setContact.mockResolvedValue({
-    status: "uncertain",
-    message: "Esito sintetico da verificare",
-  });
+  for (const action of [mocks.setContact, mocks.setPriority])
+    action.mockResolvedValue({
+      status: "uncertain",
+      message: "Esito sintetico da verificare",
+    });
 });
 afterEach(async () => {
   await Promise.all(mocks.transitions);
@@ -387,8 +391,7 @@ describe("PartnerAssistantBlock", () => {
   it("bozza pronta con l'assistente fermo sul contatto: lo dice", () => {
     const tree = render(2, { assistant: (view) => ({ ...view, active: false, switchVersion: 1 }) });
     expect(words(paragraph(tree, "Bozza pronta"))).toBe(
-      "Bozza pronta: la trovi qui sotto. Per ora l'assistente non manda niente. " +
-        "Il contatto non è più seguito dall'assistente.",
+      "Bozza pronta: la trovi qui sotto. Il contatto non è più seguito dall'assistente.",
     );
   });
 
@@ -497,5 +500,94 @@ describe("PartnerAssistantBlock", () => {
       expect(hrefs.every((href) => href.startsWith("https://"))).toBe(true);
       expect(words(tree)).not.toMatch(/Torna|mailto:|tel:/);
     }
+  });
+  // -------------------------------------------------------------------------
+  // Consegna 2a: invii e precedenza
+  // -------------------------------------------------------------------------
+
+  it("bozza pronta: non dice più che l'assistente non manda niente", () => {
+    expect(words(render(2))).not.toContain("non manda niente");
+    expect(words(paragraph(render(2), "Bozza pronta"))).toBe("Bozza pronta: la trovi qui sotto.");
+  });
+
+  it("prima email inviata: la riga dell'invio e chi manda il sollecito", () => {
+    const tree = render(6);
+    expect(words(tree)).toContain(
+      "Prima email inviata dall'assistente: il sollecito dopo 7 giorni lo manda Tommi.",
+    );
+    const sent = render(6, {
+      assistant: (view) => ({
+        ...view,
+        sends: [{ at: "2026-10-22T07:41:00Z", status: "inviato", subject: "Oggetto sintetico" }],
+      }),
+    });
+    expect(words(sent)).toContain("Email inviata dall'assistente il 22 ottobre alle 9:41");
+    expect(words(sent)).not.toContain("@");
+  });
+
+  it("invio incerto o respinto: lo dice con la data", () => {
+    const tree = render(2, {
+      assistant: (view) => ({
+        ...view,
+        sends: [
+          { at: "2026-10-22T07:41:00Z", status: "incerto", subject: "Oggetto sintetico" },
+          { at: "2026-10-21T08:05:00Z", status: "respinto", subject: "Oggetto sintetico" },
+        ],
+      }),
+    });
+    expect(words(tree)).toContain(
+      "Invio incerto il 22 ottobre alle 9:41: controlla in «Posta inviata».",
+    );
+    expect(words(tree)).toContain("Email respinta dal server il 21 ottobre alle 10:05");
+  });
+
+  it("«Manda per primo»: Tommi dà la precedenza 9, gli altri non vedono il pulsante", () => {
+    const view = (v: PartnerAssistantContactView): PartnerAssistantContactView => ({
+      ...v,
+      sendPriority: 0,
+      job: v.job === null ? null : { ...v.job, status: "in_coda" },
+    });
+    const founder = render(2, { founder: true, assistant: view });
+    click(button(founder, "Manda per primo"));
+    expect(mocks.setPriority).toHaveBeenCalledExactlyOnceWith({
+      kind: "set_partner_assistant_send_priority",
+      operationId: OPERATION,
+      payload: { schema_version: 1, partner_id: partnerFixtureId(2), send_priority: 9 },
+      retry: false,
+    });
+    const consultant = render(2, { assistant: view });
+    expect(buttons(consultant).filter((b) => text(b).trim() === "Manda per primo")).toEqual([]);
+  });
+
+  it("con la precedenza: la frase e «Togli la precedenza» per Tommi", () => {
+    const tree = render(2, { founder: true });
+    expect(words(tree)).toContain("Questo contatto parte per primo appena la bozza è pronta.");
+    expect(buttons(tree).filter((b) => text(b).trim() === "Manda per primo")).toEqual([]);
+    click(button(tree, "Togli la precedenza"));
+    expect(mocks.setPriority).toHaveBeenCalledExactlyOnceWith(
+      expect.objectContaining({
+        payload: { schema_version: 1, partner_id: partnerFixtureId(2), send_priority: 0 },
+      }),
+    );
+    expect(buttons(render(2)).filter((b) => text(b).trim() === "Togli la precedenza")).toEqual([]);
+  });
+
+  it("niente precedenza per un contatto già inviato o passato a Tommi", () => {
+    for (const co of [1, 6]) {
+      const tree = render(co, { founder: true });
+      expect(
+        buttons(tree).filter((b) =>
+          ["Manda per primo", "Togli la precedenza"].includes(text(b).trim()),
+        ),
+      ).toEqual([]);
+    }
+  });
+
+  it("in anteprima anche «Manda per primo» è spento e niente arriva al server", () => {
+    const tree = render(3, { founder: true, preview: true });
+    const first = button(tree, "Manda per primo");
+    expect(first.props.disabled).toBe(true);
+    click(first);
+    expect(mocks.setPriority).not.toHaveBeenCalled();
   });
 });

@@ -18,6 +18,10 @@ const mocks = vi.hoisted(() => ({
   setMode: vi.fn(),
   setContact: vi.fn(),
   saveRules: vi.fn(),
+  startTest: vi.fn(),
+  confirmTest: vi.fn(),
+  resume: vi.fn(),
+  setSettings: vi.fn(),
   other: vi.fn(),
 }));
 vi.mock("react", async () => {
@@ -74,11 +78,11 @@ vi.mock("../../app/(workspace)/partner/actions", () => ({
   setPartnerAssistantMode: mocks.setMode,
   setPartnerAssistantContact: mocks.setContact,
   savePartnerAssistantRules: mocks.saveRules,
-  startPartnerAssistantTest: mocks.other,
-  confirmPartnerAssistantTest: mocks.other,
+  startPartnerAssistantTest: mocks.startTest,
+  confirmPartnerAssistantTest: mocks.confirmTest,
   setPartnerAssistantSendPriority: mocks.other,
-  resumePartnerAssistantSend: mocks.other,
-  setPartnerAssistantSettings: mocks.other,
+  resumePartnerAssistantSend: mocks.resume,
+  setPartnerAssistantSettings: mocks.setSettings,
 }));
 vi.mock("../../app/(workspace)/partner/dati/actions", () => ({
   importPartnerDeviceFile: mocks.other,
@@ -86,7 +90,10 @@ vi.mock("../../app/(workspace)/partner/dati/actions", () => ({
 }));
 
 import { PartnerAssistantView } from "./partner-assistant-view";
-import type { PartnerAssistantStatus } from "../../lib/partner/assistant";
+import type {
+  PartnerAssistantSendStatus,
+  PartnerAssistantStatus,
+} from "../../lib/partner/assistant";
 import {
   PARTNER_FIXTURE_MEMBER_ID,
   partnerAssistantFixture,
@@ -120,11 +127,21 @@ function expand(node: unknown): unknown {
   return { type: element.type, props: { ...element.props, children } };
 }
 
-function render(overrides: Partial<Props> = {}, status: Partial<PartnerAssistantStatus> = {}) {
+/** La posta dell'assistente configurata, con un indirizzo di prova. */
+const MAIL = { configured: true, testRecipients: 1, assistantConfigured: true };
+
+function render(
+  overrides: Partial<Props> = {},
+  status: Partial<PartnerAssistantStatus> = {},
+  send: Partial<PartnerAssistantSendStatus> = {},
+) {
   mocks.index = 0;
   mocks.contexts = [];
   const props: Props = {
     status: { ...fixture.status, ...status },
+    send: { ...fixture.send, ...send },
+    founder: false,
+    mail: MAIL,
     rules: fixture.rules,
     partnerIds: { 1: partnerFixtureId(1) },
     today: TODAY,
@@ -206,7 +223,15 @@ beforeEach(() => {
   mocks.states = [];
   mocks.transitions = [];
   vi.stubGlobal("crypto", { randomUUID: vi.fn(() => OPERATION) });
-  for (const action of [mocks.setMode, mocks.setContact, mocks.saveRules])
+  for (const action of [
+    mocks.setMode,
+    mocks.setContact,
+    mocks.saveRules,
+    mocks.startTest,
+    mocks.confirmTest,
+    mocks.resume,
+    mocks.setSettings,
+  ])
     action.mockResolvedValue({ status: "uncertain", message: "Esito sintetico da verificare" });
 });
 afterEach(async () => {
@@ -215,24 +240,55 @@ afterEach(async () => {
 });
 
 describe("PartnerAssistantView", () => {
-  it("titolo «Assistente» e le sei sezioni nell'ordine della specifica", () => {
+  it("titolo «Assistente» e le sezioni nell'ordine della specifica, «Prova» e «Invii» solo quando servono", () => {
     const tree = render();
     const h1 = descendants(tree).filter((node) => node.type === "h1");
     expect(h1.map(text)).toEqual(["Assistente"]);
-    expect(
-      descendants(tree)
-        .filter((node) => node.type === "h2")
-        .map(text)
-        .slice(0, 6),
-    ).toEqual(["Stato", "Modalità", "Coda", "Spesa", "Da vedere", "Regole"]);
+    const titles = (node: unknown) =>
+      descendants(node)
+        .filter((item) => item.type === "h2")
+        .map(text);
+    expect(titles(tree)).toEqual([
+      "Stato",
+      "Modalità",
+      "Limite",
+      "Coda",
+      "Spesa",
+      "Variabili e accessi",
+      "Da vedere",
+      "Regole",
+    ]);
+    // Ogni struttura nuova parte con lo stato dei componenti vuoto (gli hook seguono l'ordine).
+    mocks.states = [];
+    expect(titles(render({}, { mode: "prova" })).slice(0, 5)).toEqual([
+      "Stato",
+      "Modalità",
+      "Prova",
+      "Invii",
+      "Limite",
+    ]);
+    mocks.states = [];
+    expect(titles(render({}, { mode: "invio" })).slice(0, 4)).toEqual([
+      "Stato",
+      "Modalità",
+      "Invii",
+      "Limite",
+    ]);
     expect(descendants(tree).some((node) => node.type === "main")).toBe(false);
+    // La consegna 1 diceva che l'assistente non manda niente: non è più vero.
+    for (const mode of ["prepara", "prova", "invio"] as const) {
+      mocks.states = [];
+      const all = words(render({}, { mode }));
+      expect(all).not.toContain("Arrivano con la seconda consegna");
+      expect(all).not.toContain("Per ora non manda niente");
+    }
   });
 
-  it("«Prova» e «Invio» disabilitati, con la nota; la modalità in vigore è premuta", () => {
+  it("«Prova» e «Invio» disabilitati per chi non è Tommi, con la nota; la modalità in vigore è premuta", () => {
     const tree = render();
     expect(button(tree, "Prova").props.disabled).toBe(true);
     expect(button(tree, "Invio").props.disabled).toBe(true);
-    expect(words(tree)).toContain("Arrivano con la seconda consegna");
+    expect(words(tree)).toContain("Li sceglie solo Tommi.");
     expect(button(tree, "Prepara").props["aria-pressed"]).toBe(true);
     expect(button(tree, "Spento").props["aria-pressed"]).toBe(false);
     expect(button(tree, "Spento").props.disabled).toBe(false);
@@ -831,5 +887,417 @@ describe("PartnerAssistantView", () => {
     expect(mocks.setContact).not.toHaveBeenCalled();
     expect(mocks.saveRules).not.toHaveBeenCalled();
     expect(mocks.other).not.toHaveBeenCalled();
+  });
+  // -------------------------------------------------------------------------
+  // Consegna 2a: prova e invio
+  // -------------------------------------------------------------------------
+
+  it("«Prova» e «Invio»: per Tommi solo con la posta dell'assistente configurata", () => {
+    const consultant = render({}, { mode: "prepara" }, { testConfirmedAt: null });
+    expect(button(consultant, "Prova").props.disabled).toBe(true);
+    expect(button(consultant, "Invio").props.disabled).toBe(true);
+    expect(words(consultant)).toContain("Li sceglie solo Tommi.");
+    const noMail = render({ founder: true, mail: { ...MAIL, configured: false } });
+    expect(button(noMail, "Prova").props.disabled).toBe(true);
+    expect(button(noMail, "Invio").props.disabled).toBe(true);
+    expect(words(noMail)).toContain("La posta dell'assistente non è configurata.");
+    expect(words(noMail)).not.toContain("Li sceglie solo Tommi.");
+    // Con la posta e la prova confermata Tommi sceglie tutte e due.
+    const ready = render({ founder: true });
+    expect(button(ready, "Prova").props.disabled).toBe(false);
+    expect(button(ready, "Invio").props.disabled).toBe(false);
+    click(button(ready, "Invio"));
+    expect(mocks.setMode).toHaveBeenCalledExactlyOnceWith(
+      command("set_partner_assistant_mode", { mode: "invio", expected_version: 2 }),
+    );
+  });
+
+  it("le frasi nuove delle modalità «Prova» e «Invio»", () => {
+    expect(words(render({}, { mode: "prova" }))).toContain(
+      "manda le email di prova solo agli indirizzi di prova di Tommi, con l'oggetto e il testo delle email vere",
+    );
+    mocks.states = [];
+    expect(words(render({}, { mode: "invio" }))).toContain(
+      "manda le prime email ai contatti dalla casella aziendale, nei giorni feriali tra le 9:30 e le 11 dell'ora del contatto, una ogni 4-11 minuti",
+    );
+  });
+
+  it("Tommi senza prova confermata: «Invio» disabilitato con il motivo", () => {
+    const tree = render({ founder: true }, {}, { testConfirmedAt: null, testConfirmedBy: null });
+    expect(button(tree, "Prova").props.disabled).toBe(false);
+    expect(button(tree, "Invio").props.disabled).toBe(true);
+    expect(words(tree)).toContain("Prima serve una prova confermata.");
+  });
+
+  it("«Manda la prova»: Tommi sceglie 2 bozze, 3 indirizzi di prova, e la frase lo dice", () => {
+    const options = { founder: true, mail: { ...MAIL, testRecipients: 3 } };
+    const first = render(options, { mode: "prova" });
+    const prova = sectionOf(first, "Prova");
+    expect(words(prova)).toContain("Partono 1 × 3 email di prova, una ogni 4-11 minuti.");
+    click(button(prova, "2 bozze"));
+    const tree = render(options, { mode: "prova" });
+    expect(button(tree, "2 bozze").props["aria-pressed"]).toBe(true);
+    expect(button(tree, "1 bozza").props["aria-pressed"]).toBe(false);
+    expect(words(sectionOf(tree, "Prova"))).toContain(
+      "Partono 2 × 3 email di prova, una ogni 4-11 minuti.",
+    );
+    click(button(tree, "Manda la prova"));
+    expect(mocks.startTest).toHaveBeenCalledExactlyOnceWith(
+      command("start_partner_assistant_test", { drafts: 2, recipients: 3 }),
+    );
+  });
+
+  it("«Manda la prova» senza indirizzi di prova: disabilitato, con il motivo", () => {
+    const tree = render({ founder: true, mail: { ...MAIL, testRecipients: 0 } }, { mode: "prova" });
+    expect(button(tree, "Manda la prova").props.disabled).toBe(true);
+    expect(words(sectionOf(tree, "Prova"))).toContain("Nessun indirizzo di prova configurato.");
+    click(button(tree, "Manda la prova"));
+    expect(mocks.startTest).not.toHaveBeenCalled();
+  });
+
+  it("chi non è Tommi vede la prova senza i comandi", () => {
+    const tree = render(
+      {},
+      { mode: "prova" },
+      {
+        testConfirmedAt: null,
+        testRun: { requestedAt: "2026-10-22T06:31:00Z", drafts: 2, recipients: 2, sent: 3 },
+      },
+    );
+    const prova = sectionOf(tree, "Prova");
+    expect(words(prova)).toContain("Avviata alle 8:31 · 3 su 4 partite");
+    expect(buttons(prova)).toEqual([]);
+  });
+
+  it("prova partita e non confermata: Tommi la conferma con la versione letta", () => {
+    const tree = render(
+      { founder: true },
+      { mode: "prova", version: 7 },
+      {
+        testConfirmedAt: null,
+        testConfirmedBy: null,
+        testRun: { requestedAt: "2026-10-22T06:31:00Z", drafts: 2, recipients: 2, sent: 3 },
+      },
+    );
+    const prova = sectionOf(tree, "Prova");
+    expect(words(prova)).toContain("Avviata alle 8:31 · 3 su 4 partite");
+    expect(words(prova)).toContain(
+      "Premilo solo se le email sono in posta in arrivo, non in spam, in tutte le caselle.",
+    );
+    click(button(prova, "La prova è arrivata in posta in arrivo"));
+    expect(mocks.confirmTest).toHaveBeenCalledExactlyOnceWith(
+      command("confirm_partner_assistant_test", { expected_version: 7 }),
+    );
+    // Nessuna email di prova partita: niente da confermare.
+    const none = render(
+      { founder: true },
+      { mode: "prova" },
+      {
+        testConfirmedAt: null,
+        testRun: { requestedAt: "2026-10-22T06:31:00Z", drafts: 1, recipients: 1, sent: 0 },
+      },
+    );
+    expect(
+      buttons(none).filter((b) => text(b).trim() === "La prova è arrivata in posta in arrivo"),
+    ).toEqual([]);
+  });
+
+  it("prova confermata: data, ora e chi l'ha confermata, senza il pulsante", () => {
+    const tree = render(
+      { founder: true },
+      { mode: "prova" },
+      { testConfirmedAt: "2026-10-21T07:12:00Z", testConfirmedBy: "Ada Prova" },
+    );
+    const prova = sectionOf(tree, "Prova");
+    expect(words(prova)).toContain("Prova confermata il 21 ottobre alle 9:12 da Ada Prova.");
+    expect(
+      buttons(prova).filter((b) => text(b).trim() === "La prova è arrivata in posta in arrivo"),
+    ).toEqual([]);
+  });
+
+  it("invii di oggi, prossimo invio, attesa della casella, bozze pronte e precedenze", () => {
+    const tree = render(
+      {},
+      { mode: "invio" },
+      {
+        firstSentToday: 3,
+        firstLimitToday: 5,
+        windowOpenRome: true,
+        nextSendAfter: "2026-10-22T09:12:00Z",
+        backoffUntil: "2026-10-22T09:40:00Z",
+        ready: 4,
+        priorities: [{ co: 2, name: "Raduno Sintetico Due", sendPriority: 9 }],
+      },
+    );
+    const invii = words(sectionOf(tree, "Invii"));
+    expect(invii).toContain("Oggi: 3 email su 5");
+    expect(invii).toContain("Finestra aperta fino alle 11:00, ora di Roma");
+    expect(invii).toContain("Per i contatti in altri fusi vale la loro ora.");
+    expect(invii).toContain("Prossimo invio non prima delle 11:12");
+    expect(invii).toContain("In attesa fino alle 11:40: la casella non ha risposto.");
+    expect(invii).toContain("Bozze pronte da inviare: 4");
+    expect(invii).toContain("Manda per primo");
+    const link = descendants(sectionOf(tree, "Invii")).find(
+      (node) => node.type === "a" && words(node).includes("Raduno Sintetico Due"),
+    );
+    expect(link?.props.href).toBe("/partner?co=2#lead-2");
+    // Un prossimo invio o un'attesa già passati non si mostrano.
+    const past = words(
+      sectionOf(
+        render(
+          {},
+          { mode: "invio" },
+          { nextSendAfter: "2026-10-22T08:00:00Z", backoffUntil: "2026-10-22T08:00:00Z" },
+        ),
+        "Invii",
+      ),
+    );
+    expect(past).not.toContain("Prossimo invio");
+    expect(past).not.toContain("In attesa fino");
+  });
+
+  it("in «Prova» il conteggio è delle email di prova sul massimo del giorno", () => {
+    const tree = render({}, { mode: "prova" }, { testSentToday: 4, testLimit: 15 });
+    expect(words(sectionOf(tree, "Invii"))).toContain("Oggi: 4 email di prova su 15");
+  });
+
+  it("finestra chiusa di sabato: la prossima è lunedì alle 9:30, ora di Roma", () => {
+    const tree = render(
+      { today: "2026-10-31", now: "2026-10-31T09:00:00Z" },
+      { mode: "invio" },
+      { windowOpenRome: false, nextWindowRome: "2026-11-02T08:30:00Z" },
+    );
+    expect(words(sectionOf(tree, "Invii"))).toContain(
+      "Prossima finestra: lunedì 2 novembre alle 9:30, ora di Roma",
+    );
+  });
+
+  it("«Ultime email»: ora, contatto con il link, «Prova», stato a parole e oggetto", () => {
+    const tree = render(
+      {},
+      { mode: "invio" },
+      {
+        recent: [
+          {
+            at: "2026-10-22T07:41:00Z",
+            co: 3,
+            name: "Club Sintetico Tre",
+            mode: "prova",
+            status: "incerto",
+            subject: "Oggetto sintetico",
+          },
+          {
+            at: "2026-10-21T07:05:00Z",
+            co: 6,
+            name: "Porsche Club Sintetico Sei",
+            mode: "invio",
+            status: "inviato",
+            subject: "Altro oggetto sintetico",
+          },
+        ],
+      },
+    );
+    const items = descendants(sectionOf(tree, "Invii"))
+      .filter((node) => node.type === "ol")
+      .flatMap((list) => descendants(list).filter((node) => node.type === "li"));
+    expect(items.map(words)).toEqual([
+      "oggi alle 9:41 · CO 003 · Club Sintetico Tre · Prova · Incerta · Oggetto sintetico",
+      "ieri alle 9:05 · CO 006 · Porsche Club Sintetico Sei · Inviata · Altro oggetto sintetico",
+    ]);
+    expect(descendants(items[0]).find((node) => node.type === "a")?.props.href).toBe(
+      "/partner?co=3#lead-3",
+    );
+  });
+
+  it("invii fermi per i rifiuti: il motivo per tutti, «Riprendi l'invio» solo per Tommi", () => {
+    const stopped = { stopReason: "rimbalzi" as const, stoppedAt: "2026-10-22T07:00:00Z" };
+    const founder = render({ founder: true }, { mode: "invio" }, stopped);
+    expect(words(sectionOf(founder, "Invii"))).toContain(
+      "Invii fermi: Il server di posta ha rifiutato delle email.",
+    );
+    click(button(founder, "Riprendi l'invio"));
+    expect(mocks.resume).toHaveBeenCalledExactlyOnceWith(
+      command("resume_partner_assistant_send", {}),
+    );
+    const consultant = render({}, { mode: "invio" }, stopped);
+    expect(words(sectionOf(consultant, "Invii"))).toContain("Invii fermi");
+    expect(buttons(consultant).filter((b) => text(b).trim() === "Riprendi l'invio")).toEqual([]);
+  });
+
+  it("invii fermi per oggi: lo dice, con la ripresa di domani", () => {
+    const tree = render({}, { mode: "invio" }, { dayStoppedOn: TODAY });
+    expect(words(sectionOf(tree, "Invii"))).toContain(
+      "Invii fermi per oggi: errori temporanei del server di posta. Riprendono domani.",
+    );
+  });
+
+  it("credito: si salva anche in «Invio», con la modalità in vigore", () => {
+    const options = { founder: true };
+    render(options, { mode: "invio" });
+    typeCredit(render(options, { mode: "invio" }), "40");
+    submit(formOf(render(options, { mode: "invio" }), "Salva il credito"));
+    expect(mocks.setMode).toHaveBeenCalledExactlyOnceWith(
+      command("set_partner_assistant_mode", {
+        mode: "invio",
+        expected_version: 2,
+        starting_credit_usd: 40,
+      }),
+    );
+  });
+
+  it("limite: Tommi lo porta a 8 con la versione letta", () => {
+    const options = { founder: true };
+    const tree = render(options, { version: 5 });
+    const limite = sectionOf(tree, "Limite");
+    expect(words(limite)).toContain("Dopo la prima settimana: al massimo 10 prime email al giorno");
+    const input = descendants(limite).find(
+      (node) => node.type === "input" && node.props.name === "limite",
+    )!;
+    expect(input.props.value).toBe("10");
+    (input.props.onChange as (event: unknown) => void)({ target: { value: "8" } });
+    submit(formOf(render(options, { version: 5 }), "Salva"));
+    expect(mocks.setSettings).toHaveBeenCalledExactlyOnceWith(
+      command("set_partner_assistant_settings", { expected_version: 5, daily_first_limit: 8 }),
+    );
+  });
+
+  it("limite fuori da 1-15: nessun invio e l'errore vicino al campo", () => {
+    const options = { founder: true };
+    const field = () =>
+      descendants(sectionOf(render(options), "Limite")).find(
+        (node) => node.type === "input" && node.props.name === "limite",
+      )!;
+    (field().props.onChange as (event: unknown) => void)({ target: { value: "16" } });
+    submit(formOf(render(options), "Salva"));
+    expect(mocks.setSettings).not.toHaveBeenCalled();
+    expect(words(sectionOf(render(options), "Limite"))).toContain("Scrivi un numero da 1 a 15.");
+  });
+
+  it("limite: chi non è Tommi legge solo la frase; la prima settimana in corso lo dice", () => {
+    const tree = render({}, {}, { firstRealSendOn: TODAY });
+    const limite = sectionOf(tree, "Limite");
+    expect(words(limite)).toContain("Dopo la prima settimana: al massimo 10 prime email al giorno");
+    expect(words(limite)).toContain("Fino al 28 ottobre ne partono al massimo 5.");
+    expect(descendants(limite).some((node) => node.type === "input")).toBe(false);
+    expect(buttons(limite)).toEqual([]);
+    // Finita la prima settimana la nota sparisce.
+    const later = render({}, {}, { firstRealSendOn: "2026-10-15" });
+    expect(words(sectionOf(later, "Limite"))).not.toContain("ne partono al massimo 5");
+  });
+
+  it("variabili e accessi: esiti senza valori, accesso SMTP fallito con il suo codice", () => {
+    const tree = render(
+      {},
+      {},
+      {
+        envCheckedAt: "2026-10-22T07:40:00Z",
+        envMailboxOk: true,
+        envTestOk: false,
+        envTestCount: 0,
+        smtpLoginAt: "2026-10-22T07:41:00Z",
+        smtpLoginCode: "smtp_eauth",
+        imapLoginAt: "2026-10-22T07:41:20Z",
+        imapLoginCode: "ok",
+      },
+    );
+    const section = words(sectionOf(tree, "Variabili e accessi"));
+    expect(section).toContain("Variabili dell'assistente: valide");
+    expect(section).toContain("Casella: valida");
+    expect(section).toContain("Indirizzi di prova: mancanti o nel formato sbagliato");
+    expect(section).toContain("Controllate dal worker alle 9:40");
+    expect(section).toContain("Ultimo accesso SMTP: non riuscito alle 9:41 (smtp_eauth)");
+    expect(section).toContain("Ultimo accesso IMAP: riuscito alle 9:41");
+    expect(section).toContain("Una variabile cambiata in Vercel vale dal deploy successivo.");
+    expect(section).not.toContain("@");
+    expect(section).not.toContain("example.test");
+  });
+
+  it("variabili e accessi: indirizzi di prova validi, worker che non le ha controllate", () => {
+    const tree = render(
+      { mail: { ...MAIL, assistantConfigured: false } },
+      {},
+      {
+        envCheckedAt: null,
+        envMailboxOk: null,
+        envTestOk: true,
+        envTestCount: 2,
+        smtpLoginAt: null,
+        smtpLoginCode: null,
+      },
+    );
+    const section = words(sectionOf(tree, "Variabili e accessi"));
+    expect(section).toContain("Variabili dell'assistente: mancanti o nel formato sbagliato");
+    expect(section).toContain("Indirizzi di prova: validi, 2 indirizzi");
+    expect(section).toContain("Il worker non le ha ancora controllate.");
+    expect(section).toContain("Ultimo accesso SMTP: mai provato");
+  });
+
+  it("da vedere: niente «Ridai all'assistente» per una conversazione recente o un invio incerto", () => {
+    const tree = render(
+      { partnerIds: { 1: partnerFixtureId(1), 3: partnerFixtureId(3), 4: partnerFixtureId(4) } },
+      {
+        toReview: [
+          ...fixture.status.toReview,
+          {
+            co: 3,
+            name: "Club Sintetico Tre",
+            reason: "conversazione_esistente",
+            updatedAt: "2026-10-22T07:00:00Z",
+          },
+          {
+            co: 4,
+            name: "Negozio Sintetico Quattro",
+            reason: "invio_incerto",
+            updatedAt: "2026-10-22T07:10:00Z",
+          },
+        ],
+      },
+    );
+    const items = descendants(sectionOf(tree, "Da vedere")).filter((node) => node.type === "li");
+    expect(items).toHaveLength(3);
+    expect(buttons(items[0]).map((b) => text(b).trim())).toEqual(["Ridai all'assistente"]);
+    expect(buttons(items[1])).toEqual([]);
+    expect(buttons(items[2])).toEqual([]);
+    expect(words(items[2])).toContain("Invio incerto");
+  });
+
+  it("stato degli invii non leggibile: lo dice nelle sezioni dell'invio, il resto si vede", () => {
+    const tree = render({ founder: true, send: null }, { mode: "invio" });
+    expect(words(sectionOf(tree, "Invii"))).toContain(
+      "Stato degli invii non leggibile: ricarica la pagina tra poco.",
+    );
+    expect(words(sectionOf(tree, "Limite"))).toContain("Stato degli invii non leggibile");
+    // Senza lo stato non si sa se la prova è confermata: «Invio» resta com'è, non si ripropone.
+    expect(button(tree, "Invio").props["aria-pressed"]).toBe(true);
+    expect(words(sectionOf(tree, "Regole"))).toContain("In vigore");
+  });
+
+  it("in anteprima anche i comandi di Tommi sono spenti e niente arriva al server", () => {
+    const options = { preview: true, userId: null, founder: true };
+    const send = {
+      testConfirmedAt: null,
+      testRun: { requestedAt: "2026-10-22T06:31:00Z", drafts: 1, recipients: 1, sent: 1 },
+      stopReason: "casella" as const,
+    };
+    const tree = render(options, { mode: "prova" }, send);
+    for (const label of [
+      "Manda la prova",
+      "La prova è arrivata in posta in arrivo",
+      "Riprendi l'invio",
+      "Salva",
+      "Salva il credito",
+    ])
+      expect(button(tree, label).props.disabled, label).toBe(true);
+    for (const label of [
+      "Manda la prova",
+      "La prova è arrivata in posta in arrivo",
+      "Riprendi l'invio",
+    ])
+      click(button(render(options, { mode: "prova" }, send), label));
+    submit(formOf(render(options, { mode: "prova" }, send), "Salva"));
+    expect(mocks.startTest).not.toHaveBeenCalled();
+    expect(mocks.confirmTest).not.toHaveBeenCalled();
+    expect(mocks.resume).not.toHaveBeenCalled();
+    expect(mocks.setSettings).not.toHaveBeenCalled();
   });
 });

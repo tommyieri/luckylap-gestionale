@@ -89,6 +89,7 @@ import { PartnerProvider } from "./partner-context";
 import styles from "./partner.module.css";
 import {
   PARTNER_ASSISTANT_INACTIVE,
+  type PartnerAssistantSendStatus,
   type PartnerAssistantStatus,
 } from "../../lib/partner/assistant";
 import { PARTNER_FIXTURE_MEMBER_ID, partnerAssistantFixture } from "../../lib/partner/fixtures";
@@ -98,6 +99,7 @@ type Element = ReactElement<Record<string, unknown>>;
 const TODAY = "2026-10-22";
 const OPERATION = "93000000-0000-4000-8000-000000000001";
 const fixture = partnerAssistantFixture(TODAY).status;
+const sendFixture = partnerAssistantFixture(TODAY).send;
 const CONTEXT = Symbol.for("react.context");
 
 function expand(node: unknown): unknown {
@@ -119,11 +121,20 @@ function expand(node: unknown): unknown {
 
 /**
  * La striscia con lo stato sintetico cambiato; `null` è lo stato non leggibile,
- * PARTNER_ASSISTANT_INACTIVE l'assistente senza migrazioni.
+ * PARTNER_ASSISTANT_INACTIVE l'assistente senza migrazioni. `send` cambia lo stato dell'invio
+ * (`null`: non leggibile); la posta è configurata se non si dice altro.
  */
 function render(
   status: Partial<PartnerAssistantStatus> | null | typeof PARTNER_ASSISTANT_INACTIVE = {},
-  { preview = false }: { preview?: boolean } = {},
+  {
+    preview = false,
+    send = {},
+    mailConfigured = true,
+  }: {
+    preview?: boolean;
+    send?: Partial<PartnerAssistantSendStatus> | null;
+    mailConfigured?: boolean;
+  } = {},
 ) {
   mocks.index = 0;
   mocks.contexts = [];
@@ -141,6 +152,8 @@ function render(
             ? status
             : { ...fixture, ...status }
         }
+        send={send === null ? null : { ...sendFixture, ...send }}
+        mailConfigured={mailConfigured}
       />
     </PartnerProvider>,
   );
@@ -287,5 +300,82 @@ describe("PartnerAssistantStrip", () => {
     expect(button.props.disabled).toBe(true);
     (button.props.onClick as () => void)();
     expect(mocks.setMode).not.toHaveBeenCalled();
+  });
+  it("«Invio»: modalità, prime email di oggi sul limite e spesa, fondo normale", () => {
+    const tree = render(
+      { mode: "invio", spentUsd: 12.3 },
+      { send: { firstSentToday: 3, firstLimitToday: 5 } },
+    );
+    expect(sentence(tree)).toBe("Assistente in invio · 3 email oggi su 5 · 12,30 USD spesi");
+    expect(strip(tree).props["data-attention"]).toBeUndefined();
+    expect(stop(tree)).toHaveLength(1);
+  });
+
+  it("«Prova»: le email di prova di oggi e la spesa, fondo normale", () => {
+    const tree = render({ mode: "prova", spentUsd: 12.3 }, { send: { testSentToday: 4 } });
+    expect(sentence(tree)).toBe("Assistente in prova · 4 email di prova oggi · 12,30 USD spesi");
+    expect(strip(tree).props["data-attention"]).toBeUndefined();
+  });
+
+  it("invii fermi per la casella o per i rifiuti: fondo ambra, motivo e chi li riprende", () => {
+    for (const mode of ["prova", "invio"] as const) {
+      const tree = render({ mode, spentUsd: 12.3 }, { send: { stopReason: "casella" } });
+      expect(sentence(tree)).toContain(
+        "Invii fermi: La casella ha rifiutato la password. Tommi li riprende dalla pagina dell'assistente.",
+      );
+      expect(strip(tree).props["data-attention"]).toBe(true);
+    }
+    const rejected = render({ mode: "invio" }, { send: { stopReason: "rimbalzi" } });
+    expect(sentence(rejected)).toContain(
+      "Invii fermi: Il server di posta ha rifiutato delle email. Tommi li riprende",
+    );
+    // In «Prepara» il worker non manda niente: il fermo non è un avviso della striscia.
+    const prepara = render({}, { send: { stopReason: "casella" } });
+    expect(sentence(prepara)).not.toContain("Invii fermi");
+    expect(strip(prepara).props["data-attention"]).toBeUndefined();
+  });
+
+  it("invii fermi per oggi: ambra solo se il fermo è di oggi", () => {
+    const today = render({ mode: "invio" }, { send: { dayStoppedOn: TODAY } });
+    expect(sentence(today)).toContain(
+      "Invii fermi per oggi: errori temporanei del server di posta. Riprendono domani.",
+    );
+    expect(strip(today).props["data-attention"]).toBe(true);
+    const yesterday = render({ mode: "invio" }, { send: { dayStoppedOn: "2026-10-21" } });
+    expect(sentence(yesterday)).not.toContain("Invii fermi");
+    expect(strip(yesterday).props["data-attention"]).toBeUndefined();
+  });
+
+  it("posta dell'assistente non configurata: in «Prova» e «Invio» lo dice in ambra", () => {
+    const tree = render({ mode: "prova" }, { mailConfigured: false });
+    expect(sentence(tree)).toContain("Posta dell'assistente non configurata: niente invii.");
+    expect(strip(tree).props["data-attention"]).toBe(true);
+    // In «Prepara» la posta non serve.
+    const prepara = render({}, { mailConfigured: false });
+    expect(sentence(prepara)).not.toContain("Posta");
+    expect(strip(prepara).props["data-attention"]).toBeUndefined();
+  });
+
+  it("stato degli invii non leggibile: in «Invio» lo dice in ambra, senza numeri inventati", () => {
+    const tree = render({ mode: "invio", spentUsd: 12.3 }, { send: null });
+    expect(sentence(tree)).toBe(
+      "Assistente in invio · 12,30 USD spesi. Stato degli invii non leggibile: ricarica la pagina tra poco.",
+    );
+    expect(strip(tree).props["data-attention"]).toBe(true);
+    expect(stop(tree)).toHaveLength(1);
+    // In «Prepara» la striscia non ne ha bisogno.
+    const prepara = render({}, { send: null });
+    expect(sentence(prepara)).toBe("Assistente: prepara · 1 bozza pronta · 1,37 USD spesi");
+  });
+
+  it("mai indirizzi nella striscia", () => {
+    const cases = [
+      render({ mode: "invio" }),
+      render({ mode: "prova" }),
+      render({ mode: "invio" }, { send: { stopReason: "casella", dayStoppedOn: TODAY } }),
+      render({ mode: "prova" }, { mailConfigured: false }),
+      render({ mode: "invio" }, { send: null }),
+    ];
+    for (const tree of cases) expect(words(tree)).not.toContain("@");
   });
 });

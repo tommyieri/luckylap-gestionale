@@ -42,6 +42,7 @@ import {
 } from "../../lib/partner/fixtures";
 import {
   PARTNER_ASSISTANT_INACTIVE,
+  type PartnerAssistantSendStatus,
   type PartnerAssistantStatus,
 } from "../../lib/partner/assistant";
 import type {
@@ -57,6 +58,9 @@ function render(
     workspace?: PartnerWorkspaceData;
     preview?: boolean;
     assistant?: PartnerAssistantStatus | null;
+    send?: PartnerAssistantSendStatus | null;
+    mailConfigured?: boolean;
+    founder?: boolean;
     /** Cambia la scheda aperta prima di renderla. */
     detail?: (detail: PartnerDetail) => PartnerDetail;
   } = {},
@@ -70,6 +74,9 @@ function render(
       assistant={
         options.assistant === undefined ? partnerAssistantFixture(TODAY).status : options.assistant
       }
+      send={options.send === undefined ? partnerAssistantFixture(TODAY).send : options.send}
+      mailConfigured={options.mailConfigured ?? true}
+      founder={options.founder ?? false}
       today={TODAY}
       memberId={PARTNER_FIXTURE_MEMBER_ID}
       preview={options.preview ?? false}
@@ -351,6 +358,30 @@ describe("PartnerWorkspace", () => {
     expect(html).toContain(`<section class="${styles.assistantStrip}" data-attention="true"`);
     expect(text(html)).toContain("Stato dell'assistente non leggibile");
     expect(buttons(html).map((b) => b.text)).not.toContain("Ferma l'assistente");
+  });
+
+  it("striscia in «Invio»: le prime email di oggi dallo stato dell'invio passato alla pagina", () => {
+    const fixture = partnerAssistantFixture(TODAY);
+    const html = render({}, { assistant: { ...fixture.status, mode: "invio" } });
+    expect(text(html)).toContain("Assistente in invio · 1 email oggi su 5 · 1,37 USD spesi");
+    const noMail = render(
+      {},
+      { assistant: { ...fixture.status, mode: "prova" }, mailConfigured: false },
+    );
+    expect(noMail).toContain(`<section class="${styles.assistantStrip}" data-attention="true"`);
+    expect(text(noMail)).toContain("Posta dell'assistente non configurata: niente invii.");
+    const unreadable = render({}, { assistant: { ...fixture.status, mode: "invio" }, send: null });
+    expect(text(unreadable)).toContain("Stato degli invii non leggibile");
+  });
+
+  it("scheda aperta: «Manda per primo» e la precedenza solo per Tommi", () => {
+    const founder = buttons(render({ co: "2" }, { founder: true })).map((b) => b.text);
+    expect(founder).toContain("Togli la precedenza");
+    const consultant = buttons(render({ co: "2" })).map((b) => b.text);
+    expect(consultant).not.toContain("Togli la precedenza");
+    expect(text(render({ co: "2" }))).toContain(
+      "Questo contatto parte per primo appena la bozza è pronta.",
+    );
   });
 
   it("scheda aperta: il blocco «Assistente» tra «Esito» e i messaggi", () => {

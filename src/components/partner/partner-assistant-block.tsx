@@ -27,8 +27,10 @@ import styles from "./partner.module.css";
  * «Interfaccia»): lo stato del lavoro, perché l'assistente non prende il contatto, la proposta
  * scelta con il motivo, l'indirizzo trovato dalla ricerca (solo una proposta), la ricerca con le
  * fonti, la bozza com'è salvata e l'interruttore «Assistente su questo contatto: attivo / fermo».
- * Mostra i dati del caricamento: dopo l'interruttore la scheda la rilegge la Server Action.
- * Senza le migrazioni dell'assistente («non attivo») il blocco non c'è.
+ * Dalla consegna 2a anche le prime email dell'assistente (data ed esito, mai indirizzi) e, per
+ * Tommi, la precedenza d'invio («Manda per primo»). Mostra i dati del caricamento: dopo un comando
+ * la scheda la rilegge la Server Action. Senza le migrazioni dell'assistente («non attivo») il
+ * blocco non c'è.
  */
 
 /** Le attività del team che tolgono il contatto all'assistente (partner_assistant_eligible). */
@@ -101,6 +103,26 @@ export function partnerAssistantSkipReasons({
 const sentenceList = (items: readonly string[]) =>
   items.length < 2 ? (items[0] ?? "") : `${items.slice(0, -1).join(", ")} e ${items.at(-1)}`;
 
+/** «il 29 ottobre alle 9:41»: ora di Roma, senza lo zero davanti all'ora. */
+function sentOn(instant: string, today: string): string {
+  const day = instantDay(instant);
+  const time = instantTime(instant)?.replace(/^0(?=\d)/, "");
+  return day && time ? `il ${longDay(day, today)} alle ${time}` : "in un momento non leggibile";
+}
+
+/** Le prime email dell'assistente a questo contatto, dalla più recente: data ed esito. */
+function sendLine(send: PartnerAssistantContactView["sends"][number], today: string): string {
+  const when = sentOn(send.at, today);
+  switch (send.status) {
+    case "inviato":
+      return `Email inviata dall'assistente ${when}.`;
+    case "incerto":
+      return `Invio incerto ${when}: controlla in «Posta inviata».`;
+    case "respinto":
+      return `Email respinta dal server ${when}.`;
+  }
+}
+
 /** «oggi alle 10:48», «ieri alle 10:00», «16 ottobre alle 10:00»: ora di Roma. */
 function moment(instant: string, today: string): string {
   const day = instantDay(instant);
@@ -128,7 +150,7 @@ export function PartnerAssistantBlock({
   contacts: readonly PartnerContact[];
   activities: readonly PartnerActivity[];
 }) {
-  const { members } = usePartnerContext();
+  const { members, founder, today } = usePartnerContext();
   const titleId = `assistente-${partner.co}`;
   if (assistant === PARTNER_ASSISTANT_INACTIVE) return null;
   if (assistant === null)
@@ -160,6 +182,9 @@ export function PartnerAssistantBlock({
     <section className={styles.detailBlock} aria-labelledby={titleId}>
       <h4 id={titleId}>Assistente</h4>
       <JobState job={job} held={held} />
+      {assistant.sends.map((send, index) => (
+        <p key={index}>{sendLine(send, today)}</p>
+      ))}
       {skip.length > 0 && !waiting && <p>L'assistente non lo prende: {sentenceList(skip)}.</p>}
       {choice && (
         <p>
@@ -177,6 +202,10 @@ export function PartnerAssistantBlock({
       )}
       {research && <Research research={research} />}
       {draft && <Draft draft={draft} />}
+      {/* La precedenza conta finché la prima email non è partita e il contatto non è di Tommi. */}
+      {job?.status !== "inviata" && job?.status !== "serve_tommaso" && (
+        <SendPriority partner={partner} priority={assistant.sendPriority} founder={founder} />
+      )}
       <AssistantSwitch partner={partner} active={assistant.active} />
     </section>
   );
@@ -214,9 +243,11 @@ function JobState({
     case "pronta":
       return (
         <p>
-          {label}: la trovi qui sotto. Per ora l'assistente non manda niente.{after}
+          {label}: la trovi qui sotto.{after}
         </p>
       );
+    case "inviata":
+      return <p>Prima email inviata dall'assistente: il sollecito dopo 7 giorni lo manda Tommi.</p>;
     case "attesa":
     case "in_coda":
       if (stopped)
@@ -289,6 +320,48 @@ function Draft({ draft }: { draft: NonNullable<PartnerAssistantContactView["draf
         </p>
       </div>
     </details>
+  );
+}
+
+/**
+ * «Manda per primo»: la precedenza d'invio (9) o niente (0), solo di Tommi. Con la precedenza la
+ * frase la leggono tutti.
+ */
+function SendPriority({
+  partner,
+  priority,
+  founder,
+}: {
+  partner: PartnerSummary;
+  priority: number;
+  founder: boolean;
+}) {
+  const { preview } = usePartnerContext();
+  const command = usePartnerCommand(`assistente-precedenza-${partner.id}`);
+  if (!founder && priority === 0) return null;
+  const set = (value: number) =>
+    command.run("set_partner_assistant_send_priority", {
+      schema_version: 1,
+      partner_id: partner.id,
+      send_priority: value,
+    });
+  return (
+    <div className={styles.draftBlock}>
+      <div className={styles.inlineActions}>
+        {priority > 0 && <p>Questo contatto parte per primo appena la bozza è pronta.</p>}
+        {founder && (
+          <button
+            type="button"
+            className={`${styles.act} ${styles.actMini}`}
+            disabled={preview || command.busy}
+            onClick={() => set(priority > 0 ? 0 : 9)}
+          >
+            {command.pending ? "Salvo…" : priority > 0 ? "Togli la precedenza" : "Manda per primo"}
+          </button>
+        )}
+      </div>
+      <CommandFeedback command={command} />
+    </div>
   );
 }
 
