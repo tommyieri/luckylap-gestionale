@@ -85,6 +85,50 @@ describe("partnerAssistantBodyDates", () => {
     ).toEqual([]);
   });
 
+  // Correzione giro 1: forme che Claude scrive davvero e che il primo giro non vedeva.
+  it.each([
+    ["on the 19th of November", ["2026-11-19"]],
+    ["the 19th of November, 2026", ["2026-11-19"]],
+    ["il 19 novembre del 2026", ["2026-11-19"]],
+    ["el 19 de noviembre del 2026", ["2026-11-19"]],
+    ["dal 19 al 21 novembre", ["2026-11-19", "2026-11-21"]],
+    ["19-21 novembre", ["2026-11-19", "2026-11-21"]],
+    ["19–21 novembre 2026", ["2026-11-19", "2026-11-21"]],
+    ["am 19.-21. November", ["2026-11-19", "2026-11-21"]],
+    ["vom 19. bis 21. November", ["2026-11-19", "2026-11-21"]],
+    ["il 19 e 21 novembre", ["2026-11-19", "2026-11-21"]],
+    ["il 19, 20 e 21 novembre", ["2026-11-19", "2026-11-20", "2026-11-21"]],
+    ["du 19 au 21 novembre", ["2026-11-19", "2026-11-21"]],
+    ["del 19 al 21 de noviembre", ["2026-11-19", "2026-11-21"]],
+    ["the 19th–21st of November", ["2026-11-19", "2026-11-21"]],
+    ["19 and 21 November 2027", ["2027-11-19", "2027-11-21"]],
+    ["dal 30 dicembre al 2 gennaio", ["2026-12-30", "2027-01-02"]],
+    ["19/11", ["2026-11-19"]],
+    ["lunedì 19/11", ["2026-11-19"]],
+    ["Montag, den 19.11.", ["2026-11-19"]],
+    ["il 3/1", ["2027-01-03"]],
+    ["19.11.26", ["2026-11-19"]],
+    ["19/11/26", ["2026-11-19"]],
+    ["Nov. 19", ["2026-11-19"]],
+    ["Sept. 3, 2027", ["2027-09-03"]],
+    ["19 Dec. 2026", ["2026-12-19"]],
+    ["el 1ª de mayo", ["2027-05-01"]],
+    ["2026-11-19T10:00", ["2026-11-19"]],
+    ["mar. 19 novembre", ["2026-11-19"]],
+    ["19/21 novembre", ["2026-11-19", "2026-11-21"]],
+  ])("giro 1: %s → %j", (t, d) =>
+    expect(partnerAssistantBodyDates(`… ${t} …`, "2026-10-28")).toEqual(d),
+  );
+
+  it("giro 1: i numeri puntati e le migliaia non diventano date senza anno", () => {
+    expect(
+      partnerAssistantBodyDates(
+        "v1.2.3, 1.2.3, 5.000 persone, 1.500 km, 19.30, 12.50 €, 11/19/2026, 19.11.202, Nov 19.",
+        "2026-10-28",
+      ),
+    ).toEqual([]);
+  });
+
   it("senza anno: lo stesso giorno della bozza resta in quell'anno", () =>
     expect(partnerAssistantBodyDates("il 28 ottobre", "2026-10-28")).toEqual(["2026-10-28"]));
 });
@@ -145,6 +189,46 @@ describe("partnerAssistantSendRecheck", () => {
         "2026-11-25",
       ).ok,
     ).toBe(false));
+
+  it("giro 1: il primo giorno di un intervallo già passato all'invio basta per scartare", () => {
+    expect(
+      partnerAssistantSendRecheck(
+        withBody(club, "Ci vediamo dal 19 al 21 novembre."),
+        "2026-11-20",
+      ),
+    ).toEqual({ ok: false, reason: "bozza_scaduta" });
+    expect(
+      partnerAssistantSendRecheck(withBody(club, "Ci vediamo il 19/11, alle 10."), "2026-11-20").ok,
+    ).toBe(false);
+  });
+
+  it("giro 1: una data già passata alla bozza, con l'anno, non scade (il fatto del complimento)", () => {
+    for (const fact of [
+      "Complimenti per il raduno del 12 ottobre 2026.",
+      "Complimenti per il raduno del 12/10/2026.",
+      "Congratulations on the rally on October 12, 2026.",
+    ]) {
+      expect(partnerAssistantSendRecheck(withBody(club, fact), "2026-10-28")).toEqual({ ok: true });
+      expect(partnerAssistantSendRecheck(withBody(club, fact), "2026-11-05")).toEqual({ ok: true });
+    }
+  });
+
+  it("giro 1: il giorno stesso della bozza conta ancora, anche con l'anno", () => {
+    expect(
+      partnerAssistantSendRecheck(withBody(club, "… il 28 ottobre 2026 …"), "2026-10-28").ok,
+    ).toBe(false);
+    expect(partnerAssistantSendRecheck(withBody(club, "… il 28/10/2026 …"), "2026-10-29").ok).toBe(
+      false,
+    );
+  });
+
+  it("giro 1: un fatto passato non salva una data futura alla bozza e passata all'invio", () =>
+    expect(
+      partnerAssistantSendRecheck(
+        withBody(club, "Complimenti per il 12 ottobre 2026. Ci vediamo il 19 novembre 2026."),
+        "2026-11-20",
+      ),
+    ).toEqual({ ok: false, reason: "bozza_scaduta" }));
 
   it("giorno d'invio o momento della bozza non validi: lancia, niente ok", () => {
     expect(() => partnerAssistantSendRecheck(club, "")).toThrow(RangeError);
