@@ -23,7 +23,7 @@ type CheckedDraft = Pick<
 // mai copiate qui: hanno nomi veri. Oggetto senza etichetta, corpo dal saluto alla formula di
 // chiusura, firma nella loro lingua. I casi costruiti a mano usano solo nomi sintetici.
 const migration = readFileSync(
-  new URL("../../../supabase/migrations/20261027133105_assistente_partner.sql", import.meta.url),
+  new URL("../../../supabase/migrations/20261028122704_assistente_partner.sql", import.meta.url),
   "utf8",
 );
 const rulesV1 = /\$regole\$([\s\S]*?)\$regole\$/u.exec(migration)?.[1] ?? "";

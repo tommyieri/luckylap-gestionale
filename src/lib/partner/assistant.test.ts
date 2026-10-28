@@ -405,11 +405,11 @@ describe("etichette in italiano", () => {
 
   it("una frase per ogni motivo del brief, della SQL e del worker", () => {
     const sql = readFileSync(
-      join(ROOT, "supabase/migrations/20261027140533_assistente_partner_worker.sql"),
+      join(ROOT, "supabase/migrations/20261028122956_assistente_partner_worker.sql"),
       "utf8",
     );
     const commands = readFileSync(
-      join(ROOT, "supabase/migrations/20261027133105_assistente_partner.sql"),
+      join(ROOT, "supabase/migrations/20261028122704_assistente_partner.sql"),
       "utf8",
     );
     const worker = readFileSync(join(ROOT, "src/lib/partner-assistant/worker.ts"), "utf8");
@@ -506,7 +506,7 @@ describe("etichette in italiano", () => {
     const listed = new Set(Object.values(byStep).flat());
     // Gli esiti scritti come testo nella migrazione del worker sono tutti nell'elenco.
     const sql = readFileSync(
-      join(ROOT, "supabase/migrations/20261027140533_assistente_partner_worker.sql"),
+      join(ROOT, "supabase/migrations/20261028122956_assistente_partner_worker.sql"),
       "utf8",
     );
     const all = (text: string, pattern: RegExp) => [...text.matchAll(pattern)].map((m) => m[1]);

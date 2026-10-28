@@ -1,5 +1,5 @@
 // Tipi dell'assistente Partner: le chiavi delle RPC del worker
-// (supabase/migrations/20261027140533_assistente_partner_worker.sql) in camelCase. Lo store converte
+// (supabase/migrations/20261028122956_assistente_partner_worker.sql) in camelCase. Lo store converte
 // da e verso le chiavi SQL e controlla ogni valore che legge.
 
 export type PartnerAssistantStep = "ricerca" | "estrazione" | "scrittura" | "controllo";

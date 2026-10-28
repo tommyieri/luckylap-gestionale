@@ -1,7 +1,7 @@
 // Partner: l'assistente visto dall'interfaccia (specifica dell'assistente Partner, «Interfaccia»).
 // Tipi, parser ed etichette in italiano. Funzioni pure, come model.ts e read.ts.
 //
-// - Lo stato viene da read_partner_assistant_status (migrazione 20261027133105_assistente_partner):
+// - Lo stato viene da read_partner_assistant_status (migrazione 20261028122704_assistente_partner):
 //   le stesse chiavi, in camelCase. Una chiave in più o in meno, un numero negativo o una data non
 //   valida danno PartnerReadError.
 // - Il blocco della scheda viene dalle tabelle public.partner_assistant_*: interruttore, lavoro, le
@@ -142,7 +142,7 @@ export function partnerAssistantReasonInline(reason: string): string {
 }
 
 /**
- * Esiti degli ultimi eventi (migrazione 20261027140533_assistente_partner_worker), a parole. Per
+ * Esiti degli ultimi eventi (migrazione 20261028122956_assistente_partner_worker), a parole. Per
  * passo: ricerca → salvata; estrazione → scrivi, attendi, fatto_mancante, fuso_mancante;
  * scrittura → controlli_superati, riscrittura, controlli_falliti, contesto_cambiato; controllo →
  * pronta, regole_superate, riscrittura, seconda_lettura. In ogni passo lease_scaduta, non_idoneo

@@ -9,7 +9,7 @@ Prove applicative, SQL sintetico, PostgreSQL concorrente e Auth cloud sono conte
 
 ## Assistente Partner, 27 ottobre 2026
 
-Dal branch `claude/assistente-partner` (base `origin/main` a `3c58693`), prima consegna dell'assistente («prepara»: ricerca e bozze, nessun invio), con dati sintetici e senza accessi al cloud. Tre migrazioni nuove, additive, **non ancora applicate in produzione**: `20261027133105_assistente_partner.sql`, `20261027140533_assistente_partner_worker.sql` e `20261027145939_assistente_partner_scheduler.sql`. Dettagli, variabili e sequenza di avvio in [partner-assistente.md](partner-assistente.md).
+Dal branch `claude/assistente-partner` (base `origin/main` a `3c58693`), prima consegna dell'assistente («prepara»: ricerca e bozze, nessun invio), con dati sintetici e senza accessi al cloud. Tre migrazioni nuove, additive, applicate in produzione il 28 ottobre 2026 (sotto, «Produzione, 28 ottobre 2026»); i file hanno i nomi delle versioni cloud. Dettagli, variabili e sequenza di avvio in [partner-assistente.md](partner-assistente.md).
 
 | Comando | Esito |
 | --- | --- |
@@ -117,6 +117,23 @@ Controlli per harness:
 | `shop-payment-finance-concurrency.mjs` | PostgreSQL 17 | 33 | pagamenti dei negozi corretti da Finance, concorrenti |
 
 Auth è simulato in tutti gli harness: questi controlli non sostituiscono le prove su Auth cloud. In CI il job «Concorrenza (PostgreSQL 17)» esegue anche gli undici harness su PostgreSQL reale.
+
+## Produzione, 28 ottobre 2026: Assistente Partner
+
+Claude ha applicato le tre migrazioni dell'assistente il 28 ottobre 2026, dopo l'OK di Tommi («si applicale»), con la procedura qui sotto: impronte prima, testo esatto del file, rinomina, impronte dopo. Le ha applicate prima del merge della pull request #22, come chiede l'avvio ([partner-assistente.md](partner-assistente.md), «Avvio»).
+
+| Migrazione | Versione cloud | Testo salvato |
+| --- | --- | --- |
+| `assistente_partner` | `20261028122704` | uguale al file, md5 `5ad2329ff88ffd6314355328ee911c3f` |
+| `assistente_partner_worker` | `20261028122956` | uguale al file, md5 `d360d6e1834d95947971a2138c864ec9` |
+| `assistente_partner_scheduler` | `20261028123036` | uguale al file, md5 `d37d6d730080a89722621a61e3801285` |
+
+- **Identiche prima e dopo.** Impronte md5 di tutte le righe di `partners` (207), `partner_contacts` (850), `partner_message_variants` (218), `partner_research_imports` (2), `profiles` (5) e `memberships` (5). Le altre tabelle Partner sono vuote. Anche `audit_logs` (2.424 righe) e `cron.job` (solo il job Shopify) sono invariati.
+- **Cambiato, come previsto.**
+  - Le tabelle in `public` passano da 80 a 85.
+  - I privilegi di `service_role` sulle tabelle Partner passano da 63 a 27: niente più inserimenti, modifiche, cancellazioni e `truncate` sulle nove tabelle Partner.
+  - La configurazione dell'assistente è «spento», senza utente tecnico. Le regole sono alla versione 1 e i lavori sono zero.
+- **Avvisi di sicurezza.** Solo quelli già noti: tabelle `private` con RLS e senza policy (volute) e la protezione dalle password trapelate disattivata.
 
 ## Produzione, 22 ottobre 2026
 

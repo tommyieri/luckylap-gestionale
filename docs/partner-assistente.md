@@ -56,9 +56,9 @@ Tre migrazioni additive:
 
 | Migrazione | Contenuto |
 | --- | --- |
-| `20261027133105_assistente_partner.sql` | Tabelle, regole versione 1, comandi del team, lettura dello stato |
-| `20261027140533_assistente_partner_worker.sql` | Coda, RPC del worker, revoca a `service_role` delle scritture dirette sulle tabelle Partner |
-| `20261027145939_assistente_partner_scheduler.sql` | Scheduler ogni due minuti (pg_cron, pg_net, Vault) |
+| `20261028122704_assistente_partner.sql` | Tabelle, regole versione 1, comandi del team, lettura dello stato |
+| `20261028122956_assistente_partner_worker.sql` | Coda, RPC del worker, revoca a `service_role` delle scritture dirette sulle tabelle Partner |
+| `20261028123036_assistente_partner_scheduler.sql` | Scheduler ogni due minuti (pg_cron, pg_net, Vault) |
 
 Tabelle in `public`, leggibili dai membri del team (RLS `member_read`) e scritte solo dalle RPC:
 

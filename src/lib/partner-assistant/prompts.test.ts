@@ -18,7 +18,7 @@ import type { PartnerAssistantChoice, PartnerAssistantContext } from "./types";
 
 // Le regole v1 vere, dalla migrazione: il system deve essere questo testo, byte per byte.
 const migration = readFileSync(
-  new URL("../../../supabase/migrations/20261027133105_assistente_partner.sql", import.meta.url),
+  new URL("../../../supabase/migrations/20261028122704_assistente_partner.sql", import.meta.url),
   "utf8",
 );
 const rulesV1 = /\$regole\$([\s\S]*?)\$regole\$/.exec(migration)?.[1] ?? "";
