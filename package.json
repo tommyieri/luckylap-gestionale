@@ -16,8 +16,10 @@
     "@anthropic-ai/sdk": "0.133.0",
     "@supabase/ssr": "0.12.7",
     "@supabase/supabase-js": "2.118.0",
+    "imapflow": "2.4.2",
     "lucide-react": "1.61.0",
     "next": "16.4.2",
+    "nodemailer": "10.1.1",
     "react": "19.3.1",
     "react-dom": "19.3.1"
   },
