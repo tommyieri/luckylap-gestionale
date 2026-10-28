@@ -109,9 +109,9 @@ export function PartnerDataView({
       <section className={styles.dataSection} aria-labelledby="dati-file">
         <h2 id="dati-file">File del vecchio sito</h2>
         <p className={styles.dataText}>
-          Sul vecchio sito premi «Esporta stati e testi di questo dispositivo» e carica qui il file.
-          Un file per ogni dispositivo. Niente viene sovrascritto: ciò che il team ha cambiato nel
-          gestionale resta.
+          Il vecchio sito è spento dal 28 ottobre 2026. Qui si carica solo un file «Esporta»
+          scaricato prima di allora. Un file per ogni dispositivo. Niente viene sovrascritto: ciò
+          che il team ha cambiato nel gestionale resta.
         </p>
         <DeviceImport preview={preview} userId={userId} today={today} members={data.members} />
         <h3 className={styles.dataSubhead} id="dati-file-importati">

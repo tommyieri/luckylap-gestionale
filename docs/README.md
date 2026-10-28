@@ -62,7 +62,7 @@ Alcuni documenti scritti prima del modello attuale chiedono ancora una sessione 
 
 ## Partner
 
-- [Partner nel gestionale](partner.md): pagina `/partner` con contatti, periodi, messaggi e stati, «Ci siamo» (accordi fatti, unici nel calendario), import della ricerca e dei file «Esporta», lookbook, privacy e GitHub Pages.
+- [Partner nel gestionale](partner.md): pagina `/partner` con contatti, periodi, messaggi e stati, «Ci siamo» (accordi fatti, unici nel calendario), import della ricerca e dei file «Esporta», lookbook, privacy e lo spegnimento di GitHub Pages.
 
 ## Team, contenuti e sviluppo
 

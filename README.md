@@ -39,7 +39,7 @@ Dal 23 ottobre 2026 (pull request #3 di Codex, quattro migrazioni applicate in p
 
 Problemi noti di questa parte, trovati in revisione il 23 ottobre e da decidere con Tommi: [verifiche](docs/verification.md), «Problemi noti dopo P4-P6».
 
-Nessun originale Drive, quantità Shopify o file del repository Partner è stato modificato.
+Nessun originale Drive o quantità Shopify è stato modificato. Il repository Partner è cambiato solo il 28 ottobre 2026, per spegnere GitHub Pages ([Partner](docs/partner.md), «GitHub Pages»).
 
 ## Sviluppo locale
 

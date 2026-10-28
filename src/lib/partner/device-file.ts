@@ -74,7 +74,7 @@ const EXPORTED_AT =
 const EARLIEST_EXPORT = Date.parse("2020-01-01T00:00:00Z");
 const DAY_MS = 24 * 60 * 60 * 1000;
 const NOT_AN_EXPORT =
-  "Questo non è un file «Esporta» del vecchio sito Partner. Sul sito premi «Esporta stati e testi di questo dispositivo» e carica il file scaricato.";
+  "Questo non è un file «Esporta» del vecchio sito Partner. Carica il file .json scaricato con «Esporta stati e testi di questo dispositivo».";
 
 const fail = (message: string): never => {
   throw new PartnerDeviceFileError(message);
