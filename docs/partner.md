@@ -2,7 +2,7 @@
 
 `/partner` è il roadbook del progetto Partner dentro il gestionale: negozi, eventi, club, media e brand da contattare, divisi per periodo e sezione, con il numero CO, il contatto principale, i messaggi modificabili con lo storico, lo stato e i lookbook da allegare. Tutti e cinque i membri vedono e fanno tutto (decisione del founder del 21 ottobre 2026).
 
-I dati stanno nel database e li leggono solo i membri attivi. Ogni scrittura passa da un comando con `operation_id`, ricevuta e, dove serve, controllo di versione. La ricerca arriva dal repository `luckylap-partner` con un import preparato offline; gli stati e i testi salvati sui dispositivi arrivano dai file «Esporta» del vecchio sito.
+I dati stanno nel database e li leggono solo i membri attivi. Ogni scrittura passa da un comando con `operation_id`, ricevuta e, dove serve, controllo di versione. La ricerca arriva dal repository `luckylap-partner` con un import preparato offline. Per gli stati e i testi salvati sui dispositivi c'è l'import dei file «Esporta» del vecchio sito, che però nessuno ha usato: il sito è spento dal 28 ottobre 2026 (vedi «GitHub Pages»).
 
 Questo documento descrive la tappa P2 (branch `claude/tappa-4-partner`). Fonti: spec `02-partner.md` con le correzioni di `00-sequenza.md` (§2, §4 P2, §5), che prevalgono.
 
@@ -13,7 +13,7 @@ Questo documento descrive la tappa P2 (branch `claude/tappa-4-partner`). Fonti: 
 - Niente Storage: i lookbook stanno nel repository in `data/partner-lookbooks/` (decisione 20).
 - Periodi calcolati da oggi, all'ora di Roma. Il 22 ottobre 2026 riproducono i conteggi del sito: 49, 63, 40, 11, 44.
 - Le modifiche del team non si perdono: storico dei testi, import che aggiorna solo ciò che il team non ha toccato, «differenze da controllare» per il resto.
-- Fuori da P2: solleciti automatici, date Partner nel calendario e Oggi (P5); frasi del Controllo CEO (P6); import in produzione (fatto il 22 ottobre, esiti in «Esiti in produzione»); spegnimento di GitHub Pages (dopo P5 e la frase di Tommi).
+- Fuori da P2: solleciti automatici, date Partner nel calendario e Oggi (P5); frasi del Controllo CEO (P6); import in produzione (fatto il 22 ottobre, esiti in «Esiti in produzione»); spegnimento di GitHub Pages (fatto il 28 ottobre 2026, vedi «GitHub Pages»).
 
 ## Pagine
 
@@ -255,7 +255,7 @@ Tutti i valori coincidono con quelli attesi in «Verifica dei conteggi».
 
 ## File del vecchio sito («Esporta»)
 
-Il pulsante «Esporta stati e testi di questo dispositivo» del sito scarica `luckylap-partner-AAAA-MM-GG-telefono.json` o `…-computer.json`. Lo stato del sito vive nel browser di ogni dispositivo: il gestionale non può leggerlo, serve il file.
+Il pulsante «Esporta stati e testi di questo dispositivo» del vecchio sito scaricava `luckylap-partner-AAAA-MM-GG-telefono.json` o `…-computer.json`. Lo stato del sito viveva nel browser di ogni dispositivo: il gestionale non può leggerlo, serve il file.
 
 - **Parser** (`src/lib/partner/device-file.ts`, nel browser e di nuovo sul server): `formato` `luckylap-partner-export`, `versione` 1, `esportato` ISO, `dispositivo` `telefono` o `computer`; chiavi dei contatti e dei testi nel formato del sito; stati, approcci e testi dentro i limiti; al massimo 900 KB e 2000 voci per mappa; chiavi `__proto__`, `constructor`, `prototype` rifiutate; `vista` ignorata, qualunque valore abbia. Lo SHA-256 dei byte del file è la sua identità.
 - **Anteprima**: «Controlla il file» calcola il piano senza scrivere: stati, testi e approcci da applicare, differenze, voci ignorate, contatti sconosciuti, nomi diversi (solo avviso), file già importato.
@@ -268,7 +268,7 @@ Regole, mai sopra il lavoro del team:
 - **Approccio**: si applica se nel gestionale è vuoto o viene da un file più vecchio; altrimenti ignorato.
 - **Registro**: una riga per contatto toccato, `origin = 'file'`, `occurred_at` = data di esportazione, autore chi carica il file. Stato Contattato → `inviato` (primo messaggio, canale della variante o del canale preferito); Ha risposto e In trattativa → `risposta`; Accordo fatto (chiave `chiuso`, come nel file) e Non interessato → `stato`; solo testi → `messaggio`; solo approccio → `approccio`.
 
-Quando: dopo il rilascio di P5, così gli invii importati creano i solleciti (decisione 30). Claude chiede a Tommi di premere «Esporta» su ogni dispositivo e browser e di caricare i file in `/partner/dati`.
+Quando: era previsto dopo il rilascio di P5, così gli invii importati creano i solleciti (decisione 30). Non è servito: il 28 ottobre 2026 Tommi ha confermato che nessuno ha usato il vecchio sito e che non c'era nessun contatto segnato, quindi non ci sono file da caricare (in produzione `partner_device_imports` è vuota). Il sito ora è spento e il pulsante «Esporta» non è più online (vedi «GitHub Pages»). L'import resta in `/partner/dati` per un file già scaricato.
 
 **Solleciti dai file** (dal 23 ottobre 2026, `20261023140414_partner_oggi_fixes`; prima le righe `origin = 'file'` non creavano né chiudevano solleciti). Un «Contattato» del file crea «Sollecito · <nome>» per chi ha caricato il file (`partner_device_imports.imported_by`, lo stesso autore della riga), con scadenza alla mezzanotte di Roma di 7 giorni dopo la data dell'esportazione: con un file vecchio è già in ritardo. «Ha risposto», «In trattativa», «Accordo fatto» e «Non interessato» dal file chiudono il sollecito aperto con un invio precedente all'esportazione. Valgono le regole del team: un solo sollecito aperto per contatto, niente se c'è un invio o una risposta più recenti, niente per «Accordo fatto», «Non interessato» e «Non contattare». Un file non crea niente se il registro ha già un invio o una risposta della stessa data o più recenti, e lo stesso file caricato di nuovo restituisce il resoconto di allora: nessun doppione. Le righe dei file importati prima della migrazione restano senza sollecito (nessun recupero all'indietro).
 
@@ -290,9 +290,13 @@ Quando: dopo il rilascio di P5, così gli invii importati creano i solleciti (de
 
 ## GitHub Pages
 
-Il sito Partner su GitHub Pages espone contatti, recapiti e messaggi a chiunque abbia il link. Va spento del tutto, non solo svuotato (spec 02 §9).
+Il sito Partner su GitHub Pages mostrava contatti, recapiti e messaggi a chiunque avesse il link. La spec 02 §9 chiedeva di spegnerlo del tutto, non solo di svuotarlo: è spento dal 28 ottobre 2026.
 
-Quando: solo dopo il rilascio di P5, l'import dei file di tutti i dispositivi e la frase di Tommi «Ho esportato da tutti i dispositivi» (decisione 31). Poi, nel repository Partner (branch `claude/partner-nel-gestionale`): via `.github/workflows/pages.yml`, «Rigenerare e importare nel gestionale» nella skill `messaggi`, `README.md` e `PRODUCT.md` aggiornati; merge; `gh api -X DELETE repos/tommyieri/luckylap-partner/pages`; verifica che l'indirizzo risponda 404; verifica che il repository sia privato (`gh repo view tommyieri/luckylap-partner --json visibility`). Se è pubblico: dirlo a Tommi, non cambiarlo da soli.
+- **Perché prima del previsto.** La decisione 31 voleva prima il rilascio di P5, l'import dei file di tutti i dispositivi e la frase di Tommi «Ho esportato da tutti i dispositivi». Il 28 ottobre Tommi ha confermato che nessuno aveva usato il sito e che non c'era nessun contatto segnato: niente da esportare. Ha chiesto di spegnerlo subito.
+- **Cosa è stato fatto.** `gh api -X DELETE repos/tommyieri/luckylap-partner/pages`. Il workflow «Pubblica su GitHub Pages» del repository Partner è disabilitato. Nel repository Partner, sul branch `claude/partner-nel-gestionale`, la pull request [luckylap-partner#1](https://github.com/tommyieri/luckylap-partner/pull/1) toglie `.github/workflows/pages.yml` e aggiorna `README.md`, `PRODUCT.md`, `CONTESTO.md`, `.impeccable/surfaces/site-index-html.md` e la skill `messaggi` («Rigenerare e importare nel gestionale»). Il merge è di Tommi.
+- **Dopo il merge nel repository Partner.** `/partner/regole` mostra ancora il `CONTESTO.md` dell'import del 22 ottobre (commit `f6ad90c`), che parla della schermata pubblicata su GitHub Pages e dei lookbook «scaricabili dalla schermata». Il testo nuovo arriva solo con un nuovo import della ricerca (vedi «In produzione, passo per passo»). L'import scrive nel database di produzione: serve l'ok esplicito di Tommi.
+- **Verifica del 28 ottobre.** Rispondono 404 la pagina, `data/partners.json`, `app.js`, gli stili, i font e i cinque lookbook, anche con la cache saltata. La CDN ha servito le copie in cache per circa dieci minuti dopo lo spegnimento. Anche `gh api repos/tommyieri/luckylap-partner/pages` risponde 404. Il repository è privato (`gh repo view tommyieri/luckylap-partner --json visibility`).
+- **Non riaccenderlo.** Tornerebbe a mostrare contatti e recapiti a chiunque abbia il link. Il repository Partner resta privato e intero, come laboratorio della ricerca (vedi «Import della ricerca»).
 
 ## Test
 
