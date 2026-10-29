@@ -2,7 +2,7 @@
 
 La scheda «Riassortimento» di Magazzino (`/stock/riassortimento`) segue i riordini di magliette: cosa riordinare, a che punto sono, cosa entra nel Magadzino quando arrivano e cosa va consegnato al negozio. Nessuna sezione nuova nel menu: è la quarta scheda di Magazzino, dopo Packaging.
 
-Migrazioni: `supabase/migrations/20261023164150_riassortimento.sql` e `supabase/migrations/20261029113014_restock_edit_delete.sql`. Import iniziale: `supabase/imports/20261023_riassortimento.sql`.
+Migrazioni: `supabase/migrations/20261023164150_riassortimento.sql` e `supabase/migrations/20261029115433_restock_edit_delete.sql`. Import iniziale: `supabase/imports/20261023_riassortimento.sql`.
 
 ## Come funziona
 
