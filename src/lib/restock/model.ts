@@ -158,6 +158,13 @@ export type ShopDonePayload = {
   expected_version: number;
   done: boolean;
 };
+export type DeletedPayload = {
+  schema_version: 1;
+  order_id: string;
+  expected_version: number;
+  deleted: boolean;
+  note: string;
+};
 export type RestockCommand = (
   | { kind: "save_restock_order"; payload: SaveOrderPayload }
   | { kind: "set_restock_lines"; payload: LinesPayload }
@@ -165,6 +172,7 @@ export type RestockCommand = (
   | { kind: "receive_restock_order"; payload: ReceivePayload }
   | { kind: "undo_restock_arrival"; payload: UndoPayload }
   | { kind: "set_restock_shop_done"; payload: ShopDonePayload }
+  | { kind: "set_restock_deleted"; payload: DeletedPayload }
 ) & { operationId: string; retry?: boolean };
 export type RestockCommandKind = RestockCommand["kind"];
 export const RESTOCK_COMMAND_KINDS: readonly RestockCommandKind[] = [
@@ -174,6 +182,7 @@ export const RESTOCK_COMMAND_KINDS: readonly RestockCommandKind[] = [
   "receive_restock_order",
   "undo_restock_arrival",
   "set_restock_shop_done",
+  "set_restock_deleted",
 ];
 const PAYLOAD_KEYS: Record<RestockCommandKind, readonly string[]> = {
   save_restock_order: [
@@ -195,6 +204,7 @@ const PAYLOAD_KEYS: Record<RestockCommandKind, readonly string[]> = {
   ],
   undo_restock_arrival: ["schema_version", "order_id", "expected_version", "note"],
   set_restock_shop_done: ["schema_version", "order_id", "expected_version", "done"],
+  set_restock_deleted: ["schema_version", "order_id", "expected_version", "deleted", "note"],
 };
 
 export type RestockTarget = {
@@ -202,6 +212,7 @@ export type RestockTarget = {
   version: number;
   state?: RestockState;
   pieces?: number;
+  deleted?: boolean;
 };
 export type RestockResult =
   | {
@@ -370,6 +381,24 @@ function parsePayload(kind: RestockCommandKind, p: Record<string, unknown>) {
         expected_version: p.expected_version,
         done: p.done,
       } satisfies ShopDonePayload;
+    case "set_restock_deleted": {
+      const note = cleanNote(p.note, 500);
+      if (
+        !orderId ||
+        !integer(p.expected_version, 1, MAX_VERSION) ||
+        typeof p.deleted !== "boolean" ||
+        note === null ||
+        codePoints(note) < 3
+      )
+        return null;
+      return {
+        schema_version: 1,
+        order_id: orderId,
+        expected_version: p.expected_version,
+        deleted: p.deleted,
+        note,
+      } satisfies DeletedPayload;
+    }
   }
 }
 
@@ -468,6 +497,15 @@ export function restockAttemptSummary(
         lines: [
           named(command.payload.order_id),
           command.payload.done ? "Segnate come consegnate" : "Segno di consegna tolto",
+        ],
+      };
+    case "set_restock_deleted":
+      return {
+        title: command.payload.deleted ? "Eliminazione da verificare" : "Ripristino da verificare",
+        lines: [
+          named(command.payload.order_id),
+          command.payload.note,
+          "Le scorte e lo storico restano invariati.",
         ],
       };
   }

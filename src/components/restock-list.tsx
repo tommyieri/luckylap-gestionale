@@ -3,12 +3,13 @@
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useState, type FormEvent } from "react";
-import { Plus } from "lucide-react";
+import { Plus, Trash2 } from "lucide-react";
 import {
   cleanNote,
   cleanText,
   destinationLabel,
   parseRestockCommand,
+  restockDay,
   restockHref,
   RESTOCK_STATES,
   stateSince,
@@ -36,7 +37,11 @@ export function totalsText(order: RestockOrder): string {
   const parts = (["warehouse", "shop", "customer"] as const)
     .filter((d) => order.totals[d] > 0)
     .map((d) => `${destinationLabel(d, order.shop?.name ?? null)} ${order.totals[d]}`);
-  return parts.length ? parts.join(" · ") : "Nessuna quantità ancora";
+  return parts.length
+    ? parts.join(" · ")
+    : order.state === "in_hand"
+      ? "Chiuso senza ulteriori capi da caricare"
+      : "Nessuna quantità ancora";
 }
 
 /** I cinque passi in piccolo: pieni fino al passo attuale. */
@@ -60,11 +65,14 @@ export function StepTrack({ order }: { order: RestockOrder }) {
 
 function OrderRow({ order }: { order: RestockOrder }) {
   const arrived = order.state === "in_hand";
+  const deleted = Boolean(order.deleted);
   const shop = shopPart(order);
   return (
     <li className={roadbook.row}>
       <span className={roadbook.spine}>
-        {arrived ? (
+        {deleted ? (
+          <Trash2 size={20} aria-hidden="true" />
+        ) : arrived ? (
           <span className={`${roadbook.box} ${roadbook.isDone}`}>fatto</span>
         ) : (
           <>
@@ -77,16 +85,23 @@ function OrderRow({ order }: { order: RestockOrder }) {
         <Link href={restockHref(order.id)} prefetch={false} className={roadbook.rowLink}>
           <span className={roadbook.title}>{order.title}</span>
         </Link>
-        <span className={roadbook.meta}>{stateSince(order.state, order.stateChangedAt)}</span>
+        <span className={roadbook.meta}>
+          {order.deleted
+            ? `Eliminato il ${restockDay(order.deleted.at)} · Recuperabile`
+            : stateSince(order.state, order.stateChangedAt)}
+        </span>
         <span className={`${roadbook.meta} num`}>{totalsText(order)}</span>
-        {arrived && shop.pieces > 0 && (shop.status === "todo" || shop.status === "open") && (
-          <span className={`${roadbook.meta} ${roadbook.late}`}>
-            Da consegnare a {order.shop?.shortName ?? "negozio"}: {shop.pieces - shop.delivered}
-          </span>
-        )}
+        {!deleted &&
+          arrived &&
+          shop.pieces > 0 &&
+          (shop.status === "todo" || shop.status === "open") && (
+            <span className={`${roadbook.meta} ${roadbook.late}`}>
+              Da consegnare a {order.shop?.shortName ?? "negozio"}: {shop.pieces - shop.delivered}
+            </span>
+          )}
       </span>
       <span className={`${roadbook.side} ${styles.rowSide}`}>
-        <StepTrack order={order} />
+        {!deleted && <StepTrack order={order} />}
       </span>
     </li>
   );
@@ -190,11 +205,12 @@ function NewOrderForm({ data, onCancel }: { data: RestockData; onCancel: () => v
 
 function ListBody({ data }: { data: RestockData }) {
   const commands = useRestockCommands();
-  const [view, setView] = useState<"open" | "arrived">("open");
+  const [view, setView] = useState<"open" | "arrived" | "deleted">("open");
   const [creating, setCreating] = useState(false);
-  const open = data.orders.filter((o) => o.state !== "in_hand"),
-    arrived = data.orders.filter((o) => o.state === "in_hand");
-  const shown = view === "open" ? open : arrived;
+  const open = data.orders.filter((o) => !o.deleted && o.state !== "in_hand"),
+    arrived = data.orders.filter((o) => !o.deleted && o.state === "in_hand"),
+    deleted = data.orders.filter((o) => o.deleted);
+  const shown = view === "open" ? open : view === "arrived" ? arrived : deleted;
   return (
     <div className={styles.page}>
       <div className={styles.head}>
@@ -240,7 +256,21 @@ function ListBody({ data }: { data: RestockData }) {
           >
             Arrivati <span className="num">{arrived.length}</span>
           </button>
+          <button
+            type="button"
+            className={`${styles.filter} ${view === "deleted" ? styles.filterOn : ""}`}
+            aria-pressed={view === "deleted"}
+            onClick={() => setView("deleted")}
+          >
+            Eliminati <span className="num">{deleted.length}</span>
+          </button>
         </div>
+        {view === "deleted" && (
+          <p className={styles.sectionNote}>
+            Gli eliminati conservano quantità e storico. Apri un riassortimento per ripristinarlo.
+            Le scorte restano invariate.
+          </p>
+        )}
         {shown.length ? (
           <ul className={roadbook.list}>
             {shown.map((order) => (
@@ -250,12 +280,18 @@ function ListBody({ data }: { data: RestockData }) {
         ) : (
           <div className={styles.emptyState}>
             <p className={styles.emptyTitle}>
-              {view === "open" ? "Nessun riordine in corso." : "Nessun riordine arrivato."}
+              {view === "open"
+                ? "Nessun riordine in corso."
+                : view === "arrived"
+                  ? "Nessun riordine arrivato."
+                  : "Nessun riordine eliminato."}
             </p>
             <p className={styles.sectionNote}>
               {view === "open"
                 ? "Con «Nuovo riordine» si parte da «Discussione su cosa riordinare»: la pagina mostra le giacenze del Magadzino e l’obiettivo per taglia."
-                : "Quando un riordine è «In mano nostra» e le magliette sono in magazzino, lo trovi qui."}
+                : view === "arrived"
+                  ? "Quando un riordine è «In mano nostra» e le magliette sono in magazzino, lo trovi qui."
+                  : "I riassortimenti eliminati compariranno qui e potranno essere ripristinati."}
             </p>
           </div>
         )}

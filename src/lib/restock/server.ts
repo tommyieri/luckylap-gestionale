@@ -47,7 +47,7 @@ function pages(
 }
 
 const ORDER_COLUMNS =
-  "id,title,notes,state,state_changed_at,state_changed_by,warehouse_location_id,shop_location_id,shop_done_at,shop_done_by,version,created_by,created_at,updated_at";
+  "id,title,notes,state,state_changed_at,state_changed_by,warehouse_location_id,shop_location_id,shop_done_at,shop_done_by,version,created_by,created_at,updated_at,deleted_at,deleted_by,deletion_note";
 
 /** Riordini, righe, storico, arrivi, ordini del negozio legati, sedi e negozi. */
 async function readCore(supabase: SupabaseClient): Promise<RestockData> {
@@ -57,7 +57,7 @@ async function readCore(supabase: SupabaseClient): Promise<RestockData> {
     .eq("id", true)
     .single();
   if (settings.error || !settings.data) throw Error("Stato del magazzino non disponibile.");
-  const [orders, lines, events, arrivals, shopOrders, locations, shops, profiles] =
+  const [orders, lines, events, arrivals, shopOrders, locations, shops, profiles, deletionEvents] =
     await Promise.all([
       pages(supabase, "restock_orders", ORDER_COLUMNS),
       pages(
@@ -86,6 +86,7 @@ async function readCore(supabase: SupabaseClient): Promise<RestockData> {
       pages(supabase, "stock_locations", "id,code,name,active,location_type"),
       pages(supabase, "consignment_shops", "location_id,sizes", "location_id"),
       pages(supabase, "profiles", "user_id,display_name", "user_id"),
+      pages(supabase, "restock_deletion_events", "id,order_id,deleted,note,created_by,created_at"),
     ]);
   const linkedIds = shopOrders.map((raw) => record(raw)?.id).filter((v): v is string => uuid(v));
   const shopOrderLines = linkedIds.length
@@ -113,6 +114,7 @@ async function readCore(supabase: SupabaseClient): Promise<RestockData> {
     locations,
     shops,
     profiles,
+    deletionEvents,
   });
 }
 
@@ -123,7 +125,7 @@ export async function readRestockOrder(
 ): Promise<RestockOrder | null> {
   if (!uuid(orderId)) return null;
   const data = await readCore(supabase);
-  return data.orders.find((o) => o.id === orderId.toLowerCase()) ?? null;
+  return data.orders.find((o) => o.id === orderId.toLowerCase() && !o.deleted) ?? null;
 }
 
 export type RestockListRead = { status: "ready"; data: RestockData };
@@ -212,6 +214,7 @@ export const RESTOCK_MESSAGES: Record<string, Message> = {
     "Qualcun altro ha appena modificato questo riordine. Rileggi e ripeti la modifica.",
   ),
   restock_not_found: fixed("Questo riordine non c’è più. Rileggi la pagina."),
+  restock_deleted: fixed("Questo riassortimento è eliminato. Ripristinalo prima di modificarlo."),
   title_taken: fixed("C’è già un riordine con questo titolo. Scegline un altro."),
   invalid_location: fixed("Il magazzino o il negozio scelto non è attivo. Rileggi la pagina."),
   shop_has_lines: fixed(
@@ -308,6 +311,10 @@ function receiptTarget(command: RestockCommand, r: Record<string, unknown>): Res
         : null;
     case "set_restock_shop_done":
       return r.done === command.payload.done ? target : null;
+    case "set_restock_deleted":
+      return r.deleted === command.payload.deleted && isRestockState(r.state)
+        ? { ...target, state: r.state, deleted: r.deleted }
+        : null;
   }
 }
 
@@ -327,6 +334,10 @@ function successMessage(command: RestockCommand, target: RestockTarget): string 
       return command.payload.done
         ? "Magliette per il negozio segnate come consegnate."
         : "Segno di consegna tolto.";
+    case "set_restock_deleted":
+      return command.payload.deleted
+        ? "Riassortimento eliminato. Puoi ripristinarlo da Eliminati; le scorte restano invariate."
+        : "Riassortimento ripristinato. Le scorte restano invariate.";
   }
 }
 
