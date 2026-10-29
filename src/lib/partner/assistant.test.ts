@@ -941,6 +941,7 @@ describe("etichette in italiano", () => {
         "casella",
         "limite",
         "finestra_chiusa",
+        "paese_senza_calendario",
         "destinatario_prova",
         "modalita_cambiata",
         "bozza_cambiata",
@@ -1020,6 +1021,7 @@ describe("etichette in italiano", () => {
         "indirizzo_non_valido",
         "casella_incerta",
         "finestra_chiusa",
+        "paese_senza_calendario",
       ]),
     );
     for (const code of sendLiteral) expect(listed.has(code), code).toBe(true);

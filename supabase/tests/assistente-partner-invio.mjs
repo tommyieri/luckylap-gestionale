@@ -784,7 +784,8 @@ const SEND_RPC_SIGNATURES = [
 const SECTION_2_HELPERS = [
   "private.partner_assistant_country_code(text)",
   "private.partner_assistant_valid_timezone(text)",
-  "private.partner_assistant_window_open(text,text,timestamptz)",
+  "private.partner_assistant_holidays_until()",
+  "private.partner_assistant_window_open(text,text,timestamptz,interval)",
   "private.partner_assistant_next_window(timestamptz)",
   "private.partner_assistant_address(text)",
   "private.partner_assistant_first_real_day()",
@@ -882,6 +883,34 @@ try {
   eq(await fn("private.partner_assistant_valid_timezone('Mars/Base')"), false);
   eq(await fn("private.partner_assistant_valid_timezone('UTC; drop table x')"), false);
   eq(await fn("private.partner_assistant_valid_timezone(null)"), false);
+  // Un fuso è valido se PostgreSQL lo elenca in pg_timezone_names, anche senza «/», come UTC (lo
+  // accetta anche la scelta, con Intl); un nome che non esiste o un fuso POSIX no.
+  for (const tz of ["UTC", "GMT", "Etc/GMT+1", "europe/london"])
+    eq(await fn(`private.partner_assistant_valid_timezone('${tz}')`), true, tz);
+  for (const tz of ["Europe/Atlantide", "UTC+3", "<+03>-3", " Europe/Rome", ""])
+    eq(await fn(`private.partner_assistant_valid_timezone('${tz}')`), false, tz);
+  eq(
+    await open("UTC", "Italia", "2026-11-10T10:30:00Z"),
+    true,
+    "10:30 in UTC, non le 11:30 di Roma",
+  );
+  eq(await open("UTC", "Italia", "2026-11-10T09:00:00Z"), false, "9:00 in UTC");
+  eq(
+    await open("Europe/Atlantide", "Italia", "2026-11-10T10:30:00Z"),
+    false,
+    "fuso inesistente: Roma",
+  );
+  // Dopo l'ultimo giorno coperto dalla tabella delle feste (31 gennaio 2027) la finestra resta
+  // chiusa, in ogni paese, finché una migrazione non la estende.
+  eq(await open("Europe/Rome", "Italia", "2027-01-29T09:00:00Z"), true, "venerdì 29 gennaio");
+  eq(await open("Europe/Rome", "Italia", "2027-02-01T09:00:00Z"), false, "lunedì 1° febbraio");
+  eq(await open("Europe/London", "Regno Unito", "2027-02-01T10:00:00Z"), false);
+  eq(await open("Europe/Rome", "Narnia", "2027-02-01T09:00:00Z"), false);
+  eq(
+    await nextWindow("2027-01-29T10:30:00Z"),
+    null,
+    "nessuna finestra dopo la tabella delle feste",
+  );
   eq(await holidayCounts(), { IT: 2, AT: 2, FR: 2, ES: 3, BE: 2 });
   ok(await holidaysBetween("2026-10-29", "2027-01-31"));
   ok(await holidaysOutside("12-21", "01-07"));
@@ -1139,12 +1168,30 @@ try {
   await rejects(() => pauseSend("rimbalzi"), "22023");
   await resumeAsFounder();
   await readyFirst(997);
-  const r997 = await prepare(await candidateAt("2026-11-10T09:59:00Z", 997)); // 10:59 a Roma
-  lastAt = "2026-11-10T10:00:00Z";
+  // Margine di 90 secondi: la finestra deve essere aperta adesso e tra 90 secondi, così un invio
+  // non comincia a ridosso delle 11:00 del destinatario.
+  await release();
+  await onlyQueue(997);
+  eq(
+    (await claimAt("2026-11-10T09:59:00Z")).reason, // 10:59 a Roma
+    "fuori_finestra",
+    "alle 10:59 nessun candidato",
+  );
+  const c997 = await candidateAt("2026-11-10T09:58:00Z", 997); // 10:58 a Roma
+  lastAt = "2026-11-10T09:59:00Z";
+  eq(
+    await prepare(c997),
+    { status: "rifiutato", reason: "finestra_chiusa" },
+    "prepare alle 10:59: niente messaggio",
+  );
+  lastAt = "2026-11-10T09:58:00Z";
+  const r997 = await prepare(c997);
+  eq(r997.status, "pronto");
+  lastAt = "2026-11-10T09:59:00Z";
   eq(
     await start(r997),
     { status: "stop", reason: "finestra_chiusa" },
-    "la finestra chiude tra prepare e start",
+    "la finestra chiude tra prepare e start, entro i 90 secondi",
   );
   // Fuoco 4: giro morto dopo start
   await readyFirst(957);
@@ -1152,7 +1199,13 @@ try {
   await start(u);
   const deadLease = heldLease;
   await expireLease();
-  await claimAt("2026-11-11T09:00:00Z");
+  await resetSendClock();
+  eq(
+    (await claimAt("2026-11-11T09:00:00Z")).reason,
+    "intervallo",
+    "un incerto dal giro morto conta come un invio: l'intervallo riparte",
+  );
+  ok(between(await nextSendAfterMinutes("2026-11-11T09:00:00Z"), 4, 11));
   eq(
     await finish(u, { outcome: "inviato", smtp_code: 250 }, deadLease),
     { status: "lease_persa" },
@@ -1168,6 +1221,7 @@ try {
     () => insertMessage({ partner: pid(957), mode: "invio", send_status: "pronto" }),
     "23505",
   ); // mai una seconda prima email
+  await resetSendClock();
   await readyFirst(958);
   const w = await prepare(await candidateAt("2026-11-11T09:10:00Z", 958));
   const expiredLease = heldLease;
@@ -1290,6 +1344,24 @@ try {
     [(await job(pid(977))).status, (await job(pid(977))).reason],
     ["serve_tommaso", "bozza_scaduta"],
   );
+  // Un paese senza calendario: nessuna festa, ma un evento per Tommi, una volta per contatto.
+  const noCalendar = (partnerId) =>
+    value(
+      `select count(*)::int as v from private.partner_assistant_events
+        where partner_id = $1 and step = 'invio' and outcome = 'paese_senza_calendario'`,
+      [partnerId],
+    );
+  await release();
+  await readyFirst(1104, { country: "Narnia" });
+  await onlyQueue(1104, 978);
+  eq((await claimAt(await nextOpen())).candidate.co, 978);
+  eq(await noCalendar(pid(978)), 0, "Italia ha il suo calendario");
+  await release();
+  await onlyQueue(1104);
+  eq((await claimAt(lastAt)).candidate.co, 1104, "senza calendario si manda, senza feste");
+  await release();
+  eq((await claimAt(lastAt)).candidate.co, 1104);
+  eq(await noCalendar(pid(1104)), 1, "un solo evento per contatto");
   // limiti del giorno e capacità
   await release();
   const erasedCo = nextSyntheticCo;

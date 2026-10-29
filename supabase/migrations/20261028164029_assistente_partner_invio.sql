@@ -848,7 +848,9 @@ to authenticated;
 -- ---------------------------------------------------------------------------
 
 -- Feste nazionali dal 29 ottobre 2026 al 31 gennaio 2027, senza le date tra il 21 dicembre e il 7
--- gennaio (già senza invii). Regno Unito: Inghilterra e Galles; Svizzera: tutti i cantoni.
+-- gennaio (già senza invii). Regno Unito: Inghilterra e Galles; Svizzera: tutti i cantoni. Dopo il
+-- 31 gennaio 2027 la finestra resta chiusa (partner_assistant_holidays_until) finché una migrazione
+-- non estende la tabella.
 create table private.partner_assistant_holidays (
   country_code text not null check (country_code ~ '^[A-Z]{2}$'),
   day date not null,
@@ -878,6 +880,10 @@ insert into private.partner_assistant_countries(alias, country_code) values
   ('belgio', 'BE'), ('belgium', 'BE'), ('belgique', 'BE'), ('belgië', 'BE'), ('be', 'BE'),
   ('paesi bassi', 'NL'), ('olanda', 'NL'), ('netherlands', 'NL'), ('nederland', 'NL'), ('nl', 'NL');
 
+-- Per l'evento «paese senza calendario», una volta per contatto.
+create index partner_assistant_events_no_calendar on private.partner_assistant_events(partner_id)
+  where outcome = 'paese_senza_calendario';
+
 alter table private.partner_assistant_holidays enable row level security;
 alter table private.partner_assistant_countries enable row level security;
 revoke all on table private.partner_assistant_holidays, private.partner_assistant_countries
@@ -893,35 +899,50 @@ language sql stable security invoker set search_path = '' as $$
   select c.country_code from private.partner_assistant_countries c where c.alias = lower(btrim(p_country))
 $$;
 
--- Un fuso IANA che PostgreSQL conosce, scritto come Area/Luogo (al massimo Area/Zona/Luogo).
+-- Un fuso che PostgreSQL elenca in pg_timezone_names, senza badare alle maiuscole come AT TIME ZONE:
+-- anche senza «/», come UTC o GMT, che la scelta accetta con Intl. Mai un fuso POSIX («UTC+3»),
+-- che pg_timezone_names non elenca.
 create function private.partner_assistant_valid_timezone(p_timezone text) returns boolean
-language plpgsql stable security invoker set search_path = '' as $$
-begin
-  if p_timezone is null or p_timezone !~ '^[A-Za-z_]+(/[A-Za-z0-9_+-]+){1,2}$' then return false; end if;
-  perform now() at time zone p_timezone;
-  return true;
-exception when others then
-  return false;
-end
+language sql stable security invoker set search_path = '' as $$
+  select coalesce(p_timezone <> '' and exists (select 1 from pg_catalog.pg_timezone_names z
+    where lower(z.name) = lower(p_timezone)), false)
+$$;
+
+-- L'ultimo giorno coperto dalla tabella delle feste. Dopo, la finestra resta chiusa in ogni paese
+-- finché una migrazione non aggiunge le feste nuove e non sposta questa data.
+create function private.partner_assistant_holidays_until() returns date
+language sql immutable security invoker set search_path = '' as $$
+  select date '2027-01-31'
 $$;
 
 -- La finestra d'invio del destinatario: lunedì-venerdì, dalle 9:30 incluse alle 11:00 escluse nel
 -- suo fuso (Europe/Rome se manca o non è valido), fuori dal 21 dicembre-7 gennaio e dalle feste
--- nazionali del paese della scheda.
-create function private.partner_assistant_window_open(p_timezone text, p_country text, p_at timestamptz)
+-- nazionali del paese della scheda, fino all'ultimo giorno coperto dalla tabella delle feste. Un
+-- paese che la tabella dei paesi non conosce non ha feste (il claim lo segnala negli eventi). Con un margine, aperta sia a p_at sia a p_at + margine: claim,
+-- prepare e start chiedono 90 secondi, così un invio non comincia a ridosso delle 11:00.
+create function private.partner_assistant_window_open(p_timezone text, p_country text, p_at timestamptz,
+  p_margin interval default interval '0')
 returns boolean
 language plpgsql stable security invoker set search_path = '' as $$
 declare
+  -- Roma senza cercarla in pg_timezone_names: è anche il fuso di riserva.
+  v_zone text := case when p_timezone = 'Europe/Rome' then p_timezone
+    when private.partner_assistant_valid_timezone(p_timezone) then p_timezone else 'Europe/Rome' end;
+  v_code text := private.partner_assistant_country_code(p_country);
   v_local timestamp;
 begin
-  if p_at is null then return false; end if;
-  v_local := p_at at time zone case when private.partner_assistant_valid_timezone(p_timezone) then p_timezone
-    else 'Europe/Rome' end;
-  return extract(isodow from v_local) between 1 and 5
-    and v_local::time >= time '09:30' and v_local::time < time '11:00'
-    and to_char(v_local::date, 'MM-DD') between '01-08' and '12-20'
-    and not exists (select 1 from private.partner_assistant_holidays h
-      where h.country_code = private.partner_assistant_country_code(p_country) and h.day = v_local::date);
+  if p_at is null or p_margin is null or p_margin < interval '0' then return false; end if;
+  foreach v_local in array array[p_at at time zone v_zone, (p_at + p_margin) at time zone v_zone] loop
+    if not (extract(isodow from v_local) between 1 and 5
+        and v_local::time >= time '09:30' and v_local::time < time '11:00'
+        and to_char(v_local::date, 'MM-DD') between '01-08' and '12-20'
+        and v_local::date <= private.partner_assistant_holidays_until()
+        and not exists (select 1 from private.partner_assistant_holidays h
+          where h.country_code = v_code and h.day = v_local::date)) then
+      return false;
+    end if;
+  end loop;
+  return true;
 end
 $$;
 
@@ -1104,7 +1125,7 @@ declare
   v_now timestamptz; v_today date; v_rules integer; v_reason text; v_appends jsonb := '[]'::jsonb;
   v_partner uuid; v_draft uuid; v_run uuid; v_index integer; v_remaining boolean := false;
   v_move_partners uuid[] := '{}'; v_move_drafts uuid[] := '{}'; v_move_reasons text[] := '{}';
-  v_candidate jsonb; v_token uuid; r record;
+  v_candidate jsonb; v_token uuid; v_dead_uncertain integer := 0; r record;
 begin
   perform private.partner_assistant_service_required();
   perform private.partner_assistant_as_actor();
@@ -1126,6 +1147,7 @@ begin
   if s.lease_expires_at > clock_timestamp() then return jsonb_build_object('status', 'idle', 'reason', 'occupato'); end if;
   -- 3. Giri morti (nessuna lease attiva): un messaggio preparato non è partito; uno in invio può
   -- essere partito, quindi resta incerto e il contatto passa a Tommi. Prima i contatti, poi i lavori.
+  -- Un incerto conta come un invio: l'intervallo da 4 a 11 minuti riparte da adesso, come in finish.
   if exists (select 1 from public.partner_assistant_messages m where m.send_status in ('pronto', 'in_invio')) then
     perform 1 from public.partners p
       where p.id in (select m.partner_id from public.partner_assistant_messages m
@@ -1147,9 +1169,18 @@ begin
       update public.partner_assistant_jobs l set status = 'serve_tommaso', reason = 'invio_incerto',
           lease_token = null, lease_expires_at = null, updated_at = now()
         where l.partner_id in (select d.partner_id from dead d where d.mode = 'invio' and d.send_status = 'incerto')
-        returning l.partner_id)
-    insert into private.partner_assistant_events(partner_id, step, outcome)
-      select d.partner_id, 'invio', 'invio_abbandonato' from dead d;
+        returning l.partner_id),
+    logged as (
+      insert into private.partner_assistant_events(partner_id, step, outcome)
+        select d.partner_id, 'invio', 'invio_abbandonato' from dead d
+        returning 1)
+    select count(*) filter (where d.send_status = 'incerto') into v_dead_uncertain from dead d;
+    if v_dead_uncertain > 0 then
+      update private.partner_assistant_mail_state
+        set next_send_after = v_now + make_interval(secs => 240 + floor(random() * 421))
+        where singleton
+        returning * into s;
+    end if;
   end if;
   -- 4. Copie arretrate in «Posta inviata», non durante un fermo della casella o un'attesa.
   if s.stop_reason is distinct from 'casella' and (s.backoff_until is null or s.backoff_until <= v_now) then
@@ -1200,11 +1231,19 @@ begin
           and k.link_value is not null
       order by o.rank
     loop
+      -- Un paese che la tabella dei paesi non conosce: si manda senza feste, con un evento per
+      -- Tommi, una volta per contatto.
+      if r.reason is null and private.partner_assistant_country_code(r.country) is null
+        and not exists (select 1 from private.partner_assistant_events e
+          where e.partner_id = r.partner_id and e.outcome = 'paese_senza_calendario') then
+        insert into private.partner_assistant_events(partner_id, step, outcome)
+          values (r.partner_id, 'invio', 'paese_senza_calendario');
+      end if;
       if r.reason is not null then
         v_move_partners := v_move_partners || r.partner_id;
         v_move_drafts := v_move_drafts || r.draft_id;
         v_move_reasons := v_move_reasons || r.reason;
-      elsif private.partner_assistant_window_open(r.timezone, r.country, v_now) then
+      elsif private.partner_assistant_window_open(r.timezone, r.country, v_now, interval '90 seconds') then
         v_partner := r.partner_id;
         v_draft := r.draft_id;
         exit;
@@ -1417,8 +1456,8 @@ begin
     when v_mode = 'invio' and v_check <> 'vuota' then 'casella'
     when v_mode = 'invio' and private.partner_assistant_first_sent(v_today)
       >= private.partner_assistant_first_limit(v_today) then 'limite'
-    when v_mode = 'invio' and not private.partner_assistant_window_open(v_choice ->> 'timezone', v_country, v_now)
-      then 'finestra_chiusa'
+    when v_mode = 'invio' and not private.partner_assistant_window_open(v_choice ->> 'timezone', v_country, v_now,
+        interval '90 seconds') then 'finestra_chiusa'
     when v_mode = 'prova' and exists (select 1 from public.partner_contacts k
         where k.link_value is not null and lower(k.link_value) = v_to) then 'destinatario_prova'
     when v_mode = 'prova' and private.partner_assistant_test_sent(v_today) >= 15 then 'limite'
@@ -1493,8 +1532,8 @@ begin
     when s.stop_reason is not null or s.day_stopped_on = v_today or s.backoff_until > v_now then 'fermo'
     when m.mode = 'invio' and not private.partner_assistant_eligible(m.partner_id) then 'non_idoneo'
     when m.mode = 'invio' and m.to_address is distinct from v_address then 'recapito_cambiato'
-    when m.mode = 'invio' and not private.partner_assistant_window_open(v_timezone, v_country, v_now)
-      then 'finestra_chiusa'
+    when m.mode = 'invio' and not private.partner_assistant_window_open(v_timezone, v_country, v_now,
+        interval '90 seconds') then 'finestra_chiusa'
   end;
   if v_reason is not null then
     update public.partner_assistant_messages set send_status = 'scartato', outcome = v_reason, updated_at = now()
@@ -1805,7 +1844,9 @@ language sql stable security invoker set search_path = '' as $$ select private.r
 -- solo ad authenticated. Le funzioni di supporto restano senza grant.
 revoke all on function
   private.partner_assistant_country_code(text), private.partner_assistant_valid_timezone(text),
-  private.partner_assistant_window_open(text, text, timestamptz), private.partner_assistant_next_window(timestamptz),
+  private.partner_assistant_holidays_until(),
+  private.partner_assistant_window_open(text, text, timestamptz, interval),
+  private.partner_assistant_next_window(timestamptz),
   private.partner_assistant_address(text), private.partner_assistant_first_real_day(),
   private.partner_assistant_first_limit(date), private.partner_assistant_first_sent(date),
   private.partner_assistant_test_sent(date), private.partner_assistant_mail_guard(uuid, boolean),

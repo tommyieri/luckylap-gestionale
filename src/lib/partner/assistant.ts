@@ -225,6 +225,7 @@ export const PARTNER_ASSISTANT_EVENT_LABELS = {
   casella: "Casella non controllata: l'email non parte",
   limite: "Limite del giorno raggiunto",
   finestra_chiusa: "Fuori dall'orario del destinatario",
+  paese_senza_calendario: "Paese senza calendario: nessuna festa considerata",
   destinatario_prova: "Indirizzo di prova tra i recapiti: prova fermata",
   modalita_cambiata: "Modalità cambiata: l'email non parte",
   bozza_cambiata: "Bozza cambiata: l'email non parte",

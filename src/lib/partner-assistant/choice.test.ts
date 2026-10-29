@@ -101,6 +101,20 @@ describe("parsePartnerAssistantChoice", () => {
     });
   });
 
+  it("un fuso senza «/» che PostgreSQL elenca, come UTC e GMT, è ammesso (come in SQL)", () => {
+    // private.partner_assistant_valid_timezone: un nome di pg_timezone_names, UTC compreso.
+    for (const timezone of ["UTC", "GMT", "Etc/GMT+1"])
+      expect(parsePartnerAssistantChoice({ ...validJson, timezone }), timezone).toEqual({
+        ...validChoice,
+        timezone,
+      });
+  });
+
+  it("un fuso che non esiste è rifiutato (in SQL varrebbe Roma)", () => {
+    for (const timezone of ["Europe/Atlantide", "UTC+3", "Ora/Locale"])
+      expect(parsePartnerAssistantChoice({ ...validJson, timezone }), timezone).toBeNull();
+  });
+
   it("email, fonti e date vuote sono ammesse", () => {
     const empty = {
       ...validJson,
