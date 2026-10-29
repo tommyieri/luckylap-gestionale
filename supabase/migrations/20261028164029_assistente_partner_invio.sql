@@ -14,9 +14,10 @@
 -- - Ora dell'assistente: private.partner_assistant_now(), now() salvo negli harness, e il giorno di
 --   Roma. L'ordine d'invio sta solo in private.partner_assistant_send_order().
 -- - Ridefinite con create or replace (stessa firma, stessi grant, stesse risposte): la classifica di
---   preparazione (prima send_priority), la cancellazione definitiva (anche i messaggi; invio_incerto
---   se l'email può essere partita), il trigger dei solleciti (origine «assistente»: il promemoria va a
---   chi riceve i passaggi), claim e checkpoint (girano anche in «prova» e «invio»), modalità
+--   preparazione (prima send_priority), la cancellazione definitiva (anche i messaggi: un invio
+--   vero partito o forse partito resta senza indirizzo né testi, con l'impronta dell'indirizzo;
+--   invio_incerto se l'email può essere partita; un lavoro «inviata» resta tale), il trigger dei
+--   solleciti (origine «assistente»: il promemoria va a chi riceve i passaggi), claim e checkpoint (girano anche in «prova» e «invio»), modalità
 --   («prova» e «invio» al founder, «invio» solo con la prova confermata), interruttore
 --   (conversazione_esistente e invio_incerto restano a Tommi) e regole (un messaggio in corso,
 --   inviato o incerto o un lavoro «inviata» non tornano in scrittura).
@@ -128,13 +129,20 @@ create table private.partner_assistant_mail_state (
 );
 insert into private.partner_assistant_mail_state default values;
 
+-- L'impronta SHA-256 di un indirizzo già normalizzato (partner_assistant_address).
+create function private.partner_assistant_address_sha256(p_address text) returns text
+language sql immutable security invoker set search_path = '' as $$
+  select encode(sha256(convert_to(p_address, 'UTF8')), 'hex')
+$$;
+
 -- Le email preparate dall'assistente, prova e invio vero. Il testo è quello composto (frase di uscita
 -- compresa); raw è il messaggio MIME, solo ASCII, con la sua impronta. I vincoli di tipo, modalità e
 -- stato hanno un nome esplicito: la 2b li allargherà.
 create table public.partner_assistant_messages (
   id uuid primary key default gen_random_uuid(),
   partner_id uuid not null references public.partners(id) on delete cascade,
-  draft_id uuid not null references public.partner_assistant_drafts(id),
+  -- Nulla solo in una riga cancellata (partner_assistant_erase): la bozza non c'è più.
+  draft_id uuid references public.partner_assistant_drafts(id),
   kind text not null constraint partner_assistant_messages_kind_check check (kind in ('primo')),
   mode text not null constraint partner_assistant_messages_mode_check check (mode in ('prova', 'invio')),
   send_status text not null constraint partner_assistant_messages_status_check
@@ -144,6 +152,9 @@ create table public.partner_assistant_messages (
   message_id text not null unique check (message_id ~ '^<[0-9a-f-]{36}@[a-z0-9-]+(\.[a-z0-9-]+)+>$'),
   to_address text not null check (char_length(to_address) <= 254
     and to_address ~ '^[a-z0-9._%+-]{1,64}@[a-z0-9-]+(\.[a-z0-9-]+)+$'),
+  -- L'impronta dell'indirizzo, scritta dalla guardia all'inserimento: la guardia sullo stesso
+  -- indirizzo da due schede usa questa, che resta anche dopo una cancellazione definitiva.
+  address_sha256 text not null check (address_sha256 ~ '^[0-9a-f]{64}$'),
   subject text not null check (char_length(subject) between 1 and 300),
   body text not null check (char_length(body) between 1 and 20000),
   raw text not null check (octet_length(raw) <= 65536 and octet_length(raw) = char_length(raw)),
@@ -156,6 +167,9 @@ create table public.partner_assistant_messages (
   outcome text check (outcome ~ '^[a-z][a-z0-9_]{0,79}$'),
   sent_at timestamptz,
   appended_at timestamptz,
+  -- Cancellazione definitiva di un invio vero partito o forse partito: la riga resta, con valori
+  -- neutri al posto di indirizzo, oggetto, testo e messaggio, senza bozza.
+  erased_at timestamptz,
   operation_id uuid not null unique,
   created_by uuid not null references public.profiles(user_id),
   created_at timestamptz not null default now(),
@@ -166,14 +180,17 @@ create table public.partner_assistant_messages (
     and (test_run_id is null) = (test_index is null)),
   constraint partner_assistant_messages_send_day_check check (send_status in ('pronto', 'scartato') or send_day is not null),
   constraint partner_assistant_messages_sent_at_check check (send_status not in ('inviato', 'incerto') or sent_at is not null),
-  constraint partner_assistant_messages_appended_at_check check (appended_at is null or send_status = 'inviato')
+  constraint partner_assistant_messages_appended_at_check check (appended_at is null or send_status = 'inviato'),
+  constraint partner_assistant_messages_erased_check check ((draft_id is not null or erased_at is not null)
+    and (erased_at is null or mode = 'invio')
+    and (erased_at is not null or address_sha256 = private.partner_assistant_address_sha256(to_address)))
 );
 -- «Mai due volte»: una sola prima email vera viva per contatto. Le prove non contano.
 create unique index partner_assistant_messages_one_first on public.partner_assistant_messages(partner_id)
   where mode = 'invio' and kind = 'primo' and send_status in ('pronto', 'in_invio', 'inviato', 'incerto');
 create unique index partner_assistant_messages_one_test on public.partner_assistant_messages(test_run_id, draft_id, test_index)
   where mode = 'prova' and send_status in ('pronto', 'in_invio', 'inviato', 'incerto');
-create index partner_assistant_messages_address on public.partner_assistant_messages(to_address, created_at desc)
+create index partner_assistant_messages_address on public.partner_assistant_messages(address_sha256, created_at desc)
   where mode = 'invio';
 create index partner_assistant_messages_send_day on public.partner_assistant_messages(send_day)
   where send_day is not null;
@@ -200,16 +217,32 @@ $$;
 
 -- Un messaggio non si cancella (salvo partner_assistant_erase, con il flag acceso) e non si
 -- riscrive: un update cambia solo lo stato in avanti, giorno, codici, esito, ora d'invio e
--- updated_at, e la copia in «Posta inviata» da nulla a valorizzata su un inviato.
+-- updated_at, e la copia in «Posta inviata» da nulla a valorizzata su un inviato. Con il flag
+-- acceso, una sola volta, la cancellazione definitiva di un invio vero: valori neutri al posto di
+-- indirizzo, oggetto, testo e messaggio, senza bozza; tutto il resto, impronta dell'indirizzo
+-- compresa, resta. All'inserimento la guardia scrive l'impronta dell'indirizzo.
 create function private.partner_assistant_message_guard() returns trigger
 language plpgsql security invoker set search_path = '' as $$
 declare
   v_free text[] := array['send_status', 'send_day', 'smtp_code', 'enhanced_code', 'outcome', 'sent_at', 'updated_at',
     'appended_at'];
+  v_erased text[] := array['to_address', 'subject', 'body', 'raw', 'sha256', 'draft_id', 'erased_at', 'updated_at'];
 begin
+  if tg_op = 'INSERT' then
+    new.address_sha256 := private.partner_assistant_address_sha256(new.to_address);
+    new.erased_at := null;
+    return new;
+  end if;
   if tg_op = 'DELETE' then
     if current_setting('luckylap.partner_assistant.erase', true) = 'on' then return old; end if;
     raise exception 'partner_assistant_message_immutable' using errcode = '42501';
+  end if;
+  if current_setting('luckylap.partner_assistant.erase', true) = 'on' and old.erased_at is null
+    and new.erased_at is not null then
+    if (to_jsonb(new) - v_erased) is distinct from (to_jsonb(old) - v_erased) or new.draft_id is not null then
+      raise exception 'partner_assistant_message_immutable' using errcode = '42501';
+    end if;
+    return new;
   end if;
   if (to_jsonb(new) - v_free) is distinct from (to_jsonb(old) - v_free)
     or (new.send_status is distinct from old.send_status and not (
@@ -222,7 +255,7 @@ begin
   return new;
 end
 $$;
-create trigger partner_assistant_messages_guard before update or delete on public.partner_assistant_messages
+create trigger partner_assistant_messages_guard before insert or update or delete on public.partner_assistant_messages
   for each row execute function private.partner_assistant_message_guard();
 
 -- ---------------------------------------------------------------------------
@@ -276,9 +309,14 @@ $$;
 -- Cancellazione definitiva, ridefinita
 -- ---------------------------------------------------------------------------
 
--- Come 20261028122704, con in più i messaggi, per primi (puntano alle bozze senza on delete). Se il
--- contatto ha un invio vero in corso o incerto l'email può essere partita: il motivo è
--- invio_incerto, anche su un lavoro già di Tommi, e l'interruttore non lo riprende.
+-- Come 20261028122704, con in più i messaggi, per primi (puntano alle bozze senza on delete). Un
+-- invio vero partito o forse partito (in invio, inviato, incerto) non si toglie: resta la riga, con
+-- valori neutri al posto di indirizzo, oggetto, testo e messaggio e senza bozza, perché conta per il
+-- limite del giorno, per il primo giorno vero e, con l'impronta dell'indirizzo, per la guardia
+-- sullo stesso indirizzo da un'altra scheda. Gli altri messaggi si cancellano. Se il contatto ha un
+-- invio vero in corso o incerto l'email può essere partita: il motivo è invio_incerto, anche su un
+-- lavoro già di Tommi, e l'interruttore non lo riprende. Un lavoro «inviata» resta «inviata»:
+-- perde solo i riferimenti a note e bozza.
 create or replace function private.partner_assistant_erase(p_partner_id uuid) returns void
 language plpgsql security definer set search_path = '' as $$
 declare
@@ -288,16 +326,25 @@ begin
   v_uncertain := exists (select 1 from public.partner_assistant_messages m
     where m.partner_id = p_partner_id and m.mode = 'invio' and m.send_status in ('in_invio', 'incerto'));
   perform pg_catalog.set_config('luckylap.partner_assistant.erase', 'on', true);
-  delete from public.partner_assistant_messages where partner_id = p_partner_id;
+  update public.partner_assistant_messages set to_address = 'cancellato@cancellato.invalid',
+      subject = 'Dato cancellato', body = 'Dato cancellato.', raw = 'Dato cancellato.',
+      sha256 = encode(sha256(convert_to('Dato cancellato.', 'UTF8')), 'hex'), draft_id = null, erased_at = now(),
+      updated_at = now()
+    where partner_id = p_partner_id and mode = 'invio' and send_status in ('in_invio', 'inviato', 'incerto')
+      and erased_at is null;
+  delete from public.partner_assistant_messages where partner_id = p_partner_id and erased_at is null;
   delete from public.partner_assistant_drafts where partner_id = p_partner_id;
   delete from public.partner_assistant_notes where partner_id = p_partner_id;
   perform pg_catalog.set_config('luckylap.partner_assistant.erase', coalesce(v_previous, ''), true);
+  update public.partner_assistant_jobs set lease_token = null, lease_expires_at = null, research_note_id = null,
+      choice_note_id = null, draft_id = null, updated_at = now()
+    where partner_id = p_partner_id and status = 'inviata';
   update public.partner_assistant_jobs set status = 'serve_tommaso', step = 'ricerca', attempts = 0, rewrites = 0,
       reason = case when v_uncertain then 'invio_incerto' when status = 'serve_tommaso' then reason
         else 'dato_cancellato' end,
       write_on = null, lease_token = null, lease_expires_at = null, research_note_id = null, choice_note_id = null,
       draft_id = null, next_attempt_at = now(), updated_at = now()
-    where partner_id = p_partner_id;
+    where partner_id = p_partner_id and status <> 'inviata';
 end
 $$;
 
@@ -775,7 +822,8 @@ revoke all on table private.partner_assistant_test_runs, private.partner_assista
 -- 20261023140414.
 revoke all on function
   private.partner_assistant_now(), private.partner_assistant_rome_day(timestamptz),
-  private.partner_assistant_message_guard(), private.partner_assistant_send_order(),
+  private.partner_assistant_address_sha256(text), private.partner_assistant_message_guard(),
+  private.partner_assistant_send_order(),
   private.start_partner_assistant_test(uuid, jsonb), public.start_partner_assistant_test(uuid, jsonb),
   private.confirm_partner_assistant_test(uuid, jsonb), public.confirm_partner_assistant_test(uuid, jsonb),
   private.set_partner_assistant_send_priority(uuid, jsonb), public.set_partner_assistant_send_priority(uuid, jsonb),
@@ -1109,7 +1157,8 @@ begin
         'sent_at', a.sent_at) order by a.sent_at, a.id), '[]'::jsonb)
       into v_appends
       from (select m.id, m.message_id, m.raw, m.sent_at from public.partner_assistant_messages m
-        where m.send_status = 'inviato' and m.appended_at is null and m.sent_at >= v_now - interval '7 days'
+        where m.send_status = 'inviato' and m.appended_at is null and m.erased_at is null
+          and m.sent_at >= v_now - interval '7 days'
         order by m.sent_at, m.id limit 3) a;
   end if;
   -- 5. I cancelli del candidato.
@@ -1137,7 +1186,8 @@ begin
           when private.partner_assistant_address(k.link_value) is null then 'indirizzo_non_valido'
           when exists (select 1 from public.partner_assistant_messages m
               where m.mode = 'invio' and m.partner_id <> o.partner_id
-                and m.to_address = private.partner_assistant_address(k.link_value)
+                and m.address_sha256
+                  = private.partner_assistant_address_sha256(private.partner_assistant_address(k.link_value))
                 and m.send_status in ('pronto', 'in_invio', 'inviato', 'incerto')
                 and m.created_at >= v_now - interval '365 days') then 'conversazione_esistente'
         end as reason
@@ -1360,7 +1410,8 @@ begin
     when v_mode = 'invio' and v_research <= v_now - interval '21 days' then 'ricerca_scaduta'
     when v_mode = 'invio' and v_event <= v_today then 'bozza_scaduta'
     when v_mode = 'invio' and exists (select 1 from public.partner_assistant_messages m
-        where m.mode = 'invio' and m.partner_id <> j.partner_id and m.to_address = v_to
+        where m.mode = 'invio' and m.partner_id <> j.partner_id
+          and m.address_sha256 = private.partner_assistant_address_sha256(v_to)
           and m.send_status in ('pronto', 'in_invio', 'inviato', 'incerto')
           and m.created_at >= v_now - interval '365 days') then 'conversazione_esistente'
     when v_mode = 'invio' and v_check <> 'vuota' then 'casella'

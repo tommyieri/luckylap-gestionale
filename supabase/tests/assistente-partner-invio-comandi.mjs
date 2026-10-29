@@ -589,6 +589,7 @@ const TEAM_COMMANDS = [
 const NEW_HELPERS = [
   "private.partner_assistant_now()",
   "private.partner_assistant_rome_day(timestamptz)",
+  "private.partner_assistant_address_sha256(text)",
   "private.partner_assistant_message_guard()",
   "private.partner_assistant_send_order()",
 ];
@@ -1314,7 +1315,57 @@ try {
     "invio_incerto",
     "cancellata tra start e finish: l'email può essere partita",
   );
-  eq(await countRows(p(994), ["messages", "drafts", "notes"]), 0);
+  eq(await countRows(p(994), ["drafts", "notes"]), 0);
+  eq(
+    pick(
+      await one(
+        `select send_status, to_address, subject, body, raw, draft_id, erased_at is not null as erased,
+           address_sha256 from public.partner_assistant_messages where partner_id = $1`,
+        [p(994)],
+      ),
+      [
+        "send_status",
+        "to_address",
+        "subject",
+        "body",
+        "raw",
+        "draft_id",
+        "erased",
+        "address_sha256",
+      ],
+    ),
+    {
+      send_status: "in_invio",
+      to_address: "cancellato@cancellato.invalid",
+      subject: "Dato cancellato",
+      body: "Dato cancellato.",
+      raw: "Dato cancellato.",
+      draft_id: null,
+      erased: true,
+      address_sha256: sha("info@club-994.example.test"),
+    },
+    "l'invio in corso resta, senza indirizzo né testi",
+  );
+  // La riga cancellata non si riscrive e non si cancella; può solo andare avanti di stato.
+  const erasedRow = await value(
+    "select id as v from public.partner_assistant_messages where partner_id = $1",
+    [p(994)],
+  );
+  await rejects(
+    () =>
+      asOwner(
+        `update public.partner_assistant_messages set to_address = 'info@club-994.example.test' where id = '${erasedRow}'`,
+      ),
+    "42501",
+  );
+  await rejects(
+    () =>
+      db.exec(`begin; set local luckylap.partner_assistant.erase = 'on';
+        update public.partner_assistant_messages set subject = 'Altro' where id = '${erasedRow}'; commit;`),
+    "42501",
+  );
+  await db.exec("rollback");
+  await asOwner(forward(erasedRow, "inviato"));
   await cmd_consultant("set_partner_assistant_contact", { partner_id: p(994), active: true });
   eq((await job(p(994))).status, "serve_tommaso", "l'interruttore non la riprende");
   await readyFirst(999);

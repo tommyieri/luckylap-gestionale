@@ -583,6 +583,19 @@ async function deactivateDraftContact(partnerId) {
   );
 }
 
+// La cancellazione definitiva di un recapito, come remove_partner_contact con «cancella».
+const eraseContactOf = (partnerId) =>
+  asOwner(
+    `update public.partner_contacts set value = null, link_value = null, label = '', research_value = null,
+       active = false, erased_at = now(), erased_by = $2, version = version + 1
+     where partner_id = $1 and kind = 'email'`,
+    [partnerId, founder],
+  );
+const countDrafts = (partnerId) =>
+  value("select count(*)::int as v from public.partner_assistant_drafts where partner_id = $1", [
+    partnerId,
+  ]);
+
 // Letture del proprietario.
 const job = (partnerId) =>
   one(
@@ -1279,8 +1292,82 @@ try {
   );
   // limiti del giorno e capacità
   await release();
+  const erasedCo = nextSyntheticCo;
   await sendFirstsOn("2026-11-12", 5);
   eq((await claimAt("2026-11-12T09:30:00Z")).reason, "limite");
+  // Cancellazione definitiva dopo l'invio: la riga resta, senza indirizzo né testi, e conta ancora
+  // per il limite del giorno, il primo giorno vero e la guardia sullo stesso indirizzo.
+  const erasedRow = await one(
+    `select id, send_day::text, sent_at from public.partner_assistant_messages where partner_id = $1`,
+    [pid(erasedCo)],
+  );
+  await eraseContactOf(pid(erasedCo));
+  await eraseContactOf(pid(952)); // il primo invio vero, del 10 novembre
+  const erased = await one("select * from public.partner_assistant_messages where id = $1", [
+    erasedRow.id,
+  ]);
+  eq(pick(erased, ["mode", "send_status", "to_address", "subject", "body", "raw", "draft_id"]), {
+    mode: "invio",
+    send_status: "inviato",
+    to_address: "cancellato@cancellato.invalid",
+    subject: "Dato cancellato",
+    body: "Dato cancellato.",
+    raw: "Dato cancellato.",
+    draft_id: null,
+  });
+  eq(erased.sha256, sha("Dato cancellato."));
+  eq(erased.address_sha256, sha(`info@club-${erasedCo}.example.test`), "l'impronta dell'indirizzo");
+  ok(erased.erased_at);
+  eq(
+    [
+      await value(
+        "select send_day::text as v from public.partner_assistant_messages where id = $1",
+        [erased.id],
+      ),
+      erased.sent_at,
+    ],
+    [erasedRow.send_day, erasedRow.sent_at],
+  );
+  eq(await countDrafts(pid(erasedCo)), 0, "la bozza è cancellata");
+  eq(
+    pick(await job(pid(erasedCo)), ["status", "reason", "draft_id"]),
+    {
+      status: "inviata",
+      reason: null,
+      draft_id: null,
+    },
+    "il lavoro «inviata» non torna indietro",
+  );
+  eq(await fn("private.partner_assistant_first_sent('2026-11-12'::date)"), 5);
+  eq(await fn("private.partner_assistant_first_real_day()::text"), "2026-11-10");
+  eq((await claimAt("2026-11-12T09:40:00Z")).reason, "limite", "il limite resta pieno");
+  await release();
+  await readyFirst(1101, { email: `info@club-${erasedCo}.example.test` });
+  await onlyQueue(1101);
+  await resetSendClock();
+  await claimAt("2026-11-13T08:30:00Z");
+  eq(
+    pick(await job(pid(1101)), ["status", "reason"]),
+    { status: "serve_tommaso", reason: "conversazione_esistente" },
+    "lo stesso indirizzo su un'altra scheda resta bloccato dopo la cancellazione",
+  );
+  await release();
+  // Il giro d'invio non copia in «Posta inviata» una riga cancellata.
+  const p1102 = await sentPartner(1102);
+  const unappended = await insertMessage({
+    partner: p1102,
+    send_status: "inviato",
+    send_day: "2026-11-13",
+    sent_at: "2026-11-13T08:31:00Z",
+  });
+  await eraseContactOf(p1102);
+  const ap1102 = await claimAt("2026-11-13T08:35:00Z");
+  eq(
+    (ap1102.appends ?? []).some((x) => x.message_row_id === unappended),
+    false,
+    "nessuna copia della riga cancellata",
+  );
+  await release();
   // esiti SMTP, tutti martedì 17 novembre
   await resetSendClock();
   await finish(await sendUntilStart(966, "2026-11-17T08:31:00Z"), {
