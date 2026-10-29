@@ -64,6 +64,7 @@ function tables(): Record<string, Row[]> {
     restock_orders: core.orders as Row[],
     restock_lines: core.lines as Row[],
     restock_state_events: core.events as Row[],
+    restock_deletion_events: core.deletionEvents as Row[],
     restock_arrivals: core.arrivals as Row[],
     consignment_orders: [
       ...(core.shopOrders as Row[]),
@@ -112,6 +113,19 @@ beforeEach(() => {
 });
 
 describe("letture", () => {
+  it("un riassortimento eliminato resta consultabile ma non si precompila per il negozio", async () => {
+    const data = tables();
+    const order = data.restock_orders.find((r) => r.id === rx.quality)!;
+    Object.assign(order, {
+      deleted_at: "2026-10-25T12:00:00Z",
+      deleted_by: sx.user,
+      deletion_note: "Ordine sostituito",
+    });
+    const { db } = fakeDb(data);
+    expect(await readRestockOrder(db as never, rx.quality)).toBeNull();
+    const page = await readRestockPage(db as never, rx.quality);
+    expect(page.status === "ready" && page.page.order.deleted?.note).toBe("Ordine sostituito");
+  });
   it("elenco e pagina dal database, con il client della persona", async () => {
     const { db } = fakeDb(tables());
     const list = await readRestockList(db as never);
@@ -140,6 +154,43 @@ describe("letture", () => {
 });
 
 describe("comandi", () => {
+  it("elimina e ripristina soltanto con una ricevuta che conferma la scelta inviata", async () => {
+    for (const deleted of [true, false]) {
+      const command = {
+        operationId: op,
+        kind: "set_restock_deleted",
+        payload: {
+          schema_version: 1,
+          order_id: rx.quality,
+          expected_version: 6,
+          deleted,
+          note: "Correzione del riordine",
+        },
+      };
+      const reply = {
+        operation_id: op,
+        order_id: rx.quality,
+        version: 7,
+        state: "quality",
+        deleted,
+        replayed: false,
+      };
+      const { db } = fakeDb({}, { data: reply, error: null });
+      expect(await executeRestockCommand(db as never, command)).toMatchObject({
+        status: "success",
+        target: { deleted, orderId: rx.quality },
+      });
+      expect(db.rpc).toHaveBeenCalledWith("set_restock_deleted", {
+        p_operation_id: op,
+        p_payload: command.payload,
+      });
+      const malformed = fakeDb({}, { data: { ...reply, deleted: !deleted }, error: null });
+      expect(await executeRestockCommand(malformed.db as never, command)).toMatchObject({
+        status: "uncertain",
+      });
+    }
+    expect(RESTOCK_MESSAGES.restock_deleted(null)).toContain("Ripristinalo");
+  });
   it("membership prima della RPC; dati non validi senza RPC", async () => {
     mocks.verify.mockResolvedValue({ status: "denied" });
     const { db } = fakeDb({});

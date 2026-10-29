@@ -322,6 +322,9 @@ const perSku =
     sku ? withSku(sku) : without;
 /** Messaggi in italiano per ogni codice del database. Nessun dettaglio tecnico. */
 export const SHOP_MESSAGES: Record<string, Message> = {
+  restock_deleted: fixed(
+    "Il riassortimento collegato è eliminato. Ripristinalo prima di preparare una nuova consegna.",
+  ),
   membership_required: fixed("Accedi di nuovo con un account abilitato al team."),
   finance_access_required: fixed(
     "Apri Finance con la password dell’area per gestire negozi, fatture e pagamenti.",

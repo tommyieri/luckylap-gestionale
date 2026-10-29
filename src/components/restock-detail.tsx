@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useState, type FormEvent } from "react";
-import { ArrowLeft, Check } from "lucide-react";
+import { ArrowLeft, Check, Pencil, Trash2, Undo2 } from "lucide-react";
 import {
   cleanNote,
   cleanText,
@@ -75,7 +75,9 @@ function Stepper({
                 {isCurrent && (
                   <span className={styles.stepSince}>dal {restockDay(order.stateChangedAt)}</span>
                 )}
-                {!isCurrent && !arrived && <span className="sr-only">: porta il riordine qui</span>}
+                {!isCurrent && !arrived && !order.deleted && (
+                  <span className="sr-only">: porta il riordine qui</span>
+                )}
               </span>
             </button>
           </li>
@@ -322,8 +324,12 @@ export function ArrivalSection({ page }: { page: RestockPage }) {
         .
       </p>
       <p className={styles.sectionNote}>
-        Per cambiare le quantità annulla prima l’arrivo: i pezzi escono dal magazzino solo se sono
-        ancora tutti liberi, e il riordine torna a «{STATE_LABEL[arrival.previousState]}».
+        Le quantità ricevute restano nello storico. Per correggere le scorte usa le{" "}
+        <Link href="/stock/rettifiche" prefetch={false} className={styles.inlineLink}>
+          rettifiche del magazzino
+        </Link>
+        . «Annulla arrivo» serve a stornare l’intero carico: i pezzi escono dal magazzino solo se
+        sono ancora tutti liberi, e il riordine torna a «{STATE_LABEL[arrival.previousState]}».
       </p>
       {!confirming ? (
         <div className={styles.actions}>
@@ -622,6 +628,105 @@ function DetailsForm({ page, onDone }: { page: RestockPage; onDone: () => void }
   );
 }
 
+/** Elimina dalla vista attiva, mantenendo storico e carichi; il ripristino usa lo stesso percorso. */
+export function RestockDeletionForm({
+  order,
+  onDone,
+}: {
+  order: RestockOrder;
+  onDone: () => void;
+}) {
+  const commands = useRestockCommands();
+  const restoring = Boolean(order.deleted);
+  const [note, setNote] = useState("");
+  const [message, setMessage] = useState<FormNotice | null>(null);
+  async function submit(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    const reason = cleanNote(note, 500);
+    if (reason === null || Array.from(reason).length < 3)
+      return setMessage({
+        tone: "error",
+        text: "Scrivi una motivazione da 3 a 500 caratteri.",
+      });
+    const command = parseRestockCommand({
+      operationId: crypto.randomUUID(),
+      kind: "set_restock_deleted",
+      payload: {
+        schema_version: 1,
+        order_id: order.id,
+        expected_version: order.version,
+        deleted: !restoring,
+        note: reason,
+      },
+    });
+    if (!command) return setMessage({ tone: "error", text: "Controlla la motivazione e riprova." });
+    const result = await commands.send(command);
+    if (!result) return;
+    if (result.status === "success") {
+      commands.announce(result.message);
+      onDone();
+    } else setMessage({ tone: "error", text: result.message });
+  }
+  return (
+    <form
+      ref={revealOnMount}
+      className={styles.confirm}
+      onSubmit={submit}
+      noValidate
+      aria-label={restoring ? "Ripristina riassortimento" : "Elimina riassortimento"}
+    >
+      <p className={styles.confirmText}>
+        {restoring ? "Ripristinare" : "Eliminare"} «{order.title}»?
+      </p>
+      <p className={styles.sectionNote}>
+        {restoring
+          ? `Il riassortimento torna in «${order.state === "in_hand" ? "Arrivati" : "In corso"}», con le sue quantità e il suo storico.`
+          : "Il riassortimento sparisce da «In corso» e «Arrivati». Lo storico resta in «Eliminati» e puoi ripristinarlo."}{" "}
+        Le scorte del Magadzino e del negozio restano invariate. Nessun carico o consegna viene
+        annullato o ripetuto.
+      </p>
+      <label className={`${styles.field} ${styles.fieldWide}`}>
+        <span>Motivazione {restoring ? "del ripristino" : "dell’eliminazione"}</span>
+        <textarea
+          rows={3}
+          minLength={3}
+          maxLength={500}
+          required
+          value={note}
+          disabled={commands.sending}
+          onChange={(event) => setNote(event.target.value)}
+        />
+      </label>
+      <div className={styles.actions}>
+        <button
+          type="submit"
+          className={
+            restoring ? "button button-primary" : `button button-secondary ${styles.deleteButton}`
+          }
+          disabled={commands.locked}
+        >
+          {commands.sending
+            ? restoring
+              ? "Ripristino…"
+              : "Eliminazione…"
+            : restoring
+              ? "Sì, ripristina riassortimento"
+              : "Sì, elimina riassortimento"}
+        </button>
+        <button
+          type="button"
+          className="button button-secondary"
+          disabled={commands.sending}
+          onClick={onDone}
+        >
+          Annulla
+        </button>
+      </div>
+      <FormMessage message={message} />
+    </form>
+  );
+}
+
 function History({ order }: { order: RestockOrder }) {
   const entries = [
     ...order.events.map((e) => ({
@@ -633,6 +738,13 @@ function History({ order }: { order: RestockOrder }) {
           : `Da «${STATE_LABEL[e.from]}» a «${STATE_LABEL[e.to]}»`,
       by: e.by,
       note: e.note,
+    })),
+    ...(order.deletionEvents ?? []).map((event) => ({
+      key: `d-${event.id}`,
+      at: event.at,
+      text: event.deleted ? "Riassortimento eliminato" : "Riassortimento ripristinato",
+      by: event.by,
+      note: event.note,
     })),
     ...order.arrivals.flatMap((a) => [
       {
@@ -675,7 +787,16 @@ function Detail({ page }: { page: RestockPage }) {
   const commands = useRestockCommands();
   const [moving, setMoving] = useState<RestockState | null>(null);
   const [editing, setEditing] = useState<"lines" | "details" | null>(null);
+  const [deletionIntent, setDeletionIntent] = useState<{
+    orderId: string;
+    action: "delete" | "restore";
+  } | null>(null);
   const arrived = order.state === "in_hand";
+  const deleted = Boolean(order.deleted);
+  // La conferma resta legata all'azione aperta: dopo un invio verificato non diventa l'azione inversa.
+  const deletionOpen =
+    deletionIntent?.orderId === order.id &&
+    deletionIntent.action === (deleted ? "restore" : "delete");
   const shop = shopPart(order);
   return (
     <div className={styles.page}>
@@ -692,8 +813,57 @@ function Detail({ page }: { page: RestockPage }) {
               : " · Senza negozio"}
           </p>
         </div>
+        <div className={styles.actions} aria-label="Azioni del riassortimento">
+          {!deleted && (
+            <button
+              type="button"
+              className="button button-secondary"
+              disabled={!commands.canOpen}
+              aria-expanded={editing === "details"}
+              aria-controls="restock-notes"
+              onClick={() => {
+                setMoving(null);
+                setDeletionIntent(null);
+                setEditing("details");
+              }}
+            >
+              <Pencil size={16} aria-hidden="true" /> Modifica
+            </button>
+          )}
+          <button
+            type="button"
+            className={`button button-secondary ${deleted ? "" : styles.deleteButton}`}
+            disabled={!commands.canOpen}
+            aria-expanded={deletionOpen}
+            onClick={() => {
+              setMoving(null);
+              setEditing(null);
+              setDeletionIntent({ orderId: order.id, action: deleted ? "restore" : "delete" });
+            }}
+          >
+            {deleted ? (
+              <Undo2 size={16} aria-hidden="true" />
+            ) : (
+              <Trash2 size={16} aria-hidden="true" />
+            )}
+            {deleted ? "Ripristina" : "Elimina"}
+          </button>
+        </div>
       </div>
       <RestockPendingSlot />
+      {order.deleted && (
+        <div className={styles.deletedNotice} role="status">
+          <p className={styles.confirmText}>Riassortimento eliminato · recuperabile</p>
+          <p className={styles.sectionNote}>
+            Eliminato da {order.deleted.by} il {restockMoment(order.deleted.at)}. Le scorte non sono
+            cambiate. Per modificarlo o riprendere il lavoro, ripristinalo.
+          </p>
+          <p className={styles.notes}>{order.deleted.note}</p>
+        </div>
+      )}
+      {deletionOpen && (
+        <RestockDeletionForm key={order.id} order={order} onDone={() => setDeletionIntent(null)} />
+      )}
 
       <section className={styles.section} aria-labelledby="restock-steps">
         <h2 id="restock-steps" className={styles.sectionTitle}>
@@ -701,13 +871,15 @@ function Detail({ page }: { page: RestockPage }) {
         </h2>
         <Stepper
           order={order}
-          locked={!commands.canOpen}
+          locked={deleted || !commands.canOpen}
           onPick={(state) => {
             setEditing(null);
             setMoving(state);
           }}
         />
-        {arrived ? (
+        {deleted ? (
+          <p className={styles.sectionNote}>Ultimo stato: {STATE_LABEL[order.state]}.</p>
+        ) : arrived ? (
           <p className={styles.sectionNote}>
             Il riordine è in mano nostra. Per riportarlo a un passo precedente annulla l’arrivo.
           </p>
@@ -719,8 +891,10 @@ function Detail({ page }: { page: RestockPage }) {
             </p>
           )
         )}
-        {moving === "in_hand" && <ReceiveForm page={page} onDone={() => setMoving(null)} />}
-        {moving && moving !== "in_hand" && (
+        {!deleted && moving === "in_hand" && (
+          <ReceiveForm page={page} onDone={() => setMoving(null)} />
+        )}
+        {!deleted && moving && moving !== "in_hand" && (
           <MoveForm order={order} target={moving} onDone={() => setMoving(null)} />
         )}
       </section>
@@ -740,21 +914,22 @@ function Detail({ page }: { page: RestockPage }) {
         </div>
       </dl>
 
-      {arrived && order.arrival && <ArrivalSection page={page} />}
-      {arrived && order.shop && shop.pieces > 0 && <ShopSection page={page} />}
+      {!deleted && arrived && order.arrival && <ArrivalSection page={page} />}
+      {!deleted && arrived && order.shop && shop.pieces > 0 && <ShopSection page={page} />}
 
       <section className={styles.section} aria-labelledby="restock-lines">
         <div className={styles.sectionHead}>
           <h2 id="restock-lines" className={styles.sectionTitle}>
             Quantità
           </h2>
-          {editing !== "lines" && !arrived && (
+          {editing !== "lines" && !arrived && !deleted && (
             <button
               type="button"
               className="button button-secondary"
               disabled={!commands.canOpen}
               onClick={() => {
                 setMoving(null);
+                setDeletionIntent(null);
                 setEditing("lines");
               }}
             >
@@ -762,18 +937,29 @@ function Detail({ page }: { page: RestockPage }) {
             </button>
           )}
         </div>
-        {arrived && (
+        {arrived && !deleted && (
           <p className={styles.sectionNote}>
-            Le magliette sono già in magazzino: per cambiare le quantità annulla prima l’arrivo.
+            Le quantità ricevute restano nello storico. Le correzioni delle scorte si registrano
+            nelle{" "}
+            <Link href="/stock/rettifiche" prefetch={false} className={styles.inlineLink}>
+              rettifiche del magazzino
+            </Link>
+            . Titolo e note si possono ancora modificare.
           </p>
         )}
-        {order.state === "discussion" && editing !== "lines" && (
+        {deleted && (
+          <p className={styles.sectionNote}>
+            Le quantità sono conservate in sola lettura. Ripristina il riassortimento per riprendere
+            le operazioni.
+          </p>
+        )}
+        {!deleted && order.state === "discussion" && editing !== "lines" && (
           <p className={styles.sectionNote}>
             In «Modifica quantità» trovi per ogni taglia la giacenza del {order.warehouse.name} e
             l’obiettivo, le taglie sotto l’obiettivo e «Proponi quantità».
           </p>
         )}
-        {editing === "lines" ? (
+        {editing === "lines" && !deleted && !arrived ? (
           <RestockLinesEditor
             catalog={catalog}
             order={order}
@@ -790,18 +976,22 @@ function Detail({ page }: { page: RestockPage }) {
           <h2 id="restock-notes" className={styles.sectionTitle}>
             Note
           </h2>
-          {editing !== "details" && (
+          {editing !== "details" && !deleted && (
             <button
               type="button"
               className="button button-secondary"
               disabled={!commands.canOpen}
-              onClick={() => setEditing("details")}
+              onClick={() => {
+                setMoving(null);
+                setDeletionIntent(null);
+                setEditing("details");
+              }}
             >
               Modifica titolo e note
             </button>
           )}
         </div>
-        {editing === "details" ? (
+        {editing === "details" && !deleted ? (
           <DetailsForm page={page} onDone={() => setEditing(null)} />
         ) : order.notes ? (
           <p className={styles.notes}>{order.notes}</p>

@@ -267,6 +267,24 @@
   align-items: center;
   gap: 8px 12px;
 }
+.deleteButton {
+  border-color: var(--red);
+  color: var(--red);
+}
+.deleteButton:hover:not(:disabled) {
+  border-color: var(--red);
+  background: var(--paper);
+  color: var(--red);
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+.deletedNotice {
+  display: grid;
+  gap: 8px;
+  padding: 16px;
+  border: 1px solid var(--amber);
+  background: var(--amber-wash);
+}
 .confirm {
   display: grid;
   gap: 12px;
