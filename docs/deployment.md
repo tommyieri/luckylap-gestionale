@@ -29,7 +29,7 @@ Shopify: app interna LuckyLap Gestionale creata e installata, versione `luckylap
 
 ## Assistente Partner: variabili
 
-Al 27 ottobre 2026 l'assistente Partner non è attivo: le sue variabili non sono in Vercel e le sue migrazioni non sono applicate. Per accenderlo servono, solo in produzione e con l'OK di Tommi, le variabili server qui sotto; la sequenza completa di avvio è in [partner-assistente.md](partner-assistente.md).
+Al 27 ottobre 2026 l'assistente Partner non era attivo. Le migrazioni della prima consegna sono in produzione dal 28 ottobre 2026 ([verification.md](verification.md), «Produzione, 28 ottobre 2026»). Per accenderlo servono, solo in produzione e con l'OK di Tommi, le variabili server qui sotto; la sequenza completa di avvio è in [partner-assistente.md](partner-assistente.md).
 
 | Variabile server | Scopo |
 | --- | --- |
@@ -41,6 +41,21 @@ Al 27 ottobre 2026 l'assistente Partner non è attivo: le sue variabili non sono
 | `NEXT_PUBLIC_SUPABASE_URL` | Già presente. |
 
 Con una variabile mancante o non valida l'assistente resta spento e la sua route risponde 503. Gli ambienti preview non ricevono queste variabili.
+
+Per l'invio (consegna 2a, [partner-assistente.md](partner-assistente.md), «Seconda consegna, parte 1 (2a): l'invio») servono in più le variabili della posta, sempre solo in produzione:
+
+| Variabile server | Scopo e regola |
+| --- | --- |
+| `PARTNER_MAIL_USER` | La casella aziendale da cui partono le email, un indirizzo valido. Obbligatoria. |
+| `PARTNER_MAIL_PASSWORD` | La password della casella, da 1 a 512 caratteri ASCII stampabili. Obbligatoria. Non entra nel repository. |
+| `PARTNER_MAIL_FROM_NAME` | Facoltativa: il nome del mittente, fino a 80 caratteri, senza `<`, `>`, `@`, virgolette, barra rovesciata o a capo. Senza: «Tommaso \| LuckyLap». |
+| `PARTNER_TEST_TO` | Gli indirizzi di prova di «Manda la prova», da 1 a 5, separati da virgole, tutti diversi. Senza, la prova non si può mandare. |
+| `PARTNER_MAIL_SMTP_HOST` | Facoltativa: solo il nome del server SMTP, in minuscolo, senza schema né porta. Senza: `smtp.ionos.it` (porta 587, STARTTLS). |
+| `PARTNER_MAIL_IMAP_HOST` | Facoltativa: come sopra, per IMAP. Senza: `imap.ionos.it` (porta 993, TLS). |
+
+Il fallimento è chiuso: con una variabile della posta mancante o scritta male, anche `PARTNER_TEST_TO`, «Prova» e «Invio» non sono disponibili e l'assistente lavora solo in «Prepara». Una variabile cambiata vale dal deploy successivo: dopo un cambio in Vercel serve un nuovo deploy.
+
+Per controllarle senza vederne i valori c'è il riquadro «Variabili e accessi» nella pagina dell'assistente (`/partner/assistente`): dice se le variabili dell'assistente, la casella e gli indirizzi di prova sono validi (con il numero degli indirizzi), quando il worker li ha controllati e com'è andato l'ultimo accesso SMTP e IMAP. Mai valori né lunghezze.
 
 ## Pubblicazione verificata
 
