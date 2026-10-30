@@ -1,4 +1,4 @@
-import { readFileSync } from "node:fs";
+import { readdirSync, readFileSync } from "node:fs";
 import { join } from "node:path";
 import { describe, expect, it } from "vitest";
 import {
@@ -44,6 +44,16 @@ import { PartnerReadError, parsePartnerContact } from "./model";
 const TODAY = "2026-10-22";
 const id = partnerFixtureId;
 const ROOT = join(__dirname, "../../..");
+/**
+ * La migrazione dell'invio, cercata per suffisso: quando si applica in produzione il file prende
+ * il nome della versione cloud, come gli harness che la cercano allo stesso modo.
+ */
+const invioSql = () => {
+  const migrations = join(ROOT, "supabase/migrations");
+  const file = readdirSync(migrations).find((n) => n.endsWith("_assistente_partner_invio.sql"));
+  if (!file) throw new Error("migrazione _assistente_partner_invio.sql mancante");
+  return readFileSync(join(migrations, file), "utf8");
+};
 
 /** La risposta di read_partner_assistant_status, con le chiavi della migrazione. */
 const statusRow = (): Record<string, unknown> & {
@@ -503,10 +513,7 @@ describe("invio dell'assistente (read_partner_assistant_send)", () => {
       rimbalzi: "Il server di posta ha rifiutato delle email.",
     });
     // Gli stati dei messaggi e i fermi sono quelli dei check della migrazione.
-    const sql = readFileSync(
-      join(ROOT, "supabase/migrations/20261028164029_assistente_partner_invio.sql"),
-      "utf8",
-    );
+    const sql = invioSql();
     const list = (pattern: RegExp) =>
       [...(pattern.exec(sql)?.[1] ?? "").matchAll(/'([a-z_]+)'/g)].map((m) => m[1]);
     expect(Object.keys(PARTNER_ASSISTANT_SEND_STATUS_LABELS)).toEqual(
@@ -834,10 +841,7 @@ describe("etichette in italiano", () => {
   });
 
   it("una frase per ogni motivo dell'invio, come li scrive la migrazione", () => {
-    const sql = readFileSync(
-      join(ROOT, "supabase/migrations/20261028164029_assistente_partner_invio.sql"),
-      "utf8",
-    );
+    const sql = invioSql();
     const all = (text: string, pattern: RegExp) => [...text.matchAll(pattern)].map((m) => m[1]);
     // I motivi dei lavori passati a Tommi nella migrazione dell'invio.
     const fromSql = new Set([
@@ -986,10 +990,7 @@ describe("etichette in italiano", () => {
     // Gli esiti dell'invio scritti come testo nella migrazione della consegna 2a: tutti con una
     // frase. Gli esiti composti (`prova_casella_` più il controllo, modalità ed esito di finish)
     // si ricostruiscono dagli elenchi chiusi della SQL.
-    const invio = readFileSync(
-      join(ROOT, "supabase/migrations/20261028164029_assistente_partner_invio.sql"),
-      "utf8",
-    );
+    const invio = invioSql();
     const sendLiteral = [
       ...all(invio, /values \('invio', '([a-z_]+)'\)/g),
       ...all(invio, /values \([a-z_.]+, 'invio', '([a-z_]+)'\)/g),
