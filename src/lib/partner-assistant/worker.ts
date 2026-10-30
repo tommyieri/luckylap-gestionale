@@ -24,6 +24,11 @@ import {
   type PartnerAssistantEnvironment,
 } from "./config";
 import {
+  partnerAssistantEnvironmentReport,
+  partnerAssistantMailConfig,
+  type PartnerAssistantMailEnvironment,
+} from "./mail-config";
+import {
   PARTNER_ASSISTANT_MODEL,
   partnerAssistantCostUsd,
   type PartnerAssistantUsage,
@@ -38,6 +43,8 @@ import {
   reviewCall,
   writeCall,
 } from "./prompts";
+import { runPartnerAssistantSendStep, type PartnerAssistantSendDependencies } from "./send";
+import { createPartnerAssistantSendStore } from "./send-store";
 import {
   createPartnerAssistantStore,
   PARTNER_ASSISTANT_RPC_TIMEOUT_MS,
@@ -463,27 +470,73 @@ function reply(status: number, body: Record<string, unknown>) {
   });
 }
 
-/** Risponde subito e fa il passo dopo la risposta. Il lavoro lo sceglie solo il database: corpo,
- * query e cookie della richiesta non si leggono mai. */
+/** Il tempo della registrazione delle variabili, a ogni giro. */
+const PARTNER_ASSISTANT_ENVIRONMENT_MS = 10_000;
+
+/** Risponde subito e fa il giro dopo la risposta: le variabili della posta, poi l'invio, poi il
+ * passo con Claude. Il lavoro lo sceglie solo il database: corpo, query e cookie della richiesta
+ * non si leggono mai. */
 export async function receivePartnerAssistantTick(
   request: Request,
   afterResponse: (callback: () => Promise<void>) => void,
   dependencies: PartnerAssistantDependencies & {
-    environment?: PartnerAssistantEnvironment;
+    environment?: PartnerAssistantEnvironment & PartnerAssistantMailEnvironment;
     run?: typeof runPartnerAssistantStep;
+    send?: typeof runPartnerAssistantSendStep;
+    sendDependencies?: PartnerAssistantSendDependencies;
   } = {},
 ): Promise<Response> {
-  const { environment, run = runPartnerAssistantStep, ...stepDependencies } = dependencies;
+  const {
+    environment,
+    run = runPartnerAssistantStep,
+    send = runPartnerAssistantSendStep,
+    sendDependencies,
+    ...stepDependencies
+  } = dependencies;
   const config = partnerAssistantConfig(environment);
   if (!config) return reply(503, { code: "worker_unavailable" });
   if (!authorizedPartnerAssistant(request.headers.get("authorization"), config.workerSecret))
     return reply(401, { code: "unauthorized" });
   try {
     afterResponse(async () => {
+      // La risposta già mandata non deve fermare il giro: un segnale proprio, mai quello della
+      // richiesta. Ogni passo ha il suo timer.
+      const signal = new AbortController().signal;
+      // 1. Quali variabili della posta sono valide, mai i valori: a ogni giro, anche senza posta.
+      // Un errore non ferma il giro.
+      let sendStore = sendDependencies?.store;
       try {
-        // La risposta già mandata non deve fermare il passo: un segnale proprio, mai quello della
-        // richiesta. Il passo ha il suo timer.
-        await run(config, new AbortController().signal, stepDependencies);
+        sendStore ??= createPartnerAssistantSendStore(config);
+        const store = sendStore;
+        const report = partnerAssistantEnvironmentReport(environment);
+        await boundedPhase(signal, PARTNER_ASSISTANT_ENVIRONMENT_MS, (phase) =>
+          store.recordEnvironment(
+            {
+              mailboxOk: report.casella,
+              testOk: report.prova,
+              testCount: report.indirizziProva,
+            },
+            phase,
+          ),
+        );
+      } catch {
+        /* La pagina mostra la registrazione precedente. */
+      }
+      // 2. L'invio, solo con la posta configurata. Un giro che manda o copia non fa il passo con
+      // Claude: i due insieme non stanno nei 300 secondi.
+      try {
+        const mail = partnerAssistantMailConfig(environment);
+        if (mail) {
+          const sent = await send(config, mail, signal, { ...sendDependencies, store: sendStore });
+          if (sent.status !== "idle") return;
+        }
+      } catch {
+        /* Un invio senza esito certo: la lease della casella lo riporta al giro dopo. */
+        return;
+      }
+      // 3. Il passo con Claude.
+      try {
+        await run(config, signal, stepDependencies);
       } catch {
         /* La lease del lavoro riporta il passo al giro dopo. */
       }

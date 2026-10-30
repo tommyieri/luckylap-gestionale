@@ -258,12 +258,26 @@ describe("Partner", () => {
     expect(copy).toContain("la ricerca con le fonti, la proposta scelta e la bozza dell’email");
   });
 
-  it("dice che per ora l'assistente prepara solo bozze e non manda niente", () => {
+  it("dice quando l'assistente manda le email, con la prova di Tommi prima", () => {
     const copy = text(part(everyone));
-    expect(copy).toContain("Per ora prepara solo le bozze e non manda niente");
-    // Apostrofo dritto e tipografico: la guida li usa tutti e due.
-    expect(copy).not.toMatch(/l['’]assistente (manda|invia)/i);
-    expect("l'assistente manda").toMatch(/l['’]assistente (manda|invia)/i);
+    expect(copy).toContain(
+      "In «Invio» l’assistente manda le prime email dalla casella aziendale, nei giorni feriali tra le 9:30 e le 11 dell’ora del contatto.",
+    );
+    expect(copy).toContain(
+      "Prima Tommi fa una prova con «Manda la prova» e la conferma con «La prova è arrivata in posta in arrivo».",
+    );
+    expect(copy).toContain(
+      "Le risposte arrivano nella casella aziendale come sempre: l’assistente non le legge.",
+    );
+    expect(copy).toContain("Il sollecito dopo 7 giorni lo manda Tommi: lo trova nella sua Oggi.");
+    expect(copy).not.toContain("non manda niente");
+  });
+
+  it("dice quale testo manda l'assistente: la bozza del blocco «Assistente», non «Messaggi pronti»", () => {
+    const copy = text(part(everyone));
+    expect(copy).toContain(
+      "Nella scheda il blocco «Messaggi pronti» (o «Messaggio pronto») ha i testi vecchi della ricerca di ottobre: l’email che l’assistente manda è la «Bozza dell'email» del blocco «Assistente».",
+    );
   });
 
   it("dice come fermarlo, del tutto o su un contatto, e chi lo può fare", () => {
@@ -446,13 +460,33 @@ describe("i nomi citati esistono davvero", () => {
     ],
     [
       "src/components/partner/partner-assistant-block.tsx",
-      [">Assistente</h4>", "Ferma su questo contatto", "Riattiva su questo contatto"],
+      [
+        ">Assistente</h4>",
+        "Ferma su questo contatto",
+        "Riattiva su questo contatto",
+        "Bozza dell'email",
+        "Manda per primo",
+      ],
+    ],
+    [
+      "src/components/partner/partner-messages.tsx",
+      ["`Messaggi pronti · ", "`Messaggio pronto · "],
     ],
     [
       "src/components/partner/partner-assistant-view.tsx",
-      [">Da vedere</h2>", ">Regole</h2>", "Scrivi una nuova versione", "Ridai all'assistente"],
+      [
+        ">Da vedere</h2>",
+        ">Regole</h2>",
+        "Scrivi una nuova versione",
+        "Ridai all'assistente",
+        "Manda la prova",
+        "La prova è arrivata in posta in arrivo",
+      ],
     ],
-    ["src/lib/partner/assistant.ts", ['spento: "Spento"', 'prepara: "Prepara"']],
+    [
+      "src/lib/partner/assistant.ts",
+      ['spento: "Spento"', 'prepara: "Prepara"', 'prova: "Prova"', 'invio: "Invio"'],
+    ],
     ["src/components/partner/partner-workspace.tsx", ["Regole per scrivere i messaggi"]],
   ];
 

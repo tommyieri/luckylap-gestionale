@@ -47,7 +47,11 @@ import {
   type PartnerWorkspace as PartnerWorkspaceData,
 } from "../../lib/partner/model";
 import { partnerPeriod, partnerPeriods, type PartnerPeriodNumber } from "../../lib/partner/periods";
-import type { PartnerAssistantInactive, PartnerAssistantStatus } from "../../lib/partner/assistant";
+import type {
+  PartnerAssistantInactive,
+  PartnerAssistantSendStatus,
+  PartnerAssistantStatus,
+} from "../../lib/partner/assistant";
 import { PartnerAssistantStrip } from "./partner-assistant-strip";
 import { PartnerCardForm } from "./partner-card-form";
 import { PartnerPendingRecovery } from "./partner-command";
@@ -70,6 +74,12 @@ export type PartnerWorkspaceProps = {
    * PARTNER_ASSISTANT_INACTIVE (niente striscia) senza le sue migrazioni.
    */
   assistant: PartnerAssistantStatus | PartnerAssistantInactive | null;
+  /** Stato dell'invio per la striscia (consegna 2a); `null` se non è leggibile. */
+  send: PartnerAssistantSendStatus | null;
+  /** La posta dell'assistente è configurata sul server: solo l'esito, mai i valori. */
+  mailConfigured: boolean;
+  /** Chi guarda è Tommi (ruolo founder): «Manda per primo» nella scheda. */
+  founder: boolean;
   /** Giorno di Roma, dal server. */
   today: string;
   /** Membro della sessione, per «Seguiti da me». */
@@ -86,6 +96,7 @@ export function PartnerWorkspace(props: PartnerWorkspaceProps) {
     <PartnerProvider
       preview={props.preview}
       userId={props.preview ? null : props.memberId}
+      founder={props.founder}
       today={props.today}
       members={props.workspace.members}
       partners={props.workspace.partners}
@@ -124,6 +135,8 @@ function WorkspaceBody({
   workspace,
   detail,
   assistant,
+  send,
+  mailConfigured,
   today,
   memberId,
   preview,
@@ -326,7 +339,7 @@ function WorkspaceBody({
 
   return (
     <div className={styles.workspace}>
-      <PartnerAssistantStrip status={assistant} />
+      <PartnerAssistantStrip status={assistant} send={send} mailConfigured={mailConfigured} />
       <header className={styles.heading}>
         <h1>Partner</h1>
         <p className={styles.totals}>{totalsLine(sections)}</p>

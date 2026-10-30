@@ -167,6 +167,29 @@ export function pendingPartnerLines(
     case "save_partner_assistant_rules":
       lines.push("Modifica delle regole dell'assistente");
       break;
+    case "start_partner_assistant_test": {
+      const drafts = p.drafts === 1 ? "1 bozza" : `${String(p.drafts)} bozze`;
+      const recipients =
+        p.recipients === 1 ? "1 indirizzo di prova" : `${String(p.recipients)} indirizzi di prova`;
+      lines.push(`Prova dell'assistente: ${drafts} verso ${recipients}`);
+      break;
+    }
+    case "confirm_partner_assistant_test":
+      lines.push("Conferma: la prova è arrivata in posta in arrivo");
+      break;
+    case "set_partner_assistant_send_priority":
+      lines.push(
+        p.send_priority === 0 ? "Precedenza d'invio: tolta" : "Precedenza d'invio: manda per primo",
+      );
+      break;
+    case "resume_partner_assistant_send":
+      lines.push("Ripresa degli invii");
+      break;
+    case "set_partner_assistant_settings":
+      lines.push(
+        `Limite delle prime email dopo la prima settimana: ${String(p.daily_first_limit)} al giorno`,
+      );
+      break;
   }
   return lines;
 }

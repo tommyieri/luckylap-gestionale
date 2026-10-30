@@ -7,6 +7,49 @@ Stato del 23 ottobre 2026, dal branch `claude/revisione-pre-invio` (P7, revision
 
 Prove applicative, SQL sintetico, PostgreSQL concorrente e Auth cloud sono conteggiati separatamente. Le sezioni «Avvio del 21 ottobre 2026» restano come verbale dell'avvio: i numeri di allora non sono quelli di oggi.
 
+## Assistente Partner, consegna 2a (invio), 30 ottobre 2026
+
+Dal branch `claude/assistente-partner-invio` (base `origin/main` a `c4577bd`), consegna 2a dell'assistente: prova e invio delle prime email dalla casella aziendale. Dati sintetici, nessun accesso al cloud, nessuna chiamata vera a Claude, Supabase, SMTP o IMAP. Una migrazione nuova, additiva: `supabase/migrations/20261030114722_assistente_partner_invio.sql`. Dettagli, variabili e avvio in [partner-assistente.md](partner-assistente.md), «Seconda consegna, parte 1 (2a): l'invio».
+
+**Produzione, 30 ottobre 2026.** Claude ha applicato la migrazione prima del merge, con l'OK di Tommi, con la procedura delle impronte (sotto, «Produzione, 28 ottobre 2026»). Versione cloud `20261030114722`, testo salvato uguale al file (md5 `adbefa19a9195a2459a7195a44fa8a1f`); il file ha il nome della versione cloud.
+
+- **Identiche prima e dopo** (impronte md5 di tutte le righe): `partners` (207), `partner_contacts` (850), `partner_message_variants` (218), `partner_activities` (0), `partner_work_links` (54), `profiles` (6), `memberships` (5), `partner_assistant_jobs` (165), `partner_assistant_contacts` (0), `partner_assistant_notes` (391), `partner_assistant_drafts` (61), `partner_assistant_rules` (1), `cron.job` (2 job), `private.partner_assistant_runs` (445 righe), `audit_logs` (2.763 righe).
+- **Cambiato, come previsto:**
+  - tabelle in `public` da 87 a 88 (`partner_assistant_messages`);
+  - tabelle private nuove: stato della casella (1 riga), 598 fusi, feste, paesi e prove;
+  - la riga di configurazione ha le colonne nuove (`daily_first_limit` 10, `test_confirmed_at` vuota). Modalità «spento», messa da Tommi il 29 ottobre.
+- **Durante e dopo la migrazione** lo scheduler della consegna 1 ha continuato a girare senza errori.
+- **Avvisi di sicurezza:** solo quelli già noti (tabelle `private` con RLS e senza policy, protezione dalle password trapelate disattivata).
+
+Harness e test cercano la migrazione per suffisso (`_assistente_partner_invio.sql`): la rinomina non cambia i numeri qui sotto.
+
+| Comando | Esito |
+| --- | --- |
+| `npm run typecheck` | nessun errore |
+| `npm test` | 4.132 test in 224 file, tutti superati |
+| `npm run test:db` senza `LUCKYLAP_PG_BIN` | 26 harness PGlite superati, 5.516 controlli; i 18 harness su PostgreSQL 17 risultano saltati |
+| `npm run test:db` con `LUCKYLAP_PG_BIN` (PostgreSQL 17.11 locale) | in più 18 harness PostgreSQL 17 superati, 2.112 controlli: 44 harness, 7.628 controlli in tutto |
+| `npm run build` | riuscita; `next-env.d.ts` ripristinato con `git checkout` |
+| `npm run format:check` | nessun file da formattare |
+
+Harness nuovi, con il minimo della riga `// test-db:` in testa:
+
+| Harness | Modalità | Minimo | Cosa prova |
+| --- | --- | --- | --- |
+| `assistente-partner-invio-comandi.mjs` | PGlite | 275 | colonne e vincoli nuovi; guardia dei messaggi («mai due volte», stato solo in avanti, niente cancellazioni); modalità «Prova» e «Invio» del founder, «Invio» solo con la prova confermata; «Manda la prova» (una prova alla volta), conferma (solo l'ultima prova, con un invio nelle ultime 24 ore), «Manda per primo», «Riprendi l'invio», limite; interruttore e regole; cancellazione definitiva che tiene gli invii veri; sollecito per Tommi dopo una prima email dell'assistente; permessi |
+| `assistente-partner-invio.mjs` | PGlite | 429 | finestra, fusi (tabella dei fusi; claim sotto 1 secondo con 200 righe con fusi esteri), feste e paesi, margine di 90 secondi; limiti e intervallo; ordine della coda e pulizia fino al candidato; `prepare`, `start` e `finish` con impronta e frase di uscita; fermi tra preparazione e SMTP; giri morti; stesso indirizzo su due schede; indirizzi scritti male; esiti SMTP e fermi; «non so» della casella; ricontrollo delle date; prova; variabili e accessi; lettura; permessi. L'ora è fissata in ogni transazione |
+| `assistente-partner-invio-concurrency.mjs` | PostgreSQL 17 | 60 | due claim insieme (una sola lease); due `prepare` dello stesso lavoro; «Non contattare», «Spento» e regole nuove aperti mentre `start` aspetta (poi `stop`); `finish` e «Segna inviato» del team sulla stessa scheda nei due ordini, senza deadlock; claim d'invio e claim del passo con Claude insieme; claim con 200 righe con fusi esteri sotto 1 secondo (57 ms; 7.019 ms prima della tabella dei fusi) |
+
+Il minimo di `assistente-partner-invio-concurrency.mjs` era 1 durante la costruzione (compito 2 del piano); il 30 ottobre è salito a 60, il numero dei controlli eseguiti in locale con PostgreSQL 17.11. Il job CI «Concorrenza (PostgreSQL 17)» lo controlla alla pull request.
+
+Gli harness PostgreSQL 17 che applicano tutta la catena contano un controllo per migrazione: con la migrazione nuova `finance-ecosystem-integration.mjs` passa a 112, `manual-sale-cancellation.mjs` a 114, `manual-sale-returns.mjs` a 129, `sensitive-area-members.mjs` a 181 (righe in testa aggiornate). Ogni harness ha eseguito esattamente il suo minimo.
+
+Altri controlli:
+
+- Nessun indirizzo email reale nei file del branch: in `src`, `supabase/tests` e `docs/partner-assistente.md` le righe aggiunte usano solo `example.test`.
+- Nessuna dichiarazione di IA (`ai_disclosure`) e nessun «[Prova]» nel codice e nelle migrazioni, salvo i test che ne controllano l'assenza.
+- Anteprima locale (`npm run dev`, dati sintetici), a 1024 px e a 390 px: `/partner` con la striscia, la scheda del contatto 6 (blocco «Assistente» con «Email inviata dall'assistente il 30 ottobre alle 9:41.» e «Prima email inviata dall'assistente: il sollecito dopo 7 giorni lo manda Tommi.»), `/partner/assistente` (Stato, Modalità, Limite, Coda, Spesa, Variabili e accessi, Da vedere, Regole) e `/guida` con la parte nuova dell'assistente. Nessuno scorrimento orizzontale a 390 px, nessun testo sotto 12 px in `/partner/assistente`, nessun errore nella console o nel server. Le fixture dell'anteprima hanno l'assistente in «Prepara»: le sezioni «Prova» e «Invii» le coprono i test dei componenti.
+
 ## Assistente Partner, 27 ottobre 2026
 
 Dal branch `claude/assistente-partner` (base `origin/main` a `3c58693`), prima consegna dell'assistente («prepara»: ricerca e bozze, nessun invio), con dati sintetici e senza accessi al cloud. Tre migrazioni nuove, additive, applicate in produzione il 28 ottobre 2026 (sotto, «Produzione, 28 ottobre 2026»); i file hanno i nomi delle versioni cloud. Dettagli, variabili e sequenza di avvio in [partner-assistente.md](partner-assistente.md).

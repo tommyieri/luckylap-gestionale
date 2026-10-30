@@ -1,5 +1,6 @@
-// Partner: comandi del team (spec 02 §2.6, §5.11), compresi i tre dell'assistente Partner
-// (modalità, interruttore per contatto, regole). Funzioni pure, usabili nel browser e sul server.
+// Partner: comandi del team (spec 02 §2.6, §5.11), compresi quelli dell'assistente Partner
+// (modalità, interruttore per contatto, regole; dalla consegna 2a prova, conferma della prova,
+// precedenza d'invio, ripresa degli invii e limite). Funzioni pure, usabili nel browser e sul server.
 //
 // - `parsePartnerCommand` ricontrolla sul server ogni comando con le stesse regole delle funzioni
 //   SQL (chiavi richieste e ammesse, tipi, lunghezze, schema_version = 1). `created_by` non è una
@@ -65,12 +66,17 @@ export const PARTNER_COMMAND_KINDS = [
   "set_partner_assistant_mode",
   "set_partner_assistant_contact",
   "save_partner_assistant_rules",
+  "start_partner_assistant_test",
+  "confirm_partner_assistant_test",
+  "set_partner_assistant_send_priority",
+  "resume_partner_assistant_send",
+  "set_partner_assistant_settings",
 ] as const;
 export type PartnerCommandKind = (typeof PARTNER_COMMAND_KINDS)[number];
 export const isPartnerCommandKind = (value: unknown): value is PartnerCommandKind =>
   typeof value === "string" && (PARTNER_COMMAND_KINDS as readonly string[]).includes(value);
 
-/** Modalità dell'assistente Partner. «prova» e «invio» arrivano con la seconda consegna. */
+/** Modalità dell'assistente Partner. «prova» e «invio» solo a Tommi; «invio» dopo una prova confermata. */
 export const PARTNER_ASSISTANT_MODES = ["spento", "prepara", "prova", "invio"] as const;
 
 export type PartnerPayload = Record<string, unknown> & { schema_version: 1 };
@@ -125,6 +131,14 @@ function versionOf(
   const value = p[key];
   if (value === undefined || value === null) return null;
   if (typeof value !== "number" || !Number.isSafeInteger(value) || value < 1 || value > max)
+    invalid();
+  return value as number;
+}
+/** Intero tra `min` e `max`, come private.partner_bigint. */
+function integerOf(p: Record<string, unknown>, key: string, min: number, max: number) {
+  const value = p[key];
+  if (value === undefined || value === null) return null;
+  if (typeof value !== "number" || !Number.isSafeInteger(value) || value < min || value > max)
     invalid();
   return value as number;
 }
@@ -422,6 +436,37 @@ const validators: Record<PartnerCommandKind, (p: Record<string, unknown>, now: D
     const body = textOf(p, "body", 100000);
     check(
       body !== null && btrim(body) !== "" && versionOf(p, "expected_version", 2147483647) !== null,
+    );
+  },
+  // Consegna 2a: i comandi del founder per la prova e l'invio.
+  start_partner_assistant_test(p) {
+    keys(p, ["schema_version", "drafts", "recipients"], ["schema_version", "drafts", "recipients"]);
+    check(integerOf(p, "drafts", 1, 3) !== null && integerOf(p, "recipients", 1, 5) !== null);
+  },
+  confirm_partner_assistant_test(p) {
+    keys(p, ["schema_version", "expected_version"], ["schema_version", "expected_version"]);
+    check(versionOf(p, "expected_version") !== null);
+  },
+  set_partner_assistant_send_priority(p) {
+    keys(
+      p,
+      ["schema_version", "partner_id", "send_priority"],
+      ["schema_version", "partner_id", "send_priority"],
+    );
+    check(uuidOf(p, "partner_id") !== null && integerOf(p, "send_priority", 0, 9) !== null);
+  },
+  resume_partner_assistant_send(p) {
+    keys(p, ["schema_version"], ["schema_version"]);
+  },
+  set_partner_assistant_settings(p) {
+    keys(
+      p,
+      ["schema_version", "expected_version", "daily_first_limit"],
+      ["schema_version", "expected_version", "daily_first_limit"],
+    );
+    check(
+      versionOf(p, "expected_version") !== null &&
+        integerOf(p, "daily_first_limit", 1, 15) !== null,
     );
   },
 };
@@ -854,8 +899,9 @@ export const PARTNER_ERROR_MESSAGES: Record<string, { sqlstate: string; message:
   },
   partner_assistant_founder_required: {
     sqlstate: "42501",
-    message: "Solo Tommi può mandare l'assistente in prova o in invio.",
+    message: "Solo Tommi può farlo.",
   },
+  /** La alza ancora la migrazione della consegna 1; la 2a non la usa più. */
   partner_assistant_mode_unavailable: {
     sqlstate: "22023",
     message: "Prova e invio arrivano con la seconda consegna.",
@@ -864,15 +910,53 @@ export const PARTNER_ERROR_MESSAGES: Record<string, { sqlstate: string; message:
     sqlstate: "55000",
     message: "L'assistente non è ancora configurato: serve il passo di avvio con Tommi.",
   },
+  partner_assistant_test_required: {
+    sqlstate: "55000",
+    message: "Prima di «Invio» serve una prova confermata da Tommi.",
+  },
+  partner_assistant_test_missing: {
+    sqlstate: "55000",
+    message:
+      "Nessuna email dell'ultima prova è partita nelle ultime 24 ore: manda una prova nuova.",
+  },
+  prova_in_corso: {
+    sqlstate: "55000",
+    message: "La prova di prima non è ancora finita: aspetta che partano le sue email.",
+  },
+  partner_assistant_test_mode_required: {
+    sqlstate: "55000",
+    message: "La prova si manda con l'assistente in «Prova».",
+  },
+  partner_assistant_test_empty: {
+    sqlstate: "55000",
+    message: "Non ci sono bozze pronte da mandare in prova.",
+  },
 };
+
+/**
+ * Rifiuti che nascono nella Server Action, prima della RPC, e mai nella SQL: la posta
+ * dell'assistente non configurata sul server, o gli indirizzi di prova cambiati dopo che la pagina
+ * li ha contati. Non stanno in PARTNER_ERROR_MESSAGES: un errore del database con questi codici
+ * resta un esito da verificare.
+ */
+export const PARTNER_ASSISTANT_ACTION_MESSAGES = {
+  partner_assistant_mail_not_configured:
+    "La posta dell'assistente non è configurata: «Prova» e «Invio» non sono disponibili.",
+  partner_assistant_test_to_changed:
+    "Gli indirizzi di prova sono cambiati: ricarica la pagina e riprova.",
+} as const;
+export type PartnerAssistantActionRejection = keyof typeof PARTNER_ASSISTANT_ACTION_MESSAGES;
 
 /**
  * Conflitto di versione dei comandi che non toccano un contatto: modalità e credito sono le
  * impostazioni dell'assistente, le regole sono le regole.
  */
+const ASSISTANT_SETTINGS_CHANGED =
+  "Un collega ha appena cambiato le impostazioni dell'assistente. Ricarico i dati: controlla e riprova.";
 const PARTNER_CHANGED_MESSAGES: Partial<Record<PartnerCommandKind, string>> = {
-  set_partner_assistant_mode:
-    "Un collega ha appena cambiato le impostazioni dell'assistente. Ricarico i dati: controlla e riprova.",
+  set_partner_assistant_mode: ASSISTANT_SETTINGS_CHANGED,
+  confirm_partner_assistant_test: ASSISTANT_SETTINGS_CHANGED,
+  set_partner_assistant_settings: ASSISTANT_SETTINGS_CHANGED,
   save_partner_assistant_rules:
     "Un collega ha appena salvato una nuova versione delle regole. Ricarico i dati: controlla e riprova.",
 };
@@ -960,8 +1044,21 @@ function successMessage(command: PartnerCommand, data: Record<string, unknown>):
       return "Assistente aggiornato su questo contatto.";
     case "save_partner_assistant_rules":
       return "Regole dell'assistente salvate.";
+    case "start_partner_assistant_test":
+      return `Prova avviata: partono ${(data.drafts as number) * (data.recipients as number)} email di prova, una ogni 4-11 minuti.`;
+    case "confirm_partner_assistant_test":
+      return "Prova confermata: ora si può scegliere «Invio».";
+    case "set_partner_assistant_send_priority":
+      return "Precedenza d'invio salvata.";
+    case "resume_partner_assistant_send":
+      return "Invii ripresi.";
+    case "set_partner_assistant_settings":
+      return `Limite salvato: dopo la prima settimana partono al massimo ${data.daily_first_limit as number} prime email al giorno.`;
   }
 }
+
+const between = (value: unknown, min: number, max: number) =>
+  typeof value === "number" && Number.isSafeInteger(value) && value >= min && value <= max;
 
 /** Risposta della RPC → esito, o `null` se la forma non torna (esito da verificare). */
 export function partnerCommandOutcome(
@@ -971,9 +1068,25 @@ export function partnerCommandOutcome(
   if (!isObject(value) || !isPartnerId(value.id) || typeof value.replayed !== "boolean")
     return null;
   if (!nullableId(value.activity_id) || !nullableId(value.partner_id)) return null;
-  const needsVersion =
-    command.kind !== "set_partner_do_not_contact" && command.kind !== "import_partner_device_file";
+  // «Manda la prova» e «Riprendi l'invio» rispondono senza versione: {id, test_run_id, drafts,
+  // recipients, replayed} e {id, status, replayed}.
+  const needsVersion = ![
+    "set_partner_do_not_contact",
+    "import_partner_device_file",
+    "start_partner_assistant_test",
+    "resume_partner_assistant_send",
+  ].includes(command.kind);
   if (needsVersion && !version(value.version)) return null;
+  if (
+    command.kind === "start_partner_assistant_test" &&
+    (value.test_run_id !== value.id ||
+      !between(value.drafts, 1, 3) ||
+      !between(value.recipients, 1, 5))
+  )
+    return null;
+  if (command.kind === "resume_partner_assistant_send" && value.status !== "ripreso") return null;
+  if (command.kind === "set_partner_assistant_settings" && !between(value.daily_first_limit, 1, 15))
+    return null;
   if (
     (command.kind === "set_partner_state" || command.kind === "record_partner_activity") &&
     !isPartnerStage(value.stage)
@@ -982,7 +1095,11 @@ export function partnerCommandOutcome(
   if (command.kind === "save_partner" && !isPartnerCo(value.co)) return null;
   if (command.kind === "set_partner_do_not_contact" && typeof value.blocked !== "boolean")
     return null;
-  if (command.kind === "set_partner_assistant_contact" && !isPartnerId(value.partner_id))
+  if (
+    (command.kind === "set_partner_assistant_contact" ||
+      command.kind === "set_partner_assistant_send_priority") &&
+    !isPartnerId(value.partner_id)
+  )
     return null;
   const counts =
     command.kind === "import_partner_device_file" ? parsePartnerDevicePlanCounts(value) : null;

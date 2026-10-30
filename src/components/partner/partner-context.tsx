@@ -12,7 +12,8 @@ import {
 import type { PartnerMember, PartnerSummary } from "../../lib/partner/model";
 
 /*
- * Contesto della pagina Partner: chi guarda, oggi a Roma, i membri, l'anteprima locale e due
+ * Contesto della pagina Partner: chi guarda (e se è il founder, Tommi), oggi a Roma, i membri,
+ * l'anteprima locale e due
  * registri condivisi tra i componenti: i tentativi incerti già mostrati in un modulo (così il
  * riquadro in alto non li ripete) e i testi non salvati (per «Hai modifiche non salvate»).
  */
@@ -24,6 +25,11 @@ export type PartnerContextValue = {
   preview: boolean;
   /** Utente della sessione: chiave dei tentativi in sessionStorage. */
   userId: string | null;
+  /**
+   * Chi guarda è il founder (Tommi): vede i comandi dell'assistente solo suoi (prova, invio,
+   * precedenza d'invio). Li ricontrollano comunque la Server Action e la SQL.
+   */
+  founder: boolean;
   /** Giorno di Roma «AAAA-MM-GG», calcolato sul server. */
   today: string;
   members: PartnerMember[];
@@ -39,6 +45,7 @@ const PartnerContext = createContext<PartnerContextValue | null>(null);
 export function PartnerProvider({
   preview,
   userId,
+  founder = false,
   today,
   members,
   partners,
@@ -46,6 +53,8 @@ export function PartnerProvider({
 }: {
   preview: boolean;
   userId: string | null;
+  /** Il founder; senza, nessun comando solo suo (fallimento chiuso). */
+  founder?: boolean;
   today: string;
   members: PartnerMember[];
   partners: readonly PartnerContextPartner[];
@@ -75,6 +84,7 @@ export function PartnerProvider({
     () => ({
       preview,
       userId,
+      founder,
       today,
       members,
       partnersById,
@@ -83,7 +93,18 @@ export function PartnerProvider({
       setDirty,
       hasDirty,
     }),
-    [preview, userId, today, members, partnersById, liveScopes, setLiveScope, setDirty, hasDirty],
+    [
+      preview,
+      userId,
+      founder,
+      today,
+      members,
+      partnersById,
+      liveScopes,
+      setLiveScope,
+      setDirty,
+      hasDirty,
+    ],
   );
   return <PartnerContext.Provider value={value}>{children}</PartnerContext.Provider>;
 }

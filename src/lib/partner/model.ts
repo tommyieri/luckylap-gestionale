@@ -502,7 +502,8 @@ export type PartnerActivity = {
   partnerName: string;
   partnerCo: number;
   kind: PartnerActivityKind;
-  origin: "team" | "file";
+  /** `assistente`: la prima email mandata dall'assistente Partner (consegna 2a). */
+  origin: "team" | "file" | "assistente";
   occurredAt: string;
   messageKind: PartnerMessageKind | null;
   channel: PartnerActivityChannel | null;
@@ -857,7 +858,7 @@ export function parsePartnerActivity(value: unknown): PartnerActivity {
     partnerName: name,
     partnerCo: isPartnerCo(r.partner_co) ? r.partner_co : fail(what),
     kind,
-    origin: oneOf(["team", "file"] as const, r.origin, what),
+    origin: oneOf(["team", "file", "assistente"] as const, r.origin, what),
     occurredAt: instant(r.occurred_at, what),
     messageKind,
     channel: optionalOneOf(PARTNER_ACTIVITY_CHANNELS, r.channel, what),
@@ -1036,7 +1037,10 @@ export function partnerActivityText(
   }
 }
 
-/** «22 ott · Tommi · Inviato via email (Collab)», «20 ott · dal file del telefono · Contattato». */
+/**
+ * «22 ott · Tommi · Inviato via email (Collab)», «20 ott · dal file del telefono · Contattato»,
+ * «29 ott · dall'assistente · Inviato via email».
+ */
 export function partnerActivityLine(
   activity: PartnerActivity,
   members: readonly PartnerMember[] = [],
@@ -1048,11 +1052,16 @@ export function partnerActivityLine(
       ? activity.device
         ? `dal file del ${activity.device}`
         : "da un file"
-      : memberName(members, activity.createdBy);
+      : activity.origin === "assistente"
+        ? "dall'assistente"
+        : memberName(members, activity.createdBy);
   return [when, who, partnerActivityText(activity, members)].filter(Boolean).join(" · ");
 }
 
-/** Un «inviato» degli ultimi 10 minuti: «Già segnato inviato alle 10:42 da Luca. Segnare di nuovo?». */
+/**
+ * Un «inviato» degli ultimi 10 minuti, del team o dell'assistente: «Già segnato inviato alle 10:42
+ * da Luca. Segnare di nuovo?».
+ */
 export function recentSentActivity(
   activities: readonly PartnerActivity[],
   now: Date,
@@ -1063,7 +1072,7 @@ export function recentSentActivity(
     activities.find(
       (activity) =>
         activity.kind === "inviato" &&
-        activity.origin === "team" &&
+        (activity.origin === "team" || activity.origin === "assistente") &&
         activity.messageKind === messageKind &&
         Date.parse(activity.createdAt) >= limit &&
         Date.parse(activity.createdAt) <= now.getTime() + 60 * 1000,
@@ -1077,7 +1086,11 @@ export function recentSentQuestion(
 ): string {
   const time = instantTime(activity.createdAt) ?? "";
   const what = activity.messageKind === "sollecito" ? "il sollecito" : "inviato";
-  return `Già segnato ${what} alle ${time} da ${memberName(members, activity.createdBy)}. Segnare di nuovo?`;
+  const who =
+    activity.origin === "assistente"
+      ? "dall'assistente"
+      : `da ${memberName(members, activity.createdBy)}`;
+  return `Già segnato ${what} alle ${time} ${who}. Segnare di nuovo?`;
 }
 
 /** Piede della pagina: «Ricerca del 21 ottobre 2026, importata il 23 ottobre (commit f6ad90c).» */

@@ -10,6 +10,7 @@ import {
   type PartnerAssistantUsage,
 } from "./cost";
 import { extractCall, researchCall, reviewCall, writeCall } from "./prompts";
+import type { PartnerAssistantSendStore } from "./send-store";
 import type { PartnerAssistantStore } from "./store";
 import type {
   PartnerAssistantChoice,
@@ -308,6 +309,61 @@ const request = (authorization = `Bearer ${config.workerSecret}`, signal?: Abort
   );
 afterEach(() => vi.useRealTimers());
 
+const mailEnvironment = {
+  PARTNER_MAIL_USER: "casella@luckylap.example.test",
+  PARTNER_MAIL_PASSWORD: "synthetic-mail-password",
+  PARTNER_TEST_TO: "prova1@example.test,prova2@example.test",
+};
+/** Lo store d'invio finto: solo recordEnvironment conta nella route. */
+function sendSetup(environmentResult: unknown = { ok: true, value: { status: "done" } }) {
+  const recordEnvironment = vi.fn(
+    async (_input: unknown, _signal: AbortSignal) => environmentResult,
+  );
+  const unused = vi.fn(async () => ({ ok: false }));
+  const store = {
+    claim: unused,
+    skip: unused,
+    prepare: unused,
+    start: unused,
+    finish: unused,
+    recordAppend: unused,
+    pause: unused,
+    release: unused,
+    recordEnvironment,
+  } as unknown as PartnerAssistantSendStore;
+  return { recordEnvironment, sendDependencies: { store } };
+}
+/** Un giro completo: 202, poi il lavoro dentro after. */
+async function tick(
+  env: Record<string, string>,
+  extra: {
+    send?: ReturnType<typeof vi.fn>;
+    run?: ReturnType<typeof vi.fn>;
+    environmentResult?: unknown;
+  } = {},
+) {
+  const state = setup();
+  const sending = sendSetup(extra.environmentResult);
+  const run = extra.run ?? vi.fn().mockResolvedValue({ status: "complete" });
+  const send = extra.send ?? vi.fn().mockResolvedValue({ status: "idle" });
+  const callbacks: (() => Promise<void>)[] = [];
+  const response = await receivePartnerAssistantTick(
+    request(),
+    (callback) => {
+      callbacks.push(callback);
+    },
+    {
+      ...state.dependencies,
+      environment: env,
+      run: run as never,
+      send: send as never,
+      sendDependencies: sending.sendDependencies,
+    },
+  );
+  for (const callback of callbacks) await callback();
+  return { response, run, send, state, ...sending };
+}
+
 describe("route del worker dell'assistente Partner", () => {
   it("503 senza configurazione, 401 con bearer sbagliato, nessun claim", async () => {
     const state = setup();
@@ -363,6 +419,7 @@ describe("route del worker dell'assistente Partner", () => {
         ...state.dependencies,
         environment,
         run,
+        sendDependencies: sendSetup().sendDependencies,
       },
     );
     expect(response.status).toBe(202);
@@ -391,7 +448,7 @@ describe("route del worker dell'assistente Partner", () => {
       (next) => {
         callback = next;
       },
-      { ...state.dependencies, environment, run },
+      { ...state.dependencies, environment, run, ...sendSetup() },
     );
     expect(accepted.status).toBe(202);
     await expect(callback()).resolves.toBeUndefined();
@@ -425,7 +482,7 @@ describe("route del worker dell'assistente Partner", () => {
       (next) => {
         callback = next;
       },
-      { ...state.dependencies, environment, run },
+      { ...state.dependencies, environment, run, ...sendSetup() },
     );
     await callback();
     expect(textSpy).not.toHaveBeenCalled();
@@ -465,6 +522,130 @@ describe("route del worker dell'assistente Partner", () => {
       for (const [name, value] of response.headers)
         expect(`${name}: ${value}`).not.toMatch(/secret|sk-ant|sb_secret|000 000/);
     }
+  });
+});
+
+describe("route del worker: variabili, invio e passo con Claude", () => {
+  it("recordEnvironment a ogni giro dopo il 202, anche con la posta nulla, senza valori", async () => {
+    const { response, recordEnvironment, send, run } = await tick(environment);
+    expect(response.status).toBe(202);
+    expect(recordEnvironment).toHaveBeenCalledOnce();
+    expect(recordEnvironment.mock.calls[0]![0]).toEqual({
+      mailboxOk: false,
+      testOk: false,
+      testCount: 0,
+    });
+    expect(send).not.toHaveBeenCalled();
+    expect(run).toHaveBeenCalledOnce();
+  });
+  it("con la posta configurata: casella, prova e numero degli indirizzi, mai i valori", async () => {
+    const { recordEnvironment } = await tick({ ...environment, ...mailEnvironment });
+    const [input, signal] = recordEnvironment.mock.calls[0]! as unknown as [unknown, AbortSignal];
+    expect(input).toEqual({ mailboxOk: true, testOk: true, testCount: 2 });
+    expect(JSON.stringify(input)).not.toMatch(/@|synthetic|example/);
+    expect(signal).toBeInstanceOf(AbortSignal);
+  });
+  it("niente si registra con 503 o 401", async () => {
+    const unavailable = await tick({});
+    expect(unavailable.response.status).toBe(503);
+    const unauthorized = sendSetup();
+    const send = vi.fn();
+    const run = vi.fn();
+    const refused = await receivePartnerAssistantTick(request("Bearer wrong"), vi.fn(), {
+      ...setup().dependencies,
+      environment: { ...environment, ...mailEnvironment },
+      run,
+      send: send as never,
+      ...unauthorized,
+    });
+    expect(refused.status).toBe(401);
+    for (const recorded of [unavailable.recordEnvironment, unauthorized.recordEnvironment])
+      expect(recorded).not.toHaveBeenCalled();
+    for (const fn of [unavailable.send, unavailable.run, send, run])
+      expect(fn).not.toHaveBeenCalled();
+  });
+  it.each<[string, unknown]>([
+    ["una risposta incerta", { ok: false }],
+    ["un'eccezione", "throw"],
+  ])("recordEnvironment con %s non ferma l'invio né il passo con Claude", async (_, result) => {
+    const state = setup();
+    const sending = sendSetup();
+    if (result === "throw") sending.recordEnvironment.mockRejectedValue(new Error("private"));
+    else sending.recordEnvironment.mockResolvedValue(result);
+    const send = vi.fn().mockResolvedValue({ status: "idle" });
+    const run = vi.fn().mockResolvedValue({ status: "complete" });
+    let callback!: () => Promise<void>;
+    await receivePartnerAssistantTick(
+      request(),
+      (next) => {
+        callback = next;
+      },
+      {
+        ...state.dependencies,
+        environment: { ...environment, ...mailEnvironment },
+        run,
+        send: send as never,
+        ...sending,
+      },
+    );
+    await expect(callback()).resolves.toBeUndefined();
+    expect(send).toHaveBeenCalledOnce();
+    expect(run).toHaveBeenCalledOnce();
+  });
+  it("con la posta configurata e l'invio idle parte anche il passo con Claude, dopo l'invio", async () => {
+    const order: string[] = [];
+    const send = vi.fn(async () => {
+      order.push("send");
+      return { status: "idle" };
+    });
+    const run = vi.fn(async () => {
+      order.push("run");
+      return { status: "complete" };
+    });
+    const { state, sendDependencies, recordEnvironment } = await tick(
+      { ...environment, ...mailEnvironment },
+      { send, run },
+    );
+    expect(order).toEqual(["send", "run"]);
+    expect(recordEnvironment).toHaveBeenCalledOnce();
+    const [sendConfig, mailConfig, signal, dependencies] = send.mock.calls[0]! as unknown as [
+      unknown,
+      { user: string; testTo: string[] },
+      AbortSignal,
+      unknown,
+    ];
+    expect(sendConfig).toEqual(config);
+    expect(mailConfig).toMatchObject({
+      user: "casella@luckylap.example.test",
+      testTo: ["prova1@example.test", "prova2@example.test"],
+    });
+    expect(signal.aborted).toBe(false);
+    expect(dependencies).toMatchObject({ store: sendDependencies.store });
+    expect((run.mock.calls[0] as unknown[])[2]).toEqual(state.dependencies);
+  });
+  it.each(["complete", "uncertain", "stopped"])(
+    "con l'invio %s il passo con Claude non parte",
+    async (status) => {
+      const { send, run } = await tick(
+        { ...environment, ...mailEnvironment },
+        { send: vi.fn().mockResolvedValue({ status }) },
+      );
+      expect(send).toHaveBeenCalledOnce();
+      expect(run).not.toHaveBeenCalled();
+    },
+  );
+  it("un invio che lancia non fa partire il passo con Claude", async () => {
+    const { send, run } = await tick(
+      { ...environment, ...mailEnvironment },
+      { send: vi.fn().mockRejectedValue(new Error("private")) },
+    );
+    expect(send).toHaveBeenCalledOnce();
+    expect(run).not.toHaveBeenCalled();
+  });
+  it("senza posta l'invio non si chiama e il passo con Claude sì", async () => {
+    const { send, run } = await tick({ ...environment, PARTNER_MAIL_USER: "non valido" });
+    expect(send).not.toHaveBeenCalled();
+    expect(run).toHaveBeenCalledOnce();
   });
 });
 

@@ -6,13 +6,16 @@
 // così l'anteprima mostra sempre tutti e cinque i periodi. Nessuna chiamata a Supabase.
 //
 // L'assistente Partner ha righe a parte (partnerAssistantFixtureRows): una bozza pronta per il
-// contatto 2, un passaggio a Tommi per il contatto 1, l'interruttore fermo sul contatto 4. Le bozze
-// citano https://luckylap.com e la firma porta solo il numero finto +39 000 000 0000.
+// contatto 2 con la precedenza d'invio 9, un passaggio a Tommi per il contatto 1, l'interruttore
+// fermo sul contatto 4, la prima email già inviata al contatto 6 (dopo una prova). Le bozze citano
+// https://luckylap.com e la firma porta solo il numero finto +39 000 000 0000.
 import { isLocalPreviewEnabled } from "../runtime";
 import {
   partnerAssistantRulesFrom,
+  partnerAssistantSendFrom,
   partnerAssistantStatusFrom,
   type PartnerAssistantRulesView,
+  type PartnerAssistantSendStatus,
   type PartnerAssistantStatus,
 } from "./assistant";
 import { partnerLinkValue } from "./contacts";
@@ -716,10 +719,11 @@ const choiceContent = (fields: Record<string, unknown>) => ({
 });
 
 /**
- * Righe sintetiche dell'assistente con la forma delle tabelle public.partner_assistant_* e della
- * risposta di read_partner_assistant_status. Contatto 2: ricerca, scelta e bozza pronta. Contatto 1:
- * passato a Tommi sei giorni fa senza un fatto da citare, poi scritto a mano dal team. Contatto 4:
- * interruttore fermo, senza lavoro. Gli altri: niente.
+ * Righe sintetiche dell'assistente con la forma delle tabelle public.partner_assistant_* e delle
+ * risposte di read_partner_assistant_status e read_partner_assistant_send. Contatto 2: ricerca,
+ * scelta e bozza pronta, con la precedenza d'invio 9. Contatto 1: passato a Tommi sei giorni fa
+ * senza un fatto da citare, poi scritto a mano dal team. Contatto 4: interruttore fermo, senza
+ * lavoro. Contatto 6: prova ieri, prima email inviata oggi (lavoro «inviata»). Gli altri: niente.
  */
 export function partnerAssistantFixtureRows(today: string) {
   const id = partnerFixtureId;
@@ -728,15 +732,27 @@ export function partnerAssistantFixtureRows(today: string) {
     partnerFixtureRows(today).contacts.find(
       (contact) => contact.partner_id === id(partner) && contact.kind === "email",
     )!.id;
+  const yesterday = addDays(today, -1);
   const switches: AssistantFixtureRow[] = [
     {
       id: id(965),
       partner_id: id(4),
       active: false,
       reason: "Ci scrive solo il team.",
+      send_priority: 0,
       version: 1,
       updated_by: id(902),
       updated_at: at(before, "10:00:00"),
+    },
+    {
+      id: id(966),
+      partner_id: id(2),
+      active: true,
+      reason: null,
+      send_priority: 9,
+      version: 1,
+      updated_by: id(901),
+      updated_at: at(yesterday, "18:00:00"),
     },
   ];
   const job = (
@@ -778,6 +794,13 @@ export function partnerAssistantFixtureRows(today: string) {
       draft_id: id(981),
       created_at: at(today, "08:20:00"),
       updated_at: at(today, "08:50:00"),
+    }),
+    // La prima email è partita: il lavoro resta al passo «controllo», senza note né bozza qui.
+    job(963, 6, {
+      status: "inviata",
+      step: "controllo",
+      created_at: at(addDays(today, -3), "08:00:00"),
+      updated_at: at(today, "08:41:12"),
     }),
   ];
   const note = (
@@ -933,6 +956,22 @@ export function partnerAssistantFixtureRows(today: string) {
       created_at: at(addDays(today, -1), "16:30:00"),
     },
   ];
+  // Le email del contatto 6, con le colonne lette dalla scheda: la prova di ieri verso l'indirizzo
+  // di prova e la prima email vera di oggi.
+  const subject = "Porsche Club Sintetico Sei und LuckyLap";
+  const message = (n: number, mode: "prova" | "invio", sent: string): AssistantFixtureRow => ({
+    id: id(n),
+    partner_id: id(6),
+    mode,
+    send_status: "inviato",
+    subject,
+    sent_at: sent,
+    created_at: sent,
+  });
+  const messages = [
+    message(991, "prova", at(yesterday, "10:05:00")),
+    message(992, "invio", at(today, "08:41:12")),
+  ];
   const event = (time: string, co: number | null, step: string | null, outcome: string) => ({
     created_at: time,
     co,
@@ -970,23 +1009,71 @@ export function partnerAssistantFixtureRows(today: string) {
       event(at(today, "08:48:00"), 2, "scrittura", "controlli_superati"),
       event(at(today, "08:46:00"), 2, "estrazione", "scrivi"),
       event(at(today, "08:44:00"), 2, "ricerca", "salvata"),
+      event(at(today, "08:41:12"), 6, "invio", "invio_inviato"),
       event(at(today, "08:32:00"), 2, "ricerca", "timeout"),
       event(at(before, "08:08:00"), 1, "estrazione", "fatto_mancante"),
       event(at(before, "08:06:00"), 1, "ricerca", "salvata"),
     ],
   };
-  return { switches, jobs, notes, drafts, rules, status };
+  // Lo stato dell'invio come lo dà read_partner_assistant_send: nessun fermo, una prima email oggi.
+  const send = {
+    stop_reason: null,
+    stopped_at: null,
+    day_stopped_on: null,
+    backoff_until: null,
+    next_send_after: at(today, "08:49:00"),
+    last_tick_at: at(today, "08:58:00"),
+    last_outcome: "copia_salvata",
+    daily_first_limit: 10,
+    first_limit_today: 5,
+    first_sent_today: 1,
+    first_real_send_on: today,
+    test_sent_today: 0,
+    test_limit: 15,
+    test_confirmed_at: at(yesterday, "10:30:00"),
+    test_confirmed_by: "Ada Prova",
+    test_run: { requested_at: at(yesterday, "10:00:00"), drafts: 1, recipients: 1, sent: 1 },
+    window_open_rome: false,
+    next_window_rome: at(addDays(today, 1), "08:30:00"),
+    ready: jobs.filter((item) => item.status === "pronta").length,
+    env_checked_at: at(today, "08:58:00"),
+    env_mailbox_ok: true,
+    env_test_ok: true,
+    env_test_count: 1,
+    smtp_login_at: at(today, "08:41:00"),
+    smtp_login_code: "ok",
+    imap_login_at: at(today, "08:41:20"),
+    imap_login_code: "ok",
+    recent: [...messages].reverse().map((row) => ({
+      at: row.sent_at,
+      co: 6,
+      name: SPECS[5].name,
+      mode: row.mode,
+      status: row.send_status,
+      subject: row.subject,
+    })),
+    priorities: switches
+      .filter((row) => (row.send_priority as number) > 0)
+      .map((row) => ({
+        co: Number(row.partner_id.slice(-3)),
+        name: SPECS[Number(row.partner_id.slice(-3)) - 1].name,
+        send_priority: row.send_priority,
+      })),
+  };
+  return { switches, jobs, notes, drafts, rules, messages, status, send };
 }
 
 /** Stato e regole dell'assistente per l'anteprima, passati dagli stessi parser della lettura. */
 export function partnerAssistantFixture(today: string): {
   status: PartnerAssistantStatus;
   rules: PartnerAssistantRulesView;
+  send: PartnerAssistantSendStatus;
 } {
   const rows = partnerAssistantFixtureRows(today);
   const latest = rows.rules.reduce((a, b) => (b.version > a.version ? b : a));
   return {
     status: partnerAssistantStatusFrom(rows.status),
+    send: partnerAssistantSendFrom(rows.send),
     rules: partnerAssistantRulesFrom({
       current: latest,
       history: rows.rules,
@@ -1054,6 +1141,10 @@ export function partnerFixtureDetail(co: number, today: string): PartnerDetail |
       job: mine(assistant.jobs)[0] ?? null,
       notes: mine(assistant.notes),
       draft: mine(assistant.drafts)[0] ?? null,
+      // Come la lettura: solo le prime email vere con un esito.
+      messages: mine(assistant.messages)
+        .filter((row) => row.mode === "invio")
+        .reverse(),
     },
   });
 }

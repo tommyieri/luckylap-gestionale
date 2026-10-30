@@ -450,20 +450,38 @@ export function GuideView({ access, preview = false }: { access: GuideAccess; pr
             <ul className={styles.points}>
               <li>
                 L’assistente cerca notizie sui contatti «Da contattare», sceglie una proposta e
-                scrive la prima email. Per ora prepara solo le bozze e non manda niente: le leggi
-                nella scheda del contatto.
+                scrive la prima email. In «Prepara» scrive solo le bozze: le leggi nella scheda del
+                contatto.
+              </li>
+              <li>
+                In «Invio» l’assistente manda le prime email dalla casella aziendale, nei giorni
+                feriali tra le 9:30 e le 11 dell’ora del contatto. Ne manda poche al giorno, una
+                ogni 4-11 minuti, e mai due allo stesso contatto.
+              </li>
+              <li>
+                Prima Tommi fa una prova con «Manda la prova» e la conferma con «La prova è arrivata
+                in posta in arrivo». Senza la prova confermata «Invio» non si può scegliere. «Prova»
+                e «Invio» li sceglie solo Tommi.
+              </li>
+              <li>
+                Le risposte arrivano nella casella aziendale come sempre: l’assistente non le legge.
+                Il sollecito dopo 7 giorni lo manda Tommi: lo trova nella sua Oggi.
               </li>
               <li>
                 In cima a Partner c’è la striscia dell’assistente: dice cosa sta facendo, quante
-                bozze sono pronte e quanto ha speso. «Apri l'assistente» porta alla sua pagina.
+                bozze sono pronte o quante email ha mandato oggi, e quanto ha speso. «Apri
+                l'assistente» porta alla sua pagina.
               </li>
               <li>
                 Nella scheda del contatto, il blocco «Assistente» mostra la ricerca con le fonti, la
-                proposta scelta e la bozza dell’email.
+                proposta scelta e la bozza dell’email. Nella scheda il blocco «Messaggi pronti» (o
+                «Messaggio pronto») ha i testi vecchi della ricerca di ottobre: l’email che
+                l’assistente manda è la «Bozza dell'email» del blocco «Assistente».
               </li>
               <li>
                 Per fermarlo del tutto premi «Ferma l'assistente» nella striscia, oppure «Spento»
-                nella sua pagina: lo può fare chiunque. «Prepara» lo rimette al lavoro.
+                nella sua pagina: lo può fare chiunque. «Prepara» lo rimette al lavoro, senza
+                mandare email.
               </li>
               <li>
                 Per un solo contatto, nel blocco «Assistente» premi «Ferma su questo contatto»;
@@ -473,7 +491,12 @@ export function GuideView({ access, preview = false }: { access: GuideAccess; pr
               <li>
                 Quando non riesce a finire un contatto lo passa a Tommi: nella pagina
                 dell’assistente è in «Da vedere», con il motivo. «Ridai all'assistente» lo rimette
-                in coda.
+                in coda. Se nella casella c’è già uno scambio recente con quell’indirizzo, o se non
+                è sicuro che l’email sia partita, il contatto resta a Tommi.
+              </li>
+              <li>
+                Con «Manda per primo», nel blocco «Assistente», Tommi fa partire un contatto prima
+                degli altri.
               </li>
               <li>
                 Le regole con cui scrive sono nella sua pagina, in «Regole»: si cambiano con «Scrivi

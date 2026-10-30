@@ -1,4 +1,4 @@
-// test-db: postgres minimo 113
+// test-db: postgres minimo 115
 // Catena reale di tutte le migrazioni: P2/P3 prima di P4/P5/P6.
 // Solo Auth, Storage e le estensioni Supabase esterne hanno stand-in espliciti.
 // Nessuna funzione applicativa sostituita; dati sintetici, socket privata, nessun cloud.
