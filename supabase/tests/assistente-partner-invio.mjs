@@ -1,4 +1,4 @@
-// test-db: pglite minimo 412
+// test-db: pglite minimo 429
 // Assistente Partner, consegna 2a, compito 2 (_assistente_partner_invio.sql, sezione 2): calendario
 // (finestra del destinatario, feste, 21 dicembre-7 gennaio), limiti del giorno, coda d'invio con la
 // pulizia fino al candidato, lease della casella e RPC del worker (claim, skip, prepare, start,
@@ -889,6 +889,25 @@ try {
     eq(await fn(`private.partner_assistant_valid_timezone('${tz}')`), true, tz);
   for (const tz of ["Europe/Atlantide", "UTC+3", "<+03>-3", " Europe/Rome", ""])
     eq(await fn(`private.partner_assistant_valid_timezone('${tz}')`), false, tz);
+  // I nomi stanno nella tabella privata dei fusi, in minuscolo: quelli di pg_timezone_names alla
+  // migrazione, letti una volta sola.
+  eq(
+    await value(
+      `select (select count(*) from private.partner_assistant_timezones)
+          = (select count(distinct lower(z.name)) from pg_catalog.pg_timezone_names z)
+        and not exists (select 1 from pg_catalog.pg_timezone_names z
+          where not exists (select 1 from private.partner_assistant_timezones t where t.name = lower(z.name)))
+        and (select bool_and(t.name = lower(t.name)) from private.partner_assistant_timezones t) as v`,
+    ),
+    true,
+  );
+  eq(
+    await value(
+      `select array_agg(t.name order by t.name) as v from private.partner_assistant_timezones t
+        where t.name in ('utc', 'gmt', 'europe/rome', 'etc/gmt+1')`,
+    ),
+    ["etc/gmt+1", "europe/rome", "gmt", "utc"],
+  );
   eq(
     await open("UTC", "Italia", "2026-11-10T10:30:00Z"),
     true,
@@ -1332,6 +1351,46 @@ try {
     "dopo una riga spostata, una riga chiusa resta chiusa",
   );
   eq((await job(pid(989))).step, "ricerca");
+  // Fusi esteri in coda: 200 righe con la finestra chiusa, ognuna con il suo fuso, prima del
+  // candidato di Roma. Il claim chiede il fuso di ogni riga a valid_timezone tenendo la casella:
+  // con pg_timezone_names erano circa 15 ms a chiamata su PGlite (35 ms su PostgreSQL 17), più di
+  // 3 secondi qui. Con la tabella dei fusi resta sotto 1 secondo.
+  const FOREIGN_ZONES = [
+    ["America/New_York", "Stati Uniti"],
+    ["America/Los_Angeles", "Stati Uniti"],
+    ["America/Sao_Paulo", "Brasile"],
+    ["Asia/Tokyo", "Giappone"],
+    ["Australia/Sydney", "Australia"],
+    ["Asia/Dubai", "Emirati Arabi Uniti"],
+  ];
+  const foreignCos = range(5001, 5200);
+  for (const co of foreignCos) {
+    const [tz, country] = FOREIGN_ZONES[co % FOREIGN_ZONES.length];
+    await readyFirst(co, { tz, country, researchDaysAgo: 3 });
+  }
+  await readyFirst(5201, { researchDaysAgo: 0 });
+  await onlyQueue(...foreignCos, 5201);
+  await release();
+  await resetSendClock();
+  const foreignAt = await nextOpen();
+  const foreignStarted = performance.now();
+  const foreignClaim = await claimAt(foreignAt);
+  const foreignMs = Math.round(performance.now() - foreignStarted);
+  eq(
+    foreignClaim.candidate?.co,
+    5201,
+    `il candidato dopo 200 righe estere chiuse (${foreignClaim.status} ${foreignClaim.reason ?? ""})`,
+  );
+  ok(foreignMs < 1000, `claim con 200 fusi esteri in coda: ${foreignMs} ms, limite 1000 ms`);
+  eq(
+    await value(
+      `select count(*)::int as v from public.partner_assistant_jobs j join public.partners p on p.id = j.partner_id
+        where p.co between 5001 and 5200 and j.status = 'pronta'`,
+    ),
+    200,
+    "le righe con la finestra chiusa restano in coda",
+  );
+  await release();
   // Q15: un evento già iniziato non parte e non sale in testa alla coda
   await readyFirst(977, { eventStartsOn: "2026-11-09" });
   await readyFirst(978, { eventStartsOn: "2026-12-20" });
@@ -1679,6 +1738,30 @@ try {
   for (const f of SECTION_2_HELPERS)
     for (const role of ["anon", "authenticated", "service_role"])
       eq(await canExecute(role, f), false, `${f}: nessun grant a ${role}`);
+  // Le tabelle private del calendario: RLS attiva e nessun grant.
+  for (const table of [
+    "private.partner_assistant_holidays",
+    "private.partner_assistant_countries",
+    "private.partner_assistant_timezones",
+  ]) {
+    eq(
+      await value("select c.relrowsecurity as v from pg_class c where c.oid = $1::regclass", [
+        table,
+      ]),
+      true,
+      `${table}: RLS`,
+    );
+    for (const role of ["anon", "authenticated", "service_role"])
+      eq(
+        await value(
+          `select has_table_privilege($1, $2, 'SELECT') or has_table_privilege($1, $2, 'INSERT')
+             or has_table_privilege($1, $2, 'UPDATE') or has_table_privilege($1, $2, 'DELETE') as v`,
+          [role, table],
+        ),
+        false,
+        `${table}: nessun grant a ${role}`,
+      );
+  }
   await rejects(
     () =>
       as("authenticated", founder, () =>

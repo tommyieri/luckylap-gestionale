@@ -30,8 +30,8 @@ const orEmpty = (value: string, valid: (value: string) => boolean) => value === 
 const emailAddress = (value: string) => partnerLinkValue("email", value) === value;
 const httpUrl = (value: string) => partnerLinkValue("web", value) === value;
 // Un nome IANA, anche senza «/» (UTC, GMT): come private.partner_assistant_valid_timezone, che
-// cerca il nome in pg_timezone_names. Intl accetta anche gli scarti («+01:00»), che non sono un fuso
-// con l'ora legale e che PostgreSQL non elenca.
+// cerca il nome nella tabella dei fusi, copiata da pg_timezone_names. Intl accetta anche gli scarti
+// («+01:00»), che non sono un fuso con l'ora legale e che PostgreSQL non elenca.
 const timeZone = (value: string) => {
   if (/^[+-]/u.test(value)) return false;
   try {

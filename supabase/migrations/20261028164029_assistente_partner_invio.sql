@@ -26,7 +26,8 @@
 --   eseguibili solo da authenticated. «Riprendi l'invio» prende solo lo stato della casella, mai la
 --   configurazione.
 -- - Sezione 2. Calendario: finestra del destinatario (lunedì-venerdì, 9:30-11:00 nel suo fuso),
---   feste nazionali e paesi in due tabelle private, niente invii dal 21 dicembre al 7 gennaio.
+--   feste nazionali, paesi e nomi dei fusi in tre tabelle private, niente invii dal 21 dicembre al
+--   7 gennaio.
 --   Limiti: 5 prime email al giorno nei primi 7 giorni dal primo invio vero, poi daily_first_limit;
 --   15 prove al giorno; tra due invii da 4 a 11 minuti. Ogni decisione usa partner_assistant_now().
 -- - RPC del worker (service_role, private security definer + wrapper public invoker): claim, skip,
@@ -901,13 +902,25 @@ insert into private.partner_assistant_countries(alias, country_code) values
   ('belgio', 'BE'), ('belgium', 'BE'), ('belgique', 'BE'), ('belgië', 'BE'), ('be', 'BE'),
   ('paesi bassi', 'NL'), ('olanda', 'NL'), ('netherlands', 'NL'), ('nederland', 'NL'), ('nl', 'NL');
 
+-- I nomi dei fusi, in minuscolo: quelli di pg_timezone_names al momento della migrazione.
+-- pg_timezone_names rilegge tutto l'archivio dei fusi a ogni lettura (circa 35 ms su PostgreSQL 17)
+-- e il claim chiede il fuso di ogni riga della coda tenendo la casella. Un fuso che un aggiornamento
+-- di PostgreSQL aggiungerà dopo vale come non valido (Roma) finché una migrazione non lo aggiunge.
+create table private.partner_assistant_timezones (
+  name text primary key check (name = lower(name))
+);
+insert into private.partner_assistant_timezones(name)
+  select distinct lower(z.name) from pg_catalog.pg_timezone_names z;
+
 -- Per l'evento «paese senza calendario», una volta per contatto.
 create index partner_assistant_events_no_calendar on private.partner_assistant_events(partner_id)
   where outcome = 'paese_senza_calendario';
 
 alter table private.partner_assistant_holidays enable row level security;
 alter table private.partner_assistant_countries enable row level security;
-revoke all on table private.partner_assistant_holidays, private.partner_assistant_countries
+alter table private.partner_assistant_timezones enable row level security;
+revoke all on table private.partner_assistant_holidays, private.partner_assistant_countries,
+  private.partner_assistant_timezones
   from public, anon, authenticated, service_role;
 
 -- ---------------------------------------------------------------------------
@@ -920,13 +933,13 @@ language sql stable security invoker set search_path = '' as $$
   select c.country_code from private.partner_assistant_countries c where c.alias = lower(btrim(p_country))
 $$;
 
--- Un fuso che PostgreSQL elenca in pg_timezone_names, senza badare alle maiuscole come AT TIME ZONE:
--- anche senza «/», come UTC o GMT, che la scelta accetta con Intl. Mai un fuso POSIX («UTC+3»),
--- che pg_timezone_names non elenca.
+-- Un fuso della tabella dei fusi, senza badare alle maiuscole come AT TIME ZONE: anche senza «/»,
+-- come UTC o GMT, che la scelta accetta con Intl. Mai un fuso POSIX («UTC+3»), che
+-- pg_timezone_names non elenca. Una ricerca sulla chiave, senza rileggere l'archivio dei fusi.
 create function private.partner_assistant_valid_timezone(p_timezone text) returns boolean
 language sql stable security invoker set search_path = '' as $$
-  select coalesce(p_timezone <> '' and exists (select 1 from pg_catalog.pg_timezone_names z
-    where lower(z.name) = lower(p_timezone)), false)
+  select coalesce(p_timezone <> '' and exists (select 1 from private.partner_assistant_timezones z
+    where z.name = lower(p_timezone)), false)
 $$;
 
 -- L'ultimo giorno coperto dalla tabella delle feste. Dopo, la finestra resta chiusa in ogni paese
@@ -946,7 +959,7 @@ create function private.partner_assistant_window_open(p_timezone text, p_country
 returns boolean
 language plpgsql stable security invoker set search_path = '' as $$
 declare
-  -- Roma senza cercarla in pg_timezone_names: è anche il fuso di riserva.
+  -- Roma senza cercarla nella tabella dei fusi: è anche il fuso di riserva.
   v_zone text := case when p_timezone = 'Europe/Rome' then p_timezone
     when private.partner_assistant_valid_timezone(p_timezone) then p_timezone else 'Europe/Rome' end;
   v_code text := private.partner_assistant_country_code(p_country);

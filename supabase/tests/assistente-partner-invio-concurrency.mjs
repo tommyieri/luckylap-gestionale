@@ -260,15 +260,18 @@ try {
     [founder],
   );
 
-  // Un contatto con la bozza pronta, come lo lascia la consegna 1 (Europe/Rome, Italia).
+  // Un contatto con la bozza pronta, come lo lascia la consegna 1 (di solito Europe/Rome, Italia).
   const ids = new Map();
-  async function readyFirst(co, { researchDaysAgo = 1 } = {}) {
+  async function readyFirst(
+    co,
+    { researchDaysAgo = 1, tz = "Europe/Rome", country = "Italia" } = {},
+  ) {
     const id = randomUUID();
     ids.set(co, id);
     await owner.query(
       `insert into public.partners(id, co, name, origin, stage, created_by, sections, priority, contact_month, country)
-       values ($1, $2, $3, 'team', 'da_contattare', $4, array['collab'], 'media', date '2026-11-01', 'Italia')`,
-      [id, co, `Club Sintetico ${co}`, founder],
+       values ($1, $2, $3, 'team', 'da_contattare', $4, array['collab'], 'media', date '2026-11-01', $5)`,
+      [id, co, `Club Sintetico ${co}`, founder, country],
     );
     const contact = await scalar(
       owner,
@@ -295,7 +298,7 @@ try {
         JSON.stringify({
           contact_kind: "club",
           register: "voi",
-          timezone: "Europe/Rome",
+          timezone: tz,
           event_starts_on: "",
           request: "merch_cobranding",
         }),
@@ -310,7 +313,8 @@ try {
       owner,
       `insert into public.partner_assistant_drafts(partner_id, contact_id, partner_version, language, subject, body,
          signature, sha256, rules_version, research_note_id, operation_id, created_by, created_at)
-       values ($1, $2, 1, 'it', $3, $4, $5, $6, 1, $7, gen_random_uuid(), $8,
+       values ($1, $2, 1, 'it', $3, $4, $5, $6, (select max(version) from public.partner_assistant_rules), $7,
+         gen_random_uuid(), $8,
          $9::timestamptz - interval '10 minutes') returning id value`,
       [id, contact, subject, body, SIGNATURE, digest, research, assistant, AT],
     );
@@ -648,6 +652,50 @@ try {
   await b.query("commit");
   eq(await messageStatus(g990.row), "scartato");
   eq(await inFlight(), 0, "Nessun messaggio in invio");
+
+  // 8. Fusi esteri in coda: 200 righe con la finestra chiusa prima del candidato di Roma. Il claim
+  // chiede il fuso di ogni riga a valid_timezone tenendo la casella: con pg_timezone_names erano
+  // circa 35 ms a chiamata, 7 secondi qui (oltre 280 righe il timeout RPC di 10 secondi). Con la
+  // tabella dei fusi resta sotto 1 secondo.
+  await releaseSend();
+  await resetSendClock();
+  const zones = [
+    ["America/New_York", "Stati Uniti"],
+    ["America/Los_Angeles", "Stati Uniti"],
+    ["America/Sao_Paulo", "Brasile"],
+    ["Asia/Tokyo", "Giappone"],
+    ["Australia/Sydney", "Australia"],
+    ["Asia/Dubai", "Emirati Arabi Uniti"],
+  ];
+  const foreignCos = Array.from({ length: 200 }, (_, i) => 5001 + i);
+  for (const co of foreignCos) {
+    const [tz, country] = zones[co % zones.length];
+    await readyFirst(co, { tz, country, researchDaysAgo: 3 });
+  }
+  await readyFirst(5201, { researchDaysAgo: 0 });
+  await onlyQueue(...foreignCos, 5201);
+  const claimStarted = performance.now();
+  const foreignClaim = await asService(a, () => claim(a));
+  const claimMs = Math.round(performance.now() - claimStarted);
+  eq(
+    foreignClaim.candidate?.co,
+    5201,
+    `Il candidato dopo 200 righe estere chiuse (${foreignClaim.status} ${foreignClaim.reason ?? ""})`,
+  );
+  eq(claimMs < 1000, true, `Claim con 200 fusi esteri in coda: ${claimMs} ms, limite 1000 ms`);
+  eq(
+    await scalar(
+      owner,
+      `select (select count(*) from private.partner_assistant_timezones)
+          = (select count(distinct lower(z.name)) from pg_catalog.pg_timezone_names z)
+        and private.partner_assistant_valid_timezone('UTC')
+        and private.partner_assistant_valid_timezone('europe/london')
+        and not private.partner_assistant_valid_timezone('Europe/Atlantide') value`,
+    ),
+    true,
+    "La tabella dei fusi: i nomi di pg_timezone_names",
+  );
+  await releaseSend();
   console.log(
     `PASS ${checks} Assistente Partner invio concurrent checks; PostgreSQL 17 reale, pids ${pids.a}/${pids.b}, Auth/dati sintetici.`,
   );
