@@ -111,11 +111,16 @@ function partnerAssistantMailbox(client: ImapFlow): PartnerAssistantMailbox {
   return {
     async folders() {
       try {
-        const entries = await client.list({ listOnly: true });
+        // Senza `listOnly`: con quell'opzione imapflow 2.4.2 restituisce le cartelle prima di
+        // assegnare specialUse, e su IONOS «Posta inviata» e «Spam» risultavano senza (30 ottobre).
+        const entries = await client.list();
         if (!Array.isArray(entries)) return null;
-        // imapflow assegna ogni flag a una sola cartella, anche quando lo riconosce dal nome.
+        // imapflow assegna ogni flag a una sola cartella, anche quando lo riconosce dal nome; se
+        // manca, vale il flag SPECIAL-USE grezzo della risposta LIST.
         const flagged = (flag: string) =>
-          entries.find((entry) => entry.specialUse === flag)?.path ?? null;
+          entries.find((entry) => entry.specialUse === flag)?.path ??
+          entries.find((entry) => entry.flags instanceof Set && entry.flags.has(flag))?.path ??
+          null;
         return { inbox: "INBOX", sent: flagged("\\Sent"), junk: flagged("\\Junk") };
       } catch {
         return null;

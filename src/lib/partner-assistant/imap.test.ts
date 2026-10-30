@@ -27,7 +27,7 @@ const messageId = "<70000000-0000-4000-8000-000000000990@luckylap.example.test>"
 const raw = "From: synthetic\r\n\r\nsynthetic body\r\n";
 const sentAt = new Date("2026-10-29T08:41:00Z");
 
-type Entry = { path: string; specialUse?: string; specialUseSource?: string };
+type Entry = { path: string; specialUse?: string; specialUseSource?: string; flags?: Set<string> };
 const standardList: Entry[] = [
   { path: "INBOX", specialUse: "\\Inbox" },
   { path: "Bozze", specialUse: "\\Drafts", specialUseSource: "extension" },
@@ -85,7 +85,7 @@ class FakeImap extends EventEmitter {
       ...entry,
       name: entry.path,
       delimiter: "/",
-      flags: new Set<string>(),
+      flags: entry.flags ?? new Set<string>(),
       listed: true,
       subscribed: true,
     }));
@@ -345,7 +345,34 @@ describe("cartelle", () => {
   it("cartelle da specialUse", async () => {
     const mb = await open();
     expect(await mb.folders()).toEqual({ inbox: "INBOX", sent: "Posta inviata", junk: "Spam" });
-    expect(client.list).toHaveBeenCalledWith({ listOnly: true });
+    // Con `listOnly` imapflow 2.4.2 restituisce le cartelle prima di assegnare specialUse: su
+    // IONOS «Posta inviata» e «Spam» risultavano senza contrassegno (prova del 30 ottobre).
+    expect(client.list).toHaveBeenCalledWith();
+  });
+
+  it("IONOS: senza specialUse ma con i flag \\Sent e \\Junk della LIST", async () => {
+    const mb = await open({
+      list: [
+        { path: "INBOX", flags: new Set(["\\HasNoChildren"]) },
+        { path: "Posta inviata", flags: new Set(["\\Sent", "\\HasNoChildren"]) },
+        { path: "Bozze", flags: new Set(["\\Drafts", "\\HasNoChildren"]) },
+        { path: "Spam", flags: new Set(["\\Junk", "\\HasNoChildren"]) },
+        { path: "Cestino", flags: new Set(["\\Trash", "\\HasNoChildren"]) },
+      ],
+    });
+    expect(await mb.folders()).toEqual({ inbox: "INBOX", sent: "Posta inviata", junk: "Spam" });
+  });
+
+  it("specialUse vince sui flag grezzi di un'altra cartella", async () => {
+    const mb = await open({
+      list: [
+        { path: "INBOX", specialUse: "\\Inbox" },
+        { path: "Vecchia", flags: new Set(["\\Sent"]) },
+        { path: "Posta inviata", specialUse: "\\Sent", flags: new Set(["\\Sent"]) },
+        { path: "Spam", specialUse: "\\Junk" },
+      ],
+    });
+    expect((await mb.folders())?.sent).toBe("Posta inviata");
   });
 
   it("anche con nomi diversi: conta il flag, non il nome", async () => {
