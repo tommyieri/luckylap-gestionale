@@ -287,7 +287,7 @@ Le date del corpo si riconoscono in italiano, inglese, tedesco, francese e spagn
 Prima di ogni invio vero l'assistente cerca nella casella, in sola lettura, i messaggi da, a o in copia all'indirizzo del contatto negli ultimi 365 giorni: posta in arrivo, «Posta inviata» e spam.
 
 - Trovato: niente invio, il contatto passa a Tommi con «Conversazione recente nella casella» (`conversazione_esistente`), e scrive lui.
-- «Non so» (la casella non risponde, manca una cartella, la ricerca fallisce o risponde vuoto da una connessione non più valida): niente invio, e gli invii aspettano 15 minuti (`casella_incerta`) senza un nuovo accesso alla casella. Il passo con Claude intanto continua.
+- «Non so» (la casella non risponde, manca una cartella o non è univoca, la ricerca fallisce o risponde vuoto da una connessione non più valida): niente invio, e gli invii aspettano 15 minuti (`casella_incerta`) senza un nuovo accesso alla casella. Il passo con Claude intanto continua.
 - In più il database non manda una seconda prima email allo stesso indirizzo da un'altra scheda negli ultimi 365 giorni (un club e il suo evento), anche prima che la copia sia in «Posta inviata».
 
 ### Esiti SMTP e fermi

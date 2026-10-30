@@ -1,5 +1,5 @@
 import "server-only";
-import { ImapFlow, type ImapFlowOptions, type SearchObject } from "imapflow";
+import { ImapFlow, type ImapFlowOptions, type ListResponse, type SearchObject } from "imapflow";
 import { PARTNER_ASSISTANT_IMAP_PORT, type PartnerAssistantMailConfig } from "./mail-config";
 
 // La casella dell'assistente nella 2a: solo il controllo dei 12 mesi (EXAMINE, in sola lettura) e
@@ -13,7 +13,8 @@ export type PartnerAssistantImapError = {
   code: string;
 };
 export type PartnerAssistantMailbox = {
-  /** INBOX e le cartelle `\Sent` e `\Junk` della LIST; null se la LIST fallisce. */
+  /** INBOX e le cartelle `\Sent` e `\Junk` della LIST; null se la LIST fallisce. Una cartella
+   * che manca o non è univoca è null. */
   folders(): Promise<PartnerAssistantFolders | null>;
   /** true: un messaggio da, a o in copia all'indirizzo dal `since` in una delle tre cartelle;
    * false: nessuno, con la connessione verificata; null: «non so», mai «non c'è». */
@@ -54,6 +55,18 @@ const WAIT = new Set([
   "ENOTFOUND",
   "ECONNRESET",
 ]);
+
+// Gli usi speciali di RFC 6154 e RFC 8457.
+const SPECIAL_USES = [
+  "\\All",
+  "\\Archive",
+  "\\Drafts",
+  "\\Flagged",
+  "\\Junk",
+  "\\Sent",
+  "\\Trash",
+  "\\Important",
+];
 
 /** Un codice `imap_…` (al massimo 80 caratteri, `[a-z0-9_]`) da un codice di imapflow o di Node. */
 function imapCode(value: string): string {
@@ -111,12 +124,45 @@ function partnerAssistantMailbox(client: ImapFlow): PartnerAssistantMailbox {
   return {
     async folders() {
       try {
-        const entries = await client.list({ listOnly: true });
+        // Senza `listOnly`: solo così imapflow 2.4.2 assegna specialUse, che serve al ripiego
+        // per nome sui server senza flag. Su IONOS bastano i flag di LIST e LSUB (verificati il
+        // 30 ottobre). Il ripiego per nome è un rischio accettato per i server senza
+        // SPECIAL-USE: con più nomi concorrenti sceglie imapflow.
+        const entries = await client.list();
         if (!Array.isArray(entries)) return null;
-        // imapflow assegna ogni flag a una sola cartella, anche quando lo riconosce dal nome.
-        const flagged = (flag: string) =>
-          entries.find((entry) => entry.specialUse === flag)?.path ?? null;
-        return { inbox: "INBOX", sent: flagged("\\Sent"), junk: flagged("\\Junk") };
+        // I flag sono atomi: si confrontano senza maiuscole, come in imapflow. Le cartelle
+        // \Noselect o \NonExistent non contengono messaggi.
+        const has = (entry: ListResponse, flag: string) =>
+          entry.flags instanceof Set &&
+          [...entry.flags].some(
+            (value) => typeof value === "string" && value.toLowerCase() === flag.toLowerCase(),
+          );
+        const selectable = (entry: ListResponse) =>
+          !has(entry, "\\Noselect") && !has(entry, "\\NonExistent");
+        // Vale il flag del server, anche contro il nome riconosciuto da imapflow in un'altra
+        // cartella; senza flag, lo specialUse di imapflow. Ogni dubbio è «non so» (null), mai
+        // una ricerca nella cartella sbagliata, che vuota direbbe «non c'è»: due cartelle con
+        // lo stesso flag; il flag solo su cartelle che non si aprono, senza indovinarne
+        // un'altra dal nome; uno specialUse su una cartella che il server dà per un altro uso.
+        const folder = (flag: string) => {
+          const flagged = entries.filter((entry) => has(entry, flag));
+          const candidates = flagged.filter(selectable);
+          if (candidates.length > 1) return null;
+          if (candidates[0]) return candidates[0].path;
+          if (flagged.length > 0) return null;
+          const otherUse = (entry: ListResponse) =>
+            SPECIAL_USES.some((use) => use.toLowerCase() !== flag.toLowerCase() && has(entry, use));
+          return (
+            entries.find(
+              (entry) => entry.specialUse === flag && selectable(entry) && !otherUse(entry),
+            )?.path ?? null
+          );
+        };
+        const sent = folder("\\Sent");
+        const junk = folder("\\Junk");
+        // La stessa cartella per inviata e spam: «non so» per tutte e due.
+        if (sent !== null && sent === junk) return { inbox: "INBOX", sent: null, junk: null };
+        return { inbox: "INBOX", sent, junk };
       } catch {
         return null;
       }

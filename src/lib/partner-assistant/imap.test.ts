@@ -27,20 +27,38 @@ const messageId = "<70000000-0000-4000-8000-000000000990@luckylap.example.test>"
 const raw = "From: synthetic\r\n\r\nsynthetic body\r\n";
 const sentAt = new Date("2026-10-29T08:41:00Z");
 
-type Entry = { path: string; specialUse?: string; specialUseSource?: string };
+// Le voci hanno le forme che imapflow 2.4.2 può produrre. specialUseSource "extension": il
+// flag è anche in `flags` (esm/special-use.js:884-891). "name": imapflow ha riconosciuto il
+// nome e la cartella non ha flag di uso speciale, salvo con un server senza SPECIAL-USE o con
+// i flag solo in LSUB. INBOX ha sempre \Inbox dal nome; un uso speciale va a una sola cartella.
+type Entry = { path: string; specialUse?: string; specialUseSource?: string; flags?: Set<string> };
+const byFlag = (path: string, use: string, ...flags: string[]): Entry => ({
+  path,
+  specialUse: use,
+  specialUseSource: "extension",
+  flags: new Set([use, ...flags]),
+});
+const byName = (path: string, use: string, ...flags: string[]): Entry => ({
+  path,
+  specialUse: use,
+  specialUseSource: "name",
+  flags: new Set(flags),
+});
+const inbox = byName("INBOX", "\\Inbox", "\\HasNoChildren");
+// La LIST vera della casella IONOS: `list()` senza opzioni, imapflow 2.4.2 (30 ottobre).
 const standardList: Entry[] = [
-  { path: "INBOX", specialUse: "\\Inbox" },
-  { path: "Bozze", specialUse: "\\Drafts", specialUseSource: "extension" },
-  { path: "Posta inviata", specialUse: "\\Sent", specialUseSource: "extension" },
-  { path: "Spam", specialUse: "\\Junk", specialUseSource: "name" },
-  { path: "Cestino", specialUse: "\\Trash", specialUseSource: "extension" },
-  { path: "Archivio" },
+  inbox,
+  byFlag("Posta inviata", "\\Sent", "\\HasNoChildren"),
+  byFlag("Bozze", "\\Drafts", "\\HasNoChildren"),
+  byFlag("Spam", "\\Junk", "\\HasNoChildren"),
+  byFlag("Cestino", "\\Trash", "\\HasNoChildren"),
 ];
 type SearchStep = number[] | false | undefined | "throw";
 type Script = {
   create?: "throw";
   connect?: Record<string, unknown>;
-  list?: Entry[] | "throw";
+  /** "not-array": `list()` risolve undefined. */
+  list?: Entry[] | "throw" | "not-array";
   /** Lo stato di `client.mailbox` subito dopo il lock: il percorso di un'altra cartella o false. */
   lockMailbox?: string | false;
   lockThrows?: boolean;
@@ -78,17 +96,26 @@ class FakeImap extends EventEmitter {
     if (this.script.connect) throw imapError(this.script.connect);
     this.usable = true;
   });
-  list = vi.fn(async (_options?: unknown) => {
+  list = vi.fn(async (options?: { listOnly?: boolean }) => {
     this.calls.push("list");
     if (this.script.list === "throw") throw imapError({ code: "ECONNRESET" });
-    return (this.script.list ?? standardList).map((entry) => ({
-      ...entry,
-      name: entry.path,
-      delimiter: "/",
-      flags: new Set<string>(),
-      listed: true,
-      subscribed: true,
-    }));
+    if (this.script.list === "not-array") return undefined;
+    return (this.script.list ?? standardList).map((entry) => {
+      const listed: Entry = { ...entry };
+      // Come imapflow 2.4.2: con `listOnly` le cartelle tornano prima di assegnare specialUse.
+      if (options?.listOnly === true) {
+        delete listed.specialUse;
+        delete listed.specialUseSource;
+      }
+      return {
+        ...listed,
+        name: entry.path,
+        delimiter: "/",
+        flags: entry.flags ?? new Set<string>(),
+        listed: true,
+        subscribed: true,
+      };
+    });
   });
   getMailboxLock = vi.fn(async (path: string, options?: { readOnly?: boolean }) => {
     this.calls.push(`lock:${path}:${options?.readOnly === true ? "examine" : "select"}`);
@@ -342,24 +369,201 @@ describe("apertura della casella", () => {
 });
 
 describe("cartelle", () => {
-  it("cartelle da specialUse", async () => {
+  it("LIST vera di IONOS: cartelle dai flag del server", async () => {
     const mb = await open();
     expect(await mb.folders()).toEqual({ inbox: "INBOX", sent: "Posta inviata", junk: "Spam" });
-    expect(client.list).toHaveBeenCalledWith({ listOnly: true });
+    // Con i flag del server IONOS funzionerebbe anche con `listOnly`; `list()` senza opzioni
+    // serve al ripiego per nome.
+    expect(client.list).toHaveBeenCalledWith();
   });
 
-  it("anche con nomi diversi: conta il flag, non il nome", async () => {
+  it("solo i flag \\Sent e \\Junk del server nella LIST, nessuno specialUse \\Sent o \\Junk: cartelle dai flag", async () => {
+    // Server senza SPECIAL-USE, con nomi che imapflow non riconosce.
     const mb = await open({
       list: [
-        { path: "INBOX", specialUse: "\\Inbox" },
-        { path: "Sent", specialUse: "\\Trash" },
-        { path: "INBOX/Gesendet", specialUse: "\\Sent", specialUseSource: "name" },
-        { path: "Junk-E-Mail", specialUse: "\\Junk", specialUseSource: "extension" },
+        inbox,
+        { path: "Spedite", flags: new Set(["\\Sent", "\\HasNoChildren"]) },
+        byName("Bozze", "\\Drafts", "\\HasNoChildren"),
+        { path: "Sospette", flags: new Set(["\\Junk", "\\HasNoChildren"]) },
+        byName("Cestino", "\\Trash", "\\HasNoChildren"),
+      ],
+    });
+    expect(await mb.folders()).toEqual({ inbox: "INBOX", sent: "Spedite", junk: "Sospette" });
+  });
+
+  it("il flag del server vince sul nome riconosciuto da imapflow", async () => {
+    // Server senza SPECIAL-USE: imapflow dà \Sent a «Inviati», prima in ordine alfabetico.
+    const mb = await open({
+      list: [
+        inbox,
+        byName("Inviati", "\\Sent"),
+        { path: "Posta inviata", flags: new Set(["\\Sent"]) },
+        byName("Spam", "\\Junk"),
+      ],
+    });
+    expect(await mb.folders()).toEqual({ inbox: "INBOX", sent: "Posta inviata", junk: "Spam" });
+  });
+
+  it("due cartelle con il flag \\Sent, una anche con specialUse: sent null, nessuna ricerca", async () => {
+    const mb = await open({
+      list: [
+        inbox,
+        byFlag("Posta inviata", "\\Sent"),
+        { path: "Vecchia posta inviata", flags: new Set(["\\Sent"]) },
+        byFlag("Spam", "\\Junk"),
+      ],
+    });
+    const f = await mb.folders();
+    expect(f).toEqual({ inbox: "INBOX", sent: null, junk: "Spam" });
+    expect(await mb.correspondence(f!, addr, since)).toBeNull();
+    expect(client.search).not.toHaveBeenCalled();
+    expect(client.getMailboxLock).not.toHaveBeenCalled();
+  });
+
+  it("due cartelle con il flag \\Junk: junk null", async () => {
+    const mb = await open({
+      list: [
+        inbox,
+        byFlag("Posta inviata", "\\Sent"),
+        byFlag("Posta indesiderata", "\\Junk"),
+        { path: "Spam", flags: new Set(["\\Junk"]) },
+      ],
+    });
+    expect(await mb.folders()).toEqual({ inbox: "INBOX", sent: "Posta inviata", junk: null });
+  });
+
+  it("flag con maiuscole diverse: \\SENT e \\junk valgono", async () => {
+    // Server senza SPECIAL-USE, con nomi che imapflow non riconosce.
+    const mb = await open({
+      list: [
+        inbox,
+        { path: "Spedite", flags: new Set(["\\SENT"]) },
+        { path: "Sospette", flags: new Set(["\\junk"]) },
+      ],
+    });
+    expect(await mb.folders()).toEqual({ inbox: "INBOX", sent: "Spedite", junk: "Sospette" });
+  });
+
+  it.each(["\\Noselect", "\\NOSELECT"])(
+    "una cartella %s con \\Sent non conta: sent dall'altra",
+    async (noselect) => {
+      // imapflow dà \Sent ad «Archivio», prima in ordine alfabetico.
+      const mb = await open({
+        list: [
+          inbox,
+          byFlag("Archivio", "\\Sent", noselect),
+          { path: "Posta inviata", flags: new Set(["\\Sent"]) },
+          byFlag("Spam", "\\Junk"),
+        ],
+      });
+      expect(await mb.folders()).toEqual({ inbox: "INBOX", sent: "Posta inviata", junk: "Spam" });
+    },
+  );
+
+  it.each(["\\Noselect", "\\NOSELECT"])(
+    "solo una cartella %s con \\Sent e specialUse \\Sent: sent null",
+    async (noselect) => {
+      const mb = await open({
+        list: [inbox, byFlag("Posta inviata", "\\Sent", noselect), byFlag("Spam", "\\Junk")],
+      });
+      expect(await mb.folders()).toEqual({ inbox: "INBOX", sent: null, junk: "Spam" });
+    },
+  );
+
+  it.each(["\\NonExistent", "\\nonexistent"])(
+    "solo una cartella %s con \\Sent e specialUse \\Sent: sent null",
+    async (nonexistent) => {
+      // imapflow aggiunge \Noselect solo a \NonExistent scritto così.
+      const flags = nonexistent === "\\NonExistent" ? [nonexistent, "\\Noselect"] : [nonexistent];
+      const mb = await open({
+        list: [inbox, byFlag("Posta inviata", "\\Sent", ...flags), byFlag("Spam", "\\Junk")],
+      });
+      expect(await mb.folders()).toEqual({ inbox: "INBOX", sent: null, junk: "Spam" });
+    },
+  );
+
+  it("solo «Sent» \\Noselect riconosciuta dal nome: sent null", async () => {
+    const mb = await open({
+      list: [
+        inbox,
+        byName("Sent", "\\Sent", "\\Noselect", "\\HasChildren"),
+        byFlag("Spam", "\\Junk"),
+      ],
+    });
+    expect(await mb.folders()).toEqual({ inbox: "INBOX", sent: null, junk: "Spam" });
+  });
+
+  it("flag \\Sent solo su una cartella \\Noselect: sent null, nessun ripiego per nome", async () => {
+    // Server senza SPECIAL-USE: imapflow riconosce le cartelle dal nome.
+    const mb = await open({
+      list: [
+        inbox,
+        byName("Archivio", "\\Archive", "\\Noselect", "\\Sent"),
+        byName("Inviati", "\\Sent"),
+        byName("Spam", "\\Junk"),
+      ],
+    });
+    expect(await mb.folders()).toEqual({ inbox: "INBOX", sent: null, junk: "Spam" });
+  });
+
+  it("specialUse \\Sent dal nome su una cartella con il flag \\Junk: sent null", async () => {
+    // Server senza SPECIAL-USE: imapflow riconosce «Inviati» dal nome.
+    const mb = await open({ list: [inbox, byName("Inviati", "\\Sent", "\\Junk")] });
+    expect(await mb.folders()).toEqual({ inbox: "INBOX", sent: null, junk: "Inviati" });
+  });
+
+  it.each([
+    "\\All",
+    "\\Archive",
+    "\\Drafts",
+    "\\Flagged",
+    "\\Trash",
+    "\\Important",
+    "\\DRAFTS",
+    "\\important",
+  ])("specialUse \\Sent dal nome su una cartella con il flag %s: sent null", async (use) => {
+    // imapflow 2.4.2 non conosce \Important e lo lascia accanto al \Sent dal nome anche con
+    // SPECIAL-USE; gli altri flag restano così su un server senza SPECIAL-USE o dalla LSUB.
+    const mb = await open({
+      list: [inbox, byName("Inviati", "\\Sent", use), byFlag("Spam", "\\Junk")],
+    });
+    expect(await mb.folders()).toEqual({ inbox: "INBOX", sent: null, junk: "Spam" });
+  });
+
+  it("flag \\Sent solo su una cartella \\nonexistent: sent null, nessun ripiego per nome", async () => {
+    // Server senza SPECIAL-USE: imapflow dà \Sent a «Inviati», prima in ordine alfabetico, e
+    // aggiunge \Noselect solo a \NonExistent scritto così.
+    const mb = await open({
+      list: [
+        inbox,
+        byName("Inviati", "\\Sent"),
+        { path: "Posta inviata", flags: new Set(["\\Sent", "\\nonexistent"]) },
+        byFlag("Spam", "\\Junk"),
+      ],
+    });
+    expect(await mb.folders()).toEqual({ inbox: "INBOX", sent: null, junk: "Spam" });
+  });
+
+  it("una cartella con \\Sent e \\Junk: sent e junk null", async () => {
+    // imapflow le dà il primo uso nel suo ordine, \Junk.
+    const mb = await open({ list: [inbox, byFlag("Posta", "\\Junk", "\\Sent")] });
+    expect(await mb.folders()).toEqual({ inbox: "INBOX", sent: null, junk: null });
+  });
+
+  it("senza flag del server vale lo specialUse di imapflow, non il nome della cartella", async () => {
+    // imapflow dà \Sent a «Gesendet» e \Junk a «Junk-E-Mail», primi in ordine alfabetico.
+    const mb = await open({
+      list: [
+        inbox,
+        byName("Gesendet", "\\Sent"),
+        byName("Junk-E-Mail", "\\Junk"),
+        { path: "Sent" },
+        { path: "Spam" },
       ],
     });
     expect(await mb.folders()).toEqual({
       inbox: "INBOX",
-      sent: "INBOX/Gesendet",
+      sent: "Gesendet",
       junk: "Junk-E-Mail",
     });
   });
@@ -371,6 +575,11 @@ describe("cartelle", () => {
 
   it("LIST fallita: null", async () => {
     const mb = await open({ list: "throw" });
+    expect(await mb.folders()).toBeNull();
+  });
+
+  it("LIST che non è un array: null", async () => {
+    const mb = await open({ list: "not-array" });
     expect(await mb.folders()).toBeNull();
   });
 
