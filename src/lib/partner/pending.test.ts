@@ -182,4 +182,56 @@ describe("tentativi in sospeso", () => {
       ),
     ).toEqual(["Modifica delle regole dell'assistente"]);
   });
+
+  it("righe dei comandi dell'invio, senza id", () => {
+    const assistant = (kind: string, payload: Record<string, unknown>) =>
+      parsePartnerCommand(
+        { kind, operationId: partnerFixtureId(9004), payload: { schema_version: 1, ...payload } },
+        NOW,
+      ) as PartnerCommand;
+    const cases: [PartnerCommand, { co: number; name: string } | null, string[]][] = [
+      [
+        assistant("start_partner_assistant_test", { drafts: 2, recipients: 3 }),
+        null,
+        ["Prova dell'assistente: 2 bozze verso 3 indirizzi di prova"],
+      ],
+      [
+        assistant("start_partner_assistant_test", { drafts: 1, recipients: 1 }),
+        null,
+        ["Prova dell'assistente: 1 bozza verso 1 indirizzo di prova"],
+      ],
+      [
+        assistant("confirm_partner_assistant_test", { expected_version: 4 }),
+        null,
+        ["Conferma: la prova è arrivata in posta in arrivo"],
+      ],
+      [
+        assistant("set_partner_assistant_send_priority", {
+          partner_id: partnerFixtureId(1),
+          send_priority: 9,
+        }),
+        { co: 12, name: "Garage Sintetico" },
+        ["Contatto: CO 012 · Garage Sintetico", "Precedenza d'invio: manda per primo"],
+      ],
+      [
+        assistant("set_partner_assistant_send_priority", {
+          partner_id: partnerFixtureId(1),
+          send_priority: 0,
+        }),
+        null,
+        ["Precedenza d'invio: tolta"],
+      ],
+      [assistant("resume_partner_assistant_send", {}), null, ["Ripresa degli invii"]],
+      [
+        assistant("set_partner_assistant_settings", { expected_version: 4, daily_first_limit: 12 }),
+        null,
+        ["Limite delle prime email dopo la prima settimana: 12 al giorno"],
+      ],
+    ];
+    for (const [command, partner, lines] of cases) {
+      expect(command, JSON.stringify(lines)).not.toBeNull();
+      expect(pendingPartnerLines(command, partner), command.kind).toEqual(lines);
+      for (const line of lines) expect(line).not.toMatch(/[0-9a-f]{8}-[0-9a-f]{4}/);
+    }
+  });
 });
