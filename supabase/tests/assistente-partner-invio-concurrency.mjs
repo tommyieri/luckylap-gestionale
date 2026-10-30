@@ -1,4 +1,4 @@
-// test-db: postgres minimo 1
+// test-db: postgres minimo 60
 // Assistente Partner, consegna 2a, compito 2: le RPC d'invio su PostgreSQL 17 reale (lock,
 // transazioni e permessi veri). Due giri d'invio insieme: uno solo prende la casella; due prepare
 // dello stesso lavoro: un solo messaggio vivo. Tra prepare e SMTP un «Non contattare», un «Ferma
