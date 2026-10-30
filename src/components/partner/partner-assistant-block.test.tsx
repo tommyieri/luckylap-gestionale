@@ -525,6 +525,19 @@ describe("PartnerAssistantBlock", () => {
     expect(words(sent)).not.toContain("@");
   });
 
+  it("prima email inviata: accanto all'invio non dice che il contatto non è più «Da contattare»", () => {
+    // Il cambio di stato l'ha fatto l'invio stesso; gli altri motivi restano.
+    expect(words(render(6))).not.toContain("non è più «Da contattare»");
+    expect(words(render(6))).toContain("L'assistente non lo prende: è seguito da Carla Prova.");
+    const free = render(6, { partner: { ownerId: null } });
+    expect(words(free)).not.toContain("non è più «Da contattare»");
+    expect(words(free)).not.toContain("L'assistente non lo prende");
+    // Un contatto senza prima email partita che ha cambiato stato lo dice ancora.
+    expect(words(render(3, { partner: { stage: "contattato" } }))).toContain(
+      "non è più «Da contattare»",
+    );
+  });
+
   it("invio incerto o respinto: lo dice con la data", () => {
     const tree = render(2, {
       assistant: (view) => ({
@@ -572,7 +585,7 @@ describe("PartnerAssistantBlock", () => {
     expect(buttons(render(2)).filter((b) => text(b).trim() === "Togli la precedenza")).toEqual([]);
   });
 
-  it("niente precedenza per un contatto già inviato o passato a Tommi", () => {
+  it("niente «Manda per primo» per un contatto già inviato o passato a Tommi", () => {
     for (const co of [1, 6]) {
       const tree = render(co, { founder: true });
       expect(
@@ -580,6 +593,35 @@ describe("PartnerAssistantBlock", () => {
           ["Manda per primo", "Togli la precedenza"].includes(text(b).trim()),
         ),
       ).toEqual([]);
+      expect(words(tree), String(co)).not.toContain("precedenza");
+    }
+  });
+
+  it("una precedenza rimasta su un contatto non più in coda si toglie, come la elenca la pagina", () => {
+    const withPriority = (v: PartnerAssistantContactView): PartnerAssistantContactView => ({
+      ...v,
+      sendPriority: 9,
+    });
+    for (const co of [1, 6]) {
+      mocks.setPriority.mockClear();
+      const tree = render(co, { founder: true, assistant: withPriority });
+      expect(words(tree), String(co)).toContain(
+        "Ha ancora la precedenza d'invio, ma non è più in coda.",
+      );
+      expect(words(tree), String(co)).not.toContain("parte per primo");
+      expect(buttons(tree).filter((b) => text(b).trim() === "Manda per primo")).toEqual([]);
+      click(button(tree, "Togli la precedenza"));
+      expect(mocks.setPriority).toHaveBeenCalledExactlyOnceWith(
+        expect.objectContaining({
+          payload: { schema_version: 1, partner_id: partnerFixtureId(co), send_priority: 0 },
+        }),
+      );
+      // Gli altri leggono la frase, senza pulsante.
+      const consultant = render(co, { assistant: withPriority });
+      expect(words(consultant)).toContain("Ha ancora la precedenza d'invio, ma non è più in coda.");
+      expect(buttons(consultant).filter((b) => text(b).trim() === "Togli la precedenza")).toEqual(
+        [],
+      );
     }
   });
 

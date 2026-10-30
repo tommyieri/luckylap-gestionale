@@ -46,6 +46,9 @@ const TEAM_WORK: ReadonlySet<PartnerActivityKind> = new Set<PartnerActivityKind>
   "approccio",
 ]);
 
+/** Il motivo dello stato: dopo una prima email dell'assistente lo stato l'ha cambiato l'invio. */
+const NOT_TO_CONTACT = `non è più «${PARTNER_STAGE_LABELS.da_contattare}»`;
+
 /** Un'email che l'assistente può usare: attiva e con l'indirizzo pulito. */
 const usableEmail = (contact: PartnerContact) =>
   contact.kind === "email" && contact.active && contact.linkValue !== null;
@@ -84,8 +87,7 @@ export function partnerAssistantSkipReasons({
   const reasons: string[] = [];
   if (partner.ownerId !== null) reasons.push(`è seguito da ${ownerName ?? "una persona del team"}`);
   if (blocked) reasons.push("è in «Non contattare»");
-  if (partner.stage !== "da_contattare")
-    reasons.push(`non è più «${PARTNER_STAGE_LABELS.da_contattare}»`);
+  if (partner.stage !== "da_contattare") reasons.push(NOT_TO_CONTACT);
   if (!contacts.some(usableEmail)) reasons.push("non ha un'email attiva");
   if (partner.nextAction !== null) reasons.push("ha una prossima azione");
   if (partner.researchRemovedAt !== null) reasons.push("la ricerca non lo propone più");
@@ -169,8 +171,14 @@ export function PartnerAssistantBlock({
     activities,
   });
   const { choice, research, draft, job } = assistant;
+  // Con la prima email partita lo stato l'ha cambiato l'invio stesso: accanto alla frase
+  // dell'invio quel motivo non si dice. Gli altri restano.
+  const shownSkip =
+    job?.status === "inviata" ? skip.filter((reason) => reason !== NOT_TO_CONTACT) : skip;
   // Fermo sul contatto o non più idoneo: l'assistente non ci lavora, qualunque sia il lavoro.
   const held = [...(assistant.active ? [] : ["è fermato dal team"]), ...skip];
+  // In coda per l'invio finché la prima email non è partita e il contatto non è di Tommi.
+  const queued = job?.status !== "inviata" && job?.status !== "serve_tommaso";
   // In coda o in attesa, i motivi stanno nella frase del lavoro; altrimenti in una riga a sé.
   const waiting = job !== null && (job.status === "in_coda" || job.status === "attesa");
   // L'indirizzo trovato dalla ricerca resta una proposta: la bozza va all'email del gestionale.
@@ -185,7 +193,9 @@ export function PartnerAssistantBlock({
       {assistant.sends.map((send, index) => (
         <p key={index}>{sendLine(send, today)}</p>
       ))}
-      {skip.length > 0 && !waiting && <p>L'assistente non lo prende: {sentenceList(skip)}.</p>}
+      {shownSkip.length > 0 && !waiting && (
+        <p>L'assistente non lo prende: {sentenceList(shownSkip)}.</p>
+      )}
       {choice && (
         <p>
           <b className={styles.ideaLabel}>
@@ -202,9 +212,15 @@ export function PartnerAssistantBlock({
       )}
       {research && <Research research={research} />}
       {draft && <Draft draft={draft} />}
-      {/* La precedenza conta finché la prima email non è partita e il contatto non è di Tommi. */}
-      {job?.status !== "inviata" && job?.status !== "serve_tommaso" && (
-        <SendPriority partner={partner} priority={assistant.sendPriority} founder={founder} />
+      {/* La precedenza si dà a un contatto in coda; una rimasta, come la elenca la pagina
+          dell'assistente, si toglie anche dopo. */}
+      {(queued || assistant.sendPriority > 0) && (
+        <SendPriority
+          partner={partner}
+          priority={assistant.sendPriority}
+          queued={queued}
+          founder={founder}
+        />
       )}
       <AssistantSwitch partner={partner} active={assistant.active} />
     </section>
@@ -325,15 +341,18 @@ function Draft({ draft }: { draft: NonNullable<PartnerAssistantContactView["draf
 
 /**
  * «Manda per primo»: la precedenza d'invio (9) o niente (0), solo di Tommi. Con la precedenza la
- * frase la leggono tutti.
+ * frase la leggono tutti. Fuori dalla coda (prima email partita, contatto di Tommi) si può solo
+ * togliere quella rimasta.
  */
 function SendPriority({
   partner,
   priority,
+  queued,
   founder,
 }: {
   partner: PartnerSummary;
   priority: number;
+  queued: boolean;
   founder: boolean;
 }) {
   const { preview } = usePartnerContext();
@@ -348,7 +367,13 @@ function SendPriority({
   return (
     <div className={styles.draftBlock}>
       <div className={styles.inlineActions}>
-        {priority > 0 && <p>Questo contatto parte per primo appena la bozza è pronta.</p>}
+        {priority > 0 && (
+          <p>
+            {queued
+              ? "Questo contatto parte per primo appena la bozza è pronta."
+              : "Ha ancora la precedenza d'invio, ma non è più in coda."}
+          </p>
+        )}
         {founder && (
           <button
             type="button"
