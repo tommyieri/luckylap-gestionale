@@ -860,7 +860,7 @@ describe("etichette in italiano", () => {
     );
     expect(PARTNER_ASSISTANT_REASON_LABELS).toMatchObject({
       bozza_scaduta:
-        "Bozza scaduta: l'evento è già iniziato o una data citata è passata. L'assistente la riscrive una volta, se c'è credito; poi decide Tommi.",
+        "Bozza scaduta: l'evento è già iniziato o una data citata è passata, e la bozza non è più valida. L'assistente non la manda; decide Tommi.",
       conversazione_esistente:
         "Conversazione recente nella casella: nella posta degli ultimi 12 mesi c'è già uno scambio con questo indirizzo. L'assistente non scrive; decide Tommi.",
       invio_incerto:
@@ -870,6 +870,9 @@ describe("etichette in italiano", () => {
       invio_rifiutato: "Il server di posta ha rifiutato l'email.",
       impronta: "Il testo da inviare non era quello approvato: l'email non è partita.",
     });
+    // Il lavoro arriva a Tommi con bozza_scaduta quando non c'è riscrittura (evento iniziato, già
+    // riscritta, niente credito): la frase non promette che l'assistente la riscriva.
+    expect(PARTNER_ASSISTANT_REASON_LABELS.bozza_scaduta).not.toMatch(/riscriv/i);
     for (const reason of fromSql) {
       const label = (PARTNER_ASSISTANT_REASON_LABELS as Record<string, string>)[reason];
       expect(label, reason).toMatch(/^[A-ZÈ].*\.$/);

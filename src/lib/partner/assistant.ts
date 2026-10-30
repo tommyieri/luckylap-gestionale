@@ -132,8 +132,10 @@ export const PARTNER_ASSISTANT_REASON_LABELS = {
   dato_cancellato:
     "Un dato del contatto è stato cancellato: ridallo all'assistente se vuoi rifare ricerca e bozza.",
   // Consegna 2a: i lavori passati a Tommi dalle RPC d'invio.
+  // Il lavoro arriva a Tommi quando non c'è riscrittura (evento iniziato, già riscritta, niente
+  // credito): la frase non promette che l'assistente la riscriva.
   bozza_scaduta:
-    "Bozza scaduta: l'evento è già iniziato o una data citata è passata. L'assistente la riscrive una volta, se c'è credito; poi decide Tommi.",
+    "Bozza scaduta: l'evento è già iniziato o una data citata è passata, e la bozza non è più valida. L'assistente non la manda; decide Tommi.",
   conversazione_esistente:
     "Conversazione recente nella casella: nella posta degli ultimi 12 mesi c'è già uno scambio con questo indirizzo. L'assistente non scrive; decide Tommi.",
   invio_incerto:
