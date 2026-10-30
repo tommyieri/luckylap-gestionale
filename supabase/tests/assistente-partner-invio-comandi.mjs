@@ -1,4 +1,4 @@
-// test-db: pglite minimo 241
+// test-db: pglite minimo 275
 // Assistente Partner, consegna 2a, compito 1 (_assistente_partner_invio.sql, sezione 1): limite delle
 // prime email, conferma della prova, priorità d'invio, stato della casella con variabili e accessi,
 // messaggi con la guardia, ordine d'invio, «Manda la prova», «Riprendi l'invio», modalità «prova» e

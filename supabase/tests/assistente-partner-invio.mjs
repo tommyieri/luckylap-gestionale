@@ -1,4 +1,4 @@
-// test-db: pglite minimo 370
+// test-db: pglite minimo 412
 // Assistente Partner, consegna 2a, compito 2 (_assistente_partner_invio.sql, sezione 2): calendario
 // (finestra del destinatario, feste, 21 dicembre-7 gennaio), limiti del giorno, coda d'invio con la
 // pulizia fino al candidato, lease della casella e RPC del worker (claim, skip, prepare, start,
