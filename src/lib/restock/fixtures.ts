@@ -32,6 +32,9 @@ const GT3RS = sid(20),
 
 const order = (over: Record<string, unknown> & { id: string; title: string; state: string }) => ({
   notes: "",
+  deleted_at: null,
+  deleted_by: null,
+  deletion_note: "",
   state_changed_at: "2026-10-22T09:00:00+00:00",
   state_changed_by: sx.user,
   warehouse_location_id: sx.central,
@@ -86,6 +89,7 @@ function coreRows(): RestockCoreRows {
   const catalog = previewCatalogRows();
   return {
     settings: { stock_adjustments_enabled: true },
+    deletionEvents: [],
     orders: [
       order({
         id: rx.discussion,

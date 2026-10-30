@@ -73,6 +73,34 @@ describe("stati e testi", () => {
 });
 
 describe("comandi", () => {
+  it("elimina e ripristina con motivazione, versione e campi esatti", () => {
+    const payload = {
+      order_id: order,
+      expected_version: 4,
+      deleted: true,
+      note: "Ordine sostituito",
+    };
+    for (const deleted of [true, false]) {
+      const parsed = parseRestockCommand(command("set_restock_deleted", { ...payload, deleted }));
+      expect(parsed?.payload).toMatchObject({ ...payload, schema_version: 1, deleted });
+      expect(restockAttemptSummary(parsed!, () => "Riordine sintetico").lines).toContain(
+        "Le scorte e lo storico restano invariati.",
+      );
+    }
+    for (const over of [
+      { note: "" },
+      { note: "ab" },
+      { note: "a".repeat(501) },
+      { deleted: "true" },
+      { expected_version: 0 },
+      { order_id: "x" },
+      { extra: true },
+    ]) {
+      expect(
+        parseRestockCommand(command("set_restock_deleted", { ...payload, ...over })),
+      ).toBeNull();
+    }
+  });
   it("righe ordinate, senza doppioni, taglie maiuscole, quantità da 1 a 100.000", () => {
     const lines = parseRestockLines([
       line({ destination: "shop", size: "S" }),

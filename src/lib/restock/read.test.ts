@@ -27,6 +27,31 @@ const edit = (mutate: (rows: RestockCoreRows) => void) => {
 };
 
 describe("riordini dal database", () => {
+  it("conserva gli eliminati e lo storico senza contarli come arrivi previsti", () => {
+    const rows = restockCoreRows();
+    const header = rows.orders.find((r) => (r as Row).id === rx.quality) as Row;
+    Object.assign(header, {
+      deleted_at: "2026-10-25T12:00:00Z",
+      deleted_by: sx.user,
+      deletion_note: "Ordine sostituito",
+    });
+    rows.deletionEvents.push({
+      id: sx.operation,
+      order_id: rx.quality,
+      deleted: true,
+      note: "Ordine sostituito",
+      created_at: header.deleted_at,
+      created_by: sx.user,
+    });
+    const data = restockDataFromRows(rows);
+    const deleted = data.orders.find((o) => o.id === rx.quality)!;
+    expect(deleted.deleted).toMatchObject({ note: "Ordine sostituito" });
+    expect(deleted.deletionEvents).toHaveLength(1);
+    expect(deleted.lines.length).toBeGreaterThan(0);
+    expect(incomingByItem(data.orders, rx.discussion)[item("GT3RS", "Blu", "M")]).toBeUndefined();
+    header.deleted_by = null;
+    expect(() => restockDataFromRows(rows)).toThrow();
+  });
   it("righe, totali per destinazione, storico, arrivo, negozio con le sue taglie", () => {
     const data = previewRestockData();
     expect(data.orders.map((o) => o.title)).toEqual([

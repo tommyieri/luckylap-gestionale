@@ -73,6 +73,13 @@ export type RestockEvent = {
   at: string;
   by: string;
 };
+export type RestockDeletionEvent = {
+  id: string;
+  deleted: boolean;
+  note: string;
+  at: string;
+  by: string;
+};
 export type RestockArrival = {
   id: string;
   at: string;
@@ -101,6 +108,8 @@ export type RestockOrder = {
   id: string;
   title: string;
   notes: string;
+  deleted: { at: string; by: string; note: string } | null;
+  deletionEvents: RestockDeletionEvent[];
   state: RestockState;
   stateChangedAt: string;
   stateChangedBy: string;
@@ -125,6 +134,7 @@ export type RestockCoreRows = {
   orders: unknown[];
   lines: unknown[];
   events: unknown[];
+  deletionEvents: unknown[];
   arrivals: unknown[];
   shopOrders: unknown[];
   shopOrderLines: unknown[];
@@ -196,6 +206,7 @@ export function restockDataFromRows(rows: RestockCoreRows): RestockData {
 
   const lines = new Map<string, RestockLine[]>();
   const events = new Map<string, RestockEvent[]>();
+  const deletionEvents = new Map<string, RestockDeletionEvent[]>();
   const arrivals = new Map<string, RestockArrival[]>();
   const shopOrders = new Map<string, RestockShopOrder[]>();
   const orderHeads = rows.orders.map((raw) => {
@@ -203,6 +214,7 @@ export function restockDataFromRows(rows: RestockCoreRows): RestockData {
       orderId = id(r.id);
     lines.set(orderId, []);
     events.set(orderId, []);
+    deletionEvents.set(orderId, []);
     arrivals.set(orderId, []);
     shopOrders.set(orderId, []);
     return { r, orderId };
@@ -232,6 +244,16 @@ export function restockDataFromRows(rows: RestockCoreRows): RestockData {
       from: nullable(r.from_state, state),
       to: state(r.to_state),
       note: text(r.note),
+      at: date(r.created_at),
+      by: person(r.created_by),
+    });
+  }
+  for (const raw of rows.deletionEvents) {
+    const r = obj(raw);
+    of(deletionEvents, r.order_id).push({
+      id: id(r.id),
+      deleted: bool(r.deleted),
+      note: str(r.note),
       at: date(r.created_at),
       by: person(r.created_by),
     });
@@ -295,17 +317,25 @@ export function restockDataFromRows(rows: RestockCoreRows): RestockData {
       shop = shopId === null ? null : (shops.find((s) => s.locationId === shopId) ?? fail()),
       warehouse = place(r.warehouse_location_id),
       orderState = state(r.state),
+      deletedAt = nullable(r.deleted_at, date),
       doneAt = nullable(r.shop_done_at, date),
       open = orderArrivals.filter((a) => a.undoneAt === null);
     unique(orderLines.map((l) => `${l.destination}|${l.productId}|${l.color}|${l.size}`));
     if (warehouse.type !== WAREHOUSE_TYPE || orderEvents.length === 0) fail();
     if (open.length > 1 || (orderState === "in_hand") !== (open.length === 1)) fail();
     if (doneAt !== null && orderState !== "in_hand") fail();
+    if ((deletedAt === null) !== (r.deleted_by === null)) fail();
+    const deletedBy = deletedAt === null ? null : person(r.deleted_by);
     if (shop === null && orderLines.some((l) => l.destination === "shop")) fail();
     return {
       id: orderId,
       title: str(r.title),
       notes: text(r.notes),
+      deleted:
+        deletedAt === null ? null : { at: deletedAt, by: deletedBy!, note: str(r.deletion_note) },
+      deletionEvents: deletionEvents
+        .get(orderId)!
+        .sort((a, b) => Date.parse(a.at) - Date.parse(b.at)),
       state: orderState,
       stateChangedAt: date(r.state_changed_at),
       stateChangedBy: person(r.state_changed_by),
@@ -531,7 +561,7 @@ export function lineQuantity(
 export function incomingByItem(orders: readonly RestockOrder[], exceptId: string) {
   const incoming: Record<string, number> = {};
   for (const order of orders)
-    if (order.id !== exceptId && order.state !== "in_hand")
+    if (order.id !== exceptId && order.state !== "in_hand" && !order.deleted)
       for (const line of order.lines)
         if (line.destination === "warehouse" && line.itemId)
           incoming[line.itemId] = (incoming[line.itemId] ?? 0) + line.quantity;
