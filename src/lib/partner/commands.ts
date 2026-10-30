@@ -916,7 +916,12 @@ export const PARTNER_ERROR_MESSAGES: Record<string, { sqlstate: string; message:
   },
   partner_assistant_test_missing: {
     sqlstate: "55000",
-    message: "Nessuna email di prova è ancora partita.",
+    message:
+      "Nessuna email dell'ultima prova è partita nelle ultime 24 ore: manda una prova nuova.",
+  },
+  prova_in_corso: {
+    sqlstate: "55000",
+    message: "La prova di prima non è ancora finita: aspetta che partano le sue email.",
   },
   partner_assistant_test_mode_required: {
     sqlstate: "55000",

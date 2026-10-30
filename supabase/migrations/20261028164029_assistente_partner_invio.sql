@@ -40,7 +40,7 @@
 -- partner_assistant_message_immutable, partner_assistant_worker_access_required;
 -- 22023 invalid_partner_payload, partner_not_found;
 -- 55000 partner_assistant_not_configured, partner_assistant_test_required, partner_assistant_test_mode_required,
--- partner_assistant_test_empty, partner_assistant_test_missing; 40001 partner_changed;
+-- partner_assistant_test_empty, partner_assistant_test_missing, prova_in_corso; 40001 partner_changed;
 -- 23505 partner_idempotency_conflict.
 begin;
 
@@ -623,11 +623,15 @@ $$;
 
 -- «Manda la prova»: in «prova», le prime bozze della coda d'invio (da 1 a 3), saltando gli eventi già
 -- iniziati, ognuna verso ogni indirizzo di prova (da 1 a 5). L'id della risposta è quello della prova.
+-- Una prova alla volta: finché l'ultima ha un messaggio non concluso, preparato o in invio, o una
+-- coppia che il worker deve ancora mandare (partner_assistant_test_pairs, con gli indirizzi di prova
+-- della prova e quelli che il worker ha dichiarato), no.
 create function private.start_partner_assistant_test(p_operation_id uuid, p_payload jsonb) returns jsonb
 language plpgsql security definer set search_path = '' as $$
 declare
   v_actor uuid := private.partner_actor();
   v_drafts bigint; v_recipients bigint; v_today date; v_ids uuid[]; v_run uuid; v_mode text;
+  v_last private.partner_assistant_test_runs%rowtype; v_env smallint;
   replay jsonb; result jsonb;
 begin
   perform private.partner_payload(p_payload, array['schema_version', 'drafts', 'recipients'],
@@ -643,6 +647,19 @@ begin
   select c.mode into v_mode from private.partner_assistant_config c where c.singleton for share;
   if v_mode is distinct from 'prova' then
     raise exception 'partner_assistant_test_mode_required' using errcode = '55000';
+  end if;
+  select * into v_last from private.partner_assistant_test_runs t
+    order by t.requested_at desc, t.id desc limit 1;
+  if found then
+    -- Gli indirizzi di prova che il worker ha (letti senza lock, come la pagina): con meno indirizzi
+    -- di quelli della prova, le coppie oltre non partiranno mai e non tengono ferma la prova dopo.
+    select s.env_test_count into v_env from private.partner_assistant_mail_state s where s.singleton;
+    if exists (select 1 from public.partner_assistant_messages m
+        where m.test_run_id = v_last.id and m.send_status in ('pronto', 'in_invio'))
+      or exists (select 1 from private.partner_assistant_test_pairs(v_last.id,
+        least(v_last.recipients, coalesce(v_env, v_last.recipients)))) then
+      raise exception 'prova_in_corso' using errcode = '55000';
+    end if;
   end if;
   v_today := private.partner_assistant_rome_day(private.partner_assistant_now());
   select array_agg(o.draft_id order by o.rank) into v_ids
@@ -663,7 +680,8 @@ begin
 end
 $$;
 
--- «La prova è arrivata in posta in arrivo»: data e autore, solo dopo almeno una prova inviata.
+-- «La prova è arrivata in posta in arrivo»: data e autore, solo con un messaggio inviato dell'ultima
+-- prova avviata, partito nelle ultime 24 ore. Una prova vecchia non conferma niente.
 create function private.confirm_partner_assistant_test(p_operation_id uuid, p_payload jsonb) returns jsonb
 language plpgsql security definer set search_path = '' as $$
 declare
@@ -684,7 +702,10 @@ begin
     raise exception 'partner_changed' using errcode = '40001';
   end if;
   if not exists (select 1 from public.partner_assistant_messages m
-      where m.mode = 'prova' and m.send_status = 'inviato') then
+      where m.mode = 'prova' and m.send_status = 'inviato'
+        and m.test_run_id = (select t.id from private.partner_assistant_test_runs t
+          order by t.requested_at desc, t.id desc limit 1)
+        and m.sent_at >= private.partner_assistant_now() - interval '24 hours') then
     raise exception 'partner_assistant_test_missing' using errcode = '55000';
   end if;
   update private.partner_assistant_config set test_confirmed_at = now(), test_confirmed_by = v_actor,

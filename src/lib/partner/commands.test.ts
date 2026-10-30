@@ -706,8 +706,12 @@ describe("esiti dei comandi", () => {
       "Prima di «Invio» serve una prova confermata da Tommi.",
     );
     expect(message("55000", "partner_assistant_test_missing")).toBe(
-      "Nessuna email di prova è ancora partita.",
+      "Nessuna email dell'ultima prova è partita nelle ultime 24 ore: manda una prova nuova.",
     );
+    expect(message("55000", "prova_in_corso")).toBe(
+      "La prova di prima non è ancora finita: aspetta che partano le sue email.",
+    );
+    expect(message("22023", "prova_in_corso")).toBeUndefined();
     expect(message("55000", "partner_assistant_test_mode_required")).toBe(
       "La prova si manda con l'assistente in «Prova».",
     );

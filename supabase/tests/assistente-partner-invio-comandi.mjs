@@ -1087,6 +1087,35 @@ try {
     step: "invio",
     outcome: "prova_avviata",
   });
+  // Una prova alla volta: finché l'ultima prova ha email da mandare (una coppia bozza-indirizzo
+  // senza messaggio, o un messaggio preparato o in invio) un'altra non parte. Appena avviata, le sue
+  // 6 coppie sono tutte da mandare.
+  const busy = () =>
+    rejects(
+      () => cmd_founder("start_partner_assistant_test", { drafts: 1, recipients: 1 }),
+      "55000",
+      "prova_in_corso",
+    );
+  await busy();
+  // Un messaggio concluso per coppia: respinto conta come concluso, come per il worker.
+  const closePairs = async (runId, cos, indexes) => {
+    for (const co of cos)
+      for (const test_index of indexes)
+        await insertMessage({
+          partner: p(co),
+          mode: "prova",
+          test_run_id: runId,
+          test_index,
+          send_status: "respinto",
+        });
+  };
+  await closePairs(run.test_run_id, [981, 980], [0]);
+  await busy();
+  // Il worker ha dichiarato un solo indirizzo di prova: le coppie degli indici 1 e 2 non partiranno
+  // mai e non tengono ferma la prova dopo.
+  await asOwner(
+    "update private.partner_assistant_mail_state set env_test_ok = true, env_test_count = 1",
+  );
   // L'ora dell'assistente decide quali eventi sono già iniziati; con l'evento ancora da venire la
   // data più vicina viene prima, a pari send_priority.
   const early = await cmd_founder(
@@ -1099,10 +1128,22 @@ try {
     await value("select count(*)::int as v from private.partner_assistant_test_runs"),
     runsBefore + 2,
   );
+  await asOwner(
+    "update private.partner_assistant_mail_state set env_test_ok = null, env_test_count = null",
+  );
+  await busy();
+  // Una coppia la cui bozza non è più di un lavoro «pronta» non parte e non conta.
+  await asOwner(
+    "update public.partner_assistant_jobs set status = 'serve_tommaso', reason = 'bozza_scaduta' where partner_id = $1",
+    [p(992)],
+  );
+  await closePairs(early.test_run_id, [981, 980], [0]);
   const replayOp = randomUUID();
   const first = await as("authenticated", founder, () =>
     cmd("start_partner_assistant_test", { drafts: 1, recipients: 1 }, replayOp),
   );
+  eq(await runDrafts(first.id), [draftOf(981)]);
+  // La ripetizione dà la stessa prova anche se intanto la prova è in corso.
   const again = await as("authenticated", founder, () =>
     cmd("start_partner_assistant_test", { drafts: 1, recipients: 1 }, replayOp),
   );
@@ -1112,6 +1153,29 @@ try {
     runsBefore + 3,
     "…e nessuna riga in più",
   );
+  // L'unica coppia della prova: da mandare, preparata, in invio; poi inviata, e la prova dopo parte.
+  // Un messaggio preparato di una prova vecchia non conta.
+  await insertMessage({
+    partner: p(981),
+    mode: "prova",
+    test_run_id: run.test_run_id,
+    test_index: 1,
+    send_status: "pronto",
+  });
+  await busy();
+  const inFlight = await insertMessage({
+    partner: p(981),
+    mode: "prova",
+    test_run_id: first.id,
+    test_index: 0,
+    send_status: "pronto",
+  });
+  await busy();
+  await asOwner(forward(inFlight, "in_invio"));
+  await busy();
+  await asOwner(forward(inFlight, "inviato"));
+  const last = await cmd_founder("start_partner_assistant_test", { drafts: 1, recipients: 1 });
+  ok(last.test_run_id, "prova conclusa: la prova nuova parte");
   // L'ora: senza impostazione è now(); il giorno è quello di Roma.
   await db.exec("begin");
   try {
@@ -1141,6 +1205,8 @@ try {
     "55000",
     "partner_assistant_test_missing",
   );
+  // Solo un messaggio inviato dell'ultima prova, partito nelle ultime 24 ore: quelli delle prove
+  // di prima (anche inviati) non confermano niente.
   await insertMessage({
     partner: p(980),
     mode: "prova",
@@ -1148,6 +1214,24 @@ try {
     test_index: 0,
     send_status: "inviato",
   });
+  await rejects(
+    () => cmd_founder("confirm_partner_assistant_test", { expected_version: v() }),
+    "55000",
+    "partner_assistant_test_missing",
+  );
+  await insertMessage({
+    partner: p(981),
+    mode: "prova",
+    test_run_id: last.test_run_id,
+    test_index: 0,
+    send_status: "inviato",
+  });
+  await rejects(
+    () =>
+      cmd_founder("confirm_partner_assistant_test", { expected_version: v() }, { now: days(1.05) }),
+    "55000",
+    "partner_assistant_test_missing",
+  );
   await rejects(
     () => cmd_consultant("confirm_partner_assistant_test", { expected_version: v() }),
     "42501",
