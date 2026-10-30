@@ -377,7 +377,7 @@ describe("cartelle", () => {
     expect(client.list).toHaveBeenCalledWith();
   });
 
-  it("solo i flag \\Sent e \\Junk del server nella LIST, nessuno specialUse: cartelle dai flag", async () => {
+  it("solo i flag \\Sent e \\Junk del server nella LIST, nessuno specialUse \\Sent o \\Junk: cartelle dai flag", async () => {
     // Server senza SPECIAL-USE, con nomi che imapflow non riconosce.
     const mb = await open({
       list: [
@@ -510,6 +510,38 @@ describe("cartelle", () => {
     // Server senza SPECIAL-USE: imapflow riconosce «Inviati» dal nome.
     const mb = await open({ list: [inbox, byName("Inviati", "\\Sent", "\\Junk")] });
     expect(await mb.folders()).toEqual({ inbox: "INBOX", sent: null, junk: "Inviati" });
+  });
+
+  it.each([
+    "\\All",
+    "\\Archive",
+    "\\Drafts",
+    "\\Flagged",
+    "\\Trash",
+    "\\Important",
+    "\\DRAFTS",
+    "\\important",
+  ])("specialUse \\Sent dal nome su una cartella con il flag %s: sent null", async (use) => {
+    // imapflow 2.4.2 non conosce \Important e lo lascia accanto al \Sent dal nome anche con
+    // SPECIAL-USE; gli altri flag restano così su un server senza SPECIAL-USE o dalla LSUB.
+    const mb = await open({
+      list: [inbox, byName("Inviati", "\\Sent", use), byFlag("Spam", "\\Junk")],
+    });
+    expect(await mb.folders()).toEqual({ inbox: "INBOX", sent: null, junk: "Spam" });
+  });
+
+  it("flag \\Sent solo su una cartella \\nonexistent: sent null, nessun ripiego per nome", async () => {
+    // Server senza SPECIAL-USE: imapflow dà \Sent a «Inviati», prima in ordine alfabetico, e
+    // aggiunge \Noselect solo a \NonExistent scritto così.
+    const mb = await open({
+      list: [
+        inbox,
+        byName("Inviati", "\\Sent"),
+        { path: "Posta inviata", flags: new Set(["\\Sent", "\\nonexistent"]) },
+        byFlag("Spam", "\\Junk"),
+      ],
+    });
+    expect(await mb.folders()).toEqual({ inbox: "INBOX", sent: null, junk: "Spam" });
   });
 
   it("una cartella con \\Sent e \\Junk: sent e junk null", async () => {
