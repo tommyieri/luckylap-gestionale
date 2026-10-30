@@ -1,5 +1,5 @@
 import "server-only";
-import { ImapFlow, type ImapFlowOptions, type SearchObject } from "imapflow";
+import { ImapFlow, type ImapFlowOptions, type ListResponse, type SearchObject } from "imapflow";
 import { PARTNER_ASSISTANT_IMAP_PORT, type PartnerAssistantMailConfig } from "./mail-config";
 
 // La casella dell'assistente nella 2a: solo il controllo dei 12 mesi (EXAMINE, in sola lettura) e
@@ -13,7 +13,8 @@ export type PartnerAssistantImapError = {
   code: string;
 };
 export type PartnerAssistantMailbox = {
-  /** INBOX e le cartelle `\Sent` e `\Junk` della LIST; null se la LIST fallisce. */
+  /** INBOX e le cartelle `\Sent` e `\Junk` della LIST; null se la LIST fallisce. Una cartella
+   * che manca o non è univoca è null. */
   folders(): Promise<PartnerAssistantFolders | null>;
   /** true: un messaggio da, a o in copia all'indirizzo dal `since` in una delle tre cartelle;
    * false: nessuno, con la connessione verificata; null: «non so», mai «non c'è». */
@@ -115,13 +116,28 @@ function partnerAssistantMailbox(client: ImapFlow): PartnerAssistantMailbox {
         // assegnare specialUse, e su IONOS «Posta inviata» e «Spam» risultavano senza (30 ottobre).
         const entries = await client.list();
         if (!Array.isArray(entries)) return null;
-        // imapflow assegna ogni flag a una sola cartella, anche quando lo riconosce dal nome; se
-        // manca, vale il flag SPECIAL-USE grezzo della risposta LIST.
-        const flagged = (flag: string) =>
-          entries.find((entry) => entry.specialUse === flag)?.path ??
-          entries.find((entry) => entry.flags instanceof Set && entry.flags.has(flag))?.path ??
-          null;
-        return { inbox: "INBOX", sent: flagged("\\Sent"), junk: flagged("\\Junk") };
+        // I flag sono atomi: si confrontano senza maiuscole, come in imapflow. Le cartelle
+        // \Noselect o \NonExistent non contengono messaggi e non contano.
+        const has = (entry: ListResponse, flag: string) =>
+          entry.flags instanceof Set &&
+          [...entry.flags].some(
+            (value) => typeof value === "string" && value.toLowerCase() === flag.toLowerCase(),
+          );
+        const selectable = entries.filter(
+          (entry) => !has(entry, "\\Noselect") && !has(entry, "\\NonExistent"),
+        );
+        // Vale il flag del server, anche contro il nome riconosciuto da imapflow in un'altra
+        // cartella; senza flag, il riconoscimento di imapflow. Due cartelle con lo stesso flag
+        // sono ambigue: «non so» (null), mai una ricerca nella cartella sbagliata, che vuota
+        // direbbe «non c'è».
+        const folder = (flag: string) => {
+          const flagged = selectable.filter((entry) => has(entry, flag));
+          if (flagged.length > 1) return null;
+          return (
+            (flagged[0] ?? selectable.find((entry) => entry.specialUse === flag))?.path ?? null
+          );
+        };
+        return { inbox: "INBOX", sent: folder("\\Sent"), junk: folder("\\Junk") };
       } catch {
         return null;
       }

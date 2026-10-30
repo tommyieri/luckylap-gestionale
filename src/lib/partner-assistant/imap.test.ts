@@ -78,17 +78,25 @@ class FakeImap extends EventEmitter {
     if (this.script.connect) throw imapError(this.script.connect);
     this.usable = true;
   });
-  list = vi.fn(async (_options?: unknown) => {
+  list = vi.fn(async (options?: { listOnly?: boolean }) => {
     this.calls.push("list");
     if (this.script.list === "throw") throw imapError({ code: "ECONNRESET" });
-    return (this.script.list ?? standardList).map((entry) => ({
-      ...entry,
-      name: entry.path,
-      delimiter: "/",
-      flags: entry.flags ?? new Set<string>(),
-      listed: true,
-      subscribed: true,
-    }));
+    return (this.script.list ?? standardList).map((entry) => {
+      const listed: Entry = { ...entry };
+      // Come imapflow 2.4.2: con `listOnly` le cartelle tornano prima di assegnare specialUse.
+      if (options?.listOnly === true) {
+        delete listed.specialUse;
+        delete listed.specialUseSource;
+      }
+      return {
+        ...listed,
+        name: entry.path,
+        delimiter: "/",
+        flags: entry.flags ?? new Set<string>(),
+        listed: true,
+        subscribed: true,
+      };
+    });
   });
   getMailboxLock = vi.fn(async (path: string, options?: { readOnly?: boolean }) => {
     this.calls.push(`lock:${path}:${options?.readOnly === true ? "examine" : "select"}`);
@@ -350,7 +358,7 @@ describe("cartelle", () => {
     expect(client.list).toHaveBeenCalledWith();
   });
 
-  it("IONOS: senza specialUse ma con i flag \\Sent e \\Junk della LIST", async () => {
+  it("solo i flag \\Sent e \\Junk del server nella LIST, nessuno specialUse: cartelle dai flag", async () => {
     const mb = await open({
       list: [
         { path: "INBOX", flags: new Set(["\\HasNoChildren"]) },
@@ -363,17 +371,100 @@ describe("cartelle", () => {
     expect(await mb.folders()).toEqual({ inbox: "INBOX", sent: "Posta inviata", junk: "Spam" });
   });
 
-  it("specialUse vince sui flag grezzi di un'altra cartella", async () => {
+  it("il flag del server vince sul nome riconosciuto da imapflow", async () => {
     const mb = await open({
       list: [
         { path: "INBOX", specialUse: "\\Inbox" },
-        { path: "Vecchia", flags: new Set(["\\Sent"]) },
-        { path: "Posta inviata", specialUse: "\\Sent", flags: new Set(["\\Sent"]) },
-        { path: "Spam", specialUse: "\\Junk" },
+        { path: "Inviati", specialUse: "\\Sent", specialUseSource: "name" },
+        { path: "Posta inviata", flags: new Set(["\\Sent"]) },
+        { path: "Spam", specialUse: "\\Junk", specialUseSource: "name" },
       ],
     });
-    expect((await mb.folders())?.sent).toBe("Posta inviata");
+    expect(await mb.folders()).toEqual({ inbox: "INBOX", sent: "Posta inviata", junk: "Spam" });
   });
+
+  it("due cartelle con il flag \\Sent, una anche con specialUse: sent null, nessuna ricerca", async () => {
+    const mb = await open({
+      list: [
+        { path: "INBOX", specialUse: "\\Inbox" },
+        {
+          path: "Posta inviata",
+          specialUse: "\\Sent",
+          specialUseSource: "extension",
+          flags: new Set(["\\Sent"]),
+        },
+        { path: "Vecchia posta inviata", flags: new Set(["\\Sent"]) },
+        {
+          path: "Spam",
+          specialUse: "\\Junk",
+          specialUseSource: "extension",
+          flags: new Set(["\\Junk"]),
+        },
+      ],
+    });
+    const f = await mb.folders();
+    expect(f).toEqual({ inbox: "INBOX", sent: null, junk: "Spam" });
+    expect(await mb.correspondence(f!, addr, since)).toBeNull();
+    expect(client.search).not.toHaveBeenCalled();
+    expect(client.getMailboxLock).not.toHaveBeenCalled();
+  });
+
+  it("due cartelle con il flag \\Junk: junk null", async () => {
+    const mb = await open({
+      list: [
+        { path: "INBOX" },
+        { path: "Posta inviata", flags: new Set(["\\Sent"]) },
+        { path: "Spam", flags: new Set(["\\Junk"]) },
+        { path: "Posta indesiderata", flags: new Set(["\\Junk"]) },
+      ],
+    });
+    expect(await mb.folders()).toEqual({ inbox: "INBOX", sent: "Posta inviata", junk: null });
+  });
+
+  it("flag con maiuscole diverse: \\SENT e \\junk valgono", async () => {
+    const mb = await open({
+      list: [
+        { path: "INBOX" },
+        { path: "Posta inviata", flags: new Set(["\\SENT"]) },
+        { path: "Spam", flags: new Set(["\\junk"]) },
+      ],
+    });
+    expect(await mb.folders()).toEqual({ inbox: "INBOX", sent: "Posta inviata", junk: "Spam" });
+  });
+
+  it.each(["\\Noselect", "\\NOSELECT"])(
+    "una cartella %s con \\Sent non conta: sent dall'altra",
+    async (noselect) => {
+      const mb = await open({
+        list: [
+          { path: "INBOX" },
+          { path: "Archivio", flags: new Set([noselect, "\\Sent"]) },
+          { path: "Posta inviata", flags: new Set(["\\Sent"]) },
+          { path: "Spam", flags: new Set(["\\Junk"]) },
+        ],
+      });
+      expect(await mb.folders()).toEqual({ inbox: "INBOX", sent: "Posta inviata", junk: "Spam" });
+    },
+  );
+
+  it.each(["\\NonExistent", "\\nonexistent"])(
+    "solo una cartella %s con \\Sent e specialUse \\Sent: sent null",
+    async (nonexistent) => {
+      const mb = await open({
+        list: [
+          { path: "INBOX" },
+          {
+            path: "Posta inviata",
+            specialUse: "\\Sent",
+            specialUseSource: "extension",
+            flags: new Set([nonexistent, "\\Sent"]),
+          },
+          { path: "Spam", flags: new Set(["\\Junk"]) },
+        ],
+      });
+      expect(await mb.folders()).toEqual({ inbox: "INBOX", sent: null, junk: "Spam" });
+    },
+  );
 
   it("anche con nomi diversi: conta il flag, non il nome", async () => {
     const mb = await open({
