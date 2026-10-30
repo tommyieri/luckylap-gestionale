@@ -675,6 +675,50 @@ describe("comandi del team", () => {
     expect(signedOut.rpcCalls).toEqual([]);
   });
 
+  it("il controllo prima della RPC gira dopo la verifica del membro, sul comando letto", async () => {
+    const testCommand = {
+      kind: "start_partner_assistant_test",
+      operationId: partnerFixtureId(9002),
+      payload: { schema_version: 1, drafts: 1, recipients: 2 },
+    };
+    const blocked = {
+      status: "rejected" as const,
+      code: "partner_assistant_mail_not_configured",
+      message: "Posta sintetica non configurata.",
+      refresh: false,
+    };
+    const precheck = vi.fn(() => blocked);
+    // Chi non è membro riceve l'errore di accesso, non l'informazione sulla posta.
+    const outsider = fakeSupabase(tables(), { user: partnerFixtureId(999) });
+    expect(
+      await executePartnerCommand(outsider.client, testCommand, NOW, {
+        kind: "start_partner_assistant_test",
+        precheck,
+      }),
+    ).toMatchObject({ status: "rejected", code: "partner_access_required" });
+    expect(precheck).not.toHaveBeenCalled();
+    const member = fakeSupabase(tables());
+    expect(
+      await executePartnerCommand(member.client, testCommand, NOW, {
+        kind: "start_partner_assistant_test",
+        precheck,
+      }),
+    ).toEqual(blocked);
+    expect(precheck).toHaveBeenCalledExactlyOnceWith(
+      expect.objectContaining({ kind: "start_partner_assistant_test", retry: false }),
+    );
+    expect(member.order).toEqual(["getUser"]);
+    expect(member.rpcCalls).toEqual([]);
+    // Senza rifiuto si va alla RPC.
+    const through = fakeSupabase(tables(), {
+      rpc: () => ({ data: null, error: { code: "55000", message: "prova_in_corso" } }),
+    });
+    expect(
+      await executePartnerCommand(through.client, testCommand, NOW, { precheck: () => null }),
+    ).toMatchObject({ status: "rejected", code: "prova_in_corso" });
+    expect(through.rpcCalls.map((call) => call.name)).toEqual(["start_partner_assistant_test"]);
+  });
+
   it("chiama la RPC con operation_id e payload, senza autore", async () => {
     const fake = fakeSupabase(tables(), {
       rpc: () => ({

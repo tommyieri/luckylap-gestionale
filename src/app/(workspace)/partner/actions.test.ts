@@ -6,6 +6,8 @@ const mocks = vi.hoisted(() => ({
   client: { marker: "client" },
   createClient: vi.fn(),
   execute: vi.fn(),
+  /** La RPC del finto executePartnerCommand: dopo il controllo della posta. */
+  rpc: vi.fn(),
   preview_: vi.fn(),
   revalidatePath: vi.fn(),
 }));
@@ -38,6 +40,7 @@ import {
   startPartnerAssistantTest,
 } from "./actions";
 import { importPartnerDeviceFile, previewPartnerDeviceFile } from "./dati/actions";
+import { parsePartnerCommand, type PartnerCommand } from "../../../lib/partner/commands";
 
 const command = { kind: "set_partner_state", operationId: "x", payload: {} };
 const success = { status: "success", message: "Salvato." };
@@ -102,7 +105,22 @@ beforeEach(() => {
   stubMail(MAIL);
   mocks.preview = false;
   mocks.createClient.mockResolvedValue(mocks.client);
-  mocks.execute.mockResolvedValue(success);
+  // Come executePartnerCommand per un membro: il comando letto passa dal controllo della posta
+  // (precheck), poi va alla RPC. L'ordine con la verifica del membro è in command-runner.test.ts.
+  mocks.execute.mockImplementation(
+    async (
+      _client: unknown,
+      value: unknown,
+      now: Date,
+      options: { precheck?: (command: PartnerCommand) => unknown },
+    ) => {
+      const parsed = parsePartnerCommand(value, now);
+      const early = parsed && options.precheck ? options.precheck(parsed) : null;
+      if (early) return early;
+      mocks.rpc(parsed?.kind);
+      return success;
+    },
+  );
 });
 
 describe("Server Action dei comandi Partner", () => {
@@ -115,7 +133,7 @@ describe("Server Action dei comandi Partner", () => {
       expect(client).toBe(mocks.client);
       expect(value).toBe(command);
       expect(now).toBeInstanceOf(Date);
-      expect(options).toEqual({ kind });
+      expect(options).toEqual({ kind, precheck: expect.any(Function) });
     }
     expect(mocks.createClient).toHaveBeenCalledWith({ writable: true });
   });
@@ -191,14 +209,13 @@ describe("Server Action dei comandi Partner", () => {
         );
       await expect(startPartnerAssistantTest(testCommand(3))).resolves.toEqual(notConfigured);
     }
-    expect(mocks.createClient).not.toHaveBeenCalled();
-    expect(mocks.execute).not.toHaveBeenCalled();
+    expect(mocks.rpc).not.toHaveBeenCalled();
     expect(mocks.revalidatePath).not.toHaveBeenCalled();
     // «Spento» e «Prepara» non mandano email: passano anche senza posta.
     for (const mode of ["spento", "prepara"]) {
-      mocks.execute.mockClear();
+      mocks.rpc.mockClear();
       await expect(setPartnerAssistantMode(modeCommand(mode))).resolves.toEqual(success);
-      expect(mocks.execute, mode).toHaveBeenCalledTimes(1);
+      expect(mocks.rpc, mode).toHaveBeenCalledTimes(1);
     }
   });
 
@@ -212,6 +229,7 @@ describe("Server Action dei comandi Partner", () => {
     // Senza indirizzi di prova «Prova» si può scegliere: la casella c'è.
     await expect(setPartnerAssistantMode(modeCommand("prova"))).resolves.toEqual(success);
     mocks.execute.mockClear();
+    mocks.rpc.mockClear();
     mocks.revalidatePath.mockClear();
     stubMail(MAIL);
     await expect(startPartnerAssistantTest(testCommand(2))).resolves.toEqual({
@@ -220,11 +238,11 @@ describe("Server Action dei comandi Partner", () => {
       message: "Gli indirizzi di prova sono cambiati: ricarica la pagina e riprova.",
       refresh: false,
     });
-    expect(mocks.execute).not.toHaveBeenCalled();
+    expect(mocks.rpc).not.toHaveBeenCalled();
     expect(mocks.revalidatePath).not.toHaveBeenCalled();
     await expect(startPartnerAssistantTest(testCommand(3))).resolves.toEqual(success);
-    expect(mocks.execute).toHaveBeenCalledTimes(1);
-    expect(mocks.execute.mock.calls[0][1]).toEqual(testCommand(3));
+    expect(mocks.rpc).toHaveBeenCalledExactlyOnceWith("start_partner_assistant_test");
+    expect(mocks.execute.mock.calls.at(-1)?.[1]).toEqual(testCommand(3));
     await expect(setPartnerAssistantMode(modeCommand("invio"))).resolves.toEqual(success);
   });
 
@@ -237,7 +255,7 @@ describe("Server Action dei comandi Partner", () => {
     await expect(startPartnerAssistantTest({ ...testCommand(2), retry: true })).resolves.toEqual(
       success,
     );
-    expect(mocks.execute).toHaveBeenCalledTimes(2);
+    expect(mocks.rpc).toHaveBeenCalledTimes(2);
   });
 
   it("un errore imprevisto diventa «Salvataggio non confermato», mai un'eccezione", async () => {

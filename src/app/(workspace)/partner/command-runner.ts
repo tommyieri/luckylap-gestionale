@@ -5,8 +5,8 @@ import { isLocalPreviewEnabled } from "../../../lib/runtime";
 import {
   PARTNER_ASSISTANT_ACTION_MESSAGES,
   PARTNER_UNCERTAIN_MESSAGE,
-  parsePartnerCommand,
   type PartnerAssistantActionRejection,
+  type PartnerCommand,
   type PartnerCommandKind,
   type PartnerCommandResult,
 } from "../../../lib/partner/commands";
@@ -54,31 +54,30 @@ const assistantRejection = (code: PartnerAssistantActionRejection): PartnerComma
 });
 
 /**
- * La posta dell'assistente, controllata sul server prima della RPC: «Prova» e «Invio» solo con la
+ * La posta dell'assistente, controllata sul server dopo la verifica del membro e prima della RPC
+ * (`precheck` di executePartnerCommand, sul comando già letto): «Prova» e «Invio» solo con la
  * casella configurata; «Manda la prova» solo con gli indirizzi di prova, e con lo stesso numero
- * che la pagina ha mostrato a Tommi (`recipients`). Un comando non valido o di un altro tipo passa
- * oltre: lo rifiuta executePartnerCommand. Una ripetizione passa oltre: la ricevuta dà l'esito del
- * primo invio. Nessun valore della posta esce da qui.
+ * che la pagina ha mostrato a Tommi (`recipients`). Un comando di un altro tipo passa oltre. Una
+ * ripetizione passa oltre: la ricevuta dà l'esito del primo invio. Chi non è membro riceve prima
+ * l'errore di accesso e non sa niente della posta. Nessun valore della posta esce da qui.
  */
-function assistantMailRejection(
-  kind: PartnerCommandKind,
-  value: unknown,
-  now: Date,
-): PartnerCommandResult | null {
-  if (kind !== "set_partner_assistant_mode" && kind !== "start_partner_assistant_test") return null;
-  const command = parsePartnerCommand(value, now);
-  if (command === null || command.kind !== kind) return null;
+function assistantMailRejection(command: PartnerCommand): PartnerCommandResult | null {
+  if (
+    command.kind !== "set_partner_assistant_mode" &&
+    command.kind !== "start_partner_assistant_test"
+  )
+    return null;
   // «Verifica lo stesso invio» ripete un invio forse già arrivato: decide la ricevuta del database,
   // non la posta di adesso. Senza posta il worker non manda comunque niente.
   if (command.retry) return null;
   if (
-    kind === "set_partner_assistant_mode" &&
+    command.kind === "set_partner_assistant_mode" &&
     !["prova", "invio"].includes(command.payload.mode as string)
   )
     return null;
   const mail = partnerAssistantMailConfig();
   if (mail === null) return assistantRejection("partner_assistant_mail_not_configured");
-  if (kind === "start_partner_assistant_test") {
+  if (command.kind === "start_partner_assistant_test") {
     if (mail.testTo.length === 0)
       return assistantRejection("partner_assistant_mail_not_configured");
     if (command.payload.recipients !== mail.testTo.length)
@@ -88,10 +87,10 @@ function assistantMailRejection(
 }
 
 /**
- * Corpo comune delle Server Action di Partner: anteprima mai verso Supabase, poi la posta
- * dell'assistente per «Prova», «Invio» e «Manda la prova» (senza RPC se manca), client con i
- * cookie scrivibili, membro verificato prima di tutto (executePartnerCommand), solo il comando
- * della propria azione, poi la pagina riletta. Un'eccezione qui vuol dire esito da verificare.
+ * Corpo comune delle Server Action di Partner: anteprima mai verso Supabase, client con i cookie
+ * scrivibili, membro verificato prima di tutto (executePartnerCommand), solo il comando della
+ * propria azione, poi la posta dell'assistente per «Prova», «Invio» e «Manda la prova» (senza RPC
+ * se manca), poi la RPC e la pagina riletta. Un'eccezione qui vuol dire esito da verificare.
  */
 export async function runPartnerCommandAction(
   kind: PartnerCommandKind,
@@ -100,10 +99,11 @@ export async function runPartnerCommandAction(
   if (isLocalPreviewEnabled()) return PARTNER_PREVIEW_REJECTION;
   try {
     const now = new Date();
-    const mailRejection = assistantMailRejection(kind, value, now);
-    if (mailRejection !== null) return mailRejection;
     const supabase = await createSupabaseServerClient({ writable: true });
-    const result = await executePartnerCommand(supabase, value, now, { kind });
+    const result = await executePartnerCommand(supabase, value, now, {
+      kind,
+      precheck: assistantMailRejection,
+    });
     // Dopo un salvataggio, o quando un collega ha cambiato il contatto, la pagina si rilegge.
     if (result.status === "success" || (result.status === "rejected" && result.refresh)) {
       revalidatePath(PARTNER_PATH);

@@ -22,6 +22,7 @@ import {
   parsePartnerCommand,
   partnerCommandOutcome,
   partnerCommandRejection,
+  type PartnerCommand,
   type PartnerCommandKind,
   type PartnerCommandResult,
   type PartnerCommandSuccess,
@@ -531,14 +532,18 @@ const UNAVAILABLE = "Verifica dell’accesso non disponibile. Nessun salvataggio
 
 /**
  * Esegue un comando del team: prima la membership (anche con input non valido), poi il
- * controllo del comando, poi la RPC con il suo operation_id. L'autore lo decide il database.
- * In una ripetizione («Verifica») ciò che non si può verificare resta «non confermato».
+ * controllo del comando, poi `precheck` sul comando letto (per esempio la posta dell'assistente:
+ * un rifiuto qui non arriva al database), poi la RPC con il suo operation_id. L'autore lo decide
+ * il database. In una ripetizione («Verifica») ciò che non si può verificare resta «non confermato».
  */
 export async function executePartnerCommand(
   supabase: SupabaseClient,
   value: unknown,
   now: Date = new Date(),
-  options: { kind?: PartnerCommandKind } = {},
+  options: {
+    kind?: PartnerCommandKind;
+    precheck?: (command: PartnerCommand) => PartnerCommandResult | null;
+  } = {},
 ): Promise<PartnerCommandResult> {
   const retry =
     value !== null && typeof value === "object" && (value as { retry?: unknown }).retry === true;
@@ -561,6 +566,8 @@ export async function executePartnerCommand(
     return retry
       ? uncertain()
       : rejected("invalid_partner_payload", PARTNER_ERROR_MESSAGES.invalid_partner_payload.message);
+  const early = options.precheck?.(command) ?? null;
+  if (early !== null) return early;
   try {
     const { data, error } = await supabase.rpc(command.kind, {
       p_operation_id: command.operationId,
