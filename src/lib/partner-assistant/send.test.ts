@@ -147,6 +147,7 @@ function setup(options: Options) {
     recordAppend: [] as { messageRowId: string; found: boolean }[],
     skip: [] as { jobId: string | null; reason: string }[],
     skipAborted: [] as boolean[],
+    pauseAborted: [] as boolean[],
     claim: [] as unknown[][],
     opened: 0,
   };
@@ -209,8 +210,9 @@ function setup(options: Options) {
       recorded.recordAppend.push({ messageRowId, found });
       return done;
     }),
-    pause: vi.fn(async () => {
+    pause: vi.fn(async (_lease, signal) => {
       calls.push("pause");
+      recorded.pauseAborted.push(signal.aborted);
       return done;
     }),
     release: vi.fn(async (_lease, input) => {
@@ -483,6 +485,13 @@ describe("passo d'invio dell'assistente Partner", () => {
       smtpLogin: null,
       imapLogin: "imap_autenticazione",
     });
+  });
+  it("IMAP credenziali a budget finito: pause con i suoi 10 secondi, come gli altri esiti registrati", async () => {
+    expect(
+      await runSend({ open: credentials, clockAfter: { claim: PARTNER_ASSISTANT_SEND_BUDGET_MS } }),
+    ).toEqual({ status: "stopped" });
+    expect(calls).toEqual(["claim", "open", "pause", "release"]);
+    expect(state.recorded.pauseAborted).toEqual([false]);
   });
   it("IMAP ECONNRESET con candidato: skip casella_incerta, release con imap_econnreset", async () => {
     // Fuoco 5

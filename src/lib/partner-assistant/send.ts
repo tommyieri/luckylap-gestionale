@@ -40,7 +40,7 @@ export const PARTNER_ASSISTANT_SEND_LEASE_SECONDS = 300;
 export const PARTNER_ASSISTANT_SMTP_MIN_MS = 75_000;
 /** L'SMTP scade a tempo rimasto meno questo margine. */
 export const PARTNER_ASSISTANT_SMTP_MARGIN_MS = 15_000;
-/** finish, skip e release hanno questo tempo proprio, fuori dal budget: un 250 arrivato tardi
+/** finish, skip, pause e release hanno questo tempo proprio, fuori dal budget: un 250 arrivato tardi
  * va registrato, e così l'attesa di una casella che a budget finito non ha risposto (Fuoco 5). */
 export const PARTNER_ASSISTANT_SEND_RECORD_MS = 10_000;
 /** Il controllo dei 12 mesi nella casella. */
@@ -146,7 +146,7 @@ export async function runPartnerAssistantSendStep(
         return { ok: false };
       }
     }
-    /** Una registrazione con 10 secondi propri, fuori dal budget: finish, skip e release. Un 250
+    /** Una registrazione con 10 secondi propri, fuori dal budget: finish, skip, pause e release. Un 250
      * arrivato tardi va registrato; uno skip dopo una casella rimasta ferma fino a budget finito
      * pure, altrimenti il giro dopo rifà il login e il passo con Claude resta fermo (Fuoco 5). */
     async function recordAfter<T>(
@@ -248,7 +248,8 @@ export async function runPartnerAssistantSendStep(
         imapLogin = code(opened.error.code, "imap_sconosciuto");
         outcome = imapLogin;
         if (opened.error.kind === "credenziali") {
-          const paused = await database((signal) => store.pause(lease, signal));
+          // Come finish, skip e release: con i suoi 10 secondi, anche a budget finito.
+          const paused = await recordAfter((signal) => store.pause(lease, signal));
           if (paused.ok && paused.value.status === "done") status = "stopped";
           else uncertain();
           return;
