@@ -62,7 +62,7 @@ Alcuni documenti scritti prima del modello attuale chiedono ancora una sessione 
 
 ## Partner
 
-- [Partner nel gestionale](partner.md): pagina `/partner` con contatti, periodi, messaggi e stati, «Ci siamo» (accordi fatti, unici nel calendario), import della ricerca e dei file «Esporta», lookbook, privacy e lo spegnimento di GitHub Pages.
+- [Partner nel gestionale](partner.md): pagina `/partner` con contatti, periodi, messaggi e stati, sezione Club (Porsche Club fuori dall'Italia, club Ferrari e Mercedes), «Ci siamo» (accordi fatti, unici nel calendario), import della ricerca e dei file «Esporta», lookbook, privacy e lo spegnimento di GitHub Pages.
 - [Assistente Partner](partner-assistente.md): prima consegna («prepara»), con ricerca e bozze delle prime email salvate nel gestionale, e consegna 2a («invio»), con la prova di Tommi e l'invio delle prime email dalla casella aziendale; tabelle e RPC, modalità, finestra e limiti, variabili d'ambiente, come fermarlo, spesa e sequenze di avvio con l'OK di Tommi.
 - [Assistente Partner: specifica](superpowers/specs/2026-10-27-assistente-partner-design.md): assistente basato su Claude che studia i contatti, scrive e invia le email, gestisce risposte e solleciti e passa a Tommi le trattative concrete. Approvata il 27 ottobre 2026 e aggiornata lo stesso giorno con il parere di Luca. [Piano della prima consegna](superpowers/plans/2026-10-27-assistente-partner-consegna-1.md), [Piano della consegna 2a (invio)](superpowers/plans/2026-10-28-assistente-partner-consegna-2a.md).
 

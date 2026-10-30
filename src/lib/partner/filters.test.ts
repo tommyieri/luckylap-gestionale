@@ -21,7 +21,7 @@ import {
   type PartnerFilterContext,
   type PartnerView,
 } from "./filters";
-import type { PartnerBlock, PartnerContactLink, PartnerSummary } from "./model";
+import type { PartnerBlock, PartnerContactLink, PartnerSection, PartnerSummary } from "./model";
 
 // Spec 02 §5.3: filtri, conteggi e stato nell'indirizzo. Liste sintetiche.
 const TODAY = "2026-10-22";
@@ -171,10 +171,23 @@ describe("filtri della lista", () => {
 
   it("sezioni contate su tutti i contatti, con la riga sotto il titolo", () => {
     const counts = sectionCounts(list);
-    expect(counts).toEqual({ tutti: 6, vendita: 3, eventi: 3, collab: 2 });
-    expect(totalsLine({ tutti: 207, vendita: 119, eventi: 80, collab: 73 })).toBe(
-      "207 contatti · 119 Vendita · 80 Eventi · 73 Collab. Lo stesso posto può stare in più sezioni.",
+    expect(counts).toEqual({ tutti: 6, vendita: 3, eventi: 3, collab: 2, club: 0 });
+    expect(totalsLine({ tutti: 207, vendita: 119, eventi: 80, collab: 73, club: 0 })).toBe(
+      "207 contatti · 119 Vendita · 80 Eventi · 73 Collab · 0 Club. Lo stesso posto può stare in più sezioni.",
     );
+  });
+
+  it("la sezione Club si conta e si filtra come le altre", () => {
+    const club = { ...list[0], co: 99, sections: ["eventi", "club"] as PartnerSection[] };
+    const counts = sectionCounts([...list, club]);
+    expect(counts.club).toBe(1);
+    expect(counts.eventi).toBe(4);
+    expect(parsePartnerView({ sezione: "club" }).view.sezione).toBe("club");
+    expect(
+      filterPartners([...list, club], view({ periodo: 1, sezione: "club" }), context).map(
+        (partner) => partner.co,
+      ),
+    ).toEqual([99]);
   });
 
   it("un link a un contatto nascosto dai filtri cambia solo ciò che serve", () => {

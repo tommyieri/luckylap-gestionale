@@ -118,7 +118,7 @@ const idleReasons = oneOf([
   "vuota",
 ] as const);
 const stopReasons = oneOf(["spento", "pausa", "attesa", "lease_persa", "non_idoneo"] as const);
-const sections = oneOf(["vendita", "eventi", "collab"] as const);
+const sections = oneOf(["vendita", "eventi", "collab", "club"] as const);
 const priorities = oneOf(["alta", "media", "bassa"] as const);
 const requests = oneOf([
   "merch_cobranding",

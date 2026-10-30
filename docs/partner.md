@@ -22,7 +22,7 @@ Questo documento descrive la tappa P2 (branch `claude/tappa-4-partner`). Fonti: 
 `src/app/(workspace)/partner/page.tsx`, componenti in `src/components/partner/`. Dall'alto:
 
 1. `h1` «Partner» e la riga dei totali per sezione.
-2. Sezioni Tutti, Vendita, Eventi, Collab con il conteggio, e in fondo «Ci siamo» con il pallino verde e il numero degli accordi fatti (sul telefono va a capo, sempre in vista).
+2. Sezioni Tutti, Vendita, Eventi, Collab, Club con il conteggio, e in fondo «Ci siamo» con il pallino verde e il numero degli accordi fatti (sul telefono va a capo, sempre in vista).
 3. Barra dei cinque periodi, ferma in alto con `top: var(--ws-sticky-top)`. «Adesso» scelta è in verde pieno.
 4. Ricerca («Cerca nome, città o CO»), select «Stato» e «Seguito da».
 5. Avviso ambra delle differenze da controllare, con «Mostrale».
@@ -83,7 +83,7 @@ Indirizzo: `/partner?periodo=1&sezione=eventi&stato=da_fare&chi=io&q=porsche&co=
 | Parametro | Valori | Predefinito |
 | --- | --- | --- |
 | `periodo` | 1–5 | 1, o l'ultimo usato nel browser |
-| `sezione` | `tutti`, `vendita`, `eventi`, `collab` | `tutti`, o l'ultima usata |
+| `sezione` | `tutti`, `vendita`, `eventi`, `collab`, `club` | `tutti`, o l'ultima usata |
 | `stato` | `da_fare` (tutti tranne Accordo fatto e Non interessato), `tutti`, uno dei 6 stati, `non_contattare`, `da_controllare` | `da_fare` |
 | `chi` | `tutti`, `io`, `nessuno`, id di un membro | `tutti` |
 | `q` | al massimo 80 caratteri: nome, città, paese, tipo, CO («12», «CO 12», «CO012») | vuoto |
@@ -104,6 +104,17 @@ Decisione di Tommi del 23 ottobre 2026: nel calendario del team e nell'agenda di
 - «Collega l'evento» in `/team/partner` è attivo solo con «Accordo fatto»; il comando rifiuta le altre schede con `partner_work_not_agreed` («Prima segna l’accordo fatto nella scheda Partner: in calendario vanno solo gli eventi a cui partecipiamo.») e le schede senza date con `partner_work_date_required` («Mancano le date dell’evento: aggiungile nella scheda Partner.»). Dal 23 ottobre 2026 (`20261023140414_partner_oggi_fixes`) crea l'appuntamento anche se l'evento è già passato, così le vendite si possono collegare; la sincronizzazione automatica continua a saltare le date passate senza appuntamento. «Usa date Partner» su una scheda senza accordo toglie l'appuntamento, o si ferma con `partner_work_event_has_sales` se ha vendite.
 - **«Ci siamo»** (`/partner?vista=ci_siamo`): tutti gli accordi fatti, di ogni periodo, sezione e stato scelto; valgono «Seguito da» e la ricerca. Prima gli eventi non ancora finiti, per data d'inizio, poi gli altri per CO. Le celle dei periodi restano quelle della vista normale; toccare un periodo, una sezione o lo stato esce da «Ci siamo». Sulla riga di un accordo con date in arrivo l'etichetta verde «Nel calendario del team».
 - Verifiche: `supabase/tests/partner-dates-agreed.mjs` (PGlite, 76 controlli: stato di produzione con la regola vecchia, pulizia, cambi di stato, comandi, firme e permessi); `finance-ecosystem-integration.mjs` segna «Accordo fatto» prima di collegare la vendita all'evento. `partner-work-links.mjs` applica anche questa migrazione e `20261023140414_partner_oggi_fixes`; `partner-work-concurrency.mjs` prova ancora la sola migrazione P5.
+
+## Sezione Club
+
+Decisione di Tommi del 30 ottobre 2026, dopo l'accordo per 150 magliette con il Porsche Club Toscana: una sezione per i club di appassionati, a cui proporre magliette co-firmate con il logo del club ricamato.
+
+- **Chi c'è.** Porsche Club, registri e community Porsche fuori dall'Italia (in Italia Tommi ha già i contatti); club Ferrari e Mercedes-Benz in Italia e all'estero. Anche i cinque club della ricerca del 21 ottobre (Ferrari Owners' Club GB, TIPEC, Gull Wing Group, Porsche Club GB, Porsche Club Deutschland) stanno in Club, oltre che nelle loro sezioni.
+- **Interfaccia.** Pulsante «Club» dopo Collab, con il conteggio; `/partner?sezione=club`; «· N Club» nella riga dei totali; casella «Club» nella scheda modificabile; nota del periodo e titoletto «Al club» in «Cosa proporre». La guida, parte Partner, lo dice al team.
+- **Database.** Migrazione additiva `supabase/migrations/20261030165651_partner_sezione_club.sql`: il vincolo `partners_sections_check` ammette `club` e fino a quattro sezioni distinte; `private.partner_sections` (comandi del team e import della ricerca) le rimette nell'ordine canonico vendita, eventi, collab, club. Stessa firma e stessi permessi: nessun ruolo client la esegue. I contatti esistenti non cambiano. La migrazione in produzione richiede l'OK di Tommi.
+- **Ricerca.** Nel repository Partner, `research/2026-10-30_club.json`, letto da `tools/build_data.py` (`add_clubs`). Entrano i verdetti «includi» e «borderline» (questi con priorità Riserva e il motivo nelle note); gli «escludi» restano solo nel file, con il motivo: fornitore o partner di abbigliamento dichiarato, merchandising obbligatorio della casa, club inattivo, nessun recapito. Un'email entra solo se la verifica l'ha trovata scritta su una fonte ufficiale del club. Un club già nel piano (stesso sito o stesso nome) prende la sezione Club senza diventare un contatto nuovo. L'import segue «In produzione, passo per passo» e richiede l'OK di Tommi.
+- **Assistente.** Per un club l'assistente sceglie già la proposta `merch_cobranding` («magliette co-firmate, con il loro logo ricamato accanto alle nostre auto, come per il Porsche Club Toscana») e con i Porsche Club usa solo 964 e GT3 RS. Ogni club importato con un'email entra nella sua coda come gli altri contatti «Da contattare»: va deciso prima dell'import se lasciarli all'assistente, con la spesa e i limiti d'invio di [partner-assistente.md](partner-assistente.md).
+- **Test.** `supabase/tests/partner-club.mjs` (PGlite, 56 controlli): prima lo stato di produzione, che rifiuta la sezione; poi la migrazione con i dati identici, il vincolo, la funzione e i permessi, `save_partner` con un contatto nuovo e con Club aggiunto, e l'import del generatore vero con un club nuovo e uno che prende Club in più. Vitest: conteggi, riga dei totali e filtro `sezione=club`, costanti confrontate con la migrazione.
 
 ## Database
 

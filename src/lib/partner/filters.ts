@@ -330,14 +330,15 @@ export function sectionCounts(
     vendita: 0,
     eventi: 0,
     collab: 0,
+    club: 0,
   };
   for (const partner of partners) for (const section of partner.sections) counts[section] += 1;
   return counts;
 }
 
-/** «207 contatti · 119 Vendita · 80 Eventi · 73 Collab. Lo stesso posto può stare in più sezioni.» */
+/** «207 contatti · 119 Vendita · 80 Eventi · 73 Collab · 0 Club. Lo stesso posto può stare in più sezioni.» */
 export function totalsLine(counts: Record<PartnerViewSection, number>): string {
-  return `${counts.tutti} ${counts.tutti === 1 ? "contatto" : "contatti"} · ${counts.vendita} Vendita · ${counts.eventi} Eventi · ${counts.collab} Collab. Lo stesso posto può stare in più sezioni.`;
+  return `${counts.tutti} ${counts.tutti === 1 ? "contatto" : "contatti"} · ${counts.vendita} Vendita · ${counts.eventi} Eventi · ${counts.collab} Collab · ${counts.club} Club. Lo stesso posto può stare in più sezioni.`;
 }
 
 /**

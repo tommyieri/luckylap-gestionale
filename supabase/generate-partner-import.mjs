@@ -77,7 +77,7 @@ export const SLOTS = [
   ["brand_page", "brand_page"],
   ["web", "web"],
 ];
-const SECTIONS = ["vendita", "eventi", "collab"];
+const SECTIONS = ["vendita", "eventi", "collab", "club"];
 const PRIORITIES = ["alta", "media", "bassa"];
 const CHANNELS = ["email", "form", "ig", "phone", "web"];
 const APPROACHES = ["vendita", "evento", "collab", "su_misura", "media"];
@@ -240,7 +240,7 @@ function normalizeLead(lead, index, generated, listed) {
   check(
     Array.isArray(lead.sections) &&
       lead.sections.length >= 1 &&
-      lead.sections.length <= 3 &&
+      lead.sections.length <= SECTIONS.length &&
       lead.sections.every((section) => SECTIONS.includes(section)) &&
       new Set(lead.sections).size === lead.sections.length,
     `${where}: sezioni non valide.`,
