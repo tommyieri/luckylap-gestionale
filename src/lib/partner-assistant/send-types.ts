@@ -1,5 +1,5 @@
 // Tipi del passo d'invio dell'assistente Partner: le chiavi delle RPC d'invio
-// (supabase/migrations/20261028164029_assistente_partner_invio.sql, sezione 2) in camelCase. Lo
+// (supabase/migrations/20261030114722_assistente_partner_invio.sql, sezione 2) in camelCase. Lo
 // store d'invio converte da e verso le chiavi SQL e controlla ogni valore che legge.
 import type { PartnerAssistantRecheckChoice } from "./send-recheck";
 import type { PartnerAssistantLanguage, PartnerAssistantRegister } from "./types";

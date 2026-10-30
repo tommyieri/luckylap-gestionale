@@ -12,7 +12,7 @@ Nell'interfaccia il founder è «Tommi»; le email sono firmate «Tommaso».
 ## Stato al 30 ottobre 2026
 
 - Le tre migrazioni della prima consegna sono in produzione dal 28 ottobre 2026 e non si modificano più.
-- La migrazione della consegna 2a, `supabase/migrations/20261028164029_assistente_partner_invio.sql`, **non è ancora in produzione**. La applica Claude il 30 ottobre 2026, con l'OK di Tommi, con la procedura delle impronte ([verification.md](verification.md), «Produzione, 28 ottobre 2026»): impronte in sola lettura prima, applicazione con il testo esatto del file, md5 del testo salvato uguale al file, impronte dopo. Poi rinomina il file alla versione cloud, con un commit sul branch. Gli harness e i test la cercano per suffisso (`_assistente_partner_invio.sql`), quindi il nome nuovo non cambia niente.
+- La migrazione della consegna 2a, `supabase/migrations/20261030114722_assistente_partner_invio.sql`, è in produzione dal 30 ottobre 2026 (versione cloud `20261030114722`), applicata da Claude prima del merge con la procedura delle impronte. I dati esistenti sono rimasti identici; gli esiti sono in [verification.md](verification.md). Gli harness e i test la cercano per suffisso (`_assistente_partner_invio.sql`).
 - Il merge della consegna 2a viene dopo la migrazione: la sequenza è in «Avvio della consegna 2a».
 
 ## Cosa fa la prima consegna
@@ -193,7 +193,7 @@ Nella scheda il blocco «Messaggi pronti» (o «Messaggio pronto») ha i testi v
 
 ### Tabelle e RPC
 
-Una sola migrazione, additiva: `supabase/migrations/20261028164029_assistente_partner_invio.sql` (al 30 ottobre non ancora in produzione, vedi «Stato al 30 ottobre 2026»). Le migrazioni della prima consegna non cambiano.
+Una sola migrazione, additiva: `supabase/migrations/20261030114722_assistente_partner_invio.sql` (in produzione dal 30 ottobre 2026, vedi «Stato al 30 ottobre 2026»). Le migrazioni della prima consegna non cambiano.
 
 - **Colonne nuove.** Configurazione: `daily_first_limit` (predefinito 10, da 1 a 15), `test_confirmed_at`, `test_confirmed_by`. Interruttore per contatto: `send_priority` (da 0 a 9). Lavori: stato `inviata`. Registro Partner (`partner_activities`): origine `assistente`.
 - **Tabelle nuove.**

@@ -27,7 +27,7 @@ import type {
 import { PARTNER_ASSISTANT_RPC_MAX_BYTES, PARTNER_ASSISTANT_RPC_TIMEOUT_MS } from "./store";
 import type { StoreResult } from "./types";
 
-/** Le RPC d'invio (sezione 2 di 20261028164029_assistente_partner_invio.sql): una lista separata
+/** Le RPC d'invio (sezione 2 di 20261030114722_assistente_partner_invio.sql): una lista separata
  * da quella del passo con Claude, così ogni client chiama solo le sue. */
 export const PARTNER_ASSISTANT_SEND_RPC_NAMES = [
   "claim_partner_assistant_send",

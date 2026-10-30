@@ -9,9 +9,19 @@ Prove applicative, SQL sintetico, PostgreSQL concorrente e Auth cloud sono conte
 
 ## Assistente Partner, consegna 2a (invio), 30 ottobre 2026
 
-Dal branch `claude/assistente-partner-invio` (base `origin/main` a `c4577bd`), consegna 2a dell'assistente: prova e invio delle prime email dalla casella aziendale. Dati sintetici, nessun accesso al cloud, nessuna chiamata vera a Claude, Supabase, SMTP o IMAP. Una migrazione nuova, additiva: `supabase/migrations/20261028164029_assistente_partner_invio.sql`. Dettagli, variabili e avvio in [partner-assistente.md](partner-assistente.md), «Seconda consegna, parte 1 (2a): l'invio».
+Dal branch `claude/assistente-partner-invio` (base `origin/main` a `c4577bd`), consegna 2a dell'assistente: prova e invio delle prime email dalla casella aziendale. Dati sintetici, nessun accesso al cloud, nessuna chiamata vera a Claude, Supabase, SMTP o IMAP. Una migrazione nuova, additiva: `supabase/migrations/20261030114722_assistente_partner_invio.sql`. Dettagli, variabili e avvio in [partner-assistente.md](partner-assistente.md), «Seconda consegna, parte 1 (2a): l'invio».
 
-**Stato al 30 ottobre 2026: la migrazione non è ancora in produzione.** La applica Claude il 30 ottobre, con l'OK di Tommi, con la procedura delle impronte (sotto, «Produzione, 28 ottobre 2026»): impronte md5 in sola lettura prima, applicazione con il testo esatto del file, md5 del testo salvato uguale al file, impronte dopo, identiche salvo quanto previsto. Poi rinomina il file alla versione cloud, con un commit sul branch, e scrive qui gli esiti, come per le migrazioni del 28 ottobre. Harness e test cercano la migrazione per suffisso (`_assistente_partner_invio.sql`): la rinomina non cambia i numeri qui sotto.
+**Produzione, 30 ottobre 2026.** Claude ha applicato la migrazione prima del merge, con l'OK di Tommi, con la procedura delle impronte (sotto, «Produzione, 28 ottobre 2026»). Versione cloud `20261030114722`, testo salvato uguale al file (md5 `adbefa19a9195a2459a7195a44fa8a1f`); il file ha il nome della versione cloud.
+
+- **Identiche prima e dopo** (impronte md5 di tutte le righe): `partners` (207), `partner_contacts` (850), `partner_message_variants` (218), `partner_activities` (0), `partner_work_links` (54), `profiles` (6), `memberships` (5), `partner_assistant_jobs` (165), `partner_assistant_contacts` (0), `partner_assistant_notes` (391), `partner_assistant_drafts` (61), `partner_assistant_rules` (1), `cron.job` (2 job), `private.partner_assistant_runs` (445 righe), `audit_logs` (2.763 righe).
+- **Cambiato, come previsto:**
+  - tabelle in `public` da 87 a 88 (`partner_assistant_messages`);
+  - tabelle private nuove: stato della casella (1 riga), 598 fusi, feste, paesi e prove;
+  - la riga di configurazione ha le colonne nuove (`daily_first_limit` 10, `test_confirmed_at` vuota). Modalità «spento», messa da Tommi il 29 ottobre.
+- **Durante e dopo la migrazione** lo scheduler della consegna 1 ha continuato a girare senza errori.
+- **Avvisi di sicurezza:** solo quelli già noti (tabelle `private` con RLS e senza policy, protezione dalle password trapelate disattivata).
+
+Harness e test cercano la migrazione per suffisso (`_assistente_partner_invio.sql`): la rinomina non cambia i numeri qui sotto.
 
 | Comando | Esito |
 | --- | --- |

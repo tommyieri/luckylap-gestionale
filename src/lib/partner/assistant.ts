@@ -8,7 +8,7 @@
 //   note e la bozza citate dal lavoro. L'indirizzo della bozza è quello del recapito del gestionale.
 // - Le regole: quella in vigore con il testo, la cronologia senza.
 // - L'invio (consegna 2a): read_partner_assistant_send (migrazione
-//   20261028164029_assistente_partner_invio) con le stesse chiavi in camelCase, e nella scheda la
+//   20261030114722_assistente_partner_invio) con le stesse chiavi in camelCase, e nella scheda la
 //   precedenza d'invio e le ultime prime email dell'assistente, senza indirizzi né testi.
 import type {
   PartnerAssistantJobStatus,
@@ -199,7 +199,7 @@ export const PARTNER_ASSISTANT_EVENT_LABELS = {
   lease_persa: "Passo oltre il tempo concesso",
   pausa_credito: "In pausa: credito finito",
   pausa_errore_claude: "In pausa: errore di Claude",
-  // Consegna 2a, step «invio» (migrazione 20261028164029_assistente_partner_invio): comandi del
+  // Consegna 2a, step «invio» (migrazione 20261030114722_assistente_partner_invio): comandi del
   // founder, rifiuti di prepare e start, spostamenti della coda d'invio, esiti di finish, copie in
   // «Posta inviata» e fermi della casella.
   prova_avviata: "Prova avviata da Tommi",
