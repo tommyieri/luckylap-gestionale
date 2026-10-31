@@ -36,12 +36,13 @@ export const PARTNER_APPROACH_LABELS: Record<PartnerApproach, string> = {
 };
 
 /** Sezioni del roadbook, nell'ordine canonico del database. */
-export const PARTNER_SECTIONS = ["vendita", "eventi", "collab"] as const;
+export const PARTNER_SECTIONS = ["vendita", "eventi", "collab", "club"] as const;
 export type PartnerSection = (typeof PARTNER_SECTIONS)[number];
 export const PARTNER_SECTION_LABELS: Record<PartnerSection, string> = {
   vendita: "Vendita",
   eventi: "Eventi",
   collab: "Collab",
+  club: "Club",
 };
 /** Nota sotto il titolo del periodo quando si guarda una sola sezione (SECTION_NOTE del sito). */
 export const PARTNER_SECTION_NOTES: Record<PartnerSection, string> = {
@@ -51,12 +52,14 @@ export const PARTNER_SECTION_NOTES: Record<PartnerSection, string> = {
     "Stand, pop-up, presenza da partner o welcome kit per i partecipanti: la proposta è nelle note di ogni contatto.",
   collab:
     "Capsule a doppio marchio, partnership con media e community, club e rally: ogni contatto dice cosa proporre.",
+  club: "Porsche Club fuori dall’Italia, club Ferrari e Mercedes: magliette co-firmate con il logo del club ricamato, come per il Porsche Club Toscana.",
 };
 /** Titoletti di «Cosa proporre» per sezione (IDEA_LABEL del sito). */
 export const PARTNER_IDEA_LABELS: Record<PartnerSection, string> = {
   vendita: "Al negozio",
   eventi: "All’evento",
   collab: "Collab",
+  club: "Al club",
 };
 
 export const PARTNER_PRIORITIES = ["alta", "media", "bassa"] as const;
@@ -604,7 +607,7 @@ function sections(value: unknown, what: string): PartnerSection[] {
   if (
     !Array.isArray(value) ||
     value.length < 1 ||
-    value.length > 3 ||
+    value.length > PARTNER_SECTIONS.length ||
     !value.every(isPartnerSection) ||
     new Set(value).size !== value.length
   )

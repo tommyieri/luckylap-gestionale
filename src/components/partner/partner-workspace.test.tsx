@@ -106,7 +106,7 @@ describe("PartnerWorkspace", () => {
     const html = render();
     expect(html).toContain("<h1>Partner</h1>");
     expect(text(html)).toContain(
-      "6 contatti · 3 Vendita · 3 Eventi · 4 Collab. Lo stesso posto può stare in più sezioni.",
+      "6 contatti · 3 Vendita · 3 Eventi · 4 Collab · 0 Club. Lo stesso posto può stare in più sezioni.",
     );
     const sections = buttons(html)
       .filter((b) => /aria-pressed/.test(b.tag))

@@ -59,6 +59,14 @@ const migration = readFileSync(
   ),
   "utf8",
 );
+// Le sezioni valgono dalla migrazione della sezione Club, che sostituisce vincolo e validazione.
+const clubMigration = readFileSync(
+  join(
+    MIGRATIONS,
+    readdirSync(MIGRATIONS).find((name) => name.endsWith("_partner_sezione_club.sql")) ?? "",
+  ),
+  "utf8",
+);
 const sqlArray = (functionName: string) => {
   const body = migration.split(`create function private.${functionName}()`)[1] ?? "";
   return [...(/array\[([^\]]*)\]/.exec(body)?.[1] ?? "").matchAll(/'([a-z_]+)'/g)].map(
@@ -194,9 +202,11 @@ describe("costanti come i check della migrazione", () => {
     expect(migration).toContain(
       `kind text not null check (kind in (${PARTNER_CONTACT_KINDS.map((k) => `'${k}'`).join(", ")}))`,
     );
-    expect(migration).toContain(
-      `sections <@ array[${PARTNER_SECTIONS.map((s) => `'${s}'`).join(", ")}]::text[]`,
-    );
+    const sections = `array[${PARTNER_SECTIONS.map((s) => `'${s}'`).join(", ")}]::text[]`;
+    expect(clubMigration).toContain(`sections <@ ${sections}`);
+    expect(clubMigration).toContain(`order by array_position(${sections}, s)`);
+    expect(clubMigration).toContain(`not in (${PARTNER_SECTIONS.map((s) => `'${s}'`).join(", ")})`);
+    expect(clubMigration).toContain(`not between 1 and ${PARTNER_SECTIONS.length}`);
     for (const kind of PARTNER_ACTIVITY_KINDS) expect(migration).toContain(`'${kind}'`);
     expect(migration).toContain(
       `channel text check (channel in (${PARTNER_ACTIVITY_CHANNELS.map((c) => `'${c}'`).join(", ")}))`,
@@ -212,6 +222,7 @@ describe("costanti come i check della migrazione", () => {
       "Vendita",
       "Eventi",
       "Collab",
+      "Club",
     ]);
     expect(PARTNER_PRIORITIES.map((p) => PARTNER_PRIORITY_LABELS[p])).toEqual([
       "Priorità alta",

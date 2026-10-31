@@ -404,8 +404,9 @@ export function GuideView({ access, preview = false }: { access: GuideAccess; pr
             <ul className={styles.points}>
               <li>
                 Ogni riga è un contatto da sentire, con il suo numero CO. In alto scegli la sezione
-                (Vendita, Eventi, Collab) e il periodo: «Adesso» sono i contatti da sentire entro il
-                mese prossimo.
+                (Vendita, Eventi, Collab, Club) e il periodo: «Adesso» sono i contatti da sentire
+                entro il mese prossimo. In Club ci sono i Porsche Club fuori dall’Italia e i club
+                Ferrari e Mercedes.
               </li>
               <li>
                 Tocca un contatto per aprirlo: trovi i messaggi già scritti. Premi «Copia il testo»,

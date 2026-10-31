@@ -80,7 +80,7 @@ export type PartnerAssistantPartner = {
   city: string;
   country: string;
   typeLabel: string;
-  sections: ("vendita" | "eventi" | "collab")[];
+  sections: ("vendita" | "eventi" | "collab" | "club")[];
   priority: "alta" | "media" | "bassa";
   contactMonth: string;
   eventStartsOn: string | null;

@@ -174,8 +174,8 @@ export function partnerWorkSnapshot(
       row.name.length > 240 ||
       !Array.isArray(row.sections) ||
       row.sections.length < 1 ||
-      row.sections.length > 3 ||
-      !row.sections.every((section) => ["vendita", "eventi", "collab"].includes(section)) ||
+      row.sections.length > 4 ||
+      !row.sections.every((section) => ["vendita", "eventi", "collab", "club"].includes(section)) ||
       new Set(row.sections).size !== row.sections.length ||
       !day(row.event_starts_on) ||
       !day(row.event_ends_on) ||

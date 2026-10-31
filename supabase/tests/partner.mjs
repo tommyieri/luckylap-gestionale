@@ -3297,7 +3297,7 @@ try {
       {
         partners_total: 6,
         variants_total: 8,
-        by_section: { vendita: 3, eventi: 3, collab: 4 },
+        by_section: { vendita: 3, eventi: 3, collab: 4, club: 0 },
         contacts_without_link_value: [
           { source_key: "L006", slot: "phone" },
           { source_key: "L006", slot: "web" },

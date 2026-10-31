@@ -164,7 +164,7 @@ function sectionsOf(value: unknown): PartnerSection[] {
   if (
     !Array.isArray(value) ||
     value.length < 1 ||
-    value.length > 3 ||
+    value.length > PARTNER_SECTIONS.length ||
     !value.every((item) => (PARTNER_SECTIONS as readonly unknown[]).includes(item)) ||
     new Set(value).size !== value.length
   )
