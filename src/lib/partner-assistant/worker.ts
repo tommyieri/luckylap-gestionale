@@ -55,6 +55,7 @@ import {
   composePartnerAssistantTemplate,
   PARTNER_ASSISTANT_TEMPLATE_REASON,
   PARTNER_ASSISTANT_TEMPLATE_VERSION,
+  partnerAssistantTemplateBlocked,
   partnerAssistantTemplateClubName,
   partnerAssistantUsesTemplate,
 } from "./template";
@@ -252,9 +253,7 @@ function stepPlan(
     case "controllo": {
       // Una bozza del testo fisso per i club ha la sua seconda lettura: le regole sul fatto della
       // ricerca e sul nome della persona non valgono per un testo approvato da Tommaso.
-      const input = PARTNER_ASSISTANT_TEMPLATE_REASON.test(context.choice?.content.reasonIt ?? "")
-        ? templateReviewCall(context)
-        : reviewCall(context);
+      const input = templateDraftOf(context) ? templateReviewCall(context) : reviewCall(context);
       const draft = required(context.draft, "bozza_mancante");
       return {
         input,
@@ -273,6 +272,13 @@ function stepPlan(
     }
   }
 }
+
+/** Le note del lavoro vengono dal testo fisso per i club (la frase della scelta). */
+const templateNotes = (context: PartnerAssistantContext) =>
+  PARTNER_ASSISTANT_TEMPLATE_REASON.test(context.choice?.content.reasonIt ?? "");
+/** Una bozza del modello di un contatto che usa ancora il modello: la seconda lettura per i club. */
+const templateDraftOf = (context: PartnerAssistantContext) =>
+  partnerAssistantUsesTemplate(context) && templateNotes(context);
 
 /** Il paese del club non ha un fuso nell'elenco: il contatto passa a Tommi. */
 const FUSO_MANCANTE: Complete = () => Promise.resolve({ ok: false });
@@ -404,9 +410,22 @@ export async function runPartnerAssistantStep(
     if (read.value.status === "lease_persa") return { status: "complete", step };
     const context = read.value.context;
 
-    // Una bozza scritta con regole superate si riscrive, senza pagare una seconda lettura.
+    // Una bozza scritta con regole superate si riscrive, senza pagare una seconda lettura. Lo stesso
+    // per una bozza del modello che non è più quella che il testo in vigore comporrebbe (testo o
+    // telefono cambiati): torna in scrittura e il modello la ricompone, senza Claude.
     const draft = context.draft;
-    if (job.step === "controllo" && draft && draft.rulesVersion !== context.rules.version)
+    const outdatedTemplate =
+      draft !== null &&
+      templateDraftOf(context) &&
+      (() => {
+        const again = composePartnerAssistantTemplate(context.partner, config.phone);
+        return again === null || partnerAssistantDraftSha256(again) !== draft.sha256;
+      })();
+    if (
+      job.step === "controllo" &&
+      draft &&
+      (draft.rulesVersion !== context.rules.version || outdatedTemplate)
+    )
       return complete((operationId, signal) =>
         store.completeReview(
           lease,
@@ -433,6 +452,8 @@ export async function runPartnerAssistantStep(
     // sostitutiva; Claude farà solo la seconda lettura. Vale per ogni ritorno indietro (ricerca
     // scaduta, regole nuove, recapito cambiato): la bozza si ricompone senza costi.
     if (job.step !== "controllo" && partnerAssistantUsesTemplate(context)) {
+      if (partnerAssistantTemplateBlocked(context.partner))
+        return fail("blocca", "rete_scuderia_ferrari");
       let template: Complete;
       try {
         template = templateConclusion(context, lease, store, config);
@@ -441,6 +462,11 @@ export async function runPartnerAssistantStep(
       }
       return template === FUSO_MANCANTE ? fail("blocca", "fuso_mancante") : complete(template);
     }
+    // Note del modello su un contatto che non usa più il modello (tolto dalla sezione Club o diventato
+    // anche un evento): Claude non scrive sopra di loro. Il giro dopo la presa del lavoro lo riporta
+    // alla ricerca.
+    if ((job.step === "estrazione" || job.step === "scrittura") && templateNotes(context))
+      return fail("rilascia", "contesto_cambiato");
 
     let plan: StepPlan;
     try {

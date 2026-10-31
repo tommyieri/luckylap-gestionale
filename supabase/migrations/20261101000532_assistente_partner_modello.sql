@@ -4,13 +4,15 @@
 --
 -- Additiva:
 -- - private.partner_assistant_lock_any_step: la guardia dei complete_* con più passi ammessi;
+-- - private.partner_assistant_uses_template: il contatto usa il modello (Club e non evento);
 -- - private.partner_assistant_is_template: la bozza viene dal modello (segno nella nota di ricerca);
 -- - private/public.complete_partner_assistant_template: in una transazione la nota di ricerca
 --   sostitutiva, la nota «scelta» composta dal database e la bozza; il lavoro va al controllo;
 -- - complete_partner_assistant_review: una bozza del modello bocciata passa a Tommi, mai in
 --   riscrittura (il testo fisso tornerebbe uguale);
 -- - claim_partner_assistant_step: al più 20 bozze del modello pronte alla volta, così il controllo si
---   paga solo per le email che partono a breve e le bozze non scadono in coda.
+--   paga solo per le email che partono a breve e le bozze non scadono in coda; le note del modello di
+--   un contatto che non lo usa più ripartono dalla ricerca.
 -- Nessuna tabella nuova, nessun dato cambiato, nessun permesso nuovo ai ruoli client.
 
 -- ---------------------------------------------------------------------------
@@ -41,6 +43,15 @@ begin
   end if;
   return null;
 end
+$$;
+
+-- Il contatto usa il modello: è nella sezione Club e non è anche un evento (un evento ha date e una
+-- proposta sua, e resta sul percorso con Claude). Lo stesso criterio del worker
+-- (partnerAssistantUsesTemplate in src/lib/partner-assistant/template.ts).
+create function private.partner_assistant_uses_template(p_partner_id uuid) returns boolean
+language sql stable security invoker set search_path = '' as $$
+  select coalesce((select 'club' = any (p.sections) and not 'eventi' = any (p.sections)
+    from public.partners p where p.id = p_partner_id), false)
 $$;
 
 -- Una bozza viene dal modello se la sua nota di ricerca lo dice: la scrive solo
@@ -128,7 +139,7 @@ begin
   perform private.partner_check(exists (select 1 from public.partner_contacts c
     where c.id = v_contact and c.partner_id = j.partner_id and c.kind = 'email'));
   -- Sezione, email, scheda o regole cambiate a metà passo: niente scritto oltre all'evento.
-  if not ('club' = any (p.sections))
+  if not private.partner_assistant_uses_template(p.id)
     or v_contact is distinct from (select e.contact_id from private.partner_assistant_email(j.partner_id) e)
     or v_partner_version <> p.version
     or v_rules <> (select max(r.version) from public.partner_assistant_rules r) then
@@ -261,9 +272,15 @@ $$;
 -- Presa del lavoro, con il tetto delle bozze del modello pronte
 -- ---------------------------------------------------------------------------
 
--- Come 20261030114722, con un filtro in più nella scelta del lavoro: con 20 o più bozze del modello
--- pronte da inviare, un contatto Club ancora prima del controllo aspetta. Le bozze pronte scendono con
--- gli invii; i lavori già al controllo continuano. Stesse risposte.
+-- Come 20261030114722, con due cose in più prima della scelta del lavoro:
+-- - un lavoro con le note del modello su un contatto che non usa più il modello (tolto dalla sezione
+--   Club, oppure diventato anche un evento) e tornato a estrazione o scrittura (regole nuove, recapito
+--   cambiato, regole superate) riparte dalla ricerca senza note né bozza: Claude non scrive mai sopra
+--   le note del modello;
+-- - con 20 o più bozze del modello pronte da inviare (contatti ancora idonei, come nella coda d'invio),
+--   un contatto del modello ancora prima del controllo aspetta. Le bozze pronte scendono con gli invii;
+--   i lavori già al controllo continuano.
+-- Stesse risposte.
 create or replace function private.claim_partner_assistant_step(p_worker_id uuid, p_lease_seconds integer) returns jsonb
 language plpgsql security definer set search_path = '' as $$
 declare
@@ -312,17 +329,24 @@ begin
   update public.partner_assistant_jobs set status = 'in_coda', step = 'ricerca', write_on = null,
       next_attempt_at = now(), updated_at = now()
     where status = 'attesa' and write_on <= v_today;
-  -- Bozze del modello pronte: al tetto, i contatti Club prima del controllo non si prendono.
+  -- Note del modello su un contatto che non usa più il modello: si riparte dalla ricerca.
+  update public.partner_assistant_jobs l set step = 'ricerca', research_note_id = null, choice_note_id = null,
+      draft_id = null, rewrites = 0, updated_at = now()
+    where l.status = 'in_coda' and l.step in ('estrazione', 'scrittura')
+      and private.partner_assistant_is_template(l.research_note_id)
+      and not private.partner_assistant_uses_template(l.partner_id);
+  -- Bozze del modello pronte da inviare: al tetto, i contatti del modello prima del controllo non si
+  -- prendono.
   v_templates_full := (select count(*) from public.partner_assistant_jobs pj
       join public.partner_assistant_drafts d on d.id = pj.draft_id
-    where pj.status = 'pronta' and private.partner_assistant_is_template(d.research_note_id)) >= 20;
+    where pj.status = 'pronta' and private.partner_assistant_eligible(pj.partner_id)
+      and private.partner_assistant_is_template(d.research_note_id)) >= 20;
   -- Il primo lavoro pronto, nell'ordine della coda, con il contatto ancora idoneo: la classifica
   -- della coda contiene solo i contatti idonei.
   select l.* into j from public.partner_assistant_jobs l
     join private.partner_assistant_ranking(v_today) r on r.partner_id = l.partner_id
     where l.status = 'in_coda' and l.next_attempt_at <= now() and l.attempts < 3
-      and not (v_templates_full and l.step <> 'controllo'
-        and exists (select 1 from public.partners cp where cp.id = l.partner_id and 'club' = any (cp.sections)))
+      and not (v_templates_full and l.step <> 'controllo' and private.partner_assistant_uses_template(l.partner_id))
     order by r.rank
     limit 1
     for update of l skip locked;
@@ -347,6 +371,7 @@ $$;
 revoke all on function private.partner_assistant_lock_any_step(uuid, uuid, text[]) from public, anon, authenticated,
   service_role;
 revoke all on function private.partner_assistant_is_template(uuid) from public, anon, authenticated, service_role;
+revoke all on function private.partner_assistant_uses_template(uuid) from public, anon, authenticated, service_role;
 revoke all on function private.complete_partner_assistant_template(uuid, jsonb) from public, anon, authenticated,
   service_role;
 revoke all on function public.complete_partner_assistant_template(uuid, jsonb) from public, anon, authenticated,

@@ -123,6 +123,8 @@ export const PARTNER_ASSISTANT_REASON_LABELS = {
     "Il testo per i club con il nome di questo club non ha passato i controlli: va scritta a mano.",
   modello_bocciato:
     "La seconda lettura ha trovato problemi nel testo per i club con il nome di questo club: va rivista a mano.",
+  rete_scuderia_ferrari:
+    "Club della rete Scuderia Ferrari Club: il regolamento vieta magliette di terzi con il nome o il logo del club, quindi il testo per i club non parte.",
   risposta_non_valida: "Claude ha dato una risposta non valida, rifiutata o incompleta.",
   timeout: "Claude non ha risposto in tempo.",
   troppe_continuazioni: "Claude non ha finito la ricerca entro le riprese previste.",
@@ -186,6 +188,7 @@ export const PARTNER_ASSISTANT_EVENT_LABELS = {
   modello: "Bozza dal testo per i club, senza ricerca",
   modello_controlli: "Testo per i club non passa i controlli: passa a Tommi",
   modello_bocciato: "Testo per i club bocciato in seconda lettura: a Tommi",
+  rete_scuderia_ferrari: "Rete Scuderia Ferrari Club: passa a Tommi",
   controlli_superati: "Bozza scritta, controlli superati",
   riscrittura: "Riscrive la bozza",
   controlli_falliti: "Controlli non superati dopo la riscrittura: passa a Tommi",

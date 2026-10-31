@@ -10,6 +10,7 @@ import {
   type PartnerAssistantUsage,
 } from "./cost";
 import { extractCall, researchCall, reviewCall, writeCall } from "./prompts";
+import { composePartnerAssistantTemplate } from "./template";
 import type { PartnerAssistantSendStore } from "./send-store";
 import type { PartnerAssistantStore } from "./store";
 import type {
@@ -1724,41 +1725,45 @@ describe("modalità modello per i club", () => {
     expect(input).toMatchObject({ checksOk: true, porscheCommunity: false });
   });
 
-  it("controllo di una bozza del modello: la seconda lettura per i club, senza ricerca", async () => {
-    const subject = "T-shirts for the members of Porsche Club Sintetico";
-    const body = "Hello,\nTesto sintetico.\nKind regards,";
-    const draftOfTemplate = {
-      ...savedDraft,
-      language: "en" as const,
-      subject,
-      body,
-      sha256: partnerAssistantDraftSha256({ subject, body, signature }),
-    };
-    const state = setup(
-      "controllo",
-      clubContext(
-        {},
-        {
-          research: {
-            noteId: id(6),
-            text: "Nessuna ricerca: bozza dal testo fisso per i club approvato da Tommaso (versione 1).",
-            sources: [],
-            createdAt: "2026-11-01T09:00:00+00:00",
-          },
-          choice: {
-            noteId: id(7),
-            content: {
-              ...club,
-              reasonIt: "Testo fisso per i club, versione 1, approvato da Tommaso.",
-              language: "en",
-              register: "you",
-              decision: { kind: "scrivi" },
-            },
-          },
-          draft: draftOfTemplate,
+  /** Il lavoro al controllo con le note del modello e la bozza com'è oggi il testo per i club. */
+  const atReview = (partner: Partial<PartnerAssistantContext["partner"]> = {}, body?: string) => {
+    const base = clubContext(partner);
+    const composed = composePartnerAssistantTemplate(
+      base.partner,
+      environment.PARTNER_ASSISTANT_PHONE,
+    )!;
+    const text = { ...composed, body: body ?? composed.body };
+    return clubContext(partner, {
+      research: {
+        noteId: id(6),
+        text: "Nessuna ricerca: bozza dal testo fisso per i club approvato da Tommaso (versione 1).",
+        sources: [],
+        createdAt: "2026-11-01T09:00:00+00:00",
+      },
+      choice: {
+        noteId: id(7),
+        content: {
+          ...club,
+          reasonIt: "Testo fisso per i club, versione 1, approvato da Tommaso.",
+          language: composed.language,
+          register: composed.register,
+          decision: { kind: "scrivi" },
         },
-      ),
-    );
+      },
+      draft: {
+        ...savedDraft,
+        language: composed.language,
+        subject: text.subject,
+        body: text.body,
+        signature: text.signature,
+        sha256: partnerAssistantDraftSha256(text),
+      },
+    });
+  };
+
+  it("controllo di una bozza del modello: la seconda lettura per i club, senza ricerca", async () => {
+    const current = atReview();
+    const state = setup("controllo", current);
     state.call.mockResolvedValue(json({ approved: true, problems: [] }));
     await run(state);
     expect(state.call).toHaveBeenCalledTimes(1);
@@ -1770,9 +1775,69 @@ describe("modalità modello per i club", () => {
     expect(state.completeReview).toHaveBeenCalledTimes(1);
     expect(state.completeReview.mock.calls[0][1]).toMatchObject({
       approved: true,
-      sha256: draftOfTemplate.sha256,
+      sha256: current.draft!.sha256,
     });
     expect(state.completeTemplate).not.toHaveBeenCalled();
+  });
+
+  it("bozza del modello con un testo che non è più quello in vigore: torna indietro senza Claude", async () => {
+    const current = atReview({}, "Sehr geehrte Damen und Herren,\nTesto di prima.\nGrüße");
+    const state = setup("controllo", current);
+    await run(state);
+    expect(state.call).not.toHaveBeenCalled();
+    expect(state.completeReview.mock.calls[0][1]).toEqual({
+      approved: false,
+      problems: ["regole_superate"],
+      sha256: current.draft!.sha256,
+      model: null,
+      rulesVersion: 1,
+    });
+  });
+
+  it("note del modello su un contatto tolto dalla sezione Club: al controllo la lettura normale", async () => {
+    const current = atReview();
+    const state = setup("controllo", {
+      ...current,
+      partner: { ...current.partner, sections: ["collab"] },
+    });
+    state.call.mockResolvedValue(json({ approved: false, problems: ["Manca un fatto vero."] }));
+    await run(state);
+    const [input] = state.call.mock.calls[0];
+    expect(input.effort).toBe("high");
+    expect(JSON.stringify(input.messages)).not.toContain("non l'ha scritta un modello");
+  });
+
+  it("note del modello su un contatto che non usa più il modello: Claude non scrive sopra", async () => {
+    for (const sections of [["collab"], ["eventi", "club"]] as const) {
+      const current = atReview();
+      const state = setup("scrittura", {
+        ...current,
+        partner: { ...current.partner, sections: [...sections] },
+      });
+      await run(state);
+      expect(state.call).not.toHaveBeenCalled();
+      expect(state.completeTemplate).not.toHaveBeenCalled();
+      expect(failedWith(state)).toEqual([[state.lease, "rilascia", "contesto_cambiato"]]);
+    }
+  });
+
+  it("un club che è anche un evento resta sul percorso con Claude", async () => {
+    const state = setup("ricerca", clubContext({ sections: ["eventi", "collab", "club"] }));
+    state.call.mockResolvedValue(answer([text("Ricerca sintetica.")]));
+    await run(state);
+    expect(state.call).toHaveBeenCalledTimes(1);
+    expect(state.completeTemplate).not.toHaveBeenCalled();
+  });
+
+  it("un club della rete Scuderia Ferrari Club passa a Tommi, senza bozza", async () => {
+    const state = setup(
+      "ricerca",
+      clubContext({ name: "Scuderia Ferrari Club Madrid", typeLabel: "Fan club Ferrari" }),
+    );
+    await run(state);
+    expect(state.call).not.toHaveBeenCalled();
+    expect(state.completeTemplate).not.toHaveBeenCalled();
+    expect(failedWith(state)).toEqual([[state.lease, "blocca", "rete_scuderia_ferrari"]]);
   });
 
   it("un contatto che non è nella sezione Club resta sul percorso con Claude", async () => {

@@ -28,24 +28,34 @@ function italianOf(club: string): string {
   if (/^(?:scuderia|associazione|federazione|squadra)\b/iu.test(club)) return `della ${club}`;
   return /^[aeiouàèéìòù]/iu.test(club) ? `dell'${club}` : `del ${club}`;
 }
-/** «du Club Porsche…», «de l'Amicale…», «de la Fédération…». */
+const FRENCH_FEMININE = /^(?:fédération|federation|scuderia|association|section)\b/iu;
+/** «du Club Porsche…», «de l'Amicale…», «de la Fédération…», «de la Section SL…». */
 function frenchOf(club: string): string {
   if (VOWEL.test(club)) return `de l'${club}`;
-  if (/^(?:fédération|federation|scuderia|association)\b/iu.test(club)) return `de la ${club}`;
+  if (FRENCH_FEMININE.test(club)) return `de la ${club}`;
   return `du ${club}`;
 }
 function frenchWith(club: string): string {
   if (VOWEL.test(club)) return `l'${club}`;
-  if (/^(?:fédération|federation|scuderia|association)\b/iu.test(club)) return `la ${club}`;
+  if (FRENCH_FEMININE.test(club)) return `la ${club}`;
   return `le ${club}`;
 }
 const SPANISH_FEMININE =
   /^(?:asociación|asociacion|escudería|escuderia|federación|federacion|scuderia)\b/iu;
 const spanishOf = (club: string) => (SPANISH_FEMININE.test(club) ? `de la ${club}` : `del ${club}`);
 const spanishWith = (club: string) => (SPANISH_FEMININE.test(club) ? `la ${club}` : `el ${club}`);
-const GERMAN_FEMININE = /^(?:vereinigung|interessengemeinschaft|ig\s|scuderia|gemeinschaft)/iu;
-const germanOf = (club: string) => (GERMAN_FEMININE.test(club) ? `der ${club}` : `des ${club}`);
-const germanWith = (club: string) => (GERMAN_FEMININE.test(club) ? `der ${club}` : `dem ${club}`);
+/** Femminile se il nome comincia con «Scuderia» o contiene un sostantivo femminile come parola a sé
+ * («Mercedes-Benz Interessengemeinschaft e.V.», «Porsche 356 IG Deutschland», «… Community»). */
+const GERMAN_FEMININE =
+  /^scuderia(?=\s)|(?:^|[\s-])(?:vereinigung|interessengemeinschaft|ig|gemeinschaft|community)(?=[\s.,]|$)/iu;
+/** Un aggettivo iniziale si declina dopo l'articolo: «des Württembergischen Porsche Club». */
+const germanAdjective = (club: string) => club.replace(/^(\p{Lu}\p{Ll}*isch)er(?=\s)/u, "$1en");
+const germanOf = (club: string) =>
+  GERMAN_FEMININE.test(club) ? `der ${club}` : `des ${germanAdjective(club)}`;
+const germanWith = (club: string) =>
+  GERMAN_FEMININE.test(club) ? `der ${club}` : `dem ${germanAdjective(club)}`;
+/** Il punto di fine frase, senza raddoppiarlo dopo «Inc.», «e.V.» o «r.y.». */
+const stop = (text: string) => (text.endsWith(".") ? text : `${text}.`);
 
 type TemplateText = { subject: (club: string) => string; body: (club: string) => string };
 
@@ -60,7 +70,7 @@ export const PARTNER_ASSISTANT_TEMPLATES: Record<PartnerAssistantLanguage, Templ
         "",
         "sono Tommaso, fondatore di LuckyLap, un brand italiano che trasforma la passione per le automobili in un capo da indossare ogni giorno: t-shirt in cotone biologico, con un design essenziale e la silhouette dell'auto ricamata sul petto. Qualcosa di discreto e riconoscibile, che racconta la passione anche lontano da un raduno o da un circuito.",
         "",
-        `Abbiamo già avviato collaborazioni con alcuni Porsche Club in Italia: per il Porsche Club Toscana abbiamo realizzato 150 magliette dedicate ai soci, con il logo del club ricamato sulla manica. Vorremmo ora estendere il progetto ad altri club in Europa e nel resto del mondo, e ci farebbe piacere farlo con ${club}.`,
+        `Abbiamo già avviato collaborazioni con alcuni Porsche Club in Italia: per il Porsche Club Toscana abbiamo realizzato 150 magliette dedicate ai soci, con il logo del club ricamato sulla manica. Vorremmo ora estendere il progetto ad altri club in Europa e nel resto del mondo, e ci farebbe piacere farlo con ${stop(club)}`,
         "",
         "Possiamo sviluppare insieme una versione esclusiva: l'auto da rappresentare, il colore della maglietta e del ricamo, la posizione del vostro logo. Le grafiche le disegno personalmente, quindi possiamo partire dal modello che preferite. Ci appoggiamo a un ricamificio che ha già lavorato per i Porsche Club e seguiamo il progetto dalla grafica al confezionamento, con modelli da uomo e da donna.",
         "",
@@ -79,7 +89,7 @@ export const PARTNER_ASSISTANT_TEMPLATES: Record<PartnerAssistantLanguage, Templ
         "",
         "I am Tommaso, founder of LuckyLap, an Italian brand that turns a passion for cars into something to wear every day: organic cotton T-shirts with an essential design and the car's silhouette embroidered on the chest. Something discreet and recognisable, which carries the passion well beyond a club meeting or a circuit.",
         "",
-        `We have already started working with several Porsche Clubs in Italy: for the Porsche Club Toscana we made 150 T-shirts for its members, with the club logo embroidered on the sleeve. We would now like to take the project to other clubs in Europe and around the world, and we would be glad to do it with ${club}.`,
+        `We have already started working with several Porsche Clubs in Italy: for the Porsche Club Toscana we made 150 T-shirts for its members, with the club logo embroidered on the sleeve. We would now like to take the project to other clubs in Europe and around the world, and we would be glad to do it with ${stop(club)}`,
         "",
         "We can develop an exclusive version together: the car to feature, the colour of the T-shirt and of the embroidery, the position of your logo. I draw the designs myself, so we can start from the model you prefer. We work with an embroidery workshop that has already worked for Porsche Clubs, and we follow the project from the design to the finished, packed garment, with men's and women's cuts.",
         "",
@@ -115,9 +125,9 @@ export const PARTNER_ASSISTANT_TEMPLATES: Record<PartnerAssistantLanguage, Templ
       [
         "Bonjour,",
         "",
-        "je suis Tommaso, fondateur de LuckyLap, une marque italienne qui transforme la passion de l'automobile en un vêtement à porter au quotidien : des t-shirts en coton biologique, au design épuré, avec la silhouette de la voiture brodée sur la poitrine. Quelque chose de discret et de reconnaissable, qui raconte la passion même loin d'un rassemblement ou d'un circuit.",
+        "Je suis Tommaso, fondateur de LuckyLap, une marque italienne qui transforme la passion de l'automobile en un vêtement à porter au quotidien : des t-shirts en coton biologique, au design épuré, avec la silhouette de la voiture brodée sur la poitrine. Quelque chose de discret et de reconnaissable, qui raconte la passion même loin d'un rassemblement ou d'un circuit.",
         "",
-        `Nous avons déjà lancé des collaborations avec plusieurs Porsche Clubs en Italie : pour le Porsche Club Toscana, nous avons réalisé 150 t-shirts dédiés aux membres, avec le logo du club brodé sur la manche. Nous aimerions maintenant étendre le projet à d'autres clubs en Europe et dans le monde, et nous serions heureux de le faire avec ${frenchWith(club)}.`,
+        `Nous avons déjà lancé des collaborations avec plusieurs Porsche Clubs en Italie : pour le Porsche Club Toscana, nous avons réalisé 150 t-shirts dédiés aux membres, avec le logo du club brodé sur la manche. Nous aimerions maintenant étendre le projet à d'autres clubs en Europe et dans le monde, et nous serions heureux de le faire avec ${stop(frenchWith(club))}`,
         "",
         "Nous pouvons créer ensemble une version exclusive : la voiture à représenter, la couleur du t-shirt et de la broderie, l'emplacement de votre logo. Je dessine moi-même les motifs, nous pouvons donc partir du modèle que vous préférez. Nous travaillons avec un atelier de broderie qui a déjà travaillé pour des Porsche Clubs, et nous suivons le projet du dessin jusqu'à l'emballage, avec des coupes homme et femme.",
         "",
@@ -134,11 +144,11 @@ export const PARTNER_ASSISTANT_TEMPLATES: Record<PartnerAssistantLanguage, Templ
       [
         "Buenos días,",
         "",
-        "soy Tommaso, fundador de LuckyLap, una marca italiana que convierte la pasión por los automóviles en una prenda para llevar cada día: camisetas de algodón orgánico, con un diseño sencillo y la silueta del automóvil bordada en el pecho. Algo discreto y reconocible, que cuenta la pasión también lejos de una concentración o de un circuito.",
+        "Soy Tommaso, fundador de LuckyLap, una marca italiana que convierte la pasión por los automóviles en una prenda para llevar cada día: camisetas de algodón orgánico, con un diseño sencillo y la silueta del automóvil bordada en el pecho. Algo discreto y reconocible, que cuenta la pasión también lejos de una concentración o de un circuito.",
         "",
-        `Ya hemos empezado a colaborar con varios Porsche Club en Italia: para el Porsche Club Toscana hicimos 150 camisetas dedicadas a los socios, con el logotipo del club bordado en la manga. Ahora nos gustaría llevar el proyecto a otros clubes de Europa y del resto del mundo, y nos encantaría hacerlo con ${spanishWith(club)}.`,
+        `Ya hemos empezado a colaborar con varios Porsche Club en Italia: para el Porsche Club Toscana hicimos 150 camisetas dedicadas a los socios, con el logotipo del club bordado en la manga. Ahora nos gustaría llevar el proyecto a otros clubes de Europa y del resto del mundo, y nos encantaría hacerlo con ${stop(spanishWith(club))}`,
         "",
-        "Podemos desarrollar juntos una versión exclusiva: el automóvil que se quiera representar, el color de la camiseta y del bordado, la posición de su logotipo. Los diseños los dibujo yo mismo, así que podemos partir del modelo que prefieran. Trabajamos con un taller de bordado que ya ha trabajado para Porsche Club y seguimos el proyecto desde el diseño hasta el embalaje, con modelos de hombre y de mujer.",
+        "Podemos desarrollar juntos una versión exclusiva: el automóvil que se quiera representar, el color de la camiseta y del bordado, la posición de su logotipo. Los diseños los dibujo yo mismo, así que podemos partir del modelo que prefieran. Trabajamos con un taller de bordado que ya ha trabajado para los Porsche Club y seguimos el proyecto desde el diseño hasta el embalaje, con modelos de hombre y de mujer.",
         "",
         "Puede ser un regalo para los socios, un recuerdo de un aniversario o de una concentración, o una pequeña colección del club. Las cantidades y las condiciones las definimos juntos.",
         "",
@@ -343,7 +353,7 @@ const US_ZONES: Zone[] = [
   },
   {
     names:
-      /\b(?:california|oregon|washington|nevada|los angeles|san diego|san francisco|seattle|portland|las vegas|sacramento|san jose)\b/u,
+      /\b(?:california|oregon|washington|nevada|los angeles|san diego|san francisco|seattle|portland|las vegas|sacramento|san jose|spokane|north idaho|coeur d.alene)\b/u,
     codes: ["CA", "OR", "WA", "NV"],
     timezone: "America/Los_Angeles",
   },
@@ -354,7 +364,7 @@ const US_ZONES: Zone[] = [
   },
   {
     names:
-      /\b(?:texas|oklahoma|kansas|nebraska|dakota|minnesota|iowa|missouri|arkansas|louisiana|mississippi|alabama|tennessee|wisconsin|illinois|chicago|dallas|houston|austin|san antonio|nashville|st\.? louis|new orleans|minneapolis)\b/u,
+      /\b(?:texas|oklahoma|kansas|nebraska|dakota|minnesota|iowa|missouri|arkansas|louisiana|mississippi|alabama|tennessee|wisconsin|illinois|chicago|dallas|houston|austin|san antonio|nashville|st\.? louis|new orleans|minneapolis|evansville|newburgh)\b/u,
     codes: [
       "TX",
       "OK",
@@ -377,7 +387,7 @@ const US_ZONES: Zone[] = [
   },
   {
     names:
-      /\b(?:florida|georgia|carolina|virginia|maryland|delaware|new jersey|new york|pennsylvania|ohio|michigan|indiana|kentucky|connecticut|massachusetts|rhode island|vermont|new hampshire|maine|atlanta|miami|orlando|jacksonville|boston|philadelphia|pittsburgh|detroit|cincinnati|cleveland|columbus|charlotte|tampa)\b/u,
+      /\b(?:florida|georgia|carolina|virginia|maryland|delaware|new jersey|new york|pennsylvania|ohio|michigan|indiana|kentucky|connecticut|massachusetts|rhode island|vermont|new hampshire|maine|atlanta|miami|orlando|jacksonville|boston|philadelphia|pittsburgh|detroit|cincinnati|cleveland|columbus|charlotte|tampa|knoxville|chattanooga|kingsport|palm beach|treasure coast|fort pierce)\b/u,
     codes: [
       "FL",
       "GA",
@@ -508,9 +518,15 @@ export function partnerAssistantTemplateClubName(name: string): string {
   return trimmed.replace(/\s*\([^()]*\)$/u, "").trim() || trimmed;
 }
 
-/** Il contatto usa il modello: è nella sezione Club. */
+/** Il contatto usa il modello: è nella sezione Club e non è anche un evento, che ha date e una
+ * proposta sua (come private.partner_assistant_uses_template). */
 export const partnerAssistantUsesTemplate = (context: Pick<PartnerAssistantContext, "partner">) =>
-  context.partner.sections.includes("club");
+  context.partner.sections.includes("club") && !context.partner.sections.includes("eventi");
+
+/** La rete Scuderia Ferrari Club: il regolamento vieta di far produrre a terzi oggetti con il nome o il
+ * logo del club, quindi il testo per i club non si manda e il contatto passa a Tommi. */
+export const partnerAssistantTemplateBlocked = (partner: Pick<PartnerAssistantPartner, "name">) =>
+  /scuderia\s+ferrari\s+club/iu.test(partner.name);
 
 /** Oggetto, corpo e firma per il club, oppure null se il fuso non si ricava dal paese. */
 export function composePartnerAssistantTemplate(

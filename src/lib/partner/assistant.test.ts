@@ -912,7 +912,7 @@ describe("etichette in italiano", () => {
         "modello_bocciato",
       ],
       // Modalità modello: la bozza del testo per i club, da ricerca, estrazione o scrittura.
-      modello: ["modello", "modello_controlli", "contesto_cambiato"],
+      modello: ["modello", "modello_controlli", "contesto_cambiato", "rete_scuderia_ferrari"],
       ogniPasso: [
         "lease_scaduta",
         "non_idoneo",

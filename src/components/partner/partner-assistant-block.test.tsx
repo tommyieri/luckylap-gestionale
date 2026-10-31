@@ -302,7 +302,7 @@ describe("PartnerAssistantBlock", () => {
     expect(all).toContain("Testo per i club");
     expect(all).not.toContain("Ricerca del");
     expect(all).toContain(
-      "Composta oggi alle 10:48 dal testo per i club; controllata da Claude con le regole in versione 2.",
+      "Composta oggi alle 10:48 dal testo per i club; controllata da Claude, con le regole in versione 2.",
     );
     expect(all).not.toContain("Scritta oggi");
   });

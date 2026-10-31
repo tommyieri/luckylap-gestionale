@@ -211,7 +211,7 @@ export function PartnerAssistantBlock({
         </p>
       )}
       {research && <Research research={research} />}
-      {draft && <Draft draft={draft} template={templateDraft(research)} />}
+      {draft && <Draft draft={draft} template={templateDraft(research)} job={job} />}
       {/* La precedenza si dà a un contatto in coda; una rimasta, come la elenca la pagina
           dell'assistente, si toglie anche dopo. */}
       {(queued || assistant.sendPriority > 0) && (
@@ -323,12 +323,23 @@ function Research({
   );
 }
 
+/** Dove è arrivata la bozza del modello: Claude l'ha letta solo se è pronta o inviata. */
+function templateReading(job: PartnerAssistantContactView["job"]): string {
+  if (job?.status === "pronta" || job?.status === "inviata") return "controllata da Claude";
+  if (job?.reason === "modello_bocciato") return "bocciata nella seconda lettura";
+  if (job?.reason === "modello_controlli")
+    return "non ha passato i controlli del codice e Claude non l'ha letta";
+  return "in attesa della seconda lettura";
+}
+
 function Draft({
   draft,
   template,
+  job,
 }: {
   draft: NonNullable<PartnerAssistantContactView["draft"]>;
   template: boolean;
+  job: PartnerAssistantContactView["job"];
 }) {
   const { today } = usePartnerContext();
   return (
@@ -349,7 +360,7 @@ function Draft({
         <p className={styles.preText}>{draft.signature}</p>
         <p className={styles.hint}>
           {template
-            ? `Composta ${moment(draft.createdAt, today)} dal testo per i club; controllata da Claude con le regole in versione ${draft.rulesVersion}.`
+            ? `Composta ${moment(draft.createdAt, today)} dal testo per i club; ${templateReading(job)}, con le regole in versione ${draft.rulesVersion}.`
             : `Scritta ${moment(draft.createdAt, today)} con le regole in versione ${draft.rulesVersion}.`}
         </p>
       </div>

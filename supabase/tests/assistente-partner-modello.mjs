@@ -1,4 +1,4 @@
-// test-db: pglite minimo 96
+// test-db: pglite minimo 109
 // Assistente Partner, modalità modello per i club (_assistente_partner_modello.sql): la bozza del testo
 // fisso composta dal codice e salvata con nota di ricerca sostitutiva e scelta, la seconda lettura che
 // manda a Tommi una bozza del modello bocciata, il tetto di 20 bozze del modello pronte nella presa del
@@ -217,6 +217,7 @@ try {
     ["public.complete_partner_assistant_template(uuid, jsonb)", ["service_role"]],
     ["private.partner_assistant_lock_any_step(uuid, uuid, text[])", []],
     ["private.partner_assistant_is_template(uuid)", []],
+    ["private.partner_assistant_uses_template(uuid)", []],
     ["private.complete_partner_assistant_review(uuid, jsonb)", ["service_role"]],
     ["private.claim_partner_assistant_step(uuid, integer)", ["service_role"]],
   ])
@@ -562,6 +563,77 @@ try {
   );
   const freed = await claim();
   eq([freed.status, freed.job.partner_id, freed.job.step], ["claimed", ids.get(990), "ricerca"]);
+  const p990 = await templatePayload(freed.job, 990);
+  await worker("complete_partner_assistant_template", p990);
+  job = (await claim()).job;
+  eq(job.partner_id, ids.get(990));
+  await review(job, p990.draft.sha256, true);
+  eq(
+    await value(
+      "select count(*)::int as v from public.partner_assistant_jobs where status = 'pronta'",
+    ),
+    20,
+    "di nuovo 20 pronte",
+  );
+
+  // 13. Il tetto conta solo le pronte che possono partire: tre contatti fermati liberano tre posti.
+  await scheda(992, { priority: "alta" });
+  eq(await claim(), { status: "idle", reason: "vuota" }, "al tetto il club nuovo aspetta");
+  for (const co of [961, 962, 963])
+    await asOwner(
+      "insert into public.partner_assistant_contacts(partner_id, active, updated_by) values ($1, false, $2)",
+      [ids.get(co), founder],
+    );
+  const afterStop = await claim();
+  eq(
+    [afterStop.status, afterStop.job.partner_id],
+    ["claimed", ids.get(992)],
+    "un contatto fermato non tiene il posto",
+  );
+  const p992 = await templatePayload(afterStop.job, 992);
+  await worker("complete_partner_assistant_template", p992);
+  job = (await claim()).job;
+  await review(job, p992.draft.sha256, true);
+
+  // 14. Note del modello su un contatto tolto dalla sezione Club e tornato in scrittura (come dopo
+  // regole nuove): la presa del lavoro lo riporta alla ricerca, senza note né bozza.
+  await asOwner("update public.partners set sections = array['collab'] where id = $1", [
+    ids.get(964),
+  ]);
+  await asOwner(
+    "update public.partner_assistant_jobs set status = 'in_coda', step = 'scrittura', next_attempt_at = now() where partner_id = $1",
+    [ids.get(964)],
+  );
+  eq(await value("select private.partner_assistant_uses_template($1) as v", [ids.get(964)]), false);
+  const reset = await claim();
+  row = await jobOf(964);
+  eq(
+    [row.step, row.research_note_id, row.choice_note_id, row.draft_id, row.rewrites],
+    ["ricerca", null, null, null, 0],
+    "si riparte dalla ricerca",
+  );
+  eq([reset.status, reset.job.partner_id, reset.job.step], ["claimed", ids.get(964), "ricerca"]);
+  await as("service_role", null, () =>
+    rpc("select public.fail_partner_assistant_step($1, $2, 'blocca', 'troppi_tentativi') r", [
+      reset.job.job_id,
+      reset.job.lease_token,
+    ]),
+  );
+
+  // 15. Un club che diventa anche un evento a metà passo: contesto cambiato, niente scritto.
+  await asOwner(
+    "update public.partner_assistant_jobs set status = 'inviata' where partner_id = $1",
+    [ids.get(965)],
+  );
+  await scheda(993, { priority: "alta" });
+  job = (await claim()).job;
+  eq(job.partner_id, ids.get(993));
+  const p993 = await templatePayload(job, 993);
+  await asOwner("update public.partners set sections = array['eventi', 'club'] where id = $1", [
+    ids.get(993),
+  ]);
+  eq(await value("select private.partner_assistant_uses_template($1) as v", [ids.get(993)]), false);
+  eq(await worker("complete_partner_assistant_template", p993), { status: "contesto_cambiato" });
 
   console.log(
     `PASS ${checks} Assistente Partner modalità modello per i club: PGlite con dati sintetici.`,

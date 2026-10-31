@@ -8,6 +8,7 @@ import {
   partnerAssistantTemplateClubName,
   partnerAssistantTemplateLanguage,
   partnerAssistantTemplatePorsche,
+  partnerAssistantTemplateBlocked,
   partnerAssistantTemplateSignature,
   partnerAssistantTemplateTimezone,
   partnerAssistantUsesTemplate,
@@ -70,6 +71,20 @@ describe("testo fisso per i club", () => {
     }
   });
 
+  it("nessun doppio punto dopo «Inc.» o «r.y.»; maiuscola dopo il saluto in francese e spagnolo", () => {
+    for (const language of Object.keys(PARTNER_ASSISTANT_TEMPLATES) as PartnerAssistantLanguage[]) {
+      expect(PARTNER_ASSISTANT_TEMPLATES[language].body("Porsche Club NSW Inc.")).not.toContain(
+        "..",
+      );
+      expect(PARTNER_ASSISTANT_TEMPLATES[language].body("Porsche Club NSW")).toMatch(
+        /Porsche Club NSW\.|Porsche Club NSW umsetzen/u,
+      );
+    }
+    expect(PARTNER_ASSISTANT_TEMPLATES.fr.body("Club").split("\n")[2]).toMatch(/^Je suis Tommaso/u);
+    expect(PARTNER_ASSISTANT_TEMPLATES.es.body("Club").split("\n")[2]).toMatch(/^Soy Tommaso/u);
+    expect(PARTNER_ASSISTANT_TEMPLATES.es.body("Club")).toContain("para los Porsche Club");
+  });
+
   it("firma con il cognome, ruolo nella lingua del club", () => {
     expect(partnerAssistantTemplateSignature("fr", phone)).toBe(
       [
@@ -100,12 +115,25 @@ describe("testo fisso per i club", () => {
     expect(PARTNER_ASSISTANT_TEMPLATE_REASON.test("Club con un raduno in primavera")).toBe(false);
   });
 
-  it("usa il modello solo un contatto della sezione Club", () => {
+  it("usa il modello un contatto della sezione Club che non è anche un evento", () => {
     expect(partnerAssistantUsesTemplate({ partner: { sections: ["club"] } } as never)).toBe(true);
     expect(
       partnerAssistantUsesTemplate({ partner: { sections: ["collab", "club"] } } as never),
     ).toBe(true);
+    expect(
+      partnerAssistantUsesTemplate({
+        partner: { sections: ["eventi", "collab", "club"] },
+      } as never),
+    ).toBe(false);
     expect(partnerAssistantUsesTemplate({ partner: { sections: ["collab"] } } as never)).toBe(
+      false,
+    );
+  });
+
+  it("la rete Scuderia Ferrari Club è fuori dal testo per i club", () => {
+    expect(partnerAssistantTemplateBlocked({ name: "Scuderia Ferrari Club Madrid" })).toBe(true);
+    expect(partnerAssistantTemplateBlocked({ name: "Ferrari Club Nederland" })).toBe(false);
+    expect(partnerAssistantTemplateBlocked({ name: "Antonio Giovinazzi Official Fan Club" })).toBe(
       false,
     );
   });
@@ -156,6 +184,25 @@ describe("nome del club nel testo", () => {
     expect(PARTNER_ASSISTANT_TEMPLATES.de.body("Interessengemeinschaft 190 SL")).toContain(
       "mit der Interessengemeinschaft 190 SL umsetzen",
     );
+    expect(
+      PARTNER_ASSISTANT_TEMPLATES.de.subject("Mercedes-Benz Interessengemeinschaft e.V."),
+    ).toBe("T-Shirts für die Mitglieder der Mercedes-Benz Interessengemeinschaft e.V.");
+    expect(PARTNER_ASSISTANT_TEMPLATES.de.subject("Porsche 356 IG Deutschland e.V.")).toBe(
+      "T-Shirts für die Mitglieder der Porsche 356 IG Deutschland e.V.",
+    );
+    expect(PARTNER_ASSISTANT_TEMPLATES.de.subject("Ostschweizerischer Porsche Club")).toBe(
+      "T-Shirts für die Mitglieder des Ostschweizerischen Porsche Club",
+    );
+    expect(PARTNER_ASSISTANT_TEMPLATES.de.body("Württembergischer Porsche Club e.V.")).toContain(
+      "mit dem Württembergischen Porsche Club e.V. umsetzen",
+    );
+    expect(PARTNER_ASSISTANT_TEMPLATES.de.subject("Porsche Club Wien")).toBe(
+      "T-Shirts für die Mitglieder des Porsche Club Wien",
+    );
+    expect(PARTNER_ASSISTANT_TEMPLATES.fr.subject("Section SL – Club Mercedes-Benz France")).toBe(
+      "Des t-shirts pour les membres de la Section SL – Club Mercedes-Benz France",
+    );
+    expect(PARTNER_ASSISTANT_TEMPLATES.fr.body("Section SL")).toContain("avec la Section SL.");
   });
 });
 
@@ -199,6 +246,12 @@ describe("lingua, fuso e comunità Porsche", () => {
       "America/Phoenix",
     );
     expect(tz("Stati Uniti", "Washington, DC")).toBe("America/New_York");
+    expect(tz("Stati Uniti", "Spokane, WA (e North Idaho)")).toBe("America/Los_Angeles");
+    expect(tz("Stati Uniti", "Evansville / Newburgh (Indiana)")).toBe("America/Chicago");
+    expect(tz("Stati Uniti", "Chattanooga (TN)")).toBe("America/New_York");
+    expect(
+      tz("Stati Uniti", "Palm Beach nord / Treasure Coast (Stuart, Fort Pierce, Sebring)"),
+    ).toBe("America/New_York");
     expect(tz("Canada", "Calgary (Alberta)")).toBe("America/Edmonton");
     expect(tz("Canada", "Montréal (QC)")).toBe("America/Toronto");
     expect(tz("Canada", "Victoria (BC)")).toBe("America/Vancouver");
