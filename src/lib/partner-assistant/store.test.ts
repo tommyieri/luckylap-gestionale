@@ -271,6 +271,38 @@ const wroteArgs = {
     failures: ["parola_vietata"],
   },
 };
+const templated = (s: PartnerAssistantStore, signal: AbortSignal) =>
+  s.completeTemplate(
+    lease,
+    {
+      templateVersion: 1,
+      register: "you",
+      timezone: "America/Chicago",
+      porscheCommunity: true,
+      swiss: false,
+      draft,
+      checksOk: true,
+      failures: [],
+    },
+    operationId,
+    signal,
+  );
+const templatedArgs = {
+  p_operation_id: operationId,
+  p_payload: {
+    schema_version: 1,
+    job_id: job.jobId,
+    lease_token: job.leaseToken,
+    template_version: 1,
+    register: "you",
+    timezone: "America/Chicago",
+    porsche_community: true,
+    swiss: false,
+    draft: wroteArgs.p_payload.draft,
+    checks_ok: true,
+    failures: [],
+  },
+};
 const reviewed = (s: PartnerAssistantStore, signal: AbortSignal) =>
   s.completeReview(
     lease,
@@ -376,6 +408,7 @@ const cases: Case[] = [
       ["ricerca", "complete_partner_assistant_research", research, researchArgs],
       ["scelta", "complete_partner_assistant_choice", chose, choseArgs],
       ["bozza", "complete_partner_assistant_draft", wrote, wroteArgs],
+      ["bozza del modello", "complete_partner_assistant_template", templated, templatedArgs],
       ["seconda lettura", "complete_partner_assistant_review", reviewed, reviewedArgs],
     ] as const
   ).flatMap(([label, name, run, args]) => [
@@ -402,6 +435,14 @@ const cases: Case[] = [
     name: "complete_partner_assistant_draft",
     run: wrote,
     args: wroteArgs,
+    row: { status: "contesto_cambiato" },
+    value: { status: "contesto_cambiato" },
+  },
+  {
+    label: "bozza del modello con il contesto cambiato",
+    name: "complete_partner_assistant_template",
+    run: templated,
+    args: templatedArgs,
     row: { status: "contesto_cambiato" },
     value: { status: "contesto_cambiato" },
   },
@@ -463,6 +504,7 @@ const completes = [
   "completeChoice",
   "completeDraft",
   "completeReview",
+  "completeTemplate",
 ] as const;
 const rewired = (
   s: PartnerAssistantStore,

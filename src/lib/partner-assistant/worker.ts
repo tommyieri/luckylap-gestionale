@@ -41,6 +41,7 @@ import {
   partnerAssistantRequired as required,
   researchCall,
   reviewCall,
+  templateReviewCall,
   writeCall,
 } from "./prompts";
 import { runPartnerAssistantSendStep, type PartnerAssistantSendDependencies } from "./send";
@@ -50,9 +51,17 @@ import {
   PARTNER_ASSISTANT_RPC_TIMEOUT_MS,
   type PartnerAssistantStore,
 } from "./store";
+import {
+  composePartnerAssistantTemplate,
+  PARTNER_ASSISTANT_TEMPLATE_REASON,
+  PARTNER_ASSISTANT_TEMPLATE_VERSION,
+  partnerAssistantTemplateClubName,
+  partnerAssistantUsesTemplate,
+} from "./template";
 import type {
   PartnerAssistantContext,
   PartnerAssistantDone,
+  PartnerAssistantDraft,
   PartnerAssistantFailKind,
   PartnerAssistantLease,
   PartnerAssistantPauseReason,
@@ -241,7 +250,11 @@ function stepPlan(
       };
     }
     case "controllo": {
-      const input = reviewCall(context);
+      // Una bozza del testo fisso per i club ha la sua seconda lettura: le regole sul fatto della
+      // ricerca e sul nome della persona non valgono per un testo approvato da Tommaso.
+      const input = PARTNER_ASSISTANT_TEMPLATE_REASON.test(context.choice?.content.reasonIt ?? "")
+        ? templateReviewCall(context)
+        : reviewCall(context);
       const draft = required(context.draft, "bozza_mancante");
       return {
         input,
@@ -259,6 +272,55 @@ function stepPlan(
       };
     }
   }
+}
+
+/** Il paese del club non ha un fuso nell'elenco: il contatto passa a Tommi. */
+const FUSO_MANCANTE: Complete = () => Promise.resolve({ ok: false });
+
+/** La bozza del testo fisso per i club e la sua conclusione, oppure FUSO_MANCANTE. Lancia
+ * PartnerAssistantMissingError se il contatto ha perso l'email. */
+function templateConclusion(
+  context: PartnerAssistantContext,
+  lease: PartnerAssistantLease,
+  store: PartnerAssistantStore,
+  config: PartnerAssistantConfig,
+): Complete {
+  const email = required(context.email, "email_mancante");
+  const composed = composePartnerAssistantTemplate(context.partner, config.phone);
+  if (!composed) return FUSO_MANCANTE;
+  const draft: PartnerAssistantDraft = {
+    language: composed.language,
+    subject: composed.subject,
+    body: composed.body,
+    signature: composed.signature,
+    sha256: partnerAssistantDraftSha256(composed),
+    rulesVersion: context.rules.version,
+    partnerVersion: context.partner.version,
+    contactId: email.contactId,
+  };
+  const checks = checkPartnerAssistantDraft(draft, {
+    porscheCommunity: composed.porscheCommunity,
+    currentRulesVersion: context.rules.version,
+    phone: config.phone,
+    names: [context.partner.name, partnerAssistantTemplateClubName(context.partner.name)],
+    template: true,
+  });
+  return (operationId, signal) =>
+    store.completeTemplate(
+      lease,
+      {
+        templateVersion: PARTNER_ASSISTANT_TEMPLATE_VERSION,
+        register: composed.register,
+        timezone: composed.timezone,
+        porscheCommunity: composed.porscheCommunity,
+        swiss: composed.swiss,
+        draft,
+        checksOk: checks.ok,
+        failures: checks.ok ? [] : checks.failures,
+      },
+      operationId,
+      signal,
+    );
 }
 
 /** Consumo pagato: token di output già generati, oppure una continuazione (più di una richiesta).
@@ -365,6 +427,21 @@ export async function runPartnerAssistantStep(
     const checkpoint = await database((signal) => store.checkpoint(lease, signal));
     if (!checkpoint.ok) return { status: "uncertain", step };
     if (checkpoint.value.status === "stop") return fail("rilascia", checkpoint.value.reason);
+
+    // Modalità modello: un contatto Club prima del controllo non chiama Claude. Il codice compone la
+    // bozza dal testo fisso per i club e il database la salva con la scelta e una nota di ricerca
+    // sostitutiva; Claude farà solo la seconda lettura. Vale per ogni ritorno indietro (ricerca
+    // scaduta, regole nuove, recapito cambiato): la bozza si ricompone senza costi.
+    if (job.step !== "controllo" && partnerAssistantUsesTemplate(context)) {
+      let template: Complete;
+      try {
+        template = templateConclusion(context, lease, store, config);
+      } catch (error) {
+        return unexpected(error);
+      }
+      return template === FUSO_MANCANTE ? fail("blocca", "fuso_mancante") : complete(template);
+    }
+
     let plan: StepPlan;
     try {
       plan = stepPlan(job.step, context, lease, store, config);

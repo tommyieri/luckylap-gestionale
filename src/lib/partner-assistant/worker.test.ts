@@ -262,6 +262,7 @@ function setup(step: PartnerAssistantStep = "ricerca", current: PartnerAssistant
     completeChoice: vi.fn().mockResolvedValue(done),
     completeDraft: vi.fn().mockResolvedValue(done),
     completeReview: vi.fn().mockResolvedValue(done),
+    completeTemplate: vi.fn().mockResolvedValue(done),
     fail: vi.fn().mockResolvedValue({
       ok: true,
       value: { status: "done", jobStatus: "in_coda", attempts: 1 },
@@ -279,6 +280,7 @@ function setup(step: PartnerAssistantStep = "ricerca", current: PartnerAssistant
     mocks.completeChoice,
     mocks.completeDraft,
     mocks.completeReview,
+    mocks.completeTemplate,
   ];
   return {
     job,
@@ -1612,5 +1614,172 @@ describe("un passo dell'assistente Partner", () => {
     });
     expect(state.completeResearch).not.toHaveBeenCalled();
     expect(state.fail).not.toHaveBeenCalled();
+  });
+});
+
+describe("modalità modello per i club", () => {
+  const clubContext = (
+    partner: Partial<PartnerAssistantContext["partner"]> = {},
+    rest: Partial<PartnerAssistantContext> = {},
+  ): PartnerAssistantContext => ({
+    ...context,
+    partner: {
+      ...context.partner,
+      name: "Porsche Club Sintetico (PCS)",
+      city: "Stoccarda",
+      country: "Germania",
+      typeLabel: "Porsche Club",
+      sections: ["club"],
+      research: { lang: "tedesco (Sie)" },
+      ...partner,
+    },
+    research: null,
+    choice: null,
+    draft: null,
+    ...rest,
+  });
+
+  it("un club alla ricerca: niente Claude, bozza dal testo fisso salvata con scelta e fuso", async () => {
+    const state = setup("ricerca", clubContext());
+    expect(await run(state)).toEqual({ status: "complete", step: "ricerca" });
+    expect(state.call).not.toHaveBeenCalled();
+    expect(state.recordCall).not.toHaveBeenCalled();
+    expect(state.completeResearch).not.toHaveBeenCalled();
+    expect(state.completeDraft).not.toHaveBeenCalled();
+    expect(state.completeTemplate).toHaveBeenCalledTimes(1);
+    const [lease, input, operationId] = state.completeTemplate.mock.calls[0];
+    expect(lease).toEqual(state.lease);
+    expect(operationId).toMatch(UUID);
+    expect(input).toMatchObject({
+      templateVersion: 1,
+      register: "sie",
+      timezone: "Europe/Berlin",
+      porscheCommunity: true,
+      swiss: false,
+      checksOk: true,
+      failures: [],
+    });
+    expect(input.draft.language).toBe("de");
+    expect(input.draft.subject).toBe("T-Shirts für die Mitglieder des Porsche Club Sintetico");
+    expect(input.draft.body).toContain("mit dem Porsche Club Sintetico umsetzen");
+    expect(input.draft.body).not.toContain("(PCS)");
+    expect(input.draft.body).toContain("freundliche Grüße");
+    expect(input.draft.signature.split("\n")).toEqual([
+      "Tommaso Ieri",
+      "Gründer, LuckyLap",
+      environment.PARTNER_ASSISTANT_PHONE,
+      "https://luckylap.com | Instagram @lucky.lap",
+    ]);
+    expect(input.draft.sha256).toBe(partnerAssistantDraftSha256(input.draft));
+    expect(input.draft).toMatchObject({ rulesVersion: 1, partnerVersion: 3, contactId: id(5) });
+  });
+
+  it("ogni passo prima del controllo ricompone la bozza, senza Claude", async () => {
+    for (const step of ["estrazione", "scrittura"] as const) {
+      const state = setup(step, clubContext());
+      await run(state);
+      expect(state.call).not.toHaveBeenCalled();
+      expect(state.completeTemplate).toHaveBeenCalledTimes(1);
+    }
+  });
+
+  it("in Svizzera il tedesco è senza «ß»", async () => {
+    const state = setup("ricerca", clubContext({ country: "Svizzera", city: "Zurigo" }));
+    await run(state);
+    const [, input] = state.completeTemplate.mock.calls[0];
+    expect(input).toMatchObject({ swiss: true, timezone: "Europe/Zurich" });
+    expect(input.draft.body).toContain("freundliche Grüsse");
+    expect(input.draft.body).not.toContain("ß");
+  });
+
+  it("paese senza fuso nell'elenco: a Tommi con fuso_mancante, niente salvato", async () => {
+    const state = setup("ricerca", clubContext({ country: "Atlantide" }));
+    await run(state);
+    expect(state.completeTemplate).not.toHaveBeenCalled();
+    expect(failedWith(state)).toEqual([[state.lease, "blocca", "fuso_mancante"]]);
+  });
+
+  it("club senza email: risposta non valida, come per la scrittura", async () => {
+    const state = setup("ricerca", clubContext({}, { email: null }));
+    await run(state);
+    expect(state.completeTemplate).not.toHaveBeenCalled();
+    expect(failedWith(state)).toEqual([[state.lease, "riprova", "risposta_non_valida"]]);
+  });
+
+  it("checkpoint fermo: la bozza non si compone", async () => {
+    const state = setup("ricerca", clubContext());
+    state.checkpoint.mockResolvedValue({ ok: true, value: { status: "stop", reason: "spento" } });
+    await run(state);
+    expect(state.completeTemplate).not.toHaveBeenCalled();
+    expect(failedWith(state)).toEqual([[state.lease, "rilascia", "spento"]]);
+  });
+
+  it("un nome con un dominio non ferma i controlli: è un dato del club", async () => {
+    const state = setup(
+      "ricerca",
+      clubContext({ name: "Pagodentreff.de", typeLabel: "Club Mercedes-Benz" }),
+    );
+    await run(state);
+    const [, input] = state.completeTemplate.mock.calls[0];
+    expect(input).toMatchObject({ checksOk: true, porscheCommunity: false });
+  });
+
+  it("controllo di una bozza del modello: la seconda lettura per i club, senza ricerca", async () => {
+    const subject = "T-shirts for the members of Porsche Club Sintetico";
+    const body = "Hello,\nTesto sintetico.\nKind regards,";
+    const draftOfTemplate = {
+      ...savedDraft,
+      language: "en" as const,
+      subject,
+      body,
+      sha256: partnerAssistantDraftSha256({ subject, body, signature }),
+    };
+    const state = setup(
+      "controllo",
+      clubContext(
+        {},
+        {
+          research: {
+            noteId: id(6),
+            text: "Nessuna ricerca: bozza dal testo fisso per i club approvato da Tommaso (versione 1).",
+            sources: [],
+            createdAt: "2026-11-01T09:00:00+00:00",
+          },
+          choice: {
+            noteId: id(7),
+            content: {
+              ...club,
+              reasonIt: "Testo fisso per i club, versione 1, approvato da Tommaso.",
+              language: "en",
+              register: "you",
+              decision: { kind: "scrivi" },
+            },
+          },
+          draft: draftOfTemplate,
+        },
+      ),
+    );
+    state.call.mockResolvedValue(json({ approved: true, problems: [] }));
+    await run(state);
+    expect(state.call).toHaveBeenCalledTimes(1);
+    const [input] = state.call.mock.calls[0];
+    expect(input.system).toBe(context.rules.body);
+    expect(input.effort).toBe("medium");
+    expect(JSON.stringify(input.messages)).toContain("testo fisso per i club");
+    expect(JSON.stringify(input.messages)).not.toContain("<ricerca>");
+    expect(state.completeReview).toHaveBeenCalledTimes(1);
+    expect(state.completeReview.mock.calls[0][1]).toMatchObject({
+      approved: true,
+      sha256: draftOfTemplate.sha256,
+    });
+    expect(state.completeTemplate).not.toHaveBeenCalled();
+  });
+
+  it("un contatto che non è nella sezione Club resta sul percorso con Claude", async () => {
+    const state = setup("ricerca", clubContext({ sections: ["collab"] }));
+    state.call.mockResolvedValue(answer([text("Ricerca sintetica.")]));
+    await run(state);
+    expect(state.call).toHaveBeenCalledTimes(1);
+    expect(state.completeTemplate).not.toHaveBeenCalled();
   });
 });

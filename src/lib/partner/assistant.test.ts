@@ -904,7 +904,15 @@ describe("etichette in italiano", () => {
       ricerca: ["salvata"],
       estrazione: ["scrivi", "attendi", "fatto_mancante", "fuso_mancante"],
       scrittura: ["controlli_superati", "riscrittura", "controlli_falliti", "contesto_cambiato"],
-      controllo: ["pronta", "regole_superate", "riscrittura", "seconda_lettura"],
+      controllo: [
+        "pronta",
+        "regole_superate",
+        "riscrittura",
+        "seconda_lettura",
+        "modello_bocciato",
+      ],
+      // Modalità modello: la bozza del testo per i club, da ricerca, estrazione o scrittura.
+      modello: ["modello", "modello_controlli", "contesto_cambiato"],
       ogniPasso: [
         "lease_scaduta",
         "non_idoneo",
