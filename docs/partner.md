@@ -121,7 +121,7 @@ Decisione di Tommi del 30 ottobre 2026, dopo l'accordo per 150 magliette con il 
 - **Chi c'è.** Porsche Club, registri e community Porsche fuori dall'Italia (in Italia Tommi ha già i contatti); club Ferrari e Mercedes-Benz in Italia e all'estero. Anche i cinque club della ricerca del 21 ottobre (Ferrari Owners' Club GB, TIPEC, Gull Wing Group, Porsche Club GB, Porsche Club Deutschland) stanno in Club, oltre che nelle loro sezioni.
 - **Interfaccia.** Pulsante «Club» dopo Collab, con il conteggio; `/partner?sezione=club`; «· N Club» nella riga dei totali; casella «Club» nella scheda modificabile; nota del periodo e titoletto «Al club» in «Cosa proporre». La guida, parte Partner, lo dice al team.
 - **Database.** Migrazione additiva `supabase/migrations/20261031180505_partner_sezione_club.sql`: il vincolo `partners_sections_check` ammette `club` e fino a quattro sezioni distinte; `private.partner_sections` (comandi del team e import della ricerca) le rimette nell'ordine canonico vendita, eventi, collab, club. Stessa firma e stessi permessi: nessun ruolo client la esegue. I contatti esistenti non cambiano. In produzione dal 31 ottobre 2026, dopo il merge della pull request #27 (esiti in [verification.md](verification.md), «Sezione Club, 31 ottobre 2026»).
-- **Ricerca.** Nel repository Partner, `research/2026-10-30_club.json`, letto da `tools/build_data.py` (`add_clubs`). Entrano i verdetti «includi» e «borderline» (questi con priorità Riserva e il motivo nelle note); gli «escludi» restano solo nel file, con il motivo: fornitore o partner di abbigliamento dichiarato, merchandising obbligatorio della casa, club inattivo, nessun recapito. Un'email entra solo se la verifica l'ha trovata scritta su una fonte ufficiale del club. Un club già nel piano (stesso sito o stesso nome) prende la sezione Club senza diventare un contatto nuovo. L'import segue «In produzione, passo per passo» e richiede l'OK di Tommi.
+- **Ricerca.** Nel repository Partner, `research/2026-10-30_club.json`, letto da `tools/build_data.py` (`add_clubs`). Entrano i verdetti «includi» e «borderline» (questi con priorità Riserva e il motivo nelle note); gli «escludi» restano solo nel file, con il motivo: fornitore o partner di abbigliamento dichiarato, merchandising obbligatorio della casa, club inattivo, nessun recapito. Un'email entra solo se la verifica l'ha trovata scritta su una fonte ufficiale del club. Un club già nel piano (stesso sito o stesso nome) prende la sezione Club senza diventare un contatto nuovo. L'import segue «In produzione, passo per passo»: fatto il 31 ottobre 2026 con 647 club (esiti in «Import dei club, 31 ottobre 2026»).
 - **Assistente.** Per un club l'assistente sceglie già la proposta `merch_cobranding` («magliette co-firmate, con il loro logo ricamato accanto alle nostre auto, come per il Porsche Club Toscana») e con i Porsche Club usa solo 964 e GT3 RS. Ogni club importato con un'email entra nella sua coda come gli altri contatti «Da contattare»: va deciso prima dell'import se lasciarli all'assistente, con la spesa e i limiti d'invio di [partner-assistente.md](partner-assistente.md).
 - **Test.** `supabase/tests/partner-club.mjs` (PGlite, 56 controlli): prima lo stato di produzione, che rifiuta la sezione; poi la migrazione con i dati identici, il vincolo, la funzione e i permessi, `save_partner` con un contatto nuovo e con Club aggiunto, e l'import del generatore vero con un club nuovo e uno che prende Club in più. Vitest: conteggi, riga dei totali e filtro `sezione=club`, costanti confrontate con la migrazione.
 
@@ -274,6 +274,29 @@ Import della ricerca applicato il 22 ottobre 2026, dalla ricerca del commit `f6a
 | Righe di audit Partner con una chiocciola o con un recapito | 0 e 0 |
 
 Tutti i valori coincidono con quelli attesi in «Verifica dei conteggi».
+
+### Import dei club, 31 ottobre 2026
+
+Autorizzato da Tommi il 31 ottobre 2026 («Sì, tutti i 647»), dopo la migrazione della sezione Club. Ricerca del commit `1221aba` del repository Partner (branch `claude/sezione-club`, pull request [luckylap-partner#2](https://github.com/tommyieri/luckylap-partner/pull/2)).
+
+| Voce | Valore |
+| --- | --- |
+| Import (`partner_research_imports.id`) | `50553ef0-f1e3-427a-8a6f-908e7a17b67a` |
+| SHA-256 normalizzato | `b76d94c09fbf36caa7c269577d521c3f06989a0f5d4dceb560c1dd67b96493a9` |
+| Lotti | 74, al massimo 40000 byte |
+| Contatti | 854: 647 nuovi (CO da 208 a 854), 5 aggiornati, nessuno tolto |
+| Per sezione | 119 Vendita, 80 Eventi, 73 Collab, 652 Club |
+| Club per priorità | 76 alta, 222 media, 354 Riserva |
+| Varianti dei messaggi | 218, nessuna cambiata |
+| Recapiti attivi per tipo | 772 email, 420 telefoni, 320 Instagram, 265 moduli, 19 pagine brand, 807 siti |
+| Club con un'email attiva | 609 |
+| Periodo 1 (verifica del 31 ottobre 2026) | 695 contatti |
+| Differenze aperte | 0 |
+| Righe di audit Partner con una chiocciola o con un recapito | 0 e 0 |
+
+I 5 contatti aggiornati sono i club già nel piano (CO 1, 86, 94, 137, 152), che prendono la sezione Club; i 202 altri contatti di prima sono identici. Il nuovo `CONTESTO.md` (9097 caratteri, `/partner/regole`) non parla più della schermata su GitHub Pages e nomina i file dei club.
+
+Trasporto dei lotti: una riga di un lotto arriva a 40000 caratteri, che Read e il terminale non mostrano per intero. Ogni lotto è stato spezzato in pezzi di 1200 caratteri uniti con `||` dentro la stessa chiamata a `private.stage_partner_research`, con lo stesso SHA-256 atteso scritto dal generatore: il database riceve lo stesso testo e lo verifica. Prima la prova completa su PGlite (74 lotti, import applicato, 854 contatti); poi in produzione 74 lotti registrati al primo tentativo, impronta degli SHA in transito uguale al resoconto, `…-apply.sql` con il testo del file. I `.sql` sono stati cancellati; resta solo il `.report.json` in `.private/`.
 
 ## File del vecchio sito («Esporta»)
 

@@ -19,6 +19,8 @@ Pull request #27 (branch `claude/partner-club`), unita il 31 ottobre 2026 con l'
 
 L'harness `partner-club.mjs` cerca la migrazione per suffisso (`_partner_sezione_club.sql`): la rinomina non cambia i suoi 56 controlli.
 
+**Import dei club, 31 ottobre 2026.** Con l'OK di Tommi («Sì, tutti i 647»), dalla ricerca del commit `1221aba` del repository Partner: 854 contatti (647 club nuovi, 5 club già presenti aggiornati, nessuno tolto); 119 Vendita, 80 Eventi, 73 Collab, 652 Club; 218 varianti invariate; recapiti attivi 772 email, 420 telefoni, 320 Instagram, 265 moduli, 19 pagine brand, 807 siti; zero differenze aperte; zero righe di audit con email o recapiti. Import `50553ef0-f1e3-427a-8a6f-908e7a17b67a`, SHA-256 normalizzato `b76d94c09fbf36caa7c269577d521c3f06989a0f5d4dceb560c1dd67b96493a9` ([dettagli](partner.md), «Import dei club, 31 ottobre 2026»).
+
 ## Assistente Partner, consegna 2a (invio), 30 ottobre 2026
 
 Dal branch `claude/assistente-partner-invio` (base `origin/main` a `c4577bd`), consegna 2a dell'assistente: prova e invio delle prime email dalla casella aziendale. Dati sintetici, nessun accesso al cloud, nessuna chiamata vera a Claude, Supabase, SMTP o IMAP. Una migrazione nuova, additiva: `supabase/migrations/20261030114722_assistente_partner_invio.sql`. Dettagli, variabili e avvio in [partner-assistente.md](partner-assistente.md), «Seconda consegna, parte 1 (2a): l'invio».
