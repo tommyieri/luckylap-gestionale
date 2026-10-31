@@ -40,7 +40,9 @@ Registro: «Segna inviato», «Segna sollecito inviato», «Ha risposto», «Chi
 - il blocco non è più nella scheda. Il componente resta in `src/components/partner/partner-messages.tsx`, non montato, con il motivo in testa: per rimetterlo basta rimontarlo in `partner-details.tsx`;
 - «Segna inviato» e «Segna sollecito inviato» sono nel Registro, per ogni contatto;
 - la riga non ha più l'etichetta «Messaggio pronto» o «N messaggi pronti»;
-- le differenze sui testi (`field = 'message'`) non si mostrano nella scheda e non contano nell'avviso «Mostrale», nel filtro «Da controllare» e nell'etichetta della riga: non c'è più un posto dove risolverle. Il 31 ottobre in produzione erano zero. Il conteggio delle differenze aperte di `/partner/dati` legge il database e le conterebbe ancora;
+- le differenze sui testi (`field = 'message'`) non si mostrano nella scheda e non contano nell'avviso «Mostrale», nel filtro «Da controllare» e nell'etichetta della riga: non c'è più un posto dove risolverle. Il 31 ottobre in produzione erano zero. Possono ancora nascere: dal prossimo import della ricerca, su una variante con un testo del team, e da un file «Esporta» con testi diversi;
+- lacuna nota: il conteggio delle differenze aperte di `/partner/dati` («N differenze da controllare. Mostrale») le conta ancora. Lo legge `loadPartnerData` in `src/lib/partner/server.ts`, che questo lavoro non tocca. Se ce n'è una, il numero non scende mai e «Mostrale» apre un elenco senza quella differenza. Per toglierla basta escludere `field = 'message'` in quella query, con l'OK di Tommi;
+- l'anteprima di un file «Esporta» dice che i testi diversi restano quelli del gestionale, senza rimandare a «Da controllare». La conferma dopo l'import ha solo il totale delle differenze, stati e testi insieme: «2 differenze: restano i valori del gestionale.»;
 - `/partner/dati` non mostra più quanti messaggi ha portato l'import;
 - testi, storico, comandi e import delle varianti non cambiano: i dati restano nel database.
 
@@ -48,7 +50,7 @@ Il sollecito dopo 7 giorni lo scrive Tommi, partendo dalla «Bozza dell'email» 
 
 ### `/partner/dati`
 
-- **Ricerca**: ultimo import (data, commit, contatori), import precedenti, differenze aperte con il link al filtro «Da controllare».
+- **Ricerca**: ultimo import (data, commit, contatori), import precedenti, differenze aperte con il link al filtro «Da controllare». Il numero conta anche le differenze sui testi, che il filtro non mostra (lacuna nota, vedi «Niente più «Messaggi pronti»»).
 - **File del vecchio sito**: scelta del file, «Controlla il file» (anteprima senza scritture), poi «Importa». Elenco dei file già importati.
 - **Lookbook**: i cinque PDF con dimensione e «Scarica». Nessun caricamento: una nuova versione arriva con un aggiornamento del gestionale (vedi «Lookbook»).
 

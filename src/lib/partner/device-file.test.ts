@@ -361,13 +361,26 @@ describe("payload già normalizzato e anteprima del database", () => {
       { sourceKey: "L014", co: 14, fileName: "Vecchio nome", name: "Nome nuovo" },
     ]);
     expect(describePartnerDevicePlan(parsed)).toBe(
-      "Applico 10 stati, 3 testi, 4 approcci. 2 stati sono diversi: restano quelli del gestionale e li trovi in «Da controllare». 1 testo è diverso da quello del team: resta quello del gestionale e lo trovi in «Da controllare». 1 voce riguarda contatti o messaggi che il gestionale non conosce: la salto.",
+      "Applico 10 stati, 3 testi, 4 approcci. 2 stati sono diversi: restano quelli del gestionale e li trovi in «Da controllare». 1 testo è diverso da quello del team: resta quello del gestionale. 1 voce riguarda contatti o messaggi che il gestionale non conosce: la salto.",
     );
+    // Testi diversi: restano quelli del gestionale, ma non vanno in «Da controllare» (31 ottobre 2026).
+    const texts = parsed.differences.filter((item) => item.kind === "text");
+    const onlyTexts = describePartnerDevicePlan({
+      ...parsed,
+      differences: [...texts, { ...texts[0], sourceKey: "L017", co: 17 }],
+    });
+    expect(onlyTexts).toBe(
+      "Applico 10 stati, 3 testi, 4 approcci. 2 testi sono diversi da quelli del team: restano quelli del gestionale. 1 voce riguarda contatti o messaggi che il gestionale non conosce: la salto.",
+    );
+    expect(onlyTexts).not.toContain("Da controllare");
     expect(describePartnerDevicePlan({ ...parsed, alreadyImported: true })).toBe(
       "Questo file è già stato importato: importarlo di nuovo non cambia niente.",
     );
     expect(describePartnerDeviceImport(parsed.plan)).toBe(
-      "File importato: 10 stati, 3 testi, 4 approcci. 3 differenze da controllare.",
+      "File importato: 10 stati, 3 testi, 4 approcci. 3 differenze: restano i valori del gestionale.",
+    );
+    expect(describePartnerDeviceImport({ ...parsed.plan, differences: 1 })).toBe(
+      "File importato: 10 stati, 3 testi, 4 approcci. 1 differenza: resta il valore del gestionale.",
     );
     expect(describePartnerDeviceImport({ ...parsed.plan, differences: 0, stagesApplied: 1 })).toBe(
       "File importato: 1 stato, 3 testi, 4 approcci.",

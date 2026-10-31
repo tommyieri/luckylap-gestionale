@@ -456,7 +456,9 @@ export function parsePartnerDevicePreview(value: unknown): PartnerDevicePreview 
 
 /**
  * Seconda parte dell'anteprima (spec 02 §5.8): «Applico 10 stati, 3 testi, 4 approcci. 2 stati
- * sono diversi: restano quelli del gestionale e li trovi in «Da controllare».»
+ * sono diversi: restano quelli del gestionale e li trovi in «Da controllare».» I testi diversi
+ * restano quelli del gestionale ma non vanno in «Da controllare»: dal 31 ottobre 2026 le
+ * differenze sui testi dei vecchi «Messaggi pronti» non si mostrano (docs/partner.md).
  */
 export function describePartnerDevicePlan(preview: PartnerDevicePreview): string {
   if (preview.alreadyImported)
@@ -476,12 +478,10 @@ export function describePartnerDevicePlan(preview: PartnerDevicePreview): string
       `${stages} stati sono diversi: restano quelli del gestionale e li trovi in «Da controllare».`,
     );
   if (texts === 1)
-    sentences.push(
-      "1 testo è diverso da quello del team: resta quello del gestionale e lo trovi in «Da controllare».",
-    );
+    sentences.push("1 testo è diverso da quello del team: resta quello del gestionale.");
   else if (texts > 1)
     sentences.push(
-      `${texts} testi sono diversi da quelli del team: restano quelli del gestionale e li trovi in «Da controllare».`,
+      `${texts} testi sono diversi da quelli del team: restano quelli del gestionale.`,
     );
   if (plan.unknown > 0)
     sentences.push(
@@ -490,10 +490,15 @@ export function describePartnerDevicePlan(preview: PartnerDevicePreview): string
   return sentences.join(" ");
 }
 
-/** Conferma dopo l'import: «File importato: 10 stati, 3 testi, 4 approcci. 2 differenze da controllare.» */
+/**
+ * Conferma dopo l'import: «File importato: 10 stati, 3 testi, 4 approcci. 2 differenze: restano i
+ * valori del gestionale.» Il resoconto ha solo il totale delle differenze, stati e testi insieme, e
+ * quelle sui testi non vanno in «Da controllare»: la conferma non ci rimanda.
+ */
 export function describePartnerDeviceImport(counts: PartnerDevicePlanCounts): string {
   const base = `File importato: ${count(counts.stagesApplied, "stato", "stati")}, ${count(counts.textsApplied, "testo", "testi")}, ${count(counts.approachesApplied, "approccio", "approcci")}.`;
-  return counts.differences > 0
-    ? `${base} ${count(counts.differences, "differenza", "differenze")} da controllare.`
-    : base;
+  if (counts.differences === 0) return base;
+  return counts.differences === 1
+    ? `${base} 1 differenza: resta il valore del gestionale.`
+    : `${base} ${counts.differences} differenze: restano i valori del gestionale.`;
 }
