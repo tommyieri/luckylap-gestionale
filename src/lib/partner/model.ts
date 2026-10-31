@@ -980,11 +980,13 @@ export const isVisibleVariant = (variant: {
   variant.edited === true ||
   (variant.currentRevisionId !== undefined && variant.currentRevisionId !== null);
 
-/** «3 messaggi pronti», «Messaggio pronto», oppure niente. */
-export function readyMessagesLabel(count: number): string | null {
-  if (count <= 0) return null;
-  return count === 1 ? "Messaggio pronto" : `${count} messaggi pronti`;
-}
+/**
+ * Differenze da controllare nella pagina Partner. Dal 31 ottobre 2026 non contano quelle sui
+ * testi dei vecchi «Messaggi pronti» (`message`): il blocco non è più nella scheda, quindi non c'è
+ * un posto dove risolverle. Nel database restano come sono.
+ */
+export const isReviewableDifference = (difference: { field: PartnerDifferenceField }) =>
+  difference.field !== "message";
 
 /** Nome del membro, «un ex membro» se il profilo non c'è più nell'elenco. */
 export function memberName(members: readonly PartnerMember[], userId: string | null): string {

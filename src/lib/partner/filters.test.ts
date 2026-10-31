@@ -71,7 +71,6 @@ const index = buildPartnerIndex({
     contact(12, "web", "https://www.blocked.example.test/negozio"),
     contact(21, "email", "info@other.example.test"),
   ],
-  variants: [],
   differences: [
     {
       id: partnerFixtureId(700),
@@ -79,6 +78,15 @@ const index = buildPartnerIndex({
       origin: "file",
       field: "stage",
       variantId: null,
+      contactId: null,
+    },
+    // Una differenza sui testi dei vecchi «Messaggi pronti»: non conta.
+    {
+      id: partnerFixtureId(701),
+      partnerId: partnerFixtureId(1),
+      origin: "research",
+      field: "message",
+      variantId: partnerFixtureId(200),
       contactId: null,
     },
   ],
@@ -120,16 +128,18 @@ describe("filtri della lista", () => {
     expect(index.blocks.has(partnerFixtureId(21))).toBe(false);
     const removed = buildPartnerIndex({
       contacts: [contact(21, "email", "info@other.example.test")],
-      variants: [],
       differences: [],
       blocks: [block({ domain: "other.example.test" })],
     });
     expect(removed.blocks.has(partnerFixtureId(21))).toBe(true);
   });
 
-  it("«da controllare» mostra i contatti con differenze aperte", () => {
+  it("«da controllare» mostra i contatti con differenze aperte, non quelle sui testi vecchi", () => {
     expect(cos({ periodo: 2, stato: "da_controllare" })).toEqual([20]);
+    // CO 1 ha solo una differenza `message`: non c'è più un posto dove risolverla.
     expect(cos({ stato: "da_controllare" })).toEqual([]);
+    expect(index.differences.has(partnerFixtureId(1))).toBe(false);
+    expect([...index.differences.keys()]).toEqual([partnerFixtureId(20)]);
   });
 
   it("«Seguito da»: io, nessuno, un membro", () => {
@@ -243,7 +253,7 @@ describe("«Ci siamo»: gli accordi fatti", () => {
     partnerSummaryFixture({ co: 35, stage: "chiuso", ownerId: ME, name: "Garage Accordo" }),
   ];
   const agreedContext: PartnerFilterContext = {
-    index: buildPartnerIndex({ contacts: [], variants: [], differences: [], blocks: [] }),
+    index: buildPartnerIndex({ contacts: [], differences: [], blocks: [] }),
     today: TODAY,
     memberId: ME,
   };

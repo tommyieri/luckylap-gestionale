@@ -102,14 +102,13 @@ describe("anteprima locale di Partner", () => {
     const blocked = workspace.partners.find((partner) => index.blocks.has(partner.id))!;
     expect(blocked.co).toBe(4);
     expect(partnerActions(blocked, index.contacts.get(blocked.id) ?? [], true)).toEqual([]);
-    expect([...index.differences.keys()]).toEqual([partnerFixtureId(1), partnerFixtureId(3)]);
-    expect(workspace.partners.find((partner) => partner.researchRemovedAt)?.co).toBe(5);
-    expect(index.variants.get(partnerFixtureId(6))?.map((v) => v.approach)).toEqual([
-      "vendita",
-      "evento",
-      "su_misura",
-      "media",
+    // La differenza `message` di CO 1 (testi dei vecchi «Messaggi pronti») non conta.
+    expect(workspace.differences.map((d) => [d.partnerId, d.field])).toEqual([
+      [partnerFixtureId(1), "message"],
+      [partnerFixtureId(3), "stage"],
     ]);
+    expect([...index.differences.keys()]).toEqual([partnerFixtureId(3)]);
+    expect(workspace.partners.find((partner) => partner.researchRemovedAt)?.co).toBe(5);
     const context = { index, today: TODAY, memberId: PARTNER_FIXTURE_MEMBER_ID };
     expect(
       filterPartners(workspace.partners, DEFAULT_PARTNER_VIEW, context).map((p) => p.co),

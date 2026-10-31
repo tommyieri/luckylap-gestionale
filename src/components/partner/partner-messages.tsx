@@ -1,5 +1,17 @@
 "use client";
 
+/*
+ * NON MONTATO dal 31 ottobre 2026. Il blocco «Messaggi pronti» aveva le 218 varianti della
+ * ricerca di ottobre, firmate «Tommi», con conto vendita e lookbook: Tommi le ha scambiate due
+ * volte per email in partenza. Le email le scrive e le manda l'assistente («Bozza dell'email» nel
+ * blocco «Assistente»), quindi Tommi ha deciso di toglierle dalla scheda. «Segna inviato» e
+ * «Segna sollecito inviato» sono nel Registro (partner-activity.tsx). I testi restano nel
+ * database. Per rimetterlo: importa PartnerMessages in partner-details.tsx e rimonta
+ * <PartnerMessages detail={detail} blocked={blocked} /> prima di <PartnerActivityLog>. Con lo
+ * stesso lavoro sono state tolte anche l'etichetta «Messaggio pronto» della riga e le differenze
+ * `message` nella pagina (isReviewableDifference in model.ts): vedi docs/partner.md.
+ */
+
 import {
   useEffect,
   useId,

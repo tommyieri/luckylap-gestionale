@@ -68,8 +68,7 @@ export function PartnerDataView({
               <span className="num">{last.partnersTotal}</span> contatti ·{" "}
               <span className="num">{last.partnersNew}</span> nuovi ·{" "}
               <span className="num">{last.partnersUpdated}</span> aggiornati ·{" "}
-              <span className="num">{last.partnersRemoved}</span> fuori dalla ricerca ·{" "}
-              <span className="num">{last.variantsTotal}</span> messaggi
+              <span className="num">{last.partnersRemoved}</span> fuori dalla ricerca
             </p>
             {data.imports.length > 1 && (
               <>

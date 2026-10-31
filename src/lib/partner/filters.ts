@@ -12,14 +12,13 @@ import {
   PARTNER_STAGE_LABELS,
   isPartnerCo,
   isPartnerId,
-  isVisibleVariant,
+  isReviewableDifference,
   type PartnerBlock,
   type PartnerContactLink,
   type PartnerOpenDifference,
   type PartnerSection,
   type PartnerStage,
   type PartnerSummary,
-  type PartnerVariantSummary,
 } from "./model";
 import { PARTNER_PERIOD_NUMBERS, partnerPeriod, type PartnerPeriodNumber } from "./periods";
 
@@ -152,15 +151,12 @@ export function partnerViewHref(view: PartnerView): string {
 export type PartnerIndex = {
   /** Recapiti per contatto, per posizione (anche i rimossi: servono al blocco per dominio). */
   contacts: ReadonlyMap<string, PartnerContactLink[]>;
-  /** Varianti da mostrare per contatto, nell'ordine degli approcci. */
-  variants: ReadonlyMap<string, PartnerVariantSummary[]>;
-  /** Differenze aperte per contatto. */
+  /** Differenze aperte per contatto, senza quelle sui testi dei vecchi «Messaggi pronti». */
   differences: ReadonlyMap<string, PartnerOpenDifference[]>;
   /** Blocco che vale per il contatto: il suo, altrimenti quello del suo dominio. */
   blocks: ReadonlyMap<string, PartnerBlock>;
 };
 
-const APPROACH_ORDER = ["vendita", "evento", "collab", "su_misura", "media"];
 function group<T extends { partnerId: string }>(rows: readonly T[]) {
   const map = new Map<string, T[]>();
   for (const item of rows) {
@@ -177,17 +173,11 @@ function group<T extends { partnerId: string }>(rows: readonly T[]) {
  */
 export function buildPartnerIndex(workspace: {
   contacts: readonly PartnerContactLink[];
-  variants: readonly PartnerVariantSummary[];
   differences: readonly PartnerOpenDifference[];
   blocks: readonly PartnerBlock[];
 }): PartnerIndex {
   const contacts = group([...workspace.contacts].sort((a, b) => a.position - b.position));
-  const variants = group(
-    workspace.variants
-      .filter((variant) => isVisibleVariant(variant))
-      .sort((a, b) => APPROACH_ORDER.indexOf(a.approach) - APPROACH_ORDER.indexOf(b.approach)),
-  );
-  const differences = group(workspace.differences);
+  const differences = group(workspace.differences.filter(isReviewableDifference));
   const blocks = new Map<string, PartnerBlock>();
   const byDomain = new Map<string, PartnerBlock>();
   for (const block of workspace.blocks) {
@@ -206,7 +196,7 @@ export function buildPartnerIndex(workspace: {
         }
       }
     }
-  return { contacts, variants, differences, blocks };
+  return { contacts, differences, blocks };
 }
 
 export type PartnerFilterContext = {

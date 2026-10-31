@@ -29,6 +29,7 @@ import {
   hasControlCharacters,
   isPartnerApproach,
   isPartnerStage,
+  isReviewableDifference,
   isVisibleVariant,
   memberName,
   parsePartnerActivity,
@@ -44,7 +45,6 @@ import {
   parsePartnerVariantSummary,
   partnerActivityLine,
   partnerActivityText,
-  readyMessagesLabel,
   recentSentActivity,
   recentSentQuestion,
   researchImportLine,
@@ -530,15 +530,14 @@ describe("testi derivati", () => {
     expect(() => parsePartnerActivity(activityRow({ origin: "worker" }))).toThrow();
   });
 
-  it("varianti visibili, messaggi pronti, motivo breve", () => {
+  it("varianti visibili, differenze da controllare, motivo breve", () => {
     expect(isVisibleVariant({ researchRemovedAt: at, edited: false })).toBe(false);
     expect(isVisibleVariant({ researchRemovedAt: at, edited: true })).toBe(true);
     expect(isVisibleVariant({ researchRemovedAt: null, currentRevisionId: null })).toBe(true);
-    expect([0, 1, 3].map(readyMessagesLabel)).toEqual([
-      null,
-      "Messaggio pronto",
-      "3 messaggi pronti",
-    ]);
+    // Le differenze sui testi dei vecchi «Messaggi pronti» non si controllano più nella pagina.
+    expect(PARTNER_DIFFERENCE_FIELDS.filter((field) => !isReviewableDifference({ field }))).toEqual(
+      ["message"],
+    );
     expect(shortReason("Ha chiesto di non ricevere proposte. Rispettiamo la richiesta.")).toBe(
       "Ha chiesto di non ricevere proposte.",
     );

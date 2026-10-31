@@ -5,13 +5,13 @@ import { partnerActivityPayload, type PartnerActivityField } from "../../lib/par
 import { addDays } from "../../lib/partner/dates";
 import {
   PARTNER_ACTIVITY_CHANNELS,
-  isVisibleVariant,
   partnerActivityLine,
   recentSentActivity,
   recentSentQuestion,
   type PartnerActivityChannel,
   type PartnerChannel,
   type PartnerDetail,
+  type PartnerMessageKind,
   type PartnerRecordableKind,
 } from "../../lib/partner/model";
 import { CommandFeedback, usePartnerCommand } from "./partner-command";
@@ -19,11 +19,28 @@ import { usePartnerContext } from "./partner-context";
 import styles from "./partner.module.css";
 
 const LOG_PAGE = 20;
-const BUTTONS: { kind: PartnerRecordableKind; label: string }[] = [
-  { kind: "risposta", label: "Ha risposto" },
-  { kind: "chiamata", label: "Chiamata" },
-  { kind: "incontro", label: "Incontro" },
-  { kind: "nota", label: "Nota" },
+/**
+ * Un pulsante del Registro. I due invii sono lo stesso `inviato` con `message_kind` diverso,
+ * come facevano i pulsanti del vecchio blocco «Messaggi pronti».
+ */
+type LogButton = {
+  id: string;
+  kind: PartnerRecordableKind;
+  messageKind?: PartnerMessageKind;
+  label: string;
+};
+const BUTTONS: LogButton[] = [
+  { id: "inviato", kind: "inviato", messageKind: "primo", label: "Segna inviato" },
+  {
+    id: "sollecito",
+    kind: "inviato",
+    messageKind: "sollecito",
+    label: "Segna sollecito inviato",
+  },
+  { id: "risposta", kind: "risposta", label: "Ha risposto" },
+  { id: "chiamata", kind: "chiamata", label: "Chiamata" },
+  { id: "incontro", kind: "incontro", label: "Incontro" },
+  { id: "nota", kind: "nota", label: "Nota" },
 ];
 /** Con il contatto in «Non contattare» il database rifiuta invii, chiamate e incontri. */
 const BLOCKED_KINDS: PartnerRecordableKind[] = ["inviato", "chiamata", "incontro"];
@@ -55,15 +72,16 @@ function defaultChannel(kind: PartnerRecordableKind, preferred: PartnerChannel) 
 
 function ActivityForm({
   detail,
-  kind,
+  button,
   onClose,
 }: {
   detail: PartnerDetail;
-  kind: PartnerRecordableKind;
+  button: LogButton;
   onClose: () => void;
 }) {
+  const { kind, messageKind } = button;
   const { preview, today, members } = usePartnerContext();
-  const command = usePartnerCommand(`registro-${detail.partner.id}-${kind}`);
+  const command = usePartnerCommand(`registro-${detail.partner.id}-${button.id}`);
   const [day, setDay] = useState(today);
   const [channel, setChannel] = useState<PartnerActivityChannel | "">(
     defaultChannel(kind, detail.partner.preferredChannel),
@@ -74,7 +92,8 @@ function ActivityForm({
 
   function send(confirmed: boolean) {
     if (preview || command.busy) return;
-    const recent = kind === "inviato" ? recentSentActivity(detail.activities, new Date()) : null;
+    const recent =
+      kind === "inviato" ? recentSentActivity(detail.activities, new Date(), messageKind) : null;
     if (recent && !confirmed) {
       setQuestion(recentSentQuestion(recent, members));
       return;
@@ -87,6 +106,7 @@ function ActivityForm({
         occurredOn: day,
         channel,
         approach: kind === "inviato" ? detail.partner.chosenApproach : null,
+        ...(kind === "inviato" ? { messageKind } : {}),
         body,
       },
       today,
@@ -192,25 +212,22 @@ export function PartnerActivityLog({
   blocked: boolean;
 }) {
   const { members } = usePartnerContext();
-  const [kind, setKind] = useState<PartnerRecordableKind | null>(null);
+  const [open, setOpen] = useState<string | null>(null);
   const [all, setAll] = useState(false);
-  const hasMessages = detail.variants.some((variant) => isVisibleVariant(variant));
-  const buttons = hasMessages
-    ? BUTTONS
-    : [{ kind: "inviato" as const, label: "Segna inviato" }, ...BUTTONS];
+  const chosen = BUTTONS.find((button) => button.id === open) ?? null;
   const shown = all ? detail.activities : detail.activities.slice(0, LOG_PAGE);
   return (
     <section className={styles.detailBlock} aria-labelledby={`registro-${detail.partner.co}`}>
       <h4 id={`registro-${detail.partner.co}`}>Registro</h4>
       <div className={styles.inlineActions} role="group" aria-label="Registra">
-        {buttons.map((button) => (
+        {BUTTONS.map((button) => (
           <button
-            key={button.kind}
+            key={button.id}
             type="button"
             className={styles.act}
-            aria-pressed={kind === button.kind}
+            aria-pressed={open === button.id}
             disabled={blocked && BLOCKED_KINDS.includes(button.kind)}
-            onClick={() => setKind((current) => (current === button.kind ? null : button.kind))}
+            onClick={() => setOpen((current) => (current === button.id ? null : button.id))}
           >
             {button.label}
           </button>
@@ -221,8 +238,13 @@ export function PartnerActivityLog({
           Contatto nella lista «Non contattare»: si registrano solo risposte e note.
         </p>
       )}
-      {kind && (
-        <ActivityForm key={kind} detail={detail} kind={kind} onClose={() => setKind(null)} />
+      {chosen && (
+        <ActivityForm
+          key={chosen.id}
+          detail={detail}
+          button={chosen}
+          onClose={() => setOpen(null)}
+        />
       )}
       {detail.activities.length === 0 ? (
         <p className={styles.hint}>Nessun contatto registrato.</p>
