@@ -170,7 +170,7 @@ Fixture: domini `example.test`, schede con CO da 951 in su, profilo dell'assiste
 
 Branch `claude/assistente-partner-invio`, base `origin/main` a `c4577bd` (il merge della pull request #22), [piano](superpowers/plans/2026-10-28-assistente-partner-consegna-2a.md). L'assistente manda dalla casella aziendale IONOS le prime email già pronte e approvate: prima una prova verso le caselle di Tommaso, confermata da lui, poi l'invio vero ai contatti, lento, nella finestra 9:30-11:00 del destinatario, mai due volte allo stesso contatto. Il piano completo della consegna 2 (`superpowers/plans/2026-10-28-assistente-partner-consegna-2.md`) resta la fonte dei nomi per la 2b.
 
-L'email che l'assistente manda è la «Bozza dell'email» del blocco «Assistente». Dal 31 ottobre 2026 la scheda non ha più il blocco «Messaggi pronti» con i testi vecchi della ricerca di ottobre, e «Segna inviato» e «Segna sollecito inviato» sono nel Registro (vedi [partner.md](partner.md), pagina `/partner`). Finché la 2b non manda i solleciti, Tommi scrive il sollecito a 7 giorni partendo dalla «Bozza dell'email» mandata, che resta nel blocco «Assistente», e lo segna con «Segna sollecito inviato».
+L'email che l'assistente manda è la «Bozza dell'email» del blocco «Assistente». Dal 31 ottobre 2026 la scheda non ha più il blocco «Messaggi pronti» con i testi vecchi della ricerca di ottobre, e «Segna inviato» e «Segna sollecito inviato» sono nel Registro (vedi [partner.md](partner.md), pagina `/partner`). Finché la 2b non manda i solleciti, Tommi scrive il sollecito a 7 giorni partendo dalla «Bozza dell'email» mandata, che resta nel blocco «Assistente», e lo segna nel Registro con «Segna sollecito inviato», poi «Registra».
 
 ### Che cosa fa
 

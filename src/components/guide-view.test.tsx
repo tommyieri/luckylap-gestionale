@@ -233,7 +233,7 @@ describe("Partner", () => {
   it("dice chi riceve il sollecito, quando scade e cosa lo chiude", () => {
     const copy = text(part(everyone));
     expect(copy).toContain(
-      "Con «Registra», «Segna inviato» e «Segna sollecito inviato» creano per te",
+      "Quando registri «Segna inviato» o «Segna sollecito inviato», si crea per te",
     );
     expect(copy).toContain("Scade dopo 7 giorni");
     expect(copy).toContain("«Contatti e solleciti»");

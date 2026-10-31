@@ -419,7 +419,7 @@ export function GuideView({ access, preview = false }: { access: GuideAccess; pr
                 salva subito.
               </li>
               <li>
-                Con «Registra», «Segna inviato» e «Segna sollecito inviato» creano per te
+                Quando registri «Segna inviato» o «Segna sollecito inviato», si crea per te
                 un’attività «Sollecito · nome del contatto». Scade dopo 7 giorni: la conferma ti
                 dice il giorno. La trovi in Oggi, in «Contatti e solleciti», e tra le attività del
                 Team.
