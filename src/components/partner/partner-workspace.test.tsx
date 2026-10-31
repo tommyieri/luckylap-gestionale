@@ -367,10 +367,11 @@ describe("PartnerWorkspace", () => {
     for (const periodo of ["1", "2", "3", "4", "5"]) {
       const html = render({ periodo, stato: "tutti" });
       expect(html, periodo).toMatch(/<li id="lead-/);
-      expect(text(html), periodo).not.toMatch(/messaggi? pront/i);
+      expect(text(html), periodo).not.toMatch(/messagg(?:i|io) pront/i);
     }
     const all = render({ vista: "ci_siamo" });
-    expect(text(all)).not.toMatch(/messaggi? pront/i);
+    expect(all).toMatch(/<li id="lead-/);
+    expect(text(all)).not.toMatch(/messagg(?:i|io) pront/i);
   });
 
   it("«Esito» con l'accordo fatto: porta a «Partner nel Team» con il contatto già scelto", () => {
