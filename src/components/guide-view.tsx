@@ -38,7 +38,8 @@ export const SECTION_TEXT: Partial<Record<SectionId, string>> = {
   vendite: "Le vendite di LuckyLap, dirette e nei negozi.",
   magazzino:
     "Le magliette che abbiamo, quelle nei negozi, quelle da correggere, i riordini e il materiale per spedire.",
-  partner: "Negozi, eventi, club, media e brand da contattare, con i messaggi già scritti.",
+  partner:
+    "Negozi, eventi, club, media e brand da contattare, con lo stato e il registro di ogni contatto.",
   team: "Il lavoro di tutti i giorni del team.",
   finance: "Conti, movimenti e documenti del brand.",
 };
@@ -167,9 +168,9 @@ export const OPERATIONS: { title: string; href: string; text: string; who?: stri
     who: "Gabriele",
   },
   {
-    title: "Partner: cambiare lo stato e copiare il messaggio",
+    title: "Partner: segnare un invio o un sollecito",
     href: "/partner",
-    text: "Apri il contatto, premi «Copia il testo» e, dopo l’invio, «Segna inviato». I passi sono più sotto, in «Partner».",
+    text: "Apri il contatto e, nel «Registro», premi «Segna inviato» o «Segna sollecito inviato». I passi sono più sotto, in «Partner».",
     who: "Luca",
   },
 ];
@@ -409,8 +410,9 @@ export function GuideView({ access, preview = false }: { access: GuideAccess; pr
                 Ferrari e Mercedes.
               </li>
               <li>
-                Tocca un contatto per aprirlo: trovi i messaggi già scritti. Premi «Copia il testo»,
-                mandalo dalla tua email o dal tuo telefono, poi premi «Segna inviato».
+                Tocca un contatto per aprirlo. Quando gli scrivi tu, dalla tua email o dal tuo
+                telefono, nel «Registro» premi «Segna inviato». Quando mandi il sollecito, «Segna
+                sollecito inviato».
               </li>
               <li>
                 Quando ti risponde, «Ha risposto». Lo stato si cambia dalla tendina della riga e si
@@ -466,7 +468,9 @@ export function GuideView({ access, preview = false }: { access: GuideAccess; pr
               </li>
               <li>
                 Le risposte arrivano nella casella aziendale come sempre: l’assistente non le legge.
-                Il sollecito dopo 7 giorni lo manda Tommi: lo trova nella sua Oggi.
+                Il sollecito dopo 7 giorni lo manda Tommi: lo trova nella sua Oggi. Per ora lo
+                scrive lui, partendo dalla «Bozza dell'email» mandata, che resta nel blocco
+                «Assistente». Poi preme «Segna sollecito inviato» nel «Registro».
               </li>
               <li>
                 In cima a Partner c’è la striscia dell’assistente: dice cosa sta facendo, quante
@@ -475,9 +479,8 @@ export function GuideView({ access, preview = false }: { access: GuideAccess; pr
               </li>
               <li>
                 Nella scheda del contatto, il blocco «Assistente» mostra la ricerca con le fonti, la
-                proposta scelta e la bozza dell’email. Nella scheda il blocco «Messaggi pronti» (o
-                «Messaggio pronto») ha i testi vecchi della ricerca di ottobre: l’email che
-                l’assistente manda è la «Bozza dell'email» del blocco «Assistente».
+                proposta scelta e la bozza dell’email. L’email che l’assistente manda è la «Bozza
+                dell'email» di questo blocco.
               </li>
               <li>
                 Per fermarlo del tutto premi «Ferma l'assistente» nella striscia, oppure «Spento»
