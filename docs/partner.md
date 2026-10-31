@@ -37,12 +37,12 @@ Registro: «Segna inviato», «Segna sollecito inviato», «Ha risposto», «Chi
 
 **Niente più «Messaggi pronti»** (31 ottobre 2026, decisione di Tommi). La scheda aveva il blocco «Messaggi pronti»: le 218 varianti della ricerca di ottobre, tutte firmate «Tommi», con conto vendita e lookbook allegato. Tommi le ha scambiate due volte per email che stavano per partire. Le prime email le scrive e le manda l'assistente: è la «Bozza dell'email» del blocco «Assistente» ([partner-assistente.md](partner-assistente.md)). Quindi:
 
-- il blocco non è più nella scheda. Il componente resta in `src/components/partner/partner-messages.tsx`, non montato, con il motivo in testa: per rimetterlo basta rimontarlo in `partner-details.tsx`;
+- il blocco non è più nella scheda. Il componente resta in `src/components/partner/partner-messages.tsx`, non montato, con il motivo in testa. Per rimetterlo non basta rimontarlo in `partner-details.tsx`: i passi sono nello stesso commento;
 - «Segna inviato» e «Segna sollecito inviato» sono nel Registro, per ogni contatto;
 - la riga non ha più l'etichetta «Messaggio pronto» o «N messaggi pronti»;
 - le differenze sui testi (`field = 'message'`) non si mostrano nella scheda e non contano nell'avviso «Mostrale», nel filtro «Da controllare» e nell'etichetta della riga: non c'è più un posto dove risolverle. Il 31 ottobre in produzione erano zero. Possono ancora nascere: dal prossimo import della ricerca, su una variante con un testo del team, e da un file «Esporta» con testi diversi;
 - lacuna nota: il conteggio delle differenze aperte di `/partner/dati` («N differenze da controllare. Mostrale») le conta ancora. Lo legge `loadPartnerData` in `src/lib/partner/server.ts`, che questo lavoro non tocca. Se ce n'è una, il numero non scende mai e «Mostrale» apre un elenco senza quella differenza. Per toglierla basta escludere `field = 'message'` in quella query, con l'OK di Tommi;
-- l'anteprima di un file «Esporta» dice che i testi diversi restano quelli del gestionale, senza rimandare a «Da controllare». La conferma dopo l'import ha solo il totale delle differenze, stati e testi insieme: «2 differenze: restano i valori del gestionale.»;
+- l'anteprima di un file «Esporta» dice che i testi diversi restano quelli del gestionale, senza rimandare a «Da controllare». Anche la conferma dopo l'import ci rimanda solo per gli stati: «2 differenze: restano i valori del gestionale. Quelle sugli stati sono in «Da controllare».», senza l'ultima frase se sono tutte sui testi. Il database risponde solo con il totale, stati e testi insieme: quante sono sugli stati lo dice l'anteprima appena controllata. Senza anteprima (un import verificato dopo un ricaricamento della pagina) la conferma dice «Quelle sugli stati, se ci sono, sono in «Da controllare».»;
 - `/partner/dati` non mostra più quanti messaggi ha portato l'import;
 - testi, storico, comandi e import delle varianti non cambiano: i dati restano nel database.
 

@@ -492,13 +492,37 @@ export function describePartnerDevicePlan(preview: PartnerDevicePreview): string
 
 /**
  * Conferma dopo l'import: «File importato: 10 stati, 3 testi, 4 approcci. 2 differenze: restano i
- * valori del gestionale.» Il resoconto ha solo il totale delle differenze, stati e testi insieme, e
- * quelle sui testi non vanno in «Da controllare»: la conferma non ci rimanda.
+ * valori del gestionale. Quelle sugli stati sono in «Da controllare».» Le differenze sugli stati
+ * restano in «Da controllare»; quelle sui testi no (docs/partner.md): con soli testi diversi la
+ * conferma non ci rimanda. La risposta del database ha solo il totale, stati e testi insieme.
+ * Quante sono sugli stati lo dice `preview`, l'anteprima del file appena importato, se ha lo
+ * stesso totale. Senza anteprima (il messaggio del server, anche quando si verifica un tentativo
+ * ripreso dopo un ricaricamento) la conferma rimanda a «Da controllare» quelle sugli stati, se ci
+ * sono.
  */
-export function describePartnerDeviceImport(counts: PartnerDevicePlanCounts): string {
+export function describePartnerDeviceImport(
+  counts: PartnerDevicePlanCounts,
+  preview: Pick<PartnerDevicePreview, "differences"> | null = null,
+): string {
   const base = `File importato: ${count(counts.stagesApplied, "stato", "stati")}, ${count(counts.textsApplied, "testo", "testi")}, ${count(counts.approachesApplied, "approccio", "approcci")}.`;
-  if (counts.differences === 0) return base;
-  return counts.differences === 1
-    ? `${base} 1 differenza: resta il valore del gestionale.`
-    : `${base} ${counts.differences} differenze: restano i valori del gestionale.`;
+  const total = counts.differences;
+  if (total === 0) return base;
+  const kept =
+    total === 1
+      ? "1 differenza: resta il valore del gestionale."
+      : `${total} differenze: restano i valori del gestionale.`;
+  const stages =
+    preview && preview.differences.length === total
+      ? preview.differences.filter((item) => item.kind === "stage").length
+      : null;
+  if (stages === 0) return `${base} ${kept}`;
+  const where =
+    stages === null
+      ? total === 1
+        ? "Se riguarda lo stato, la trovi in «Da controllare»."
+        : "Quelle sugli stati, se ci sono, sono in «Da controllare»."
+      : stages === 1
+        ? "Quella sullo stato è in «Da controllare»."
+        : "Quelle sugli stati sono in «Da controllare».";
+  return `${base} ${kept} ${where}`;
 }

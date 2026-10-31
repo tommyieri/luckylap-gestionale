@@ -376,15 +376,45 @@ describe("payload già normalizzato e anteprima del database", () => {
     expect(describePartnerDevicePlan({ ...parsed, alreadyImported: true })).toBe(
       "Questo file è già stato importato: importarlo di nuovo non cambia niente.",
     );
-    expect(describePartnerDeviceImport(parsed.plan)).toBe(
-      "File importato: 10 stati, 3 testi, 4 approcci. 3 differenze: restano i valori del gestionale.",
-    );
-    expect(describePartnerDeviceImport({ ...parsed.plan, differences: 1 })).toBe(
-      "File importato: 10 stati, 3 testi, 4 approcci. 1 differenza: resta il valore del gestionale.",
+    expect(describePartnerDeviceImport(parsed.plan, parsed)).toBe(
+      "File importato: 10 stati, 3 testi, 4 approcci. 3 differenze: restano i valori del gestionale. Quelle sugli stati sono in «Da controllare».",
     );
     expect(describePartnerDeviceImport({ ...parsed.plan, differences: 0, stagesApplied: 1 })).toBe(
       "File importato: 1 stato, 3 testi, 4 approcci.",
     );
+  });
+
+  it("conferma dopo l'import: «Da controllare» solo per le differenze sugli stati", () => {
+    const parsed = parsePartnerDevicePreview(preview)!;
+    const [stage, , text] = parsed.differences;
+    const confirm = (differences: typeof parsed.differences) =>
+      describePartnerDeviceImport(
+        { ...parsed.plan, differences: differences.length },
+        { differences },
+      );
+    const base = "File importato: 10 stati, 3 testi, 4 approcci.";
+    // Stati e testi: il rimando riguarda solo gli stati.
+    expect(confirm([stage, text])).toBe(
+      `${base} 2 differenze: restano i valori del gestionale. Quella sullo stato è in «Da controllare».`,
+    );
+    expect(confirm([stage])).toBe(
+      `${base} 1 differenza: resta il valore del gestionale. Quella sullo stato è in «Da controllare».`,
+    );
+    // Soli testi: restano quelli del gestionale, senza rimando.
+    const texts = [text, { ...text, sourceKey: "L017", co: 17 }];
+    expect(confirm(texts)).toBe(`${base} 2 differenze: restano i valori del gestionale.`);
+    expect(confirm([text])).toBe(`${base} 1 differenza: resta il valore del gestionale.`);
+    expect(confirm(texts)).not.toContain("Da controllare");
+    // Senza anteprima, o con un'anteprima che non torna con il totale del database, il rimando
+    // vale per le differenze sugli stati «se ci sono».
+    for (const known of [null, { differences: texts }]) {
+      expect(describePartnerDeviceImport(parsed.plan, known)).toBe(
+        `${base} 3 differenze: restano i valori del gestionale. Quelle sugli stati, se ci sono, sono in «Da controllare».`,
+      );
+      expect(describePartnerDeviceImport({ ...parsed.plan, differences: 1 }, known)).toBe(
+        `${base} 1 differenza: resta il valore del gestionale. Se riguarda lo stato, la trovi in «Da controllare».`,
+      );
+    }
   });
 
   it("anteprima con forma inattesa: null", () => {

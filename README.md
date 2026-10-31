@@ -27,7 +27,7 @@ Packaging: scatole T-shirt e adesivi delle scatole sono materiali distinti dagli
 
 Conto vendita (`/consignment`, scheda di Vendite): elenco dei negozi, conta della merce in negozio, resoconto del mese da fatturare, pagamenti e ordini del negozio. Quota 60% LuckyLap / 40% negozio, prezzo del sito +10 EUR; nessuno sconto in negozio. Il resoconto non è denaro: Finance lo mostra nel pannello «Conto vendita · da incassare» e nei saldi entra solo il pagamento del negozio. La merce del negozio si conta e si cambia solo da Conto vendita: le rettifiche da `/stock` sul negozio vengono rifiutate, anche dal database. Queste quote non sono una determinazione fiscale. [Conto vendita](docs/consignment.md).
 
-Partner (`/partner`) è dentro il gestionale: 207 contatti della ricerca importati il 22 ottobre 2026, divisi per periodo e sezione, con messaggi modificabili e storico, stati, registro e lookbook. Tutti e cinque vedono e fanno tutto. [Partner](docs/partner.md).
+Partner (`/partner`) è dentro il gestionale: 207 contatti della ricerca importati il 22 ottobre 2026, divisi per periodo e sezione, con stati, registro e lookbook. Le prime email le scrive l'assistente ([Assistente Partner](docs/partner-assistente.md)). Tutti e cinque vedono e fanno tutto. [Partner](docs/partner.md).
 
 `/assets` («Grafica e foto») contiene sei originali grafici privati; un contenuto caricato per sbaglio si archivia e si ripristina, senza cancellare il file. `/development` segue i nuovi prodotti e `/finance/work` distingue fatti delle vendite, incassi e registrazioni manuali.
 

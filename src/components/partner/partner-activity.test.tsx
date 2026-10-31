@@ -83,6 +83,12 @@ import {
   partnerFixtureId,
   partnerFixtureWorkspace,
 } from "../../lib/partner/fixtures";
+import {
+  isVisibleVariant,
+  type PartnerActivity,
+  type PartnerDetail,
+  type PartnerMessageKind,
+} from "../../lib/partner/model";
 
 type Element = ReactElement<Record<string, unknown>>;
 
@@ -108,11 +114,15 @@ function expand(node: unknown): unknown {
   return { type: element.type, props: { ...element.props, children } };
 }
 
-/** Il Registro del contatto `co` come lo passa la scheda; lo stato resta tra una resa e l'altra. */
-function render(co: number, blocked = false) {
+/**
+ * Il Registro del contatto `co` come lo passa la scheda; lo stato resta tra una resa e l'altra.
+ * `change` cambia la scheda prima di renderla, per esempio con un invio di pochi minuti fa.
+ */
+function render(co: number, blocked = false, change?: (detail: PartnerDetail) => PartnerDetail) {
   mocks.index = 0;
   mocks.contexts = [];
-  const detail = partnerFixtureDetail(co, TODAY)!;
+  const fixture = partnerFixtureDetail(co, TODAY)!;
+  const detail = change ? change(fixture) : fixture;
   return expand(
     <PartnerProvider
       preview={false}
@@ -148,14 +158,34 @@ const button = (tree: unknown, label: string) => {
 };
 const click = (node: Element) => (node.props.onClick as () => void)();
 /** Apre il modulo del pulsante `label`, poi preme «Registra». */
-function registra(co: number, label: string) {
-  click(button(render(co), label));
-  const forms = descendants(render(co)).filter((node) => node.type === "form");
+function registra(co: number, label: string, change?: (detail: PartnerDetail) => PartnerDetail) {
+  click(button(render(co, false, change), label));
+  const forms = descendants(render(co, false, change)).filter((node) => node.type === "form");
   expect(forms, label).toHaveLength(1);
   (forms[0].props.onSubmit as (event: { preventDefault: () => void }) => void)({
     preventDefault: () => {},
   });
 }
+
+/** Un «inviato» sintetico del team, 5 minuti prima dell'ora finta dei test (09:00 UTC). */
+const recentlySent =
+  (messageKind: PartnerMessageKind) =>
+  (detail: PartnerDetail): PartnerDetail => {
+    const sent: PartnerActivity = {
+      ...detail.activities[0],
+      id: "93000000-0000-4000-8000-000000000101",
+      operationId: "93000000-0000-4000-8000-000000000102",
+      kind: "inviato",
+      origin: "team",
+      messageKind,
+      channel: "email",
+      occurredAt: "2026-10-30T08:55:00Z",
+      createdBy: PARTNER_FIXTURE_MEMBER_ID,
+      createdAt: "2026-10-30T08:55:00Z",
+      device: null,
+    };
+    return { ...detail, activities: [sent, ...detail.activities] };
+  };
 
 beforeEach(() => {
   vi.clearAllMocks();
@@ -175,8 +205,8 @@ afterEach(async () => {
 
 describe("PartnerActivityLog", () => {
   it("«Segna inviato» e «Segna sollecito inviato» per un contatto con varianti, in testa", () => {
-    // CO 1 ha due varianti della vecchia ricerca: i pulsanti ci sono lo stesso.
-    expect(partnerFixtureDetail(1, TODAY)!.variants.length).toBeGreaterThan(1);
+    // CO 1 ha varianti visibili della vecchia ricerca: i pulsanti ci sono lo stesso.
+    expect(partnerFixtureDetail(1, TODAY)!.variants.some(isVisibleVariant)).toBe(true);
     for (const co of [1, 3]) {
       const labels = buttons(render(co)).map((node) => text(node).trim());
       expect(labels, String(co)).toEqual([
@@ -218,6 +248,28 @@ describe("PartnerActivityLog", () => {
         }),
       }),
     );
+  });
+
+  it("un «primo» di pochi minuti fa non ferma «Segna sollecito inviato»", () => {
+    registra(1, "Segna sollecito inviato", recentlySent("primo"));
+    expect(mocks.record).toHaveBeenCalledExactlyOnceWith(
+      expect.objectContaining({
+        kind: "record_partner_activity",
+        payload: expect.objectContaining({ kind: "inviato", message_kind: "sollecito" }),
+      }),
+    );
+    const t = text(render(1, false, recentlySent("primo")));
+    expect(t).not.toContain("Segnare di nuovo?");
+  });
+
+  it("un «sollecito» di pochi minuti fa chiede conferma prima di registrarne un altro", () => {
+    registra(1, "Segna sollecito inviato", recentlySent("sollecito"));
+    expect(mocks.record).not.toHaveBeenCalled();
+    const tree = render(1, false, recentlySent("sollecito"));
+    const t = text(tree);
+    expect(t).toContain("Già segnato il sollecito alle ");
+    expect(t).toContain("Segnare di nuovo?");
+    expect(button(tree, "Sì, segna di nuovo")).toBeDefined();
   });
 
   it("gli altri pulsanti non mandano un tipo di messaggio", () => {

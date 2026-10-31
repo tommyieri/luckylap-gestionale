@@ -170,7 +170,7 @@ export const OPERATIONS: { title: string; href: string; text: string; who?: stri
   {
     title: "Partner: segnare un invio o un sollecito",
     href: "/partner",
-    text: "Apri il contatto e, nel «Registro», premi «Segna inviato» o «Segna sollecito inviato». I passi sono più sotto, in «Partner».",
+    text: "Apri il contatto. Nel «Registro» premi «Segna inviato», poi «Registra». Per il sollecito premi «Segna sollecito inviato», poi «Registra». I passi sono più sotto, in «Partner».",
     who: "Luca",
   },
 ];
@@ -411,17 +411,18 @@ export function GuideView({ access, preview = false }: { access: GuideAccess; pr
               </li>
               <li>
                 Tocca un contatto per aprirlo. Quando gli scrivi tu, dalla tua email o dal tuo
-                telefono, nel «Registro» premi «Segna inviato». Quando mandi il sollecito, «Segna
-                sollecito inviato».
+                telefono, nel «Registro» premi «Segna inviato», poi «Registra». Quando mandi il
+                sollecito, premi «Segna sollecito inviato», poi «Registra».
               </li>
               <li>
                 Quando ti risponde, «Ha risposto». Lo stato si cambia dalla tendina della riga e si
                 salva subito.
               </li>
               <li>
-                «Segna inviato» e «Segna sollecito inviato» creano per te un’attività «Sollecito ·
-                nome del contatto», che scade dopo 7 giorni: la conferma ti dice il giorno. La trovi
-                in Oggi, in «Contatti e solleciti», e tra le attività del Team.
+                Con «Registra», «Segna inviato» e «Segna sollecito inviato» creano per te
+                un’attività «Sollecito · nome del contatto». Scade dopo 7 giorni: la conferma ti
+                dice il giorno. La trovi in Oggi, in «Contatti e solleciti», e tra le attività del
+                Team.
               </li>
               <li>
                 Il sollecito si chiude da solo con «Ha risposto», qui o in Oggi, con un nuovo invio,
@@ -470,7 +471,8 @@ export function GuideView({ access, preview = false }: { access: GuideAccess; pr
                 Le risposte arrivano nella casella aziendale come sempre: l’assistente non le legge.
                 Il sollecito dopo 7 giorni lo manda Tommi: lo trova nella sua Oggi. Per ora lo
                 scrive lui, partendo dalla «Bozza dell'email» mandata, che resta nel blocco
-                «Assistente». Poi preme «Segna sollecito inviato» nel «Registro».
+                «Assistente». Quando l’ha mandato, nel «Registro» preme «Segna sollecito inviato»,
+                poi «Registra».
               </li>
               <li>
                 In cima a Partner c’è la striscia dell’assistente: dice cosa sta facendo, quante

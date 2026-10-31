@@ -45,9 +45,10 @@ import {
   type PartnerAssistantSendStatus,
   type PartnerAssistantStatus,
 } from "../../lib/partner/assistant";
-import type {
-  PartnerDetail,
-  PartnerWorkspace as PartnerWorkspaceData,
+import {
+  isVisibleVariant,
+  type PartnerDetail,
+  type PartnerWorkspace as PartnerWorkspaceData,
 } from "../../lib/partner/model";
 
 const TODAY = "2026-10-22";
@@ -219,7 +220,7 @@ describe("PartnerWorkspace", () => {
       "Copia il testo",
       "Apri l’email con il testo",
       "Salva il testo",
-      "Ripristina l'originale",
+      "Ripristina l’originale",
       "Testo sintetico con il conto vendita",
     ])
       expect(t, gone).not.toContain(gone);
@@ -236,8 +237,7 @@ describe("PartnerWorkspace", () => {
   });
 
   it("Registro: «Segna inviato» e «Segna sollecito inviato» anche per un contatto con varianti", () => {
-    const detail = partnerFixtureDetail(1, TODAY)!;
-    expect(detail.variants.length).toBeGreaterThan(0);
+    expect(partnerFixtureDetail(1, TODAY)!.variants.some(isVisibleVariant)).toBe(true);
     const log = buttons(registro(render({ co: "1" }), 1)).map((b) => b.text);
     expect(log).toEqual([
       "Segna inviato",
@@ -338,7 +338,6 @@ describe("PartnerWorkspace", () => {
       "Metti tra i non contattare",
     ])
       expect(t).toContain(part);
-    expect(html).not.toContain('aria-label="Copia: A"');
   });
 
   it("«Differenze da controllare»: niente differenze sui testi vecchi, le altre sì", () => {
@@ -496,6 +495,9 @@ describe("PartnerDataView", () => {
     expect(t).toContain("File esportato (.json)");
     expect(html).toMatch(/<h3[^>]*id="dati-file-importati"[^>]*>File già importati<\/h3>/);
     expect(html).toContain('aria-labelledby="dati-file-importati"');
+    // Con una ricerca importata, l'ultimo import non dice più quanti messaggi ha portato.
+    expect(partnerFixtureData(TODAY).imports.length).toBeGreaterThan(0);
+    expect(t).not.toMatch(/\d+ messaggi/);
   });
 
   it("ricerca non ancora importata: arriva con l'import, senza dire «Claude»", () => {
