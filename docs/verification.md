@@ -7,6 +7,18 @@ Stato del 23 ottobre 2026, dal branch `claude/revisione-pre-invio` (P7, revision
 
 Prove applicative, SQL sintetico, PostgreSQL concorrente e Auth cloud sono conteggiati separatamente. Le sezioni «Avvio del 21 ottobre 2026» restano come verbale dell'avvio: i numeri di allora non sono quelli di oggi.
 
+## Sezione Club, 31 ottobre 2026
+
+Pull request #27 (branch `claude/partner-club`), unita il 31 ottobre 2026 con l'OK di Tommi («auto merge quando ha finito»: l'auto-merge di GitHub non è attivo sul repository, quindi merge diretto a controlli verdi, compreso «Concorrenza (PostgreSQL 17)»). Deploy di Vercel riuscito sul commit `2d28e7e`. Dettagli della sezione in [partner.md](partner.md), «Sezione Club».
+
+**Produzione, 31 ottobre 2026.** Claude ha applicato la migrazione dopo il merge, con l'OK di Tommi («Sì, applicala»), con la procedura delle impronte (sotto, «Produzione, 28 ottobre 2026»). Versione cloud `20261031180505`, testo salvato uguale al file (md5 `a601a1eb344a0590175255950089ead1`); il file ha il nome della versione cloud. Tra il deploy e la migrazione la casella «Club» della scheda dava errore al salvataggio, senza toccare dati.
+
+- **Identiche prima e dopo** (impronte md5 di tutte le righe): `partners` (207), `partner_contacts` (850), `partner_message_variants` (218), `partner_activities` (0), `partner_work_links` (54), `partner_research_imports` (2), `partner_import_differences` (0), `profiles` (6), `memberships` (5), `partner_assistant_jobs` (165), `partner_assistant_drafts` (115), `partner_assistant_rules` (3), `cron.job` (2 job), `audit_logs` (2.771 righe). L'assistente era in modalità «prepara».
+- **Cambiato, come previsto:** il vincolo `partners_sections_check` ammette `club` e fino a quattro sezioni; `private.partner_sections` restituisce `{vendita,eventi,collab,club}` per le quattro sezioni in qualunque ordine. Proprietario, `search_path` vuoto e permessi della funzione invariati (`{postgres=X/postgres}`): `authenticated`, `anon` e `service_role` non la eseguono.
+- **Avvisi di sicurezza:** solo quelli già noti (tabelle `private` con RLS e senza policy, protezione dalle password trapelate disattivata).
+
+L'harness `partner-club.mjs` cerca la migrazione per suffisso (`_partner_sezione_club.sql`): la rinomina non cambia i suoi 56 controlli.
+
 ## Assistente Partner, consegna 2a (invio), 30 ottobre 2026
 
 Dal branch `claude/assistente-partner-invio` (base `origin/main` a `c4577bd`), consegna 2a dell'assistente: prova e invio delle prime email dalla casella aziendale. Dati sintetici, nessun accesso al cloud, nessuna chiamata vera a Claude, Supabase, SMTP o IMAP. Una migrazione nuova, additiva: `supabase/migrations/20261030114722_assistente_partner_invio.sql`. Dettagli, variabili e avvio in [partner-assistente.md](partner-assistente.md), «Seconda consegna, parte 1 (2a): l'invio».
