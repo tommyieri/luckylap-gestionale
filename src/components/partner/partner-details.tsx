@@ -5,7 +5,6 @@ import { partnerDomain, hostLabel, routeText } from "../../lib/partner/contacts"
 import { partnerDoNotContactPayload, partnerStatePayload } from "../../lib/partner/commands";
 import { instantDay, longDay, monthLong } from "../../lib/partner/dates";
 import {
-  PARTNER_APPROACH_LABELS,
   PARTNER_CHANNEL_LABELS,
   PARTNER_DIFFERENCE_FIELD_LABELS,
   PARTNER_IDEA_LABELS,
@@ -16,6 +15,7 @@ import {
   isPartnerPriority,
   isPartnerSection,
   isPartnerStage,
+  isReviewableDifference,
   type PartnerBlock,
   type PartnerDetail,
   type PartnerDifference,
@@ -27,7 +27,6 @@ import { PartnerCardForm } from "./partner-card-form";
 import { CommandFeedback, usePartnerCommand } from "./partner-command";
 import { PartnerContacts } from "./partner-contacts";
 import { usePartnerContext } from "./partner-context";
-import { PartnerMessages } from "./partner-messages";
 import { PartnerOutcomePanel } from "./partner-outcome-panel";
 import styles from "./partner.module.css";
 
@@ -64,15 +63,6 @@ export function differenceValue(difference: PartnerDifference, value: unknown): 
           : value;
       return typeof text === "string" ? text : text === null ? "rimosso" : "non leggibile";
     }
-    case "message": {
-      const texts = value && typeof value === "object" ? (value as Record<string, unknown>) : {};
-      const subject = typeof texts.subject === "string" ? texts.subject.trim() : "";
-      const body = typeof texts.body === "string" ? texts.body.replace(/\s+/g, " ").trim() : "";
-      const preview = subject || body;
-      return preview
-        ? `«${[...preview].slice(0, 90).join("")}${[...preview].length > 90 ? "…" : ""}»`
-        : "testo vuoto";
-    }
     default:
       return typeof value === "string" ? value : JSON.stringify(value);
   }
@@ -93,16 +83,11 @@ function DifferenceItem({
 }) {
   const { preview } = usePartnerContext();
   const command = usePartnerCommand(`differenza-${difference.id}`);
+  // Le differenze sui testi dei vecchi «Messaggi pronti» (`message`) non arrivano qui.
   const version =
-    difference.field === "message"
-      ? detail.variants.find((variant) => variant.id === difference.variantId)?.version
-      : difference.field === "contact"
-        ? detail.contacts.find((contact) => contact.id === difference.contactId)?.version
-        : detail.partner.version;
-  const variant =
-    difference.field === "message"
-      ? detail.variants.find((item) => item.id === difference.variantId)
-      : null;
+    difference.field === "contact"
+      ? detail.contacts.find((contact) => contact.id === difference.contactId)?.version
+      : detail.partner.version;
   const resolve = (choice: "kept_team" | "used_incoming") => {
     if (version === undefined) return;
     command.run("resolve_partner_difference", {
@@ -115,12 +100,9 @@ function DifferenceItem({
   return (
     <li className={styles.differenceItem}>
       <p>
-        <b>
-          {PARTNER_DIFFERENCE_FIELD_LABELS[difference.field]}
-          {variant ? ` ${PARTNER_APPROACH_LABELS[variant.approach]}` : ""}.
-        </b>{" "}
-        Nel gestionale: {differenceValue(difference, difference.teamValue)} ·{" "}
-        {differenceSource(difference)}: {differenceValue(difference, difference.incomingValue)}
+        <b>{PARTNER_DIFFERENCE_FIELD_LABELS[difference.field]}.</b> Nel gestionale:{" "}
+        {differenceValue(difference, difference.teamValue)} · {differenceSource(difference)}:{" "}
+        {differenceValue(difference, difference.incomingValue)}
       </p>
       <div className={styles.inlineActions}>
         <button
@@ -408,7 +390,10 @@ function Research({ detail }: { detail: PartnerDetail }) {
 
 /**
  * Dettagli di un contatto (spec 02 §5.5): differenze, fuori dalla ricerca, responsabile e
- * prossima azione, «Esito» con l'accordo fatto, assistente, messaggi, registro, ricerca, recapiti, attenzione e fonti, scheda, blocco.
+ * prossima azione, «Esito» con l'accordo fatto, assistente, registro, ricerca, recapiti,
+ * attenzione e fonti, scheda, blocco. Dal 31 ottobre 2026 niente «Messaggi pronti» (vedi
+ * partner-messages.tsx): l'email la scrive l'assistente, «Segna inviato» e «Segna sollecito
+ * inviato» sono nel Registro e le differenze sui testi vecchi non si mostrano.
  */
 export function PartnerDetails({
   detail,
@@ -423,13 +408,14 @@ export function PartnerDetails({
   const { partner, research } = { partner: detail.partner, research: detail.partner.research };
   const removedDay = partner.researchRemovedAt ? instantDay(partner.researchRemovedAt) : null;
   const blocked = detail.blocks.length > 0 || block !== null;
+  const differences = detail.differences.filter(isReviewableDifference);
   return (
     <div className={styles.details}>
-      {detail.differences.length > 0 && (
+      {differences.length > 0 && (
         <section className={`${styles.detailBlock} ${styles.flag}`}>
           <h4>Differenze da controllare</h4>
           <ul className={styles.differences}>
-            {detail.differences.map((difference) => (
+            {differences.map((difference) => (
               <DifferenceItem key={difference.id} difference={difference} detail={detail} />
             ))}
           </ul>
@@ -450,7 +436,6 @@ export function PartnerDetails({
         contacts={detail.contacts}
         activities={detail.activities}
       />
-      <PartnerMessages detail={detail} blocked={blocked} />
       <PartnerActivityLog detail={detail} blocked={blocked} />
       <Research detail={detail} />
       <PartnerContacts detail={detail} blocked={blocked} />

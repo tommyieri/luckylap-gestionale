@@ -41,6 +41,7 @@ import {
   PARTNER_PREVIEW_NOTICE,
   PARTNER_SECTION_LABELS,
   PARTNER_SECTION_NOTES,
+  isReviewableDifference,
   researchImportLine,
   type PartnerDetail,
   type PartnerSection,
@@ -334,7 +335,8 @@ function WorkspaceBody({
     return () => window.removeEventListener("beforeunload", warn);
   }, [hasDirty]);
 
-  const differences = workspace.differences.length;
+  // Senza le differenze sui testi dei vecchi «Messaggi pronti»: non c'è più dove risolverle.
+  const differences = workspace.differences.filter(isReviewableDifference).length;
   const nothingImported = workspace.partners.length === 0;
 
   return (
@@ -572,7 +574,6 @@ function WorkspaceBody({
               key={partner.id}
               partner={partner}
               contacts={index.contacts.get(partner.id) ?? []}
-              messages={index.variants.get(partner.id)?.length ?? 0}
               differences={index.differences.get(partner.id)?.length ?? 0}
               block={index.blocks.get(partner.id) ?? null}
               period={partnerPeriod(partner, today)}

@@ -833,7 +833,7 @@ describe("esiti dei comandi", () => {
       replayed: false,
     });
     expect(imported?.message).toBe(
-      "File importato: 10 stati, 3 testi, 4 approcci. 2 differenze da controllare.",
+      "File importato: 10 stati, 3 testi, 4 approcci. 2 differenze: restano i valori del gestionale. Quelle sugli stati, se ci sono, sono in «Da controllare».",
     );
     const blocked = partnerCommandOutcome(parsed("set_partner_do_not_contact"), {
       id: PARTNER,

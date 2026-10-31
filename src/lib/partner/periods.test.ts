@@ -243,7 +243,6 @@ describe("«contatti da fare» di Oggi e il periodo «Adesso»", () => {
   const due = partners.filter((p) => partnerDueToday(p, fixture.today, blocked.has(p.co)));
   const index = buildPartnerIndex({
     contacts: [],
-    variants: [],
     differences: [],
     blocks: partners
       .filter((p) => blocked.has(p.co))

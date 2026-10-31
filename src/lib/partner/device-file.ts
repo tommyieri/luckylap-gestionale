@@ -456,7 +456,9 @@ export function parsePartnerDevicePreview(value: unknown): PartnerDevicePreview 
 
 /**
  * Seconda parte dell'anteprima (spec 02 §5.8): «Applico 10 stati, 3 testi, 4 approcci. 2 stati
- * sono diversi: restano quelli del gestionale e li trovi in «Da controllare».»
+ * sono diversi: restano quelli del gestionale e li trovi in «Da controllare».» I testi diversi
+ * restano quelli del gestionale ma non vanno in «Da controllare»: dal 31 ottobre 2026 le
+ * differenze sui testi dei vecchi «Messaggi pronti» non si mostrano (docs/partner.md).
  */
 export function describePartnerDevicePlan(preview: PartnerDevicePreview): string {
   if (preview.alreadyImported)
@@ -476,12 +478,10 @@ export function describePartnerDevicePlan(preview: PartnerDevicePreview): string
       `${stages} stati sono diversi: restano quelli del gestionale e li trovi in «Da controllare».`,
     );
   if (texts === 1)
-    sentences.push(
-      "1 testo è diverso da quello del team: resta quello del gestionale e lo trovi in «Da controllare».",
-    );
+    sentences.push("1 testo è diverso da quello del team: resta quello del gestionale.");
   else if (texts > 1)
     sentences.push(
-      `${texts} testi sono diversi da quelli del team: restano quelli del gestionale e li trovi in «Da controllare».`,
+      `${texts} testi sono diversi da quelli del team: restano quelli del gestionale.`,
     );
   if (plan.unknown > 0)
     sentences.push(
@@ -490,10 +490,39 @@ export function describePartnerDevicePlan(preview: PartnerDevicePreview): string
   return sentences.join(" ");
 }
 
-/** Conferma dopo l'import: «File importato: 10 stati, 3 testi, 4 approcci. 2 differenze da controllare.» */
-export function describePartnerDeviceImport(counts: PartnerDevicePlanCounts): string {
+/**
+ * Conferma dopo l'import: «File importato: 10 stati, 3 testi, 4 approcci. 2 differenze: restano i
+ * valori del gestionale. Quelle sugli stati sono in «Da controllare».» Le differenze sugli stati
+ * restano in «Da controllare»; quelle sui testi no (docs/partner.md): con soli testi diversi la
+ * conferma non ci rimanda. La risposta del database ha solo il totale, stati e testi insieme.
+ * Quante sono sugli stati lo dice `preview`, l'anteprima del file appena importato, se ha lo
+ * stesso totale. Senza anteprima (il messaggio del server, anche quando si verifica un tentativo
+ * ripreso dopo un ricaricamento) la conferma rimanda a «Da controllare» quelle sugli stati, se ci
+ * sono.
+ */
+export function describePartnerDeviceImport(
+  counts: PartnerDevicePlanCounts,
+  preview: Pick<PartnerDevicePreview, "differences"> | null = null,
+): string {
   const base = `File importato: ${count(counts.stagesApplied, "stato", "stati")}, ${count(counts.textsApplied, "testo", "testi")}, ${count(counts.approachesApplied, "approccio", "approcci")}.`;
-  return counts.differences > 0
-    ? `${base} ${count(counts.differences, "differenza", "differenze")} da controllare.`
-    : base;
+  const total = counts.differences;
+  if (total === 0) return base;
+  const kept =
+    total === 1
+      ? "1 differenza: resta il valore del gestionale."
+      : `${total} differenze: restano i valori del gestionale.`;
+  const stages =
+    preview && preview.differences.length === total
+      ? preview.differences.filter((item) => item.kind === "stage").length
+      : null;
+  if (stages === 0) return `${base} ${kept}`;
+  const where =
+    stages === null
+      ? total === 1
+        ? "Se riguarda lo stato, la trovi in «Da controllare»."
+        : "Quelle sugli stati, se ci sono, sono in «Da controllare»."
+      : stages === 1
+        ? "Quella sullo stato è in «Da controllare»."
+        : "Quelle sugli stati sono in «Da controllare».";
+  return `${base} ${kept} ${where}`;
 }

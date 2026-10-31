@@ -7,6 +7,7 @@ import type { PartnerPayload } from "../../lib/partner/commands";
 import {
   PartnerDeviceFileError,
   describePartnerDeviceFile,
+  describePartnerDeviceImport,
   describePartnerDevicePlan,
   readPartnerDeviceFile,
   type ParsedPartnerDeviceFile,
@@ -27,11 +28,14 @@ function DeviceFileImport() {
   const [file, setFile] = useState<ParsedPartnerDeviceFile | null>(null);
   const [problem, setProblem] = useState<string | null>(null);
   const [plan, setPlan] = useState<PartnerDevicePreview | null>(null);
+  // L'anteprima del file mandato con «Importa»: dice quante differenze sono sugli stati.
+  const [imported, setImported] = useState<PartnerDevicePreview | null>(null);
   const [checking, startCheck] = useTransition();
 
   async function choose(event: ChangeEvent<HTMLInputElement>) {
     setFile(null);
     setPlan(null);
+    setImported(null);
     setProblem(null);
     command.reset();
     const chosen = event.target.files?.[0];
@@ -62,6 +66,17 @@ function DeviceFileImport() {
       }
     });
   }
+
+  // La conferma del server ha solo il totale delle differenze. Con l'anteprima appena importata
+  // rimanda a «Da controllare» solo se ce ne sono sugli stati (anche dopo «Verifica lo stesso
+  // invio»: l'eventuale «Era già registrato» in coda resta).
+  const done = command.state.status === "success" ? command.state.result : null;
+  const confirmation = done?.counts
+    ? done.message.replace(
+        describePartnerDeviceImport(done.counts),
+        describePartnerDeviceImport(done.counts, imported),
+      )
+    : undefined;
 
   return (
     <div className={styles.dataBlock}>
@@ -112,7 +127,8 @@ function DeviceFileImport() {
                 type="button"
                 className="button button-primary"
                 disabled={preview || command.busy}
-                onClick={() =>
+                onClick={() => {
+                  setImported(plan);
                   command.run(
                     "import_partner_device_file",
                     file.payload as unknown as PartnerPayload,
@@ -120,8 +136,8 @@ function DeviceFileImport() {
                       setFile(null);
                       setPlan(null);
                     },
-                  )
-                }
+                  );
+                }}
               >
                 {command.pending ? "Importo…" : "Importa"}
               </button>
@@ -140,7 +156,7 @@ function DeviceFileImport() {
           )}
         </div>
       )}
-      <CommandFeedback command={command} />
+      <CommandFeedback command={command} success={confirmation} />
     </div>
   );
 }

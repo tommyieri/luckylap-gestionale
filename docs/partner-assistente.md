@@ -170,7 +170,7 @@ Fixture: domini `example.test`, schede con CO da 951 in su, profilo dell'assiste
 
 Branch `claude/assistente-partner-invio`, base `origin/main` a `c4577bd` (il merge della pull request #22), [piano](superpowers/plans/2026-10-28-assistente-partner-consegna-2a.md). L'assistente manda dalla casella aziendale IONOS le prime email già pronte e approvate: prima una prova verso le caselle di Tommaso, confermata da lui, poi l'invio vero ai contatti, lento, nella finestra 9:30-11:00 del destinatario, mai due volte allo stesso contatto. Il piano completo della consegna 2 (`superpowers/plans/2026-10-28-assistente-partner-consegna-2.md`) resta la fonte dei nomi per la 2b.
 
-Nella scheda il blocco «Messaggi pronti» (o «Messaggio pronto») ha i testi vecchi della ricerca di ottobre: l'email che l'assistente manda è la «Bozza dell'email» del blocco «Assistente».
+L'email che l'assistente manda è la «Bozza dell'email» del blocco «Assistente». Dal 31 ottobre 2026 la scheda non ha più il blocco «Messaggi pronti» con i testi vecchi della ricerca di ottobre, e «Segna inviato» e «Segna sollecito inviato» sono nel Registro (vedi [partner.md](partner.md), pagina `/partner`). Finché la 2b non manda i solleciti, Tommi scrive il sollecito a 7 giorni partendo dalla «Bozza dell'email» mandata, che resta nel blocco «Assistente», e lo segna nel Registro con «Segna sollecito inviato», poi «Registra».
 
 ### Che cosa fa
 
@@ -187,7 +187,7 @@ Nella scheda il blocco «Messaggi pronti» (o «Messaggio pronto») ha i testi v
 
 - Non legge la casella: niente risposte, rimbalzi letti dalla posta, risposte automatiche, parole di stop, «Da smistare», rapporti DMARC. Le risposte arrivano a Tommaso nella casella aziendale, come oggi. IMAP serve solo al controllo dei 12 mesi e alla copia in «Posta inviata».
 - Niente solleciti dell'assistente, passaggi con riassunto e risposta suggerita, riepilogo serale, tetto orario dei passaggi, `daily_followup_limit`.
-- Niente ritocchi a Oggi, «Segna inviato» e ai messaggi pronti; nel feed di Controllo CEO l'invio si legge come «Assistente ha registrato un invio Partner: …», con il nome del profilo.
+- Niente ritocchi a Oggi e a «Segna inviato»; nel feed di Controllo CEO l'invio si legge come «Assistente ha registrato un invio Partner: …», con il nome del profilo.
 - Niente ricontrollo `controlli_falliti` all'invio, «Ridai all'assistente» dopo un passaggio e salto del controllo dei 12 mesi.
 - Restano per dopo anche il difetto delle fonti e del conteggio delle ricerche, l'esempio del Porsche Club GB nelle regole e nodemailer 10.1.4 (installabile dal 1° novembre).
 

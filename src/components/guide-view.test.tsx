@@ -178,7 +178,7 @@ describe("le operazioni più comuni", () => {
       "Vedere quante magliette puoi vendere",
       "Aprire una scheda prodotto",
       "Seguire un prodotto nuovo",
-      "Partner: cambiare lo stato e copiare il messaggio",
+      "Partner: segnare un invio o un sollecito",
     ]);
     const markup = part(everyone);
     expect(markup.match(/<li>/g)).toHaveLength(OPERATIONS.length);
@@ -206,10 +206,11 @@ describe("le operazioni più comuni", () => {
       "«Carica originale»",
       "«Dettaglio prodotto»",
       "«Crea scheda prodotto»",
-      "«Copia il testo»",
       "«Segna inviato»",
+      "«Segna sollecito inviato»",
     ])
       expect(copy).toContain(label);
+    expect(copy).not.toContain("«Copia il testo»");
   });
 
   it("dice chi le fa di solito: ognuno trova il suo lavoro", () => {
@@ -231,8 +232,10 @@ describe("Partner", () => {
 
   it("dice chi riceve il sollecito, quando scade e cosa lo chiude", () => {
     const copy = text(part(everyone));
-    expect(copy).toContain("«Segna inviato» e «Segna sollecito inviato» creano per te");
-    expect(copy).toContain("che scade dopo 7 giorni");
+    expect(copy).toContain(
+      "Quando registri «Segna inviato» o «Segna sollecito inviato», si crea per te",
+    );
+    expect(copy).toContain("Scade dopo 7 giorni");
     expect(copy).toContain("«Contatti e solleciti»");
     for (const closing of ["«Ha risposto»", "«Accordo fatto»", "«Non interessato»"])
       expect(copy).toContain(closing);
@@ -273,10 +276,36 @@ describe("Partner", () => {
     expect(copy).not.toContain("non manda niente");
   });
 
-  it("dice quale testo manda l'assistente: la bozza del blocco «Assistente», non «Messaggi pronti»", () => {
+  it("dice quale testo manda l'assistente: la «Bozza dell'email» del blocco «Assistente»", () => {
     const copy = text(part(everyone));
     expect(copy).toContain(
-      "Nella scheda il blocco «Messaggi pronti» (o «Messaggio pronto») ha i testi vecchi della ricerca di ottobre: l’email che l’assistente manda è la «Bozza dell'email» del blocco «Assistente».",
+      "L’email che l’assistente manda è la «Bozza dell'email» di questo blocco.",
+    );
+  });
+
+  it("niente più «Messaggi pronti»: gli invii si segnano nel «Registro»", () => {
+    const all = text(html(founder));
+    for (const gone of [
+      "Messaggi pronti",
+      "Messaggio pronto",
+      "«Copia il testo»",
+      "Apri l’email con il testo",
+      "messaggi già scritti",
+      "testi vecchi",
+    ])
+      expect(all, gone).not.toContain(gone);
+    const copy = text(part(everyone));
+    // Il Registro apre un modulo: il pulsante non basta, serve anche «Registra».
+    expect(copy).toContain("nel «Registro» premi «Segna inviato», poi «Registra».");
+    expect(copy).toContain(
+      "Quando mandi il sollecito, premi «Segna sollecito inviato», poi «Registra».",
+    );
+  });
+
+  it("il sollecito lo scrive Tommi dalla «Bozza dell'email» mandata, e lo segna nel «Registro»", () => {
+    const copy = text(part(everyone));
+    expect(copy).toContain(
+      "Per ora lo scrive lui, partendo dalla «Bozza dell'email» mandata, che resta nel blocco «Assistente». Quando l’ha mandato, nel «Registro» preme «Segna sollecito inviato», poi «Registra».",
     );
   });
 
@@ -435,8 +464,16 @@ describe("i nomi citati esistono davvero", () => {
     ["src/components/finance-revision-editor.tsx", ["Salva correzione"]],
     ["src/components/finance-shop-payment-editor.tsx", ["Salva correzione"]],
     ["src/components/finance-imports-view.tsx", ["Eliminati · recuperabili"]],
-    ["src/components/partner/partner-messages.tsx", ["Segna inviato", "Segna sollecito inviato"]],
-    ["src/components/partner/partner-activity.tsx", ["Ha risposto"]],
+    [
+      "src/components/partner/partner-activity.tsx",
+      [
+        '"Segna inviato"',
+        '"Segna sollecito inviato"',
+        '"Registra"',
+        "Ha risposto",
+        "Registro</h4>",
+      ],
+    ],
     ["src/components/partner/partner-details.tsx", ["Metti tra i non contattare"]],
     ["src/components/partner/partner-outcome-panel.tsx", [">Esito<", "Apri in Partner nel Team"]],
     ["src/components/today/today-reply-button.tsx", ['"Ha risposto"']],
@@ -467,10 +504,6 @@ describe("i nomi citati esistono davvero", () => {
         "Bozza dell'email",
         "Manda per primo",
       ],
-    ],
-    [
-      "src/components/partner/partner-messages.tsx",
-      ["`Messaggi pronti · ", "`Messaggio pronto · "],
     ],
     [
       "src/components/partner/partner-assistant-view.tsx",

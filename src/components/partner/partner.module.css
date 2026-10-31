@@ -535,10 +535,6 @@
   background: var(--amber-wash);
   color: var(--amber);
 }
-.tagReady {
-  border-color: var(--green);
-  color: var(--green);
-}
 .tagAgreed {
   border-color: var(--green);
   background: var(--green-wash);

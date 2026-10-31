@@ -17,7 +17,6 @@ import {
   PARTNER_STAGE_LABELS,
   formatCo,
   memberName,
-  readyMessagesLabel,
   shortReason,
   type PartnerBlock,
   type PartnerContactLink,
@@ -120,9 +119,7 @@ function RowActions({ actions, now }: { actions: PartnerAction[]; now: boolean }
 export type PartnerRowProps = {
   partner: PartnerSummary;
   contacts: readonly PartnerContactLink[];
-  /** Messaggi da mostrare (varianti visibili). */
-  messages: number;
-  /** Differenze aperte. */
+  /** Differenze aperte da controllare. */
   differences: number;
   block: PartnerBlock | null;
   period: PartnerPeriodNumber;
@@ -139,7 +136,6 @@ export type PartnerRowProps = {
 export function PartnerRow({
   partner,
   contacts,
-  messages,
   differences,
   block,
   period,
@@ -182,7 +178,6 @@ export function PartnerRow({
               ]
             : []),
         ];
-  const ready = readyMessagesLabel(messages);
   // Accordo fatto con date in arrivo: l'appuntamento è nel calendario del team.
   const inCalendar =
     stage === "chiuso" &&
@@ -247,7 +242,6 @@ export function PartnerRow({
           {inCalendar && (
             <span className={`${styles.tag} ${styles.tagAgreed}`}>Nel calendario del team</span>
           )}
-          {ready && <span className={`${styles.tag} ${styles.tagReady}`}>{ready}</span>}
           {partner.ownerId && (
             <span className={styles.tag}>Seguito da {memberName(members, partner.ownerId)}</span>
           )}
