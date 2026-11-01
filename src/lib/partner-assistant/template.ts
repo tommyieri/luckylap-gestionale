@@ -61,13 +61,17 @@ const stop = (text: string) => (text.endsWith(".") ? text : `${text}.`);
 /** La marca del club: decide i modelli nominati nel testo. null: nessuna delle tre, frase generica. */
 export type PartnerAssistantTemplateBrand = "porsche" | "ferrari" | "mercedes" | null;
 
-/** I modelli LuckyLap della marca, con l'articolo della lingua (Magazzino › Giacenze, «Magliette
- * disponibili»): 964 e GT3 RS, F40 e 512 TR, 300 SL. */
+/** I modelli LuckyLap della marca, con l'articolo o la preposizione che la frase chiede (Magazzino ›
+ * Giacenze, «Magliette disponibili»): 964 e GT3 RS, F40 e 512 TR, 300 SL. */
 const BRAND_MODELS: Record<
   PartnerAssistantLanguage,
   Record<Exclude<PartnerAssistantTemplateBrand, null>, string>
 > = {
-  it: { porsche: "la 964 e la GT3 RS", ferrari: "la F40 e la 512 TR", mercedes: "la 300 SL" },
+  it: {
+    porsche: "della 964 e della GT3 RS",
+    ferrari: "della F40 e della 512 TR",
+    mercedes: "della 300 SL",
+  },
   en: {
     porsche: "the 964 and the GT3 RS",
     ferrari: "the F40 and the 512 TR",
@@ -82,28 +86,29 @@ const BRAND_MODELS: Record<
   es: { porsche: "el 964 y el GT3 RS", ferrari: "el F40 y el 512 TR", mercedes: "el 300 SL" },
 };
 
-/** La frase sulle grafiche: con la marca, i modelli che abbiamo già e qualsiasi auto il club voglia
- * (decisione di Tommi del 1° novembre 2026); senza, il modello che preferiscono. */
+/** La frase sulle grafiche: con la marca, le grafiche che abbiamo già e qualsiasi auto il club voglia
+ * (decisione di Tommi del 1° novembre 2026); senza, il modello che preferiscono. Le grafiche, non le
+ * auto: «in collezione abbiamo la 300 SL» si legge anche come un'auto in garage. */
 const DESIGN: Record<PartnerAssistantLanguage, (brand: PartnerAssistantTemplateBrand) => string> = {
   it: (brand) =>
     brand
-      ? `Le grafiche le disegno personalmente: in collezione abbiamo già ${BRAND_MODELS.it[brand]}, ma possiamo disegnare qualsiasi auto vogliate.`
+      ? `Le grafiche le disegno personalmente: abbiamo già quelle ${BRAND_MODELS.it[brand]}, ma possiamo crearne per qualsiasi auto vogliate.`
       : "Le grafiche le disegno personalmente, quindi possiamo partire dal modello che preferite.",
   en: (brand) =>
     brand
-      ? `I draw the designs myself: our collection already includes ${BRAND_MODELS.en[brand]}, but we can design any car you would like.`
+      ? `I draw the designs myself: our range already features ${BRAND_MODELS.en[brand]}, but we can create a design for any car you would like.`
       : "I draw the designs myself, so we can start from the model you prefer.",
   de: (brand) =>
     brand
-      ? `Die Motive zeichne ich selbst: In unserer Kollektion haben wir bereits ${BRAND_MODELS.de[brand]}, wir können aber jedes Auto gestalten, das Sie sich wünschen.`
+      ? `Die Motive zeichne ich selbst: Für ${BRAND_MODELS.de[brand]} gibt es sie bereits, wir können aber jedes Auto gestalten, das Sie sich wünschen.`
       : "Die Motive zeichne ich selbst, wir können also von dem Modell ausgehen, das Ihnen am liebsten ist.",
   fr: (brand) =>
     brand
-      ? `Je dessine moi-même les motifs : notre collection compte déjà ${BRAND_MODELS.fr[brand]}, mais nous pouvons dessiner n'importe quelle voiture de votre choix.`
+      ? `Je dessine moi-même les motifs : ils existent déjà pour ${BRAND_MODELS.fr[brand]}, mais nous pouvons en créer pour n'importe quelle voiture de votre choix.`
       : "Je dessine moi-même les motifs, nous pouvons donc partir du modèle que vous préférez.",
   es: (brand) =>
     brand
-      ? `Los diseños los dibujo yo mismo: en la colección ya tenemos ${BRAND_MODELS.es[brand]}, pero podemos diseñar cualquier automóvil que deseen.`
+      ? `Los diseños los dibujo yo mismo: ya los tenemos para ${BRAND_MODELS.es[brand]}, pero podemos crear uno para cualquier automóvil que deseen.`
       : "Los diseños los dibujo yo mismo, así que podemos partir del modelo que prefieran.",
 };
 

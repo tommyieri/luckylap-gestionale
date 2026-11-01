@@ -397,16 +397,16 @@ Decisione di Tommi del 1° novembre 2026: da lunedì 2 novembre le prime email p
 
 ### Il testo per marca (versione 2)
 
-Nel terzo paragrafo, al posto di «Le grafiche le disegno personalmente, quindi possiamo partire dal modello che preferite.», il testo nomina i modelli LuckyLap della marca del club e dice che possiamo disegnare qualsiasi auto (Tommi: «per la Mercedes noi abbiamo la 300 SL, ma si può fare qualsiasi macchina loro vogliano»). In italiano:
+Nel terzo paragrafo, al posto di «Le grafiche le disegno personalmente, quindi possiamo partire dal modello che preferite.», il testo nomina le grafiche LuckyLap della marca del club e dice che possiamo crearne per qualsiasi auto (Tommi: «per la Mercedes noi abbiamo la 300 SL, ma si può fare qualsiasi macchina loro vogliano»). La frase parla delle grafiche, non delle auto: «in collezione abbiamo la 300 SL» si leggerebbe anche come un'auto in garage. In italiano:
 
 | Marca | Frase |
 | --- | --- |
-| Porsche | Le grafiche le disegno personalmente: in collezione abbiamo già la 964 e la GT3 RS, ma possiamo disegnare qualsiasi auto vogliate. |
-| Ferrari | … in collezione abbiamo già la F40 e la 512 TR, ma possiamo disegnare qualsiasi auto vogliate. |
-| Mercedes | … in collezione abbiamo già la 300 SL, ma possiamo disegnare qualsiasi auto vogliate. |
+| Porsche | Le grafiche le disegno personalmente: abbiamo già quelle della 964 e della GT3 RS, ma possiamo crearne per qualsiasi auto vogliate. |
+| Ferrari | … abbiamo già quelle della F40 e della 512 TR, ma possiamo crearne per qualsiasi auto vogliate. |
+| Mercedes | … abbiamo già quelle della 300 SL, ma possiamo crearne per qualsiasi auto vogliate. |
 | Nessuna delle tre | La frase di prima. |
 
-Le stesse frasi ci sono in inglese, tedesco (con il «Sie»), francese e spagnolo, con l'articolo della lingua. Il resto del testo non cambia, comprese le collaborazioni con alcuni Porsche Club in Italia, citate anche ai club Ferrari e Mercedes.
+Le stesse frasi ci sono in inglese («our range already features the 300 SL, but we can create a design for any car you would like»), tedesco («Für den 300 SL gibt es sie bereits, wir können aber jedes Auto gestalten, das Sie sich wünschen»), francese («ils existent déjà pour la 300 SL, mais nous pouvons en créer pour n'importe quelle voiture de votre choix») e spagnolo («ya los tenemos para el 300 SL, pero podemos crear uno para cualquier automóvil que deseen»). Il resto del testo non cambia, comprese le collaborazioni con alcuni Porsche Club in Italia, citate anche ai club Ferrari e Mercedes.
 
 - **La marca** viene dal nome e dal tipo della scheda (`partnerAssistantTemplateBrand`): Porsche per prima, poi Ferrari, poi Mercedes (anche «Benz», «300 SL» e «Gull Wing», per il Gull Wing Group, che nomina solo la 300 SL). Il 1° novembre ogni club della sezione ha una marca sola.
 - **I controlli** restano quelli della versione 1: con una comunità Porsche niente modelli diversi da 964 e GT3 RS; da 180 a 260 parole in ogni lingua e con ogni marca.
@@ -429,6 +429,7 @@ Il limite del giorno resta uno (5 prime email nei primi 7 giorni dal primo invio
 - «Manda per primo» resta il primo criterio della coda, dentro la quota del suo lavoro. L'ordine della coda non cambia.
 - Un giro che non trova un candidato solo per la quota risponde `limite`, come per il limite del giorno; con righe fuori finestra risponde `fuori_finestra`. Nessun codice nuovo.
 - La pagina mostra ancora il totale del giorno («Oggi: 3 email su 5»), non le due metà.
+- **Posti che restano vuoti.** Un lavoro conta come «con email pronte» se ha una bozza pronta, anche quando nessuna può più partire oggi (finestre già chiuse, festa nel paese). Così i suoi posti restano liberi fino a sera e possono non essere usati: per esempio, se alle 11:05 di Roma gli altri hanno mandato le loro 3 e i club pronti sono tutti in Germania, gli altri contatti americani del pomeriggio non prendono i 2 posti dei club. È voluto: con una casella nuova un'email in meno è meglio di una in più, e le due file partono comunque ogni giorno. Con un limite di 1 nella pagina la metà dei club è 0: i club partono solo nei giorni senza altre email pronte.
 - Il giorno si conta sull'ora di Roma: una prima email in Nuova Zelanda o in Australia alle 9:30 del lunedì locale parte la domenica sera di Roma e conta per la domenica.
 
 ### Codice e migrazione

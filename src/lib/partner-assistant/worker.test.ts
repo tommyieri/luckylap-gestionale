@@ -1665,7 +1665,7 @@ describe("modalità modello per i club", () => {
     expect(input.draft.body).toContain("mit dem Porsche Club Sintetico umsetzen");
     expect(input.draft.body).not.toContain("(PCS)");
     expect(input.draft.body).toContain(
-      "In unserer Kollektion haben wir bereits den 964 und den GT3 RS",
+      "Die Motive zeichne ich selbst: Für den 964 und den GT3 RS gibt es sie bereits",
     );
     expect(input.draft.body).toContain("freundliche Grüße");
     expect(input.draft.signature.split("\n")).toEqual([

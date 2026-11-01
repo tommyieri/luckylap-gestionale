@@ -52,18 +52,18 @@ describe("testo fisso per i club", () => {
 
   it("i modelli che abbiamo già, della marca del club, e qualsiasi auto vogliano", () => {
     const models: Record<PartnerAssistantLanguage, [string, string, string]> = {
-      it: ["la 964 e la GT3 RS", "la F40 e la 512 TR", "la 300 SL"],
+      it: ["della 964 e della GT3 RS", "della F40 e della 512 TR", "della 300 SL"],
       en: ["the 964 and the GT3 RS", "the F40 and the 512 TR", "the 300 SL"],
       de: ["den 964 und den GT3 RS", "den F40 und den 512 TR", "den 300 SL"],
       fr: ["la 964 et la GT3 RS", "la F40 et la 512 TR", "la 300 SL"],
       es: ["el 964 y el GT3 RS", "el F40 y el 512 TR", "el 300 SL"],
     };
     const anyCar: Record<PartnerAssistantLanguage, string> = {
-      it: "qualsiasi auto vogliate",
-      en: "any car you would like",
+      it: "possiamo crearne per qualsiasi auto vogliate",
+      en: "we can create a design for any car you would like",
       de: "jedes Auto gestalten, das Sie sich wünschen",
-      fr: "n'importe quelle voiture de votre choix",
-      es: "cualquier automóvil que deseen",
+      fr: "nous pouvons en créer pour n'importe quelle voiture de votre choix",
+      es: "podemos crear uno para cualquier automóvil que deseen",
     };
     for (const language of Object.keys(models) as PartnerAssistantLanguage[]) {
       const body = (brand: (typeof BRANDS)[number]) =>
@@ -80,7 +80,7 @@ describe("testo fisso per i club", () => {
       expect(body(null)).not.toMatch(/964|GT3|F40|512 TR|300 SL/u);
     }
     expect(PARTNER_ASSISTANT_TEMPLATES.it.body("Club", "mercedes")).toContain(
-      "Le grafiche le disegno personalmente: in collezione abbiamo già la 300 SL, ma possiamo disegnare qualsiasi auto vogliate. Ci appoggiamo",
+      "Le grafiche le disegno personalmente: abbiamo già quelle della 300 SL, ma possiamo crearne per qualsiasi auto vogliate. Ci appoggiamo",
     );
     expect(PARTNER_ASSISTANT_TEMPLATES.it.body("Club", null)).toContain(
       "Le grafiche le disegno personalmente, quindi possiamo partire dal modello che preferite. Ci appoggiamo",
