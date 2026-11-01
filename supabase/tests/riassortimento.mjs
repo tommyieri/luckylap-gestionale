@@ -57,7 +57,13 @@ const sku = (model, color, size) => `SYN-${model}-${color.toUpperCase()}-${size}
 /** Giacenza di partenza nel Magadzino sintetico: 5 per variante, 0 per le XS. */
 const opening = (size) => (size === "XS" ? 0 : 5);
 
+// PGlite legge l'ora da Date.now(): now() va al millisecondo, non al microsecondo come in
+// PostgreSQL. Due transazioni nello stesso millisecondo avrebbero lo stesso now(), e il feed di
+// Controllo CEO, che raggruppa per persona e istante, le unirebbe in una frase sola scelta a caso
+// (per esempio «Dal ricamatore» sparisce). Ogni transazione parte in un millisecondo nuovo.
+let lastTransactionEnd = 0;
 async function as(name, fn, role = "authenticated") {
+  while (Date.now() <= lastTransactionEnd) await new Promise((done) => setTimeout(done, 1));
   await db.exec("begin");
   try {
     await db.query("select set_config('request.jwt.claims',$1,true)", [
@@ -70,6 +76,8 @@ async function as(name, fn, role = "authenticated") {
   } catch (error) {
     await db.exec("rollback");
     throw error;
+  } finally {
+    lastTransactionEnd = Date.now();
   }
 }
 const run = (kind, payload, op = randomUUID(), who = "logistics") =>
