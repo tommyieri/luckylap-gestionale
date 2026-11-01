@@ -7,6 +7,19 @@ Stato del 23 ottobre 2026, dal branch `claude/revisione-pre-invio` (P7, revision
 
 Prove applicative, SQL sintetico, PostgreSQL concorrente e Auth cloud sono conteggiati separatamente. Le sezioni «Avvio del 21 ottobre 2026» restano come verbale dell'avvio: i numeri di allora non sono quelli di oggi.
 
+## Modalità modello per i club, 1° novembre 2026
+
+Pull request #31 (branch `claude/assistente-modello-club`), unita il 1° novembre 2026 con l'OK di Tommi («Sì, procedi»), a controlli verdi compreso «Concorrenza (PostgreSQL 17)». Dettagli in [partner-assistente.md](partner-assistente.md), «Modalità modello per i club».
+
+**Produzione, 1° novembre 2026.** Claude ha applicato la migrazione prima del merge, con la procedura delle impronte (sotto, «Produzione, 28 ottobre 2026»). Versione cloud `20261101012650`, testo salvato uguale al file (md5 `2005c818e5fa5e235be852f583fc9bb1`); il file ha il nome della versione cloud. L'assistente era e resta in modalità «spento».
+
+- **Funzioni prima:** le 158 funzioni Partner e Assistente in `public` e `private` che le migrazioni del repository creano su PGlite fino a `_partner_sezione_club.sql` erano identiche in produzione (sorgente, `security definer`, `search_path`, permessi di `anon`, `authenticated` e `service_role`: impronta `15f14aab0cab700c26e5cb1fd0d49cb8`). Fuori dal confronto solo le quattro dello scheduler e del registro, che la migrazione non tocca. Quindi `claim_partner_assistant_step` e `complete_partner_assistant_review` sostituite partono dalla versione in produzione.
+- **Funzioni dopo:** le 163 funzioni (le 158 più `lock_any_step`, `uses_template`, `is_template` e `complete_partner_assistant_template` privata e wrapper) sono identiche a quelle che il branch crea su PGlite (impronta `da1eb6d009bb1e07a647d8b5864dd505`). Le nuove: solo `service_role` esegue la RPC del worker; nessun ruolo client esegue gli aiuti.
+- **Identiche prima e dopo** (impronte md5 di tutte le righe): `partners` (854), `partner_contacts` (2.603), `partner_assistant_jobs` (772), `partner_assistant_notes` (456), `partner_assistant_drafts` (115), `partner_assistant_rules` (3), `private.partner_assistant_events` (578), `cron.job` (2 job), `audit_logs` (5.177 righe). La configurazione dell'assistente non cambia (modalità «spento», versione 10, ultimo aggiornamento il 31 ottobre alle 21:06 UTC), salvo `last_tick_at`, che la presa del lavoro aggiorna a ogni tick: il tick delle 01:28 UTC, dopo la migrazione, è passato dalla nuova `claim_partner_assistant_step` senza errori.
+- **Avvisi di sicurezza:** solo quelli già noti (tabelle `private` con RLS e senza policy, protezione dalle password trapelate disattivata).
+
+L'harness `assistente-partner-modello.mjs` cerca la migrazione per suffisso (`_assistente_partner_modello.sql`): la rinomina non cambia i suoi 109 controlli.
+
 ## Sezione Club, 31 ottobre 2026
 
 Pull request #27 (branch `claude/partner-club`), unita il 31 ottobre 2026 con l'OK di Tommi («auto merge quando ha finito»: l'auto-merge di GitHub non è attivo sul repository, quindi merge diretto a controlli verdi, compreso «Concorrenza (PostgreSQL 17)»). Deploy di Vercel riuscito sul commit `2d28e7e`. Dettagli della sezione in [partner.md](partner.md), «Sezione Club».

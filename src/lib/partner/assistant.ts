@@ -118,7 +118,7 @@ export const PARTNER_ASSISTANT_REASON_LABELS = {
   seconda_lettura: "La seconda lettura ha trovato problemi anche nella bozza riscritta.",
   fatto_mancante: "La ricerca non ha trovato un fatto vero e recente da citare.",
   fuso_mancante: "Il fuso orario del destinatario non si ricava dalla scheda.",
-  // Modalità modello per i club (20261101000532_assistente_partner_modello).
+  // Modalità modello per i club (20261101012650_assistente_partner_modello).
   modello_controlli:
     "Il testo per i club con il nome di questo club non ha passato i controlli: va scritta a mano.",
   modello_bocciato:
