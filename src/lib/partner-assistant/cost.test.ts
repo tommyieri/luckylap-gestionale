@@ -84,6 +84,23 @@ describe("usage di una risposta", () => {
         }),
       ),
     ).toEqual({ ...zero, cacheWrite5mTokens: 200, cacheWrite1hTokens: 700 }));
+  it("le scritture oltre la ripartizione ferma a message_start vanno a 5 minuti", () =>
+    expect(
+      usageFromMessage(
+        withUsage({
+          cache_creation_input_tokens: 9000,
+          cache_creation: { ephemeral_5m_input_tokens: 100, ephemeral_1h_input_tokens: 2000 },
+        }),
+      ),
+    ).toEqual({ ...zero, cacheWrite5mTokens: 7000, cacheWrite1hTokens: 2000 }));
+  it("con la ripartizione e senza il totale, vale la ripartizione", () =>
+    expect(
+      usageFromMessage(
+        withUsage({
+          cache_creation: { ephemeral_5m_input_tokens: 200, ephemeral_1h_input_tokens: 700 },
+        }),
+      ),
+    ).toEqual({ ...zero, cacheWrite5mTokens: 200, cacheWrite1hTokens: 700 }));
   it("senza ripartizione, tutte le scritture in cache vanno a un'ora", () =>
     expect(usageFromMessage(withUsage({ cache_creation_input_tokens: 900 }))).toEqual({
       ...zero,

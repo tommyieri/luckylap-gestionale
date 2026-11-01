@@ -40,18 +40,25 @@ export function partnerAssistantCostUsd(usage: PartnerAssistantUsage): number {
   return Math.round(micro) / 1_000_000;
 }
 
-/** Il consumo dal campo `usage` di una risposta. Senza la ripartizione per durata, le scritture
- * in cache vanno tutte a un'ora: è la cache che usa l'assistente, e la stima resta per eccesso. */
+/** Il consumo dal campo `usage` di una risposta. Con lo streaming, `message_delta` aggiorna il
+ * totale delle scritture in cache ma non la ripartizione per durata, ferma a `message_start`: quel
+ * che il totale ha in più l'API lo scrive sui risultati degli strumenti, sempre a 5 minuti. Senza
+ * ripartizione le scritture vanno tutte a un'ora: è la cache del system prompt, e la stima resta
+ * per eccesso. */
 export function usageFromMessage(message: Pick<Anthropic.Message, "usage">): PartnerAssistantUsage {
   const usage = message.usage;
   const cacheCreation = usage.cache_creation;
+  const cacheWriteTokens = usage.cache_creation_input_tokens ?? 0;
   return {
     inputTokens: usage.input_tokens,
     outputTokens: usage.output_tokens,
-    cacheWrite5mTokens: cacheCreation ? cacheCreation.ephemeral_5m_input_tokens : 0,
-    cacheWrite1hTokens: cacheCreation
-      ? cacheCreation.ephemeral_1h_input_tokens
-      : (usage.cache_creation_input_tokens ?? 0),
+    cacheWrite5mTokens: cacheCreation
+      ? Math.max(
+          cacheCreation.ephemeral_5m_input_tokens,
+          cacheWriteTokens - cacheCreation.ephemeral_1h_input_tokens,
+        )
+      : 0,
+    cacheWrite1hTokens: cacheCreation ? cacheCreation.ephemeral_1h_input_tokens : cacheWriteTokens,
     cacheReadTokens: usage.cache_read_input_tokens ?? 0,
     webSearches: usage.server_tool_use?.web_search_requests ?? 0,
   };
