@@ -4,7 +4,8 @@ L'assistente lavora i contatti del modulo Partner con Claude: cerca notizie su o
 
 - la **prima consegna** («prepara», branch `claude/assistente-partner`, base `origin/main` a `3c58693`, pull request #22): ricerca e bozze salvate nel gestionale, nessun invio. È in produzione dal 28 ottobre 2026;
 - la **consegna 2a** («invio», branch `claude/assistente-partner-invio`): l'assistente manda le prime email già pronte e approvate, prima in prova verso le caselle di Tommaso e poi ai contatti. Vedi «Seconda consegna, parte 1 (2a): l'invio»;
-- la **modalità modello per i club** (branch `claude/assistente-modello-club`): per i contatti della sezione Club la prima email è il testo fisso approvato da Tommaso e Claude fa solo la seconda lettura. Vedi «Modalità modello per i club».
+- la **modalità modello per i club** (branch `claude/assistente-modello-club`): per i contatti della sezione Club la prima email è il testo fisso approvato da Tommaso e Claude fa solo la seconda lettura. Vedi «Modalità modello per i club»;
+- i **due lavori d'invio** (branch `claude/club-marca-alternanza`): il testo per i club nomina i modelli della marca del club, e le email del giorno si dividono a metà tra i club e gli altri contatti. Vedi «Due lavori d'invio».
 
 Il perché di ogni scelta è nella [specifica](superpowers/specs/2026-10-27-assistente-partner-design.md), approvata da Tommaso il 27 ottobre 2026. I passi di lavoro sono nei piani: [prima consegna](superpowers/plans/2026-10-27-assistente-partner-consegna-1.md) e [consegna 2a](superpowers/plans/2026-10-28-assistente-partner-consegna-2a.md). Il resto del modulo è in [partner.md](partner.md).
 
@@ -248,6 +249,7 @@ Codice: `src/lib/partner-assistant/mail-config.ts` (variabili), `mail-compose.ts
 - Tra due invii, di prova o veri, un intervallo casuale tra 4 e 11 minuti.
 - In «Prova» al massimo 15 email al giorno.
 - In «Invio» si manda solo con una ricerca di meno di 21 giorni; altrimenti il lavoro torna alla ricerca.
+- Dal 1° novembre 2026 il limite del giorno si divide a metà tra i club con il testo fisso e gli altri contatti: vedi «Due lavori d'invio».
 
 ### Ordine della coda
 
@@ -368,7 +370,7 @@ Lunedì 2 novembre: i primi 5 invii veri.
 Decisione di Tommi del 31 ottobre 2026: ai club l'assistente non fa ricerca, estrazione e scrittura con Claude, che costavano tra 0,33 e 0,41 USD a contatto. La prima email è il testo fisso approvato da Tommaso, con il nome del club, nella lingua del club; Claude fa solo la seconda lettura. Lo stesso giorno l'assistente è stato messo su «Spento», con 602 club in coda alla ricerca.
 
 - **Chi.** I contatti con `club` tra le sezioni ([partner.md](partner.md), «Sezione Club») che non sono anche un evento: un evento ha date e una proposta sua (oggi è il caso di «Porsche Club GB – Christmas at the Clubhouse») e resta sul percorso con Claude, come tutti gli altri contatti. I club della rete Scuderia Ferrari Club passano a Tommi con `rete_scuderia_ferrari`, senza bozza: il loro regolamento vieta magliette di terzi con il nome o il logo del club. Gli altri club Ferrari ricevono il testo (decisione di Tommi del 1° novembre 2026).
-- **Il testo.** In `src/lib/partner-assistant/template.ts`, versione 1 del 31 ottobre 2026: italiano (la versione accorciata della bozza di Tommaso), inglese britannico, tedesco con il «Sie», francese con il «vous», spagnolo; le altre lingue ricevono l'inglese. L'oggetto ha il nome del club; nel testo il nome è senza l'ultima parentesi della scheda («Porsche Club GB – Chiltern (R21)» diventa «Porsche Club GB – Chiltern»), con l'articolo giusto. La firma ha il cognome: «Tommaso Ieri», il ruolo, il telefono e `https://luckylap.com | Instagram @lucky.lap`. Il testo cita le collaborazioni con alcuni Porsche Club in Italia, le 150 magliette del Porsche Club Toscana, il ricamificio che ha lavorato per i Porsche Club e i modelli da uomo e da donna, confermati da Tommaso. Per cambiarlo si modifica il file, si alza `PARTNER_ASSISTANT_TEMPLATE_VERSION` e si apre una pull request: non c'è un editor nella pagina. Una bozza al controllo che non è più quella che il testo in vigore comporrebbe torna in scrittura e si ricompone, senza Claude; le bozze già «pronta» (al più 20) partono con il testo con cui sono state lette, a meno di salvare una nuova versione delle regole, che le rimette in scrittura.
+- **Il testo.** In `src/lib/partner-assistant/template.ts`, versione 1 del 31 ottobre 2026 (dalla versione 2 del 1° novembre con i modelli della marca del club, vedi «Due lavori d'invio»): italiano (la versione accorciata della bozza di Tommaso), inglese britannico, tedesco con il «Sie», francese con il «vous», spagnolo; le altre lingue ricevono l'inglese. L'oggetto ha il nome del club; nel testo il nome è senza l'ultima parentesi della scheda («Porsche Club GB – Chiltern (R21)» diventa «Porsche Club GB – Chiltern»), con l'articolo giusto. La firma ha il cognome: «Tommaso Ieri», il ruolo, il telefono e `https://luckylap.com | Instagram @lucky.lap`. Il testo cita le collaborazioni con alcuni Porsche Club in Italia, le 150 magliette del Porsche Club Toscana, il ricamificio che ha lavorato per i Porsche Club e i modelli da uomo e da donna, confermati da Tommaso. Per cambiarlo si modifica il file, si alza `PARTNER_ASSISTANT_TEMPLATE_VERSION` e si apre una pull request: non c'è un editor nella pagina. Una bozza al controllo che non è più quella che il testo in vigore comporrebbe torna in scrittura e si ricompone, senza Claude; le bozze già «pronta» (al più 20) partono con il testo con cui sono state lette, a meno di salvare una nuova versione delle regole, che le rimette in scrittura.
 - **Lingua e fuso.** La lingua viene dalla lingua scritta nella ricerca importata (`research.lang`, per esempio «tedesco» o «Français»), poi dal paese. Svizzera e Liechtenstein scrivono il tedesco senza «ß». Il fuso viene dal paese; per Stati Uniti, Canada, Australia e Brasile dallo stato scritto nella città o nel nome (i nomi senza maiuscole, le sigle solo in maiuscolo e come parola isolata), altrimenti un fuso centrale. Un paese senza fuso nell'elenco passa a Tommi con `fuso_mancante`.
 - **Il percorso.** A ogni passo prima del controllo (ricerca, estrazione o scrittura, compresi i ritorni indietro per ricerca scaduta, regole nuove o recapito cambiato) il worker compone la bozza, fa i controlli del codice (firma con il cognome, da 180 a 260 parole, nome del club fuori dai controlli sulle parole) e chiama `complete_partner_assistant_template`, senza Claude e senza costi. In una transazione la RPC scrive una nota di ricerca sostitutiva (con il segno `template` e la versione), una nota «scelta» composta dal database (club, `merch_cobranding`, lingua, registro, fuso, decisione «scrivi») e la bozza, con l'impronta ricalcolata; il lavoro va al controllo. Sezione, email, scheda o regole cambiate a metà passo danno `contesto_cambiato`, senza tentativi consumati. Se un contatto smette di usare il modello (tolto dalla sezione Club o diventato anche un evento) e il lavoro torna a estrazione o scrittura con le note del modello, la presa del lavoro lo riporta alla ricerca senza note né bozza: Claude non scrive mai sopra le note del modello, e la seconda lettura per i club vale solo per i contatti che usano ancora il modello. Al controllo la chiamata è `templateReviewCall`: il system resta il testo delle regole (la cache è comune), il messaggio dice che cosa delle regole non vale per un testo fisso e quali fatti sono confermati, con la scheda e la bozza, effort medio. Approvata: «Bozza pronta», poi l'invio come per gli altri contatti. Bocciata: a Tommi con `modello_bocciato`, mai una riscrittura (il testo tornerebbe uguale). Controlli del codice falliti: a Tommi con `modello_controlli`.
 - **Il tetto.** Con 20 o più bozze del modello pronte da inviare (contatti ancora idonei, come nella coda d'invio), la presa del lavoro salta i club prima del controllo; i lavori già al controllo continuano. Così la seconda lettura si paga solo per le email che partono a breve e le bozze non arrivano ai 21 giorni della ricerca scaduta.
@@ -384,3 +386,57 @@ Decisione di Tommi del 31 ottobre 2026: ai club l'assistente non fa ricerca, est
 - Prova sui 652 club importati il 31 ottobre: ogni bozza ha un fuso e passa i controlli del codice; 411 in inglese, 166 in tedesco, 32 in spagnolo, 30 in francese, 13 in italiano.
 - Revisione indipendente prima della pull request (SQL, codice e testi, con verifica avversaria): corretti i 15 problemi confermati. Segnalati anche quattro nomi nei dati; il 1° novembre 2026 una verifica sulle fonti primarie ha mostrato che «Ferrari Owners' Club Belgio», «Pagodentreff.de» e «Mercedes-Benz SLR.CLUB e.V.» sono i nomi ufficiali, e restano; «Luftgekühlt», che non è un club, è passato in Collab e quindi esce dalla modalità modello ([partner.md](partner.md), «Correzione del 1° novembre 2026»).
 
+## Due lavori d'invio
+
+Decisione di Tommi del 1° novembre 2026: da lunedì 2 novembre le prime email partono per due lavori separati.
+
+| Lavoro | Chi | Che cosa fa l'assistente |
+| --- | --- | --- |
+| Club | I contatti della sezione Club che non sono anche un evento (650 al 1° novembre: 441 Porsche, 123 Mercedes, 86 Ferrari) | Non prepara niente: la prima email è il testo fisso, con il nome, la lingua e la marca del club. Claude la rilegge (Tommi ha scelto di tenere la seconda lettura, qualche centesimo a club), poi l'assistente la manda. |
+| Gli altri | Eventi, collab, vendita, e i club che sono anche un evento | Cerca notizie, sceglie la proposta, scrive la bozza con Claude, la fa rileggere e la manda, come dalla prima consegna. |
+
+### Il testo per marca (versione 2)
+
+Nel terzo paragrafo, al posto di «Le grafiche le disegno personalmente, quindi possiamo partire dal modello che preferite.», il testo nomina i modelli LuckyLap della marca del club e dice che possiamo disegnare qualsiasi auto (Tommi: «per la Mercedes noi abbiamo la 300 SL, ma si può fare qualsiasi macchina loro vogliano»). In italiano:
+
+| Marca | Frase |
+| --- | --- |
+| Porsche | Le grafiche le disegno personalmente: in collezione abbiamo già la 964 e la GT3 RS, ma possiamo disegnare qualsiasi auto vogliate. |
+| Ferrari | … in collezione abbiamo già la F40 e la 512 TR, ma possiamo disegnare qualsiasi auto vogliate. |
+| Mercedes | … in collezione abbiamo già la 300 SL, ma possiamo disegnare qualsiasi auto vogliate. |
+| Nessuna delle tre | La frase di prima. |
+
+Le stesse frasi ci sono in inglese, tedesco (con il «Sie»), francese e spagnolo, con l'articolo della lingua. Il resto del testo non cambia, comprese le collaborazioni con alcuni Porsche Club in Italia, citate anche ai club Ferrari e Mercedes.
+
+- **La marca** viene dal nome e dal tipo della scheda (`partnerAssistantTemplateBrand`): Porsche per prima, poi Ferrari, poi Mercedes (anche «Benz», «300 SL» e «Gull Wing», per il Gull Wing Group, che nomina solo la 300 SL). Il 1° novembre ogni club della sezione ha una marca sola.
+- **I controlli** restano quelli della versione 1: con una comunità Porsche niente modelli diversi da 964 e GT3 RS; da 180 a 260 parole in ogni lingua e con ogni marca.
+- **La seconda lettura** sa quali modelli vanno con quale marca e riceve la marca nella scelta.
+- **Ferrari.** Il 1° novembre 2026 Tommi ha deciso che i club Ferrari fuori dalla rete Scuderia Ferrari Club partono da subito con la F40 e la 512 TR, anche se il parere legale sulle immagini e sulle silhouette delle auto Ferrari non c'è ancora. La rete Scuderia Ferrari Club resta fuori (`rete_scuderia_ferrari`).
+- **La versione** sale a 2. Una bozza del modello al controllo con il testo vecchio si ricompone senza Claude, come prima.
+
+### La quota del giorno
+
+Il limite del giorno resta uno (5 prime email nei primi 7 giorni dal primo invio vero, poi il limite della pagina, oggi 10) e si divide a metà tra i due lavori, con il posto dispari agli altri:
+
+| Limite | Altri | Club |
+| --- | --- | --- |
+| 5 (prima settimana) | 3 | 2 |
+| 10 (dopo) | 5 | 5 |
+
+- Un lavoro con la sua metà già mandata oggi lascia i posti all'altro finché l'altro ha email pronte (lavori «pronta» di contatti idonei, cioè la coda d'invio). Così una fila fuori finestra non perde i suoi posti: i club americani, chiusi la mattina di Roma, partono quando si apre la loro finestra (dalle 15:30 di Roma per la costa est).
+- Se un lavoro non ha email pronte, l'altro usa anche i suoi posti.
+- Il lavoro di un'email viene dalla bozza: bozza del testo fisso (segno `template` nella nota di ricerca) o bozza di Claude. Un'email senza bozza, dopo la cancellazione definitiva del recapito, conta per il lavoro della sezione della scheda.
+- «Manda per primo» resta il primo criterio della coda, dentro la quota del suo lavoro. L'ordine della coda non cambia.
+- Un giro che non trova un candidato solo per la quota risponde `limite`, come per il limite del giorno; con righe fuori finestra risponde `fuori_finestra`. Nessun codice nuovo.
+- La pagina mostra ancora il totale del giorno («Oggi: 3 email su 5»), non le due metà.
+- Il giorno si conta sull'ora di Roma: una prima email in Nuova Zelanda o in Australia alle 9:30 del lunedì locale parte la domenica sera di Roma e conta per la domenica.
+
+### Codice e migrazione
+
+- `src/lib/partner-assistant/template.ts`: `PartnerAssistantTemplateBrand`, `partnerAssistantTemplateBrand`, la frase per marca nelle cinque lingue, `brand` nella bozza composta, `PARTNER_ASSISTANT_TEMPLATE_VERSION` a 2. `prompts.ts`: la seconda lettura con i modelli per marca e la marca nella scelta. La guida ne parla nella parte «L'assistente».
+- `supabase/migrations/20261101101500_assistente_partner_due_lavori.sql`, additiva: `private.partner_assistant_flow_sent` (prime email vere di oggi di un lavoro), `private.partner_assistant_flow_share` (la metà del limite), `claim_partner_assistant_send` sostituita con la quota, stessa firma e stessi permessi. L'ordine della coda, il limite totale, `start` e `finish` non cambiano. Nessun ruolo client esegue le funzioni nuove.
+
+### Test dei due lavori
+
+- `npm test`: `template.test.ts` (marca dal nome e dal tipo, modelli e «qualsiasi auto» in ogni lingua, da 180 a 260 parole e controlli superati con ogni marca), `prompts.test.ts` (modelli per marca e marca nella scelta), `worker.test.ts` (versione 2, frase Porsche nella bozza).
+- `npm run test:db`: `assistente-partner-due-lavori.mjs` (PGlite, 41 controlli: permessi, metà del limite con 5, 7 e 10, ordine della coda invariato, club scelto quando gli altri hanno le loro 3, posti tenuti per i club fuori finestra fino alla loro finestra, posti liberi a chi ha email pronte, ricerca scaduta che esce dalla coda nello stesso giro, email senza bozza, prima settimana e dopo, «Prepara»). Con la claim di prima l'harness fallisce al primo caso della quota. In locale anche `assistente-partner-invio.mjs` con le migrazioni nuove applicate: 429 controlli, stesso esito.

@@ -1652,7 +1652,7 @@ describe("modalità modello per i club", () => {
     expect(lease).toEqual(state.lease);
     expect(operationId).toMatch(UUID);
     expect(input).toMatchObject({
-      templateVersion: 1,
+      templateVersion: 2,
       register: "sie",
       timezone: "Europe/Berlin",
       porscheCommunity: true,
@@ -1664,6 +1664,9 @@ describe("modalità modello per i club", () => {
     expect(input.draft.subject).toBe("T-Shirts für die Mitglieder des Porsche Club Sintetico");
     expect(input.draft.body).toContain("mit dem Porsche Club Sintetico umsetzen");
     expect(input.draft.body).not.toContain("(PCS)");
+    expect(input.draft.body).toContain(
+      "In unserer Kollektion haben wir bereits den 964 und den GT3 RS",
+    );
     expect(input.draft.body).toContain("freundliche Grüße");
     expect(input.draft.signature.split("\n")).toEqual([
       "Tommaso Ieri",

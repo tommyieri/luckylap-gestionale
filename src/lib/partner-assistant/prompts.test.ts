@@ -546,6 +546,19 @@ describe("templateReviewCall", () => {
     expect(text).toContain("senza «ß»");
   });
 
+  it("conosce i modelli per marca e passa la marca del club nella scelta", () => {
+    expect(text).toContain("Porsche 964 e GT3 RS, Ferrari F40 e 512 TR, Mercedes 300 SL");
+    expect(text).toContain("qualsiasi auto il club voglia");
+    expect(text).toContain('"marca": "porsche"');
+    const mercedes = userText(
+      templateReviewCall({
+        ...ctx,
+        partner: { ...ctx.partner, name: "Mercedes-Benz Club Sintetico", typeLabel: "Club" },
+      }),
+    );
+    expect(mercedes).toContain('"marca": "mercedes"');
+  });
+
   it("legge la bozza e la scheda, senza ricerca né firma", () => {
     expect(text).toContain(ctx.draft?.subject);
     expect(text).toContain(ctx.draft?.body);

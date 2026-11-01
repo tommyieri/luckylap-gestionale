@@ -1,7 +1,8 @@
 // Modalità modello per i club (decisione di Tommi del 31 ottobre 2026): per i contatti della sezione
 // Club la prima email non la scrive Claude. Il codice la compone dal testo fisso approvato da Tommaso,
-// tradotto una volta in cinque lingue, con il nome del club; Claude fa solo la seconda lettura. La
-// versione va nella nota di ricerca sostitutiva: per cambiare il testo si cambia anche la versione.
+// tradotto una volta in cinque lingue, con il nome del club e, dalla versione 2 (1° novembre 2026),
+// i modelli che abbiamo già della marca del club; Claude fa solo la seconda lettura. La versione va
+// nella nota di ricerca sostitutiva: per cambiare il testo si cambia anche la versione.
 import type {
   PartnerAssistantContext,
   PartnerAssistantLanguage,
@@ -9,7 +10,7 @@ import type {
   PartnerAssistantRegister,
 } from "./types";
 
-export const PARTNER_ASSISTANT_TEMPLATE_VERSION = 1;
+export const PARTNER_ASSISTANT_TEMPLATE_VERSION = 2;
 
 /** Il registro di ogni lingua, come lo controlla complete_partner_assistant_template. */
 export const PARTNER_ASSISTANT_TEMPLATE_REGISTER: Record<
@@ -57,14 +58,67 @@ const germanWith = (club: string) =>
 /** Il punto di fine frase, senza raddoppiarlo dopo «Inc.», «e.V.» o «r.y.». */
 const stop = (text: string) => (text.endsWith(".") ? text : `${text}.`);
 
-type TemplateText = { subject: (club: string) => string; body: (club: string) => string };
+/** La marca del club: decide i modelli nominati nel testo. null: nessuna delle tre, frase generica. */
+export type PartnerAssistantTemplateBrand = "porsche" | "ferrari" | "mercedes" | null;
 
-/** Il testo approvato da Tommaso il 31 ottobre 2026 (versione accorciata), con le traduzioni. La prima
- * riga è il saluto e l'ultima la chiusura: il conteggio delle parole le salta. */
+/** I modelli LuckyLap della marca, con l'articolo della lingua (Magazzino › Giacenze, «Magliette
+ * disponibili»): 964 e GT3 RS, F40 e 512 TR, 300 SL. */
+const BRAND_MODELS: Record<
+  PartnerAssistantLanguage,
+  Record<Exclude<PartnerAssistantTemplateBrand, null>, string>
+> = {
+  it: { porsche: "la 964 e la GT3 RS", ferrari: "la F40 e la 512 TR", mercedes: "la 300 SL" },
+  en: {
+    porsche: "the 964 and the GT3 RS",
+    ferrari: "the F40 and the 512 TR",
+    mercedes: "the 300 SL",
+  },
+  de: {
+    porsche: "den 964 und den GT3 RS",
+    ferrari: "den F40 und den 512 TR",
+    mercedes: "den 300 SL",
+  },
+  fr: { porsche: "la 964 et la GT3 RS", ferrari: "la F40 et la 512 TR", mercedes: "la 300 SL" },
+  es: { porsche: "el 964 y el GT3 RS", ferrari: "el F40 y el 512 TR", mercedes: "el 300 SL" },
+};
+
+/** La frase sulle grafiche: con la marca, i modelli che abbiamo già e qualsiasi auto il club voglia
+ * (decisione di Tommi del 1° novembre 2026); senza, il modello che preferiscono. */
+const DESIGN: Record<PartnerAssistantLanguage, (brand: PartnerAssistantTemplateBrand) => string> = {
+  it: (brand) =>
+    brand
+      ? `Le grafiche le disegno personalmente: in collezione abbiamo già ${BRAND_MODELS.it[brand]}, ma possiamo disegnare qualsiasi auto vogliate.`
+      : "Le grafiche le disegno personalmente, quindi possiamo partire dal modello che preferite.",
+  en: (brand) =>
+    brand
+      ? `I draw the designs myself: our collection already includes ${BRAND_MODELS.en[brand]}, but we can design any car you would like.`
+      : "I draw the designs myself, so we can start from the model you prefer.",
+  de: (brand) =>
+    brand
+      ? `Die Motive zeichne ich selbst: In unserer Kollektion haben wir bereits ${BRAND_MODELS.de[brand]}, wir können aber jedes Auto gestalten, das Sie sich wünschen.`
+      : "Die Motive zeichne ich selbst, wir können also von dem Modell ausgehen, das Ihnen am liebsten ist.",
+  fr: (brand) =>
+    brand
+      ? `Je dessine moi-même les motifs : notre collection compte déjà ${BRAND_MODELS.fr[brand]}, mais nous pouvons dessiner n'importe quelle voiture de votre choix.`
+      : "Je dessine moi-même les motifs, nous pouvons donc partir du modèle que vous préférez.",
+  es: (brand) =>
+    brand
+      ? `Los diseños los dibujo yo mismo: en la colección ya tenemos ${BRAND_MODELS.es[brand]}, pero podemos diseñar cualquier automóvil que deseen.`
+      : "Los diseños los dibujo yo mismo, así que podemos partir del modelo que prefieran.",
+};
+
+type TemplateText = {
+  subject: (club: string) => string;
+  body: (club: string, brand: PartnerAssistantTemplateBrand) => string;
+};
+
+/** Il testo approvato da Tommaso il 31 ottobre 2026 (versione accorciata), con le traduzioni e, dalla
+ * versione 2, la frase sulle grafiche con la marca del club. La prima riga è il saluto e l'ultima la
+ * chiusura: il conteggio delle parole le salta. */
 export const PARTNER_ASSISTANT_TEMPLATES: Record<PartnerAssistantLanguage, TemplateText> = {
   it: {
     subject: (club) => `Magliette dedicate ai soci ${italianOf(club)}`,
-    body: (club) =>
+    body: (club, brand) =>
       [
         "Buongiorno,",
         "",
@@ -72,7 +126,7 @@ export const PARTNER_ASSISTANT_TEMPLATES: Record<PartnerAssistantLanguage, Templ
         "",
         `Abbiamo già avviato collaborazioni con alcuni Porsche Club in Italia: per il Porsche Club Toscana abbiamo realizzato 150 magliette dedicate ai soci, con il logo del club ricamato sulla manica. Vorremmo ora estendere il progetto ad altri club in Europa e nel resto del mondo, e ci farebbe piacere farlo con ${stop(club)}`,
         "",
-        "Possiamo sviluppare insieme una versione esclusiva: l'auto da rappresentare, il colore della maglietta e del ricamo, la posizione del vostro logo. Le grafiche le disegno personalmente, quindi possiamo partire dal modello che preferite. Ci appoggiamo a un ricamificio che ha già lavorato per i Porsche Club e seguiamo il progetto dalla grafica al confezionamento, con modelli da uomo e da donna.",
+        `Possiamo sviluppare insieme una versione esclusiva: l'auto da rappresentare, il colore della maglietta e del ricamo, la posizione del vostro logo. ${DESIGN.it(brand)} Ci appoggiamo a un ricamificio che ha già lavorato per i Porsche Club e seguiamo il progetto dalla grafica al confezionamento, con modelli da uomo e da donna.`,
         "",
         "Può essere un regalo per i soci, un ricordo di un anniversario o di un raduno, oppure una piccola collezione del club. Quantità e condizioni le definiamo insieme.",
         "",
@@ -83,7 +137,7 @@ export const PARTNER_ASSISTANT_TEMPLATES: Record<PartnerAssistantLanguage, Templ
   },
   en: {
     subject: (club) => `T-shirts for the members of ${club}`,
-    body: (club) =>
+    body: (club, brand) =>
       [
         "Hello,",
         "",
@@ -91,7 +145,7 @@ export const PARTNER_ASSISTANT_TEMPLATES: Record<PartnerAssistantLanguage, Templ
         "",
         `We have already started working with several Porsche Clubs in Italy: for the Porsche Club Toscana we made 150 T-shirts for its members, with the club logo embroidered on the sleeve. We would now like to take the project to other clubs in Europe and around the world, and we would be glad to do it with ${stop(club)}`,
         "",
-        "We can develop an exclusive version together: the car to feature, the colour of the T-shirt and of the embroidery, the position of your logo. I draw the designs myself, so we can start from the model you prefer. We work with an embroidery workshop that has already worked for Porsche Clubs, and we follow the project from the design to the finished, packed garment, with men's and women's cuts.",
+        `We can develop an exclusive version together: the car to feature, the colour of the T-shirt and of the embroidery, the position of your logo. ${DESIGN.en(brand)} We work with an embroidery workshop that has already worked for Porsche Clubs, and we follow the project from the design to the finished, packed garment, with men's and women's cuts.`,
         "",
         "It can be a gift for members, a keepsake for an anniversary or a meeting, or a small collection for the club. Quantities and terms are agreed together.",
         "",
@@ -102,7 +156,7 @@ export const PARTNER_ASSISTANT_TEMPLATES: Record<PartnerAssistantLanguage, Templ
   },
   de: {
     subject: (club) => `T-Shirts für die Mitglieder ${germanOf(club)}`,
-    body: (club) =>
+    body: (club, brand) =>
       [
         "Sehr geehrte Damen und Herren,",
         "",
@@ -110,7 +164,7 @@ export const PARTNER_ASSISTANT_TEMPLATES: Record<PartnerAssistantLanguage, Templ
         "",
         `Wir arbeiten bereits mit einigen Porsche Clubs in Italien zusammen: Für den Porsche Club Toscana haben wir 150 T-Shirts für die Mitglieder gefertigt, mit dem Clublogo auf dem Ärmel gestickt. Nun möchten wir das Projekt auf weitere Clubs in Europa und weltweit ausweiten, und wir würden es gern mit ${germanWith(club)} umsetzen.`,
         "",
-        "Gemeinsam können wir eine exklusive Version entwickeln: das Auto, die Farbe des T-Shirts und der Stickerei, die Position Ihres Logos. Die Motive zeichne ich selbst, wir können also von dem Modell ausgehen, das Ihnen am liebsten ist. Wir arbeiten mit einer Stickerei, die bereits für Porsche Clubs gearbeitet hat, und begleiten das Projekt vom Entwurf bis zur fertigen Verpackung, mit Schnitten für Damen und Herren.",
+        `Gemeinsam können wir eine exklusive Version entwickeln: das Auto, die Farbe des T-Shirts und der Stickerei, die Position Ihres Logos. ${DESIGN.de(brand)} Wir arbeiten mit einer Stickerei, die bereits für Porsche Clubs gearbeitet hat, und begleiten das Projekt vom Entwurf bis zur fertigen Verpackung, mit Schnitten für Damen und Herren.`,
         "",
         "Es kann ein Geschenk für die Mitglieder sein, eine Erinnerung an ein Jubiläum oder ein Treffen oder eine kleine Kollektion des Clubs. Mengen und Konditionen legen wir gemeinsam fest.",
         "",
@@ -121,7 +175,7 @@ export const PARTNER_ASSISTANT_TEMPLATES: Record<PartnerAssistantLanguage, Templ
   },
   fr: {
     subject: (club) => `Des t-shirts pour les membres ${frenchOf(club)}`,
-    body: (club) =>
+    body: (club, brand) =>
       [
         "Bonjour,",
         "",
@@ -129,7 +183,7 @@ export const PARTNER_ASSISTANT_TEMPLATES: Record<PartnerAssistantLanguage, Templ
         "",
         `Nous avons déjà lancé des collaborations avec plusieurs Porsche Clubs en Italie : pour le Porsche Club Toscana, nous avons réalisé 150 t-shirts dédiés aux membres, avec le logo du club brodé sur la manche. Nous aimerions maintenant étendre le projet à d'autres clubs en Europe et dans le monde, et nous serions heureux de le faire avec ${stop(frenchWith(club))}`,
         "",
-        "Nous pouvons créer ensemble une version exclusive : la voiture à représenter, la couleur du t-shirt et de la broderie, l'emplacement de votre logo. Je dessine moi-même les motifs, nous pouvons donc partir du modèle que vous préférez. Nous travaillons avec un atelier de broderie qui a déjà travaillé pour des Porsche Clubs, et nous suivons le projet du dessin jusqu'à l'emballage, avec des coupes homme et femme.",
+        `Nous pouvons créer ensemble une version exclusive : la voiture à représenter, la couleur du t-shirt et de la broderie, l'emplacement de votre logo. ${DESIGN.fr(brand)} Nous travaillons avec un atelier de broderie qui a déjà travaillé pour des Porsche Clubs, et nous suivons le projet du dessin jusqu'à l'emballage, avec des coupes homme et femme.`,
         "",
         "Ce peut être un cadeau pour les membres, un souvenir d'anniversaire ou de rassemblement, ou une petite collection du club. Les quantités et les conditions se définissent ensemble.",
         "",
@@ -140,7 +194,7 @@ export const PARTNER_ASSISTANT_TEMPLATES: Record<PartnerAssistantLanguage, Templ
   },
   es: {
     subject: (club) => `Camisetas para los socios ${spanishOf(club)}`,
-    body: (club) =>
+    body: (club, brand) =>
       [
         "Buenos días,",
         "",
@@ -148,7 +202,7 @@ export const PARTNER_ASSISTANT_TEMPLATES: Record<PartnerAssistantLanguage, Templ
         "",
         `Ya hemos empezado a colaborar con varios Porsche Club en Italia: para el Porsche Club Toscana hicimos 150 camisetas dedicadas a los socios, con el logotipo del club bordado en la manga. Ahora nos gustaría llevar el proyecto a otros clubes de Europa y del resto del mundo, y nos encantaría hacerlo con ${stop(spanishWith(club))}`,
         "",
-        "Podemos desarrollar juntos una versión exclusiva: el automóvil que se quiera representar, el color de la camiseta y del bordado, la posición de su logotipo. Los diseños los dibujo yo mismo, así que podemos partir del modelo que prefieran. Trabajamos con un taller de bordado que ya ha trabajado para los Porsche Club y seguimos el proyecto desde el diseño hasta el embalaje, con modelos de hombre y de mujer.",
+        `Podemos desarrollar juntos una versión exclusiva: el automóvil que se quiera representar, el color de la camiseta y del bordado, la posición de su logotipo. ${DESIGN.es(brand)} Trabajamos con un taller de bordado que ya ha trabajado para los Porsche Club y seguimos el proyecto desde el diseño hasta el embalaje, con modelos de hombre y de mujer.`,
         "",
         "Puede ser un regalo para los socios, un recuerdo de un aniversario o de una concentración, o una pequeña colección del club. Las cantidades y las condiciones las definimos juntos.",
         "",
@@ -496,6 +550,19 @@ export function partnerAssistantTemplatePorsche(
   return /porsche/iu.test(`${partner.name} ${partner.typeLabel}`);
 }
 
+/** La marca dal nome e dal tipo della scheda, Porsche per prima come sopra. Mercedes anche dai club
+ * che nominano solo la 300 SL («Gull Wing Group International (club 300 SL)»). */
+export function partnerAssistantTemplateBrand(
+  partner: Pick<PartnerAssistantPartner, "name" | "typeLabel">,
+): PartnerAssistantTemplateBrand {
+  const text = `${partner.name} ${partner.typeLabel}`;
+  if (partnerAssistantTemplatePorsche(partner)) return "porsche";
+  if (/ferrari/iu.test(text)) return "ferrari";
+  if (/mercedes|(?<!\p{L})benz(?!\p{L})|300\s?SL(?!\p{L})|gull\s?wing/iu.test(text))
+    return "mercedes";
+  return null;
+}
+
 // ---------------------------------------------------------------------------
 // La bozza
 // ---------------------------------------------------------------------------
@@ -505,6 +572,7 @@ export type PartnerAssistantTemplateDraft = {
   register: PartnerAssistantRegister;
   timezone: string;
   porscheCommunity: boolean;
+  brand: PartnerAssistantTemplateBrand;
   swiss: boolean;
   subject: string;
   body: string;
@@ -538,6 +606,7 @@ export function composePartnerAssistantTemplate(
   const language = partnerAssistantTemplateLanguage(partner);
   const swiss = partnerAssistantTemplateSwiss(partner, language);
   const club = partnerAssistantTemplateClubName(partner.name);
+  const brand = partnerAssistantTemplateBrand(partner);
   const text = PARTNER_ASSISTANT_TEMPLATES[language];
   const plain = (value: string) => (swiss ? value.replaceAll("ß", "ss") : value);
   return {
@@ -545,9 +614,10 @@ export function composePartnerAssistantTemplate(
     register: PARTNER_ASSISTANT_TEMPLATE_REGISTER[language],
     timezone,
     porscheCommunity: partnerAssistantTemplatePorsche(partner),
+    brand,
     swiss,
     subject: plain(text.subject(club)),
-    body: plain(text.body(club)),
+    body: plain(text.body(club, brand)),
     signature: partnerAssistantTemplateSignature(language, phone),
   };
 }

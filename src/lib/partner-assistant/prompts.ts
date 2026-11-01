@@ -9,6 +9,7 @@ import type { PartnerAssistantCheckCode } from "./checks";
 import { partnerAssistantEventMerch } from "./choice";
 import type { ClaudeCall } from "./claude";
 import { PARTNER_ASSISTANT_CHOICE_KEYS } from "./choice-fields";
+import { partnerAssistantTemplateBrand } from "./template";
 import type {
   PartnerAssistantChoice,
   PartnerAssistantContext,
@@ -358,9 +359,9 @@ export function templateReviewCall(context: PartnerAssistantContext): ClaudeCall
       "1. il nome del club è inserito bene: articoli, preposizioni e concordanze giuste nella lingua della bozza, e il nome non contiene note in un'altra lingua;",
       "2. la lingua è corretta e naturale per un club di quel paese, senza errori di grammatica o di battitura e senza frasi tagliate; per un club in Svizzera il tedesco si scrive senza «ß»;",
       "3. non c'è niente di quello che le regole vietano sempre: Made in Italy, case automobilistiche come partner, prezzi, sconti, campioni, quantità minime, età, link diversi da https://luckylap.com, segnaposto;",
-      "4. con una comunità Porsche non compaiono modelli diversi da 964 e GT3 RS (il testo non ne nomina; un modello che fa parte del nome del club, come «993 Register» o «356 Club», non conta e non si segnala).",
+      "4. i modelli nominati sono quelli della marca del club (marca nella scelta): Porsche 964 e GT3 RS, Ferrari F40 e 512 TR, Mercedes 300 SL; senza marca nessun modello. Con una comunità Porsche non compaiono modelli diversi da 964 e GT3 RS (un modello che fa parte del nome del club, come «993 Register» o «356 Club», non conta e non si segnala).",
       "",
-      "Questi fatti sono confermati da Tommaso e vanno bene così: collaborazioni avviate con alcuni Porsche Club in Italia; 150 magliette dedicate ai soci del Porsche Club Toscana, con il logo del club ricamato sulla manica; un ricamificio che ha già lavorato per i Porsche Club; modelli da uomo e da donna; cotone biologico; le grafiche le disegna Tommaso.",
+      "Questi fatti sono confermati da Tommaso e vanno bene così: collaborazioni avviate con alcuni Porsche Club in Italia, citate anche ai club Ferrari e Mercedes; 150 magliette dedicate ai soci del Porsche Club Toscana, con il logo del club ricamato sulla manica; un ricamificio che ha già lavorato per i Porsche Club; modelli da uomo e da donna; cotone biologico; le grafiche le disegna Tommaso; in collezione ci sono già 964 e GT3 RS, F40 e 512 TR, 300 SL, e si può disegnare qualsiasi auto il club voglia.",
       "",
       "Approva (approved true, problems vuoto) se la bozza va bene. Altrimenti approved false e in problems un problema per voce, in italiano, in una frase breve.",
       "",
@@ -374,6 +375,7 @@ export function templateReviewCall(context: PartnerAssistantContext): ClaudeCall
           language: choice.language,
           swiss: choice.swiss,
           porsche_community: choice.porscheCommunity,
+          marca: partnerAssistantTemplateBrand(context.partner),
         }),
       ),
       "",
