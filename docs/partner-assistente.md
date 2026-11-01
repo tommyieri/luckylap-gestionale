@@ -140,6 +140,8 @@ select (created_at at time zone 'Europe/Rome')::date as giorno, count(*) as chia
 from private.partner_assistant_runs group by 1 order by 1;
 ```
 
+Le righe registrate fino al 1° novembre 2026 sottostimano le ricerche web: non contano le scritture in cache a 5 minuti fatte dopo `message_start`. Non si possono ricalcolare, perché il totale di quelle scritture non è mai stato salvato. Per questo il 1° novembre il credito di partenza è stato riallineato al saldo letto nella Console: non è più la somma delle ricariche. La correzione del conteggio vale per le chiamate successive al suo deploy. Se la stima si allontana di nuovo dalla Console, fa fede la Console.
+
 Il credito Anthropic scade il 5 novembre 2026: la stima della specifica è tra 0,6 e 1,2 USD per contatto, tra ricerca, scrittura e seconda lettura.
 
 ## Avvio della prima consegna
