@@ -435,9 +435,18 @@ Il limite del giorno resta uno (5 prime email nei primi 7 giorni dal primo invio
 ### Codice e migrazione
 
 - `src/lib/partner-assistant/template.ts`: `PartnerAssistantTemplateBrand`, `partnerAssistantTemplateBrand`, la frase per marca nelle cinque lingue, `brand` nella bozza composta, `PARTNER_ASSISTANT_TEMPLATE_VERSION` a 2. `prompts.ts`: la seconda lettura con i modelli per marca e la marca nella scelta. La guida ne parla nella parte «L'assistente».
-- `supabase/migrations/20261101101500_assistente_partner_due_lavori.sql`, additiva: `private.partner_assistant_flow_sent` (prime email vere di oggi di un lavoro), `private.partner_assistant_flow_share` (la metà del limite), `claim_partner_assistant_send` sostituita con la quota, stessa firma e stessi permessi. L'ordine della coda, il limite totale, `start` e `finish` non cambiano. Nessun ruolo client esegue le funzioni nuove.
+- `supabase/migrations/20261101102208_assistente_partner_due_lavori.sql`, additiva: `private.partner_assistant_flow_sent` (prime email vere di oggi di un lavoro), `private.partner_assistant_flow_share` (la metà del limite), `claim_partner_assistant_send` sostituita con la quota, stessa firma e stessi permessi. L'ordine della coda, il limite totale, `start` e `finish` non cambiano. Nessun ruolo client esegue le funzioni nuove. In produzione dal 1° novembre 2026 (versione cloud `20261101102208`), applicata da Claude prima del merge, con l'OK di Tommi («io approvo tutto», «da domani devono partire le mail per entrambi i lavori») e la procedura delle impronte; esiti in [verification.md](verification.md), «Due lavori d'invio, 1° novembre 2026».
 
 ### Test dei due lavori
 
 - `npm test`: `template.test.ts` (marca dal nome e dal tipo, modelli e «qualsiasi auto» in ogni lingua, da 180 a 260 parole e controlli superati con ogni marca), `prompts.test.ts` (modelli per marca e marca nella scelta), `worker.test.ts` (versione 2, frase Porsche nella bozza).
 - `npm run test:db`: `assistente-partner-due-lavori.mjs` (PGlite, 41 controlli: permessi, metà del limite con 5, 7 e 10, ordine della coda invariato, club scelto quando gli altri hanno le loro 3, posti tenuti per i club fuori finestra fino alla loro finestra, posti liberi a chi ha email pronte, ricerca scaduta che esce dalla coda nello stesso giro, email senza bozza, prima settimana e dopo, «Prepara»). Con la claim di prima l'harness fallisce al primo caso della quota. In locale anche `assistente-partner-invio.mjs` con le migrazioni nuove applicate: 429 controlli, stesso esito.
+
+### Avvio dei due lavori
+
+Stato al 1° novembre 2026, prima del merge: assistente «Spento» dal 31 ottobre, prova confermata il 30 ottobre, nessuna email vera partita. In coda: 41 bozze pronte degli altri contatti (Milano AutoClassica per prima, con «Manda per primo»), 600 club alla ricerca, credito stimato circa 32 USD.
+
+1. Merge della pull request (deploy su Vercel con il testo versione 2).
+2. «Prepara»: l'assistente compone le bozze dei club (fino a 20 pronte) e le fa rileggere a Claude; per gli altri contatti riprende ricerca e scrittura con Claude.
+3. «Invio» lunedì 2 novembre prima delle 9:30 di Roma, così la prima email è quella di Milano AutoClassica, come deciso il 30 ottobre. Acceso prima, partirebbero già la domenica sera di Roma i contatti in Nuova Zelanda e Australia, dove è lunedì mattina.
+4. Dal 2 novembre: 3 email agli altri e 2 ai club ogni giorno feriale per la prima settimana, poi 5 e 5. Se il credito Anthropic finisce, l'assistente va in pausa solo per la preparazione: gli invii delle bozze già pronte continuano.
