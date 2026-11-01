@@ -12,6 +12,7 @@ import {
   partnerAssistantCutShort,
   researchCall,
   reviewCall,
+  templateReviewCall,
   writeCall,
 } from "./prompts";
 import type { PartnerAssistantChoice, PartnerAssistantContext } from "./types";
@@ -517,6 +518,45 @@ describe("reviewCall", () => {
 
   it("senza bozza non si costruisce", () => {
     expect(() => reviewCall({ ...evCtx, draft: null })).toThrow();
+  });
+});
+
+describe("templateReviewCall", () => {
+  const call = templateReviewCall(ctx);
+  const text = userText(call);
+
+  it("stesso system delle regole, effort medium, 8000 token, approved e problems", () => {
+    expect(call.system).toBe(ctx.rules.body);
+    expect(call.effort).toBe("medium");
+    expect(call.maxTokens).toBe(8000);
+    expect(call.tools).toBeUndefined();
+    expect(call.format).toEqual(reviewCall(ctx).format);
+  });
+
+  it("dice che è il testo fisso di Tommaso e quali regole non valgono", () => {
+    expect(text).toContain("testo fisso per i club");
+    expect(text).toContain("non le segnali");
+    expect(text).toContain("nome della persona nel saluto");
+  });
+
+  it("ha i fatti confermati e i divieti di sempre", () => {
+    expect(text).toContain("150 magliette dedicate ai soci del Porsche Club Toscana");
+    expect(text).toContain("modelli da uomo e da donna");
+    expect(text).toContain("Made in Italy");
+    expect(text).toContain("senza «ß»");
+  });
+
+  it("legge la bozza e la scheda, senza ricerca né firma", () => {
+    expect(text).toContain(ctx.draft?.subject);
+    expect(text).toContain(ctx.draft?.body);
+    expect(text).not.toContain("<ricerca>");
+    expect(text).not.toContain(ctx.research?.text);
+    expect(text).not.toContain(phone);
+  });
+
+  it("senza bozza o senza scelta non si costruisce", () => {
+    expect(() => templateReviewCall({ ...ctx, draft: null })).toThrow();
+    expect(() => templateReviewCall({ ...ctx, choice: null })).toThrow();
   });
 });
 

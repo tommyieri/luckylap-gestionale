@@ -41,6 +41,7 @@ import {
   partnerAssistantRequired as required,
   researchCall,
   reviewCall,
+  templateReviewCall,
   writeCall,
 } from "./prompts";
 import { runPartnerAssistantSendStep, type PartnerAssistantSendDependencies } from "./send";
@@ -50,9 +51,18 @@ import {
   PARTNER_ASSISTANT_RPC_TIMEOUT_MS,
   type PartnerAssistantStore,
 } from "./store";
+import {
+  composePartnerAssistantTemplate,
+  PARTNER_ASSISTANT_TEMPLATE_REASON,
+  PARTNER_ASSISTANT_TEMPLATE_VERSION,
+  partnerAssistantTemplateBlocked,
+  partnerAssistantTemplateClubName,
+  partnerAssistantUsesTemplate,
+} from "./template";
 import type {
   PartnerAssistantContext,
   PartnerAssistantDone,
+  PartnerAssistantDraft,
   PartnerAssistantFailKind,
   PartnerAssistantLease,
   PartnerAssistantPauseReason,
@@ -241,7 +251,9 @@ function stepPlan(
       };
     }
     case "controllo": {
-      const input = reviewCall(context);
+      // Una bozza del testo fisso per i club ha la sua seconda lettura: le regole sul fatto della
+      // ricerca e sul nome della persona non valgono per un testo approvato da Tommaso.
+      const input = templateDraftOf(context) ? templateReviewCall(context) : reviewCall(context);
       const draft = required(context.draft, "bozza_mancante");
       return {
         input,
@@ -259,6 +271,62 @@ function stepPlan(
       };
     }
   }
+}
+
+/** Le note del lavoro vengono dal testo fisso per i club (la frase della scelta). */
+const templateNotes = (context: PartnerAssistantContext) =>
+  PARTNER_ASSISTANT_TEMPLATE_REASON.test(context.choice?.content.reasonIt ?? "");
+/** Una bozza del modello di un contatto che usa ancora il modello: la seconda lettura per i club. */
+const templateDraftOf = (context: PartnerAssistantContext) =>
+  partnerAssistantUsesTemplate(context) && templateNotes(context);
+
+/** Il paese del club non ha un fuso nell'elenco: il contatto passa a Tommi. */
+const FUSO_MANCANTE: Complete = () => Promise.resolve({ ok: false });
+
+/** La bozza del testo fisso per i club e la sua conclusione, oppure FUSO_MANCANTE. Lancia
+ * PartnerAssistantMissingError se il contatto ha perso l'email. */
+function templateConclusion(
+  context: PartnerAssistantContext,
+  lease: PartnerAssistantLease,
+  store: PartnerAssistantStore,
+  config: PartnerAssistantConfig,
+): Complete {
+  const email = required(context.email, "email_mancante");
+  const composed = composePartnerAssistantTemplate(context.partner, config.phone);
+  if (!composed) return FUSO_MANCANTE;
+  const draft: PartnerAssistantDraft = {
+    language: composed.language,
+    subject: composed.subject,
+    body: composed.body,
+    signature: composed.signature,
+    sha256: partnerAssistantDraftSha256(composed),
+    rulesVersion: context.rules.version,
+    partnerVersion: context.partner.version,
+    contactId: email.contactId,
+  };
+  const checks = checkPartnerAssistantDraft(draft, {
+    porscheCommunity: composed.porscheCommunity,
+    currentRulesVersion: context.rules.version,
+    phone: config.phone,
+    names: [context.partner.name, partnerAssistantTemplateClubName(context.partner.name)],
+    template: true,
+  });
+  return (operationId, signal) =>
+    store.completeTemplate(
+      lease,
+      {
+        templateVersion: PARTNER_ASSISTANT_TEMPLATE_VERSION,
+        register: composed.register,
+        timezone: composed.timezone,
+        porscheCommunity: composed.porscheCommunity,
+        swiss: composed.swiss,
+        draft,
+        checksOk: checks.ok,
+        failures: checks.ok ? [] : checks.failures,
+      },
+      operationId,
+      signal,
+    );
 }
 
 /** Consumo pagato: token di output già generati, oppure una continuazione (più di una richiesta).
@@ -342,9 +410,22 @@ export async function runPartnerAssistantStep(
     if (read.value.status === "lease_persa") return { status: "complete", step };
     const context = read.value.context;
 
-    // Una bozza scritta con regole superate si riscrive, senza pagare una seconda lettura.
+    // Una bozza scritta con regole superate si riscrive, senza pagare una seconda lettura. Lo stesso
+    // per una bozza del modello che non è più quella che il testo in vigore comporrebbe (testo o
+    // telefono cambiati): torna in scrittura e il modello la ricompone, senza Claude.
     const draft = context.draft;
-    if (job.step === "controllo" && draft && draft.rulesVersion !== context.rules.version)
+    const outdatedTemplate =
+      draft !== null &&
+      templateDraftOf(context) &&
+      (() => {
+        const again = composePartnerAssistantTemplate(context.partner, config.phone);
+        return again === null || partnerAssistantDraftSha256(again) !== draft.sha256;
+      })();
+    if (
+      job.step === "controllo" &&
+      draft &&
+      (draft.rulesVersion !== context.rules.version || outdatedTemplate)
+    )
       return complete((operationId, signal) =>
         store.completeReview(
           lease,
@@ -365,6 +446,28 @@ export async function runPartnerAssistantStep(
     const checkpoint = await database((signal) => store.checkpoint(lease, signal));
     if (!checkpoint.ok) return { status: "uncertain", step };
     if (checkpoint.value.status === "stop") return fail("rilascia", checkpoint.value.reason);
+
+    // Modalità modello: un contatto Club prima del controllo non chiama Claude. Il codice compone la
+    // bozza dal testo fisso per i club e il database la salva con la scelta e una nota di ricerca
+    // sostitutiva; Claude farà solo la seconda lettura. Vale per ogni ritorno indietro (ricerca
+    // scaduta, regole nuove, recapito cambiato): la bozza si ricompone senza costi.
+    if (job.step !== "controllo" && partnerAssistantUsesTemplate(context)) {
+      if (partnerAssistantTemplateBlocked(context.partner))
+        return fail("blocca", "rete_scuderia_ferrari");
+      let template: Complete;
+      try {
+        template = templateConclusion(context, lease, store, config);
+      } catch (error) {
+        return unexpected(error);
+      }
+      return template === FUSO_MANCANTE ? fail("blocca", "fuso_mancante") : complete(template);
+    }
+    // Note del modello su un contatto che non usa più il modello (tolto dalla sezione Club o diventato
+    // anche un evento): Claude non scrive sopra di loro. Il giro dopo la presa del lavoro lo riporta
+    // alla ricerca.
+    if ((job.step === "estrazione" || job.step === "scrittura") && templateNotes(context))
+      return fail("rilascia", "contesto_cambiato");
+
     let plan: StepPlan;
     try {
       plan = stepPlan(job.step, context, lease, store, config);

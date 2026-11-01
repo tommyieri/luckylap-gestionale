@@ -211,7 +211,7 @@ export function PartnerAssistantBlock({
         </p>
       )}
       {research && <Research research={research} />}
-      {draft && <Draft draft={draft} />}
+      {draft && <Draft draft={draft} template={templateDraft(research)} job={job} />}
       {/* La precedenza si dà a un contatto in coda; una rimasta, come la elenca la pagina
           dell'assistente, si toglie anche dopo. */}
       {(queued || assistant.sendPriority > 0) && (
@@ -284,6 +284,12 @@ function JobState({
   }
 }
 
+/** La nota di ricerca sostitutiva delle bozze del testo per i club, scritta da
+ * complete_partner_assistant_template: non c'è una ricerca da mostrare come tale. */
+const TEMPLATE_RESEARCH = /^Nessuna ricerca: bozza dal testo fisso per i club/u;
+const templateDraft = (research: PartnerAssistantContactView["research"]) =>
+  research !== null && TEMPLATE_RESEARCH.test(research.text);
+
 function Research({
   research,
 }: {
@@ -294,7 +300,11 @@ function Research({
   return (
     <div className={styles.draftBlock}>
       <p className={styles.miniTitle}>
-        {day === null ? "Ricerca" : `Ricerca del ${longDay(day, today)}`}
+        {templateDraft(research)
+          ? "Testo per i club"
+          : day === null
+            ? "Ricerca"
+            : `Ricerca del ${longDay(day, today)}`}
       </p>
       <p className={styles.preText}>{research.text}</p>
       {research.sources.length > 0 && (
@@ -313,7 +323,24 @@ function Research({
   );
 }
 
-function Draft({ draft }: { draft: NonNullable<PartnerAssistantContactView["draft"]> }) {
+/** Dove è arrivata la bozza del modello: Claude l'ha letta solo se è pronta o inviata. */
+function templateReading(job: PartnerAssistantContactView["job"]): string {
+  if (job?.status === "pronta" || job?.status === "inviata") return "controllata da Claude";
+  if (job?.reason === "modello_bocciato") return "bocciata nella seconda lettura";
+  if (job?.reason === "modello_controlli")
+    return "non ha passato i controlli del codice e Claude non l'ha letta";
+  return "in attesa della seconda lettura";
+}
+
+function Draft({
+  draft,
+  template,
+  job,
+}: {
+  draft: NonNullable<PartnerAssistantContactView["draft"]>;
+  template: boolean;
+  job: PartnerAssistantContactView["job"];
+}) {
   const { today } = usePartnerContext();
   return (
     <details className={styles.disclosure}>
@@ -332,7 +359,9 @@ function Draft({ draft }: { draft: NonNullable<PartnerAssistantContactView["draf
         <p className={styles.preText}>{draft.body}</p>
         <p className={styles.preText}>{draft.signature}</p>
         <p className={styles.hint}>
-          Scritta {moment(draft.createdAt, today)} con le regole in versione {draft.rulesVersion}.
+          {template
+            ? `Composta ${moment(draft.createdAt, today)} dal testo per i club; ${templateReading(job)}, con le regole in versione ${draft.rulesVersion}.`
+            : `Scritta ${moment(draft.createdAt, today)} con le regole in versione ${draft.rulesVersion}.`}
         </p>
       </div>
     </details>

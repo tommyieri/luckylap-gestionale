@@ -35,6 +35,7 @@ import type {
   PartnerAssistantPauseReason,
   PartnerAssistantPaused,
   PartnerAssistantRecorded,
+  PartnerAssistantRegister,
   PartnerAssistantResearch,
   PartnerAssistantReview,
   PartnerAssistantRules,
@@ -53,6 +54,7 @@ export const PARTNER_ASSISTANT_RPC_NAMES = [
   "complete_partner_assistant_choice",
   "complete_partner_assistant_draft",
   "complete_partner_assistant_review",
+  "complete_partner_assistant_template",
   "fail_partner_assistant_step",
   "pause_partner_assistant",
 ] as const;
@@ -368,7 +370,7 @@ function recordedFrom(value: unknown): PartnerAssistantRecorded | null {
     : null;
 }
 
-/** contesto_cambiato è ammesso solo per la bozza. */
+/** contesto_cambiato è ammesso solo per la bozza, scritta da Claude o composta dal modello. */
 function doneFrom(value: unknown, contextMayChange: boolean): PartnerAssistantDone | null {
   const status = record(value)?.status;
   if (
@@ -494,6 +496,22 @@ export type PartnerAssistantStore = {
     operationId: string,
     signal: AbortSignal,
   ): Promise<StoreResult<PartnerAssistantDone>>;
+  /** La bozza del testo fisso per i club, con scelta e nota di ricerca composte dal database. */
+  completeTemplate(
+    job: PartnerAssistantLease,
+    input: {
+      templateVersion: number;
+      register: PartnerAssistantRegister;
+      timezone: string;
+      porscheCommunity: boolean;
+      swiss: boolean;
+      draft: PartnerAssistantDraft;
+      checksOk: boolean;
+      failures: string[];
+    },
+    operationId: string,
+    signal: AbortSignal,
+  ): Promise<StoreResult<PartnerAssistantDone>>;
   completeReview(
     job: PartnerAssistantLease,
     input: {
@@ -563,7 +581,12 @@ export function createPartnerAssistantStore(config: PartnerAssistantConfig): Par
               ...payload,
             },
           },
-          (value) => doneFrom(value, name === "complete_partner_assistant_draft"),
+          (value) =>
+            doneFrom(
+              value,
+              name === "complete_partner_assistant_draft" ||
+                name === "complete_partner_assistant_template",
+            ),
           signal,
         )
       : Promise.resolve({ ok: false });
@@ -643,6 +666,24 @@ export function createPartnerAssistantStore(config: PartnerAssistantConfig): Par
         "complete_partner_assistant_draft",
         job,
         { draft: draftRow(input.draft), checks_ok: input.checksOk, failures: input.failures },
+        operationId,
+        signal,
+      );
+    },
+    completeTemplate(job, input, operationId, signal) {
+      return complete(
+        "complete_partner_assistant_template",
+        job,
+        {
+          template_version: input.templateVersion,
+          register: input.register,
+          timezone: input.timezone,
+          porsche_community: input.porscheCommunity,
+          swiss: input.swiss,
+          draft: draftRow(input.draft),
+          checks_ok: input.checksOk,
+          failures: input.failures,
+        },
         operationId,
         signal,
       );

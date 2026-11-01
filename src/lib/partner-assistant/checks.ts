@@ -2,6 +2,7 @@
 // anche se la seconda lettura di Claude approva. Tutte le regex hanno il flag `u`; i confini di
 // parola sono `(?<![\p{L}\p{N}])` e `(?![\p{L}\p{N}])`, perché `\b` in JavaScript è solo ASCII.
 import { createHash } from "node:crypto";
+import { partnerAssistantTemplateSignature } from "./template";
 import type { PartnerAssistantDraft, PartnerAssistantLanguage } from "./types";
 
 /** I codici dei controlli, nell'ordine in cui si riportano. */
@@ -148,24 +149,35 @@ export function checkPartnerAssistantDraft(
     phone: string;
     /** Il nome della scheda e quello dell'evento della scelta, se c'è. */
     names: string[];
+    /** La bozza viene dal testo fisso per i club: firma con il cognome, da 180 a 260 parole, e il
+     * nome del club (un dato inserito dal codice) fuori dai controlli sulle parole. */
+    template?: boolean;
   },
 ): { ok: true } | { ok: false; failures: PartnerAssistantCheckCode[] } {
-  const texts = [draft.subject, draft.body];
+  const template = context.template === true;
+  const texts = template
+    ? withoutNames([draft.subject, draft.body], context.names)
+    : [draft.subject, draft.body];
+  const body = texts[1];
   const words = partnerAssistantBodyWords(draft.body);
+  const signature = template
+    ? partnerAssistantTemplateSignature(draft.language, context.phone)
+    : partnerAssistantSignature(draft.language, context.phone);
+  const [minWords, maxWords] = template ? [180, 260] : [110, 160];
   const checks: [PartnerAssistantCheckCode, boolean][] = [
     ["parola_vietata", anyMatch(FORBIDDEN, texts)],
     ["segnaposto", anyMatch(PLACEHOLDERS, texts)],
-    ["domande", (draft.body.match(/\?/gu) ?? []).length !== 1],
+    ["domande", (body.match(/\?/gu) ?? []).length !== 1],
     ["esclamativo", anyMatch([/[!¡]/u], texts)],
     ["emoji", anyMatch([/\p{Extended_Pictographic}/u], texts)],
     ["link", !texts.every(onlyLuckyLapHome)],
-    ["telefono", PHONE_NUMBER.test(draft.body)],
-    ["firma", draft.signature !== partnerAssistantSignature(draft.language, context.phone)],
+    ["telefono", PHONE_NUMBER.test(body)],
+    ["firma", draft.signature !== signature],
     [
       "modello_porsche",
       context.porscheCommunity && anyMatch(PORSCHE_MODELS, withoutNames(texts, context.names)),
     ],
-    ["lunghezza", words < 110 || words > 160],
+    ["lunghezza", words < minWords || words > maxWords],
     // Una riga sola: l'oggetto va nell'intestazione dell'email.
     ["oggetto", /[\n\r\t]/u.test(draft.subject)],
     ["regole_superate", draft.rulesVersion !== context.currentRulesVersion],

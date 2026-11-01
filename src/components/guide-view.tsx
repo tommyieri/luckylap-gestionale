@@ -458,6 +458,12 @@ export function GuideView({ access, preview = false }: { access: GuideAccess; pr
                 contatto.
               </li>
               <li>
+                Per i contatti della sezione Club l’assistente non cerca notizie e non scrive: la
+                prima email è il testo per i club approvato da Tommi, nella lingua del club e con il
+                suo nome. Claude la rilegge con le regole prima che parta; se trova un problema, il
+                club passa a Tommi.
+              </li>
+              <li>
                 In «Invio» l’assistente manda le prime email dalla casella aziendale, nei giorni
                 feriali tra le 9:30 e le 11 dell’ora del contatto. Ne manda poche al giorno, una
                 ogni 4-11 minuti, e mai due allo stesso contatto.

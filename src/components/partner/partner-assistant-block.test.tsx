@@ -287,6 +287,26 @@ describe("PartnerAssistantBlock", () => {
     expect(words(draft)).toContain("Scritta oggi alle 10:48 con le regole in versione 2.");
   });
 
+  it("bozza del testo per i club: niente «Ricerca del», composta dal testo e controllata", () => {
+    const tree = render(2, {
+      assistant: (view) => ({
+        ...view,
+        research: {
+          ...view.research!,
+          text: "Nessuna ricerca: bozza dal testo fisso per i club approvato da Tommaso (versione 1), con il nome del club. Claude fa solo la seconda lettura.",
+          sources: [],
+        },
+      }),
+    });
+    const all = words(tree);
+    expect(all).toContain("Testo per i club");
+    expect(all).not.toContain("Ricerca del");
+    expect(all).toContain(
+      "Composta oggi alle 10:48 dal testo per i club; controllata da Claude, con le regole in versione 2.",
+    );
+    expect(all).not.toContain("Scritta oggi");
+  });
+
   it("la bozza senza recapito lo dice invece dell'indirizzo", () => {
     const tree = render(2, {
       assistant: (view) => ({ ...view, draft: { ...view.draft!, toAddress: null } }),

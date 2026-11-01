@@ -117,7 +117,14 @@ export const PARTNER_ASSISTANT_REASON_LABELS = {
   controlli_falliti: "La bozza non ha passato i controlli nemmeno dopo la riscrittura.",
   seconda_lettura: "La seconda lettura ha trovato problemi anche nella bozza riscritta.",
   fatto_mancante: "La ricerca non ha trovato un fatto vero e recente da citare.",
-  fuso_mancante: "La ricerca non ha trovato il fuso orario del destinatario.",
+  fuso_mancante: "Il fuso orario del destinatario non si ricava dalla scheda.",
+  // Modalità modello per i club (20261101000532_assistente_partner_modello).
+  modello_controlli:
+    "Il testo per i club con il nome di questo club non ha passato i controlli: va scritta a mano.",
+  modello_bocciato:
+    "La seconda lettura ha trovato problemi nel testo per i club con il nome di questo club: va rivista a mano.",
+  rete_scuderia_ferrari:
+    "Club della rete Scuderia Ferrari Club: il regolamento vieta magliette di terzi con il nome o il logo del club, quindi il testo per i club non parte.",
   risposta_non_valida: "Claude ha dato una risposta non valida, rifiutata o incompleta.",
   timeout: "Claude non ha risposto in tempo.",
   troppe_continuazioni: "Claude non ha finito la ricerca entro le riprese previste.",
@@ -178,6 +185,10 @@ export const PARTNER_ASSISTANT_EVENT_LABELS = {
   attendi: "Proposta scelta: scriverà più avanti",
   fatto_mancante: "Nessun fatto recente da citare: passa a Tommi",
   fuso_mancante: "Fuso orario non trovato: passa a Tommi",
+  modello: "Bozza dal testo per i club, senza ricerca",
+  modello_controlli: "Testo per i club non passa i controlli: passa a Tommi",
+  modello_bocciato: "Testo per i club bocciato in seconda lettura: a Tommi",
+  rete_scuderia_ferrari: "Rete Scuderia Ferrari Club: passa a Tommi",
   controlli_superati: "Bozza scritta, controlli superati",
   riscrittura: "Riscrive la bozza",
   controlli_falliti: "Controlli non superati dopo la riscrittura: passa a Tommi",

@@ -30,6 +30,7 @@ const names = [
   "complete_partner_assistant_choice",
   "complete_partner_assistant_draft",
   "complete_partner_assistant_review",
+  "complete_partner_assistant_template",
   "fail_partner_assistant_step",
   "pause_partner_assistant",
 ];
@@ -51,7 +52,7 @@ afterEach(() => {
 });
 
 describe("trasporto delle RPC dell'assistente Partner", () => {
-  it("ammette le dieci RPC del worker, con limiti propri", () => {
+  it("ammette le undici RPC del worker, con limiti propri", () => {
     expect([...PARTNER_ASSISTANT_RPC_NAMES]).toEqual(names);
     expect(PARTNER_ASSISTANT_RPC_TIMEOUT_MS).toBe(10_000);
     expect(PARTNER_ASSISTANT_RPC_MAX_BYTES).toBe(1_048_576);
