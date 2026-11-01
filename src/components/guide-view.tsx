@@ -460,13 +460,16 @@ export function GuideView({ access, preview = false }: { access: GuideAccess; pr
               <li>
                 Per i contatti della sezione Club l’assistente non cerca notizie e non scrive: la
                 prima email è il testo per i club approvato da Tommi, nella lingua del club e con il
-                suo nome. Claude la rilegge con le regole prima che parta; se trova un problema, il
-                club passa a Tommi.
+                suo nome. Nomina i modelli che abbiamo della marca del club (964 e GT3 RS, F40 e 512
+                TR, 300 SL) e dice che possiamo disegnare qualsiasi auto. Claude la rilegge con le
+                regole prima che parta; se trova un problema, il club passa a Tommi.
               </li>
               <li>
                 In «Invio» l’assistente manda le prime email dalla casella aziendale, nei giorni
                 feriali tra le 9:30 e le 11 dell’ora del contatto. Ne manda poche al giorno, una
-                ogni 4-11 minuti, e mai due allo stesso contatto.
+                ogni 4-11 minuti, e mai due allo stesso contatto. Le email del giorno sono divise a
+                metà tra i club e gli altri contatti (con 5: 3 agli altri e 2 ai club); se una delle
+                due parti non ha email pronte, l’altra usa i posti liberi.
               </li>
               <li>
                 Prima Tommi fa una prova con «Manda la prova» e la conferma con «La prova è arrivata

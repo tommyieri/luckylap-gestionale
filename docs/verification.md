@@ -7,6 +7,27 @@ Stato del 23 ottobre 2026, dal branch `claude/revisione-pre-invio` (P7, revision
 
 Prove applicative, SQL sintetico, PostgreSQL concorrente e Auth cloud sono conteggiati separatamente. Le sezioni «Avvio del 21 ottobre 2026» restano come verbale dell'avvio: i numeri di allora non sono quelli di oggi.
 
+## Due lavori d'invio, 1° novembre 2026
+
+Branch `claude/club-marca-alternanza`, base `origin/main` a `79fa76a` (merge della pull request #34). Testo per i club con i modelli della marca (versione 2) e limite del giorno diviso a metà tra i club e gli altri contatti. Dettagli in [partner-assistente.md](partner-assistente.md), «Due lavori d'invio».
+
+| Comando | Esito |
+| --- | --- |
+| `npm run typecheck` | nessun errore |
+| `npm test` | 4.238 test in 226 file, tutti superati (contati senza `.claude/worktrees`, dove un'altra sessione ha lasciato una copia del repository che vitest raccoglie due volte) |
+| `npm run test:db` senza `LUCKYLAP_PG_BIN` | 30 harness PGlite superati, 5.828 controlli; i 19 harness su PostgreSQL 17 risultano saltati (li esegue il job CI «Concorrenza (PostgreSQL 17)») |
+| `npm run build` | riuscita; `next-env.d.ts` ripristinato con `git checkout` |
+| `npm run format:check` | nessun file da formattare |
+
+**Produzione, 1° novembre 2026.** Claude ha applicato la migrazione prima del merge, con l'OK di Tommi in chat e la procedura delle impronte (sotto, «Produzione, 28 ottobre 2026»). Versione cloud `20261101102208`, testo salvato uguale al file (md5 `6aab9a80608a14870ff1bc1d02bf7e8a`); il file ha il nome della versione cloud. L'assistente era e resta in modalità «spento» durante la migrazione.
+
+- **Funzioni prima:** le 162 funzioni Partner e Assistente in `public` e `private` che le migrazioni del repository creano su PGlite fino a `_assistente_partner_modello.sql` erano identiche in produzione (sorgente, `security definer`, `search_path`, permessi di `anon`, `authenticated` e `service_role`: impronta `9109e6d6024861b82ad09a5731b95ab4`). Fuori dal confronto, come il 1° novembre, `partner_assistant_address_sha256` e le quattro dello scheduler e del registro, che la migrazione non tocca.
+- **Funzioni dopo:** le 164 funzioni (le 162 più `flow_sent` e `flow_share`) sono identiche a quelle che il branch crea su PGlite (impronta `781e97683e38e28eabc2ef20f7bed74d`). Cambia solo `claim_partner_assistant_send` (sorgente), con gli stessi permessi; nessun ruolo client esegue le due nuove.
+- **Identiche prima e dopo** (impronte md5 di tutte le righe): `partners` (854), `partner_contacts` (2.603), `tasks` (1), `partner_assistant_jobs` (772), `partner_assistant_notes` (456), `partner_assistant_drafts` (115), `partner_assistant_rules` (3), `partner_assistant_contacts` (1), `partner_assistant_messages` (5, le prove del 30 ottobre), `private.partner_assistant_events` (578), la configurazione dell'assistente (salvo `last_tick_at`), `cron.job` (2 job), `audit_logs` (5.178 righe). Lo stato della casella è identico salvo `last_tick_at` ed `env_checked_at`, che il worker scrive a ogni giro: il giro delle 10:24 UTC, dopo la migrazione, è passato dalla nuova `claim_partner_assistant_send` senza errori.
+- **Avvisi di sicurezza:** solo quelli già noti (tabelle `private` con RLS e senza policy, protezione dalle password trapelate disattivata).
+
+Harness nuovo: `assistente-partner-due-lavori.mjs` (PGlite, minimo 41): permessi delle funzioni nuove e della claim, metà del limite con 5, 7 e 10, ordine della coda invariato, club scelto quando gli altri hanno le loro 3, posti dei club tenuti fuori finestra fino alla loro finestra, posti liberi a chi ha email pronte, ricerca scaduta che esce dalla coda nello stesso giro, email senza bozza, prima settimana e dopo, «Prepara». Con la claim di prima applicata sopra la migrazione l'harness fallisce al primo caso della quota (sceglie l'altro contatto al posto del club). In locale anche `assistente-partner-invio.mjs` con le migrazioni del club, del modello e dei due lavori applicate: 429 controlli, stesso esito.
+
 ## Modalità modello per i club, 1° novembre 2026
 
 Pull request #31 (branch `claude/assistente-modello-club`), unita il 1° novembre 2026 con l'OK di Tommi («Sì, procedi»), a controlli verdi compreso «Concorrenza (PostgreSQL 17)». Dettagli in [partner-assistente.md](partner-assistente.md), «Modalità modello per i club».

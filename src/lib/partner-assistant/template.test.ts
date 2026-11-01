@@ -7,6 +7,7 @@ import {
   PARTNER_ASSISTANT_TEMPLATES,
   partnerAssistantTemplateClubName,
   partnerAssistantTemplateLanguage,
+  partnerAssistantTemplateBrand,
   partnerAssistantTemplatePorsche,
   partnerAssistantTemplateBlocked,
   partnerAssistantTemplateSignature,
@@ -16,6 +17,7 @@ import {
 import type { PartnerAssistantLanguage } from "./types";
 
 const phone = "+39 000 000 0001";
+const BRANDS = ["porsche", "ferrari", "mercedes", null] as const;
 const partner = (fields: {
   name?: string;
   city?: string;
@@ -31,18 +33,83 @@ const partner = (fields: {
 });
 
 describe("testo fisso per i club", () => {
-  it("cinque lingue, una domanda, nessun punto esclamativo, tra 180 e 260 parole", () => {
+  it("cinque lingue, una domanda, nessun punto esclamativo, tra 180 e 260 parole, con ogni marca", () => {
     for (const language of Object.keys(PARTNER_ASSISTANT_TEMPLATES) as PartnerAssistantLanguage[]) {
-      const text = PARTNER_ASSISTANT_TEMPLATES[language];
-      const body = text.body("Porsche Club Sintetico");
-      expect(body.match(/\?/gu)).toHaveLength(1);
-      expect(body).not.toMatch(/[!¡]/u);
-      expect(body).toContain("Porsche Club Sintetico");
-      expect(body).toContain("150");
-      expect(text.subject("Porsche Club Sintetico")).toContain("Porsche Club Sintetico");
-      const words = partnerAssistantBodyWords(body);
-      expect(words).toBeGreaterThanOrEqual(180);
-      expect(words).toBeLessThanOrEqual(260);
+      for (const brand of BRANDS) {
+        const text = PARTNER_ASSISTANT_TEMPLATES[language];
+        const body = text.body("Porsche Club Sintetico", brand);
+        expect(body.match(/\?/gu)).toHaveLength(1);
+        expect(body).not.toMatch(/[!¡]/u);
+        expect(body).toContain("Porsche Club Sintetico");
+        expect(body).toContain("150");
+        expect(text.subject("Porsche Club Sintetico")).toContain("Porsche Club Sintetico");
+        const words = partnerAssistantBodyWords(body);
+        expect(words, `${language} ${brand}`).toBeGreaterThanOrEqual(180);
+        expect(words, `${language} ${brand}`).toBeLessThanOrEqual(260);
+      }
+    }
+  });
+
+  it("i modelli che abbiamo già, della marca del club, e qualsiasi auto vogliano", () => {
+    const models: Record<PartnerAssistantLanguage, [string, string, string]> = {
+      it: ["della 964 e della GT3 RS", "della F40 e della 512 TR", "della 300 SL"],
+      en: ["the 964 and the GT3 RS", "the F40 and the 512 TR", "the 300 SL"],
+      de: ["den 964 und den GT3 RS", "den F40 und den 512 TR", "den 300 SL"],
+      fr: ["la 964 et la GT3 RS", "la F40 et la 512 TR", "la 300 SL"],
+      es: ["el 964 y el GT3 RS", "el F40 y el 512 TR", "el 300 SL"],
+    };
+    const anyCar: Record<PartnerAssistantLanguage, string> = {
+      it: "possiamo crearne per qualsiasi auto vogliate",
+      en: "we can create a design for any car you would like",
+      de: "jedes Auto gestalten, das Sie sich wünschen",
+      fr: "nous pouvons en créer pour n'importe quelle voiture de votre choix",
+      es: "podemos crear uno para cualquier automóvil que deseen",
+    };
+    for (const language of Object.keys(models) as PartnerAssistantLanguage[]) {
+      const body = (brand: (typeof BRANDS)[number]) =>
+        PARTNER_ASSISTANT_TEMPLATES[language].body("Club", brand);
+      const [porsche, ferrari, mercedes] = models[language];
+      expect(body("porsche")).toContain(porsche);
+      expect(body("ferrari")).toContain(ferrari);
+      expect(body("mercedes")).toContain(mercedes);
+      for (const brand of ["porsche", "ferrari", "mercedes"] as const)
+        expect(body(brand)).toContain(anyCar[language]);
+      expect(body("porsche")).not.toMatch(/F40|512 TR|300 SL/u);
+      expect(body("ferrari")).not.toMatch(/964|GT3|300 SL/u);
+      expect(body("mercedes")).not.toMatch(/964|GT3|F40|512 TR/u);
+      expect(body(null)).not.toMatch(/964|GT3|F40|512 TR|300 SL/u);
+    }
+    expect(PARTNER_ASSISTANT_TEMPLATES.it.body("Club", "mercedes")).toContain(
+      "Le grafiche le disegno personalmente: abbiamo già quelle della 300 SL, ma possiamo crearne per qualsiasi auto vogliate. Ci appoggiamo",
+    );
+    expect(PARTNER_ASSISTANT_TEMPLATES.it.body("Club", null)).toContain(
+      "Le grafiche le disegno personalmente, quindi possiamo partire dal modello che preferite. Ci appoggiamo",
+    );
+  });
+
+  it("la bozza composta passa i controlli con ogni marca, Porsche compresa", () => {
+    const clubs: [string, string, string][] = [
+      ["Porsche Club Sintetico", "Porsche Club", "Germania"],
+      ["Ferrari Club Sintetico", "Club Ferrari", "Spagna"],
+      ["Mercedes-Benz Club Sintetico", "Club Mercedes-Benz", "Francia"],
+      ["Gull Wing Group Sintetico (club 300 SL)", "Club e registri", "Stati Uniti"],
+    ];
+    for (const [name, typeLabel, country] of clubs) {
+      const composed = composePartnerAssistantTemplate(
+        { ...partner({ name, country }), typeLabel },
+        phone,
+      )!;
+      const result = checkPartnerAssistantDraft(
+        { ...composed, rulesVersion: 3 },
+        {
+          porscheCommunity: composed.porscheCommunity,
+          currentRulesVersion: 3,
+          phone,
+          names: [name, partnerAssistantTemplateClubName(name)],
+          template: true,
+        },
+      );
+      expect(result, name).toEqual({ ok: true });
     }
   });
 
@@ -73,16 +140,20 @@ describe("testo fisso per i club", () => {
 
   it("nessun doppio punto dopo «Inc.» o «r.y.»; maiuscola dopo il saluto in francese e spagnolo", () => {
     for (const language of Object.keys(PARTNER_ASSISTANT_TEMPLATES) as PartnerAssistantLanguage[]) {
-      expect(PARTNER_ASSISTANT_TEMPLATES[language].body("Porsche Club NSW Inc.")).not.toContain(
-        "..",
-      );
-      expect(PARTNER_ASSISTANT_TEMPLATES[language].body("Porsche Club NSW")).toMatch(
+      expect(
+        PARTNER_ASSISTANT_TEMPLATES[language].body("Porsche Club NSW Inc.", "porsche"),
+      ).not.toContain("..");
+      expect(PARTNER_ASSISTANT_TEMPLATES[language].body("Porsche Club NSW", "porsche")).toMatch(
         /Porsche Club NSW\.|Porsche Club NSW umsetzen/u,
       );
     }
-    expect(PARTNER_ASSISTANT_TEMPLATES.fr.body("Club").split("\n")[2]).toMatch(/^Je suis Tommaso/u);
-    expect(PARTNER_ASSISTANT_TEMPLATES.es.body("Club").split("\n")[2]).toMatch(/^Soy Tommaso/u);
-    expect(PARTNER_ASSISTANT_TEMPLATES.es.body("Club")).toContain("para los Porsche Club");
+    expect(PARTNER_ASSISTANT_TEMPLATES.fr.body("Club", null).split("\n")[2]).toMatch(
+      /^Je suis Tommaso/u,
+    );
+    expect(PARTNER_ASSISTANT_TEMPLATES.es.body("Club", null).split("\n")[2]).toMatch(
+      /^Soy Tommaso/u,
+    );
+    expect(PARTNER_ASSISTANT_TEMPLATES.es.body("Club", null)).toContain("para los Porsche Club");
   });
 
   it("firma con il cognome, ruolo nella lingua del club", () => {
@@ -169,19 +240,19 @@ describe("nome del club nel testo", () => {
     expect(PARTNER_ASSISTANT_TEMPLATES.fr.subject("Amicale Porsche")).toBe(
       "Des t-shirts pour les membres de l'Amicale Porsche",
     );
-    expect(PARTNER_ASSISTANT_TEMPLATES.fr.body("Amicale Porsche")).toContain(
+    expect(PARTNER_ASSISTANT_TEMPLATES.fr.body("Amicale Porsche", "porsche")).toContain(
       "avec l'Amicale Porsche.",
     );
     expect(PARTNER_ASSISTANT_TEMPLATES.es.subject("Escudería Madrid")).toBe(
       "Camisetas para los socios de la Escudería Madrid",
     );
-    expect(PARTNER_ASSISTANT_TEMPLATES.es.body("Club Porsche Madrid")).toContain(
+    expect(PARTNER_ASSISTANT_TEMPLATES.es.body("Club Porsche Madrid", "porsche")).toContain(
       "hacerlo con el Club Porsche Madrid.",
     );
     expect(PARTNER_ASSISTANT_TEMPLATES.de.subject("Porsche Club Wien")).toBe(
       "T-Shirts für die Mitglieder des Porsche Club Wien",
     );
-    expect(PARTNER_ASSISTANT_TEMPLATES.de.body("Interessengemeinschaft 190 SL")).toContain(
+    expect(PARTNER_ASSISTANT_TEMPLATES.de.body("Interessengemeinschaft 190 SL", null)).toContain(
       "mit der Interessengemeinschaft 190 SL umsetzen",
     );
     expect(
@@ -193,16 +264,18 @@ describe("nome del club nel testo", () => {
     expect(PARTNER_ASSISTANT_TEMPLATES.de.subject("Ostschweizerischer Porsche Club")).toBe(
       "T-Shirts für die Mitglieder des Ostschweizerischen Porsche Club",
     );
-    expect(PARTNER_ASSISTANT_TEMPLATES.de.body("Württembergischer Porsche Club e.V.")).toContain(
-      "mit dem Württembergischen Porsche Club e.V. umsetzen",
-    );
+    expect(
+      PARTNER_ASSISTANT_TEMPLATES.de.body("Württembergischer Porsche Club e.V.", "porsche"),
+    ).toContain("mit dem Württembergischen Porsche Club e.V. umsetzen");
     expect(PARTNER_ASSISTANT_TEMPLATES.de.subject("Porsche Club Wien")).toBe(
       "T-Shirts für die Mitglieder des Porsche Club Wien",
     );
     expect(PARTNER_ASSISTANT_TEMPLATES.fr.subject("Section SL – Club Mercedes-Benz France")).toBe(
       "Des t-shirts pour les membres de la Section SL – Club Mercedes-Benz France",
     );
-    expect(PARTNER_ASSISTANT_TEMPLATES.fr.body("Section SL")).toContain("avec la Section SL.");
+    expect(PARTNER_ASSISTANT_TEMPLATES.fr.body("Section SL", null)).toContain(
+      "avec la Section SL.",
+    );
   });
 });
 
@@ -260,6 +333,21 @@ describe("lingua, fuso e comunità Porsche", () => {
     expect(tz("Australia", "Canberra (ACT)")).toBe("Australia/Sydney");
   });
 
+  it("la marca dal nome o dal tipo; Porsche per prima, Mercedes anche dalla 300 SL", () => {
+    const brand = (name: string, typeLabel = "Club e registri") =>
+      partnerAssistantTemplateBrand({ name, typeLabel });
+    expect(brand("PCA Gold Coast", "Porsche Club")).toBe("porsche");
+    expect(brand("Porsche 356 IG Deutschland e.V.")).toBe("porsche");
+    expect(brand("Ferrari Owners' Club Sintetico")).toBe("ferrari");
+    expect(brand("Fan club Sintetico", "Fan club Ferrari")).toBe("ferrari");
+    expect(brand("SL-Club Pagode", "Club Mercedes-Benz")).toBe("mercedes");
+    expect(brand("Mercedes-Benz SLR.CLUB e.V.")).toBe("mercedes");
+    expect(brand("Gull Wing Group International (club 300 SL)")).toBe("mercedes");
+    expect(brand("Club Sintetico", "Registro Mercedes-Benz")).toBe("mercedes");
+    expect(brand("Unimog Club Italia")).toBeNull();
+    expect(brand("Club 300SLR")).toBeNull();
+  });
+
   it("Porsche dal nome o dal tipo", () => {
     expect(
       partnerAssistantTemplatePorsche({ name: "PCA Gold Coast", typeLabel: "Porsche Club" }),
@@ -280,6 +368,7 @@ describe("lingua, fuso e comunità Porsche", () => {
       timezone: "Europe/Zurich",
       swiss: true,
       porscheCommunity: true,
+      brand: "porsche",
     });
     expect(swiss.body).not.toContain("ß");
     expect(composePartnerAssistantTemplate(partner({ country: "Atlantide" }), phone)).toBeNull();
