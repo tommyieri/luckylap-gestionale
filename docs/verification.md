@@ -7,6 +7,20 @@ Stato del 23 ottobre 2026, dal branch `claude/revisione-pre-invio` (P7, revision
 
 Prove applicative, SQL sintetico, PostgreSQL concorrente e Auth cloud sono conteggiati separatamente. Le sezioni «Avvio del 21 ottobre 2026» restano come verbale dell'avvio: i numeri di allora non sono quelli di oggi.
 
+## Testo generico per i club, 2 novembre 2026
+
+Pull request #39, unita con l'OK di Tommi («ok»). Il deploy del commit `4df67f2` era riuscito (`READY`) prima dell'applicazione della migrazione. Dettagli in [partner-assistente.md](partner-assistente.md), «Collaborazioni con Porsche Club in Italia, testo versione 3».
+
+**Produzione, 2 novembre 2026.** Applicata la migrazione `20261102124853_assistente_partner_club_generici.sql`, versione cloud `20261102124853`. Il file è stato rinominato dalla versione preparatoria `20261102120000`, senza cambiare il testo SQL: md5 `dcc5247603b14db232dfe87cbda2b1b3`.
+
+- **Prima:** 18 bozze del modello versione 2 ancora pronte, tutte idonee alla revisione editoriale; nessuna lease attiva.
+- **Dopo:** le stesse 18 bozze sono pronte in versione 3, senza «Toscana» né «150» nel corpo, con le nuove impronte SHA-256 corrette e l'età della nota del modello originale conservata. La modifica del testo è approvata da Tommi e collegata al precedente controllo di Claude.
+- **Righe aggiunte:** 54 note (da 596 a 650), 18 bozze (da 161 a 179) e 18 eventi. La revisione aggiunge le nuove versioni e conserva gli originali.
+- **Nessun nuovo consumo o invio:** le chiamate registrate in `private.partner_assistant_runs` restano 635 e le prime email vere già inviate restano 5; nessuna chiamata aggiuntiva a Claude né costo aggiuntivo per la revisione.
+- **Configurazione invariata:** modalità «Invio», preparazione in pausa per il credito (`paused_reason = credito`), limite dopo la prima settimana a 10.
+
+**Verifica indipendente, in sola lettura:** superata. Le impronte delle note e delle bozze originali, dei dati Partner e del team, dei messaggi e delle chiamate sono immutate. Su tutte le 18 revisioni il confronto dell'intero corpo conferma soltanto la sostituzione concordata, con SHA-256 corretto e data della nota originale conservata. Non restano bozze del modello versione 2 pronte e idonee; nessun nuovo messaggio MIME. Costi, configurazione e stato della casella sono identici, esclusi i campi automatici del worker aggiornati dai giri periodici.
+
 ## Ricerca ancora valida alla data di ripresa, 2 novembre 2026
 
 Branch `claude/ricerca-valida-alla-ripresa`, base `origin/main` a `8f67353` (merge della pull request #36). Dettagli in [partner-assistente.md](partner-assistente.md), «Ricerca ancora valida alla data di ripresa».
