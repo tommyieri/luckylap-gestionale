@@ -1,7 +1,8 @@
 // Modalità modello per i club (decisione di Tommi del 31 ottobre 2026): per i contatti della sezione
 // Club la prima email non la scrive Claude. Il codice la compone dal testo fisso approvato da Tommaso,
 // tradotto una volta in cinque lingue, con il nome del club e, dalla versione 2 (1° novembre 2026),
-// i modelli che abbiamo già della marca del club; Claude fa solo la seconda lettura. La versione va
+// i modelli che abbiamo già della marca del club. Dalla versione 3 il riferimento alle collaborazioni
+// con Porsche Club in Italia è generico, senza nomi o quantità; Claude fa solo la seconda lettura. La versione va
 // nella nota di ricerca sostitutiva: per cambiare il testo si cambia anche la versione.
 import type {
   PartnerAssistantContext,
@@ -10,7 +11,7 @@ import type {
   PartnerAssistantRegister,
 } from "./types";
 
-export const PARTNER_ASSISTANT_TEMPLATE_VERSION = 2;
+export const PARTNER_ASSISTANT_TEMPLATE_VERSION = 3;
 
 /** Il registro di ogni lingua, come lo controlla complete_partner_assistant_template. */
 export const PARTNER_ASSISTANT_TEMPLATE_REGISTER: Record<
@@ -129,7 +130,7 @@ export const PARTNER_ASSISTANT_TEMPLATES: Record<PartnerAssistantLanguage, Templ
         "",
         "sono Tommaso, fondatore di LuckyLap, un brand italiano che trasforma la passione per le automobili in un capo da indossare ogni giorno: t-shirt in cotone biologico, con un design essenziale e la silhouette dell'auto ricamata sul petto. Qualcosa di discreto e riconoscibile, che racconta la passione anche lontano da un raduno o da un circuito.",
         "",
-        `Abbiamo già avviato collaborazioni con alcuni Porsche Club in Italia: per il Porsche Club Toscana abbiamo realizzato 150 magliette dedicate ai soci, con il logo del club ricamato sulla manica. Vorremmo ora estendere il progetto ad altri club in Europa e nel resto del mondo, e ci farebbe piacere farlo con ${stop(club)}`,
+        `Abbiamo già avviato alcune collaborazioni con Porsche Club in Italia, realizzando magliette dedicate ai soci con il logo del club ricamato sulla manica. Vorremmo ora estendere il progetto ad altri club in Europa e nel resto del mondo, e ci farebbe piacere farlo con ${stop(club)}`,
         "",
         `Possiamo sviluppare insieme una versione esclusiva: l'auto da rappresentare, il colore della maglietta e del ricamo, la posizione del vostro logo. ${DESIGN.it(brand)} Ci appoggiamo a un ricamificio che ha già lavorato per i Porsche Club e seguiamo il progetto dalla grafica al confezionamento, con modelli da uomo e da donna.`,
         "",
@@ -148,7 +149,7 @@ export const PARTNER_ASSISTANT_TEMPLATES: Record<PartnerAssistantLanguage, Templ
         "",
         "I am Tommaso, founder of LuckyLap, an Italian brand that turns a passion for cars into something to wear every day: organic cotton T-shirts with an essential design and the car's silhouette embroidered on the chest. Something discreet and recognisable, which carries the passion well beyond a club meeting or a circuit.",
         "",
-        `We have already started working with several Porsche Clubs in Italy: for the Porsche Club Toscana we made 150 T-shirts for its members, with the club logo embroidered on the sleeve. We would now like to take the project to other clubs in Europe and around the world, and we would be glad to do it with ${stop(club)}`,
+        `We have already started working with some Porsche Clubs in Italy, creating T-shirts for their members with the club logo embroidered on the sleeve. We would now like to take the project to other clubs in Europe and around the world, and we would be glad to do it with ${stop(club)}`,
         "",
         `We can develop an exclusive version together: the car to feature, the colour of the T-shirt and of the embroidery, the position of your logo. ${DESIGN.en(brand)} We work with an embroidery workshop that has already worked for Porsche Clubs, and we follow the project from the design to the finished, packed garment, with men's and women's cuts.`,
         "",
@@ -167,7 +168,7 @@ export const PARTNER_ASSISTANT_TEMPLATES: Record<PartnerAssistantLanguage, Templ
         "",
         "mein Name ist Tommaso, ich bin der Gründer von LuckyLap, einer italienischen Marke, die die Leidenschaft für Automobile in ein Kleidungsstück für jeden Tag verwandelt: T-Shirts aus Bio-Baumwolle mit schlichtem Design und der Silhouette des Autos auf der Brust gestickt. Etwas Dezentes und Wiedererkennbares, das die Leidenschaft auch fern von Treffen und Rennstrecke zeigt.",
         "",
-        `Wir arbeiten bereits mit einigen Porsche Clubs in Italien zusammen: Für den Porsche Club Toscana haben wir 150 T-Shirts für die Mitglieder gefertigt, mit dem Clublogo auf dem Ärmel gestickt. Nun möchten wir das Projekt auf weitere Clubs in Europa und weltweit ausweiten, und wir würden es gern mit ${germanWith(club)} umsetzen.`,
+        `Wir haben bereits einige Kooperationen mit Porsche Clubs in Italien begonnen und T-Shirts für die Mitglieder mit dem auf den Ärmel gestickten Clublogo gefertigt. Nun möchten wir das Projekt auf weitere Clubs in Europa und weltweit ausweiten, und wir würden es gern mit ${germanWith(club)} umsetzen.`,
         "",
         `Gemeinsam können wir eine exklusive Version entwickeln: das Auto, die Farbe des T-Shirts und der Stickerei, die Position Ihres Logos. ${DESIGN.de(brand)} Wir arbeiten mit einer Stickerei, die bereits für Porsche Clubs gearbeitet hat, und begleiten das Projekt vom Entwurf bis zur fertigen Verpackung, mit Schnitten für Damen und Herren.`,
         "",
@@ -186,7 +187,7 @@ export const PARTNER_ASSISTANT_TEMPLATES: Record<PartnerAssistantLanguage, Templ
         "",
         "Je suis Tommaso, fondateur de LuckyLap, une marque italienne qui transforme la passion de l'automobile en un vêtement à porter au quotidien : des t-shirts en coton biologique, au design épuré, avec la silhouette de la voiture brodée sur la poitrine. Quelque chose de discret et de reconnaissable, qui raconte la passion même loin d'un rassemblement ou d'un circuit.",
         "",
-        `Nous avons déjà lancé des collaborations avec plusieurs Porsche Clubs en Italie : pour le Porsche Club Toscana, nous avons réalisé 150 t-shirts dédiés aux membres, avec le logo du club brodé sur la manche. Nous aimerions maintenant étendre le projet à d'autres clubs en Europe et dans le monde, et nous serions heureux de le faire avec ${stop(frenchWith(club))}`,
+        `Nous avons déjà lancé quelques collaborations avec des Porsche Clubs en Italie, en réalisant des t-shirts dédiés aux membres avec le logo du club brodé sur la manche. Nous aimerions maintenant étendre le projet à d'autres clubs en Europe et dans le monde, et nous serions heureux de le faire avec ${stop(frenchWith(club))}`,
         "",
         `Nous pouvons créer ensemble une version exclusive : la voiture à représenter, la couleur du t-shirt et de la broderie, l'emplacement de votre logo. ${DESIGN.fr(brand)} Nous travaillons avec un atelier de broderie qui a déjà travaillé pour des Porsche Clubs, et nous suivons le projet du dessin jusqu'à l'emballage, avec des coupes homme et femme.`,
         "",
@@ -205,7 +206,7 @@ export const PARTNER_ASSISTANT_TEMPLATES: Record<PartnerAssistantLanguage, Templ
         "",
         "Soy Tommaso, fundador de LuckyLap, una marca italiana que convierte la pasión por los automóviles en una prenda para llevar cada día: camisetas de algodón orgánico, con un diseño sencillo y la silueta del automóvil bordada en el pecho. Algo discreto y reconocible, que cuenta la pasión también lejos de una concentración o de un circuito.",
         "",
-        `Ya hemos empezado a colaborar con varios Porsche Club en Italia: para el Porsche Club Toscana hicimos 150 camisetas dedicadas a los socios, con el logotipo del club bordado en la manga. Ahora nos gustaría llevar el proyecto a otros clubes de Europa y del resto del mundo, y nos encantaría hacerlo con ${stop(spanishWith(club))}`,
+        `Ya hemos iniciado algunas colaboraciones con Porsche Club en Italia, realizando camisetas dedicadas a los socios con el logotipo del club bordado en la manga. Ahora nos gustaría llevar el proyecto a otros clubes de Europa y del resto del mundo, y nos encantaría hacerlo con ${stop(spanishWith(club))}`,
         "",
         `Podemos desarrollar juntos una versión exclusiva: el automóvil que se quiera representar, el color de la camiseta y del bordado, la posición de su logotipo. ${DESIGN.es(brand)} Trabajamos con un taller de bordado que ya ha trabajado para los Porsche Club y seguimos el proyecto desde el diseño hasta el embalaje, con modelos de hombre y de mujer.`,
         "",

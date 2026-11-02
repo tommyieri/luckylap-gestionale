@@ -186,6 +186,7 @@ export const PARTNER_ASSISTANT_EVENT_LABELS = {
   fatto_mancante: "Nessun fatto recente da citare: passa a Tommi",
   fuso_mancante: "Fuso orario non trovato: passa a Tommi",
   modello: "Bozza dal testo per i club, senza ricerca",
+  modello_editoriale: "Testo per i club aggiornato con approvazione di Tommi",
   modello_controlli: "Testo per i club non passa i controlli: passa a Tommi",
   modello_bocciato: "Testo per i club bocciato in seconda lettura: a Tommi",
   rete_scuderia_ferrari: "Rete Scuderia Ferrari Club: passa a Tommi",
@@ -682,7 +683,13 @@ export type PartnerAssistantContactView = {
     updatedAt: string;
   } | null;
   /** La ricerca del lavoro in corso, con le fonti. */
-  research: { createdAt: string; text: string; sources: string[] } | null;
+  research: {
+    createdAt: string;
+    text: string;
+    sources: string[];
+    /** Revisione editoriale del testo già letto da Claude, approvata dal founder. */
+    approvalSource?: "founder_editorial";
+  } | null;
   /** La proposta scelta, il motivo e l'indirizzo trovato dalla ricerca (solo una proposta). */
   choice: {
     request: PartnerAssistantRequest;
@@ -806,6 +813,10 @@ export function partnerAssistantContactFrom(
             createdAt: instant(research.created_at, what),
             text: text(record(research.content, what).text, 1, 60000, what),
             sources: list(research.sources, 40, what).map((item) => source(item, what)),
+            ...(record(research.content, what).template === true &&
+            record(research.content, what).approval_source === "founder_editorial"
+              ? { approvalSource: "founder_editorial" as const }
+              : {}),
           },
     choice: choice === null ? null : choiceOf(record(choice.content, what), what),
     draft:

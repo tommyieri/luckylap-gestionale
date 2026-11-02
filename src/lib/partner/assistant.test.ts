@@ -572,6 +572,20 @@ describe("blocco dell'assistente nella scheda", () => {
     expect(view.draft?.signature).toBe(partnerAssistantSignature("en", "+39 000 000 0000"));
   });
 
+  it("mostra la provenienza della modifica editoriale solo sulle note del testo per i club", () => {
+    const rows = contactRows(2);
+    const research = rows.notes.find((note) => note.kind === "ricerca")!;
+    const content = research.content as Record<string, unknown>;
+    research.content = {
+      ...content,
+      template: true,
+      approval_source: "founder_editorial",
+    };
+    expect(partnerAssistantContactFrom(rows).research?.approvalSource).toBe("founder_editorial");
+    research.content = { ...content, template: false, approval_source: "founder_editorial" };
+    expect(partnerAssistantContactFrom(rows).research?.approvalSource).toBeUndefined();
+  });
+
   it("Serve Tommi con il motivo, senza bozza", () => {
     const view = partnerAssistantContactFrom(contactRows(1));
     expect(view.job).toMatchObject({ status: "serve_tommaso", reason: "fatto_mancante" });
@@ -912,7 +926,13 @@ describe("etichette in italiano", () => {
         "modello_bocciato",
       ],
       // Modalità modello: la bozza del testo per i club, da ricerca, estrazione o scrittura.
-      modello: ["modello", "modello_controlli", "contesto_cambiato", "rete_scuderia_ferrari"],
+      modello: [
+        "modello",
+        "modello_editoriale",
+        "modello_controlli",
+        "contesto_cambiato",
+        "rete_scuderia_ferrari",
+      ],
       ogniPasso: [
         "lease_scaduta",
         "non_idoneo",
