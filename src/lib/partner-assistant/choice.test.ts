@@ -316,7 +316,8 @@ describe("partnerAssistantDecision", () => {
     });
   });
 
-  // Il fatto e il fuso servono per scrivere, non per aspettare: a quel giorno la ricerca si rifà.
+  // Il fatto e il fuso servono per scrivere, non per aspettare: senza uno dei due, a quel giorno la
+  // ricerca si rifà.
   it.each([
     ["senza fatto", { factText: "" }],
     ["senza fuso", { timezone: "" }],

@@ -259,6 +259,21 @@ describe("extractCall", () => {
   it("senza ricerca non si costruisce", () => {
     expect(() => extractCall({ ...ctx, research: null })).toThrow();
   });
+
+  it("con una ricerca di oggi non dice il giorno della ricerca", () => {
+    expect(text).not.toContain("La ricerca è del");
+  });
+
+  it("con una ricerca di giorni fa dice il suo giorno, quello di Roma", () => {
+    const older = extractCall({
+      ...ctx,
+      today: "2026-11-05",
+      research: { ...ctx.research!, createdAt: "2026-10-27T23:30:00+00:00" },
+    });
+    expect(older.messages[0].content).toContain(
+      "La ricerca è del 2026-10-28: una data relativa o senza anno si conta da quel giorno, non da oggi.",
+    );
+  });
 });
 
 describe("PARTNER_ASSISTANT_CHOICE_SCHEMA", () => {
@@ -478,6 +493,17 @@ describe("writeCall", () => {
   it("senza scelta o senza ricerca non si costruisce", () => {
     expect(() => writeCall({ ...evCtx, choice: null }, "2026-10-27")).toThrow();
     expect(() => writeCall({ ...evCtx, research: null }, "2026-10-27")).toThrow();
+  });
+
+  it("dice il giorno della ricerca solo se è prima di oggi", () => {
+    const line = "La ricerca è del 2026-10-27: quello che dice vale a quel giorno.";
+    expect(writeCall(evCtx, "2026-10-27").messages[0].content).not.toContain("La ricerca è del");
+    expect(writeCall(evCtx, "2026-11-05").messages[0].content).toContain(line);
+    expect(writeCall(evCtx, "2026-11-05").messages[0].content).toContain(
+      "non scrivere che è avvenuto",
+    );
+    expect(reviewCall({ ...ctx, today: "2026-11-05" }).messages[0].content).toContain(line);
+    expect(reviewCall(ctx).messages[0].content).not.toContain("La ricerca è del");
   });
 });
 
