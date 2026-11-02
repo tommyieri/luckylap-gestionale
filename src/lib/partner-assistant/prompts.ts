@@ -173,7 +173,6 @@ const choiceOf = (context: PartnerAssistantContext): PartnerAssistantChoice =>
 const draftOf = (context: PartnerAssistantContext): PartnerAssistantSavedDraft =>
   required(context.draft, "bozza_mancante");
 
-/** Proposta, riga della maglietta (se c'è un evento) e dati comuni a scrittura e controllo. */
 /** Il giorno di Roma della ricerca, se è prima di oggi: un contatto che ha aspettato una data può
  * ripartire da una ricerca di qualche giorno fa. Con una ricerca di oggi il messaggio non cambia. */
 function olderResearchDay(context: PartnerAssistantContext, today: string): string | null {
@@ -181,6 +180,7 @@ function olderResearchDay(context: PartnerAssistantContext, today: string): stri
   return day < today ? day : null;
 }
 
+/** Proposta, riga della maglietta (se c'è un evento) e dati comuni a scrittura e controllo. */
 function proposalAndData(
   context: PartnerAssistantContext,
   choice: PartnerAssistantChoice,

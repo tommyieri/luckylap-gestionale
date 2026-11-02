@@ -457,7 +457,7 @@ Stato al 1° novembre 2026, prima del merge: assistente «Spento» dal 31 ottobr
 
 Dal 2 novembre 2026, su richiesta di Tommi. Un contatto in attesa di una data tornava sempre alla ricerca, anche con una ricerca di pochi giorni, e la ricerca è il passo che costa di più. Di solito aspettava solo il momento giusto per scrivere («inizio novembre»), non fatti nuovi.
 
-Quando arriva la data, il contatto riparte dall'estrazione se la ricerca è ancora buona. Devono valere tutte e quattro:
+Arrivata la data, il contatto torna in coda. Quando tocca a lui, riparte dall'estrazione se la ricerca è ancora buona. Devono valere tutte e quattro:
 
 - **Meno di 14 giorni.** L'invio accetta una ricerca fino a 21 giorni. I 7 giorni di margine lasciano alla bozza il tempo di partire: senza margine si pagherebbero estrazione, scrittura e seconda lettura, e poco dopo la bozza tornerebbe alla ricerca.
 - **Fatto e fuso nella scelta di prima.** Un contatto può aspettare anche senza un fatto da citare o senza il fuso: alla data riprova con una ricerca nuova, che può trovarli. Rileggendo lo stesso testo finirebbe subito a Tommi.
@@ -468,8 +468,7 @@ Se ne manca una, si rifà la ricerca, come prima.
 
 - **La scelta si rifà sempre.** L'estrazione legge la stessa ricerca con la data di oggi e può decidere di scrivere, di aspettare ancora o di passare il contatto a Tommi. Il lavoro riparte nello stesso stato di una ricerca appena salvata: scelta e bozza vuote, tentativi e riscritture a zero.
 - **Il giorno della ricerca nei messaggi.** Con una ricerca di un giorno precedente, estrazione, scrittura e seconda lettura ricevono il giorno della ricerca: le date relative o senza anno si contano da lì, e di un evento successivo a quel giorno non si scrive che è avvenuto. Con una ricerca di oggi i messaggi non cambiano.
-- **Lavori già tornati alla ricerca.** Il controllo è al giro di presa del lavoro, quindi vale anche per i lavori tornati alla ricerca prima della migrazione.
-- **Ricerca invecchiata prima dell'estrazione.** Un lavoro può restare fermo prima dell'estrazione, per esempio con il contatto fermato o con la pausa per il credito. Se nel frattempo la ricerca arriva a 14 giorni, al primo giro utile torna alla ricerca.
+- **Quando si giudica.** Solo quando il lavoro viene preso, non quando arriva la data: un lavoro può restare in coda a lungo, con il contatto fermato, una coda lunga o la pausa per il credito. Così vale anche per i lavori tornati alla ricerca prima della migrazione.
 - **Gli altri ritorni alla ricerca non cambiano.** Ricerca scaduta all'invio, «Ridai all'assistente» e l'interruttore su un lavoro di Tommi tolgono la nota di ricerca e ripartono dalla ricerca. Un contatto che non usa più il testo per i club e ha le note del modello riparte dalla ricerca, senza note.
 - **Club con il testo fisso.** Non cambia il costo: il worker compone la bozza da qualsiasi passo prima del controllo, senza Claude.
 - **Nell'interfaccia.** Non cambia niente: la scheda continua a mostrare la data della ricerca usata, anche se è di qualche giorno prima della bozza.
@@ -477,6 +476,6 @@ Se ne manca una, si rifà la ricerca, come prima.
 ### Codice, test e produzione
 
 - `supabase/migrations/20261102001128_assistente_partner_ricerca_valida.sql`, additiva: `claim_partner_assistant_step` sostituita, stessa firma, stessi permessi, stesse risposte. Nessuna tabella nuova, nessun dato cambiato dalla migrazione.
-- `src/lib/partner-assistant/prompts.ts`: la riga con il giorno della ricerca. Migrazione e codice si possono applicare in qualsiasi ordine.
-- `npm run test:db`: `assistente-partner-ricerca-valida.mjs` (PGlite, 61 controlli). `npm test`: i casi del giorno della ricerca in `prompts.test.ts`. Esiti in [verification.md](verification.md), «Ricerca ancora valida alla data di ripresa, 2 novembre 2026».
+- `src/lib/partner-assistant/prompts.ts`: la riga con il giorno della ricerca. Prima il deploy del codice, poi la migrazione: così ogni ricerca riusata ha già la riga con il suo giorno.
+- `npm run test:db`: `assistente-partner-ricerca-valida.mjs` (PGlite, 86 controlli). `npm test`: i casi del giorno della ricerca in `prompts.test.ts`. Esiti in [verification.md](verification.md), «Ricerca ancora valida alla data di ripresa, 2 novembre 2026».
 - La migrazione non è ancora applicata in produzione: serve l'OK di Tommi.

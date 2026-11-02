@@ -1,11 +1,11 @@
-// test-db: pglite minimo 61
+// test-db: pglite minimo 86
 // Assistente Partner, ricerca ancora valida alla data di ripresa
 // (_assistente_partner_ricerca_valida.sql): un contatto che torna dall'attesa con una ricerca ancora
 // buona riparte dall'estrazione, senza pagare una ricerca nuova. Buona vuol dire: meno di 14 giorni,
 // fatto e fuso nella scelta di prima, evento non ancora iniziato, scheda non cambiata dopo la ricerca.
-// Vale anche per i lavori già tornati alla ricerca prima della migrazione; un lavoro fermo finché la
-// ricerca invecchia torna alla ricerca. Migrazioni applicate in ordine su PGlite. Solo dati sintetici
-// (CO da 951, domini example.test), nessun accesso cloud.
+// Si giudica quando il lavoro viene preso, e vale anche per i lavori già tornati alla ricerca prima
+// della migrazione. Migrazioni applicate in ordine su PGlite. Solo dati sintetici (CO da 951, domini
+// example.test), nessun accesso cloud.
 import assert from "node:assert/strict";
 import { createHash, randomUUID } from "node:crypto";
 import { readFileSync, readdirSync } from "node:fs";
@@ -387,66 +387,44 @@ try {
   eq((await jobOf(952)).step, "controllo", "Un lavoro già al controllo resta al controllo");
   await stop(952);
 
-  // 4. Tutti i casi nello stesso giro.
-  const young = await waiting(953, "13 days 23 hours");
-  const past = await waiting(954, "1 day", -3);
-  const old = await waiting(955, "14 days 1 minute");
-  const future = await waiting(956, "5 days", 1);
-  const returned = await queued(957, "5 days", { attempts: 2 });
-  await queued(958, null);
-  const stale = await queued(959, "20 days");
-  const tommi = await queued(960, "5 days", {
-    status: "serve_tommaso",
-    reason: "troppi_tentativi",
-  });
-  await queued(961, "5 days", { content: { text: "Bozza dal testo fisso.", template: true } });
-  const noFact = await waiting(963, "5 days", 0, { choice: { fact_text: "" } });
-  const blankFact = await waiting(964, "5 days", 0, { choice: { fact_text: "   " } });
-  const noTimezone = await waiting(965, "5 days", 0, { choice: { timezone: "" } });
-  const today = await value(`select ${ROME_TODAY}::text as v`);
-  const tomorrow = await value(`select (${ROME_TODAY} + 1)::text as v`);
-  const eventPast = await waiting(966, "5 days", 0, { choice: { event_starts_on: "2026-01-01" } });
-  const eventToday = await waiting(967, "5 days", 0, { choice: { event_starts_on: today } });
-  const eventAhead = await waiting(968, "5 days", 0, { choice: { event_starts_on: tomorrow } });
-  const cardChanged = await waiting(969, "5 days");
-  await asOwner("update public.partners set updated_at = now() where id = $1", [
-    cardChanged.partnerId,
-  ]);
-  const noChoice = await queued(970, "5 days", { choice: false });
-  // Le note di una ricerca ci sono, ma il lavoro non ne ha più una: come dopo «Ridai all'assistente».
-  const cleared = await queued(971, null);
-  await researchNote(cleared.partnerId, "5 days");
-  await asOwner(
-    "update public.partner_assistant_jobs set choice_note_id = $1 where partner_id = $2",
-    [await choiceNote(cleared.partnerId, "5 days"), cleared.partnerId],
-  );
-  const agedOut = await queued(972, "14 days 1 minute", {
-    step: "estrazione",
-    attempts: 1,
-    choice: false,
-  });
-  const stillGood = await queued(973, "5 days", { step: "estrazione", attempts: 1, choice: false });
-  const decided = await queued(974, "20 days", { step: "estrazione" });
-  eq((await tick()).status, "claimed");
+  // 4. Un caso alla volta: gli altri contatti sono fermi, il giro prende questo.
+  const picked = async (co) => {
+    const taken = await tick();
+    eq(taken.job?.partner_id, ids.get(co), `Il giro prende il CO ${co}`);
+    return jobOf(co);
+  };
+  const reuses = async (co, job, message) => {
+    row = await picked(co);
+    eq(
+      [row.status, row.step, row.research_note_id, row.choice_note_id, row.write_on],
+      ["in_coda", "estrazione", job.research, null, null],
+      message,
+    );
+    await stop(co);
+  };
+  const redoes = async (co, job, message) => {
+    row = await picked(co);
+    eq(
+      [row.status, row.step, row.research_note_id, row.choice_note_id, row.write_on],
+      ["in_coda", "ricerca", job.research, job.choice, null],
+      message,
+    );
+    await stop(co);
+  };
 
-  row = await jobOf(953);
-  eq(
-    [row.status, row.step, row.research_note_id, row.choice_note_id, row.write_on],
-    ["in_coda", "estrazione", young.research, null, null],
-    "13 giorni e 23 ore: la ricerca vale",
-  );
-  row = await jobOf(954);
-  eq(
-    [row.status, row.step, row.research_note_id],
-    ["in_coda", "estrazione", past.research],
+  await reuses(953, await waiting(953, "13 days 23 hours"), "13 giorni e 23 ore: la ricerca vale");
+  await reuses(
+    954,
+    await waiting(954, "1 day", -3),
     "Una data già passata vale come quella di oggi",
   );
-  row = await jobOf(955);
-  eq(
-    [row.status, row.step, row.research_note_id, row.choice_note_id, row.write_on],
-    ["in_coda", "ricerca", old.research, old.choice, null],
+  await redoes(
+    955,
+    await waiting(955, "14 days 1 minute"),
     "14 giorni e un minuto: si rifà la ricerca",
   );
+  const future = await waiting(956, "5 days", 1);
+  eq((await tick()).reason, "vuota", "La data non è arrivata: nessun lavoro da prendere");
   row = await jobOf(956);
   eq(
     [row.status, row.step, row.research_note_id, row.choice_note_id],
@@ -454,91 +432,125 @@ try {
     "La data non è arrivata: non cambia niente",
   );
   ok(row.write_on, "La data resta");
-  row = await jobOf(957);
-  eq(
-    [row.status, row.step, row.research_note_id, row.attempts],
-    ["in_coda", "estrazione", returned.research, 0],
+  await stop(956);
+  await reuses(
+    957,
+    await queued(957, "5 days", { attempts: 2 }),
     "Già tornato alla ricerca prima della migrazione: riparte dall'estrazione",
   );
-  row = await jobOf(958);
-  eq([row.status, row.step, row.research_note_id], ["in_coda", "ricerca", null], "Contatto nuovo");
-  row = await jobOf(959);
-  eq(
-    [row.status, row.step, row.research_note_id],
-    ["in_coda", "ricerca", stale.research],
+  eq((await jobOf(957)).attempts, 0, "Tentativi azzerati, come dopo una ricerca salvata");
+  await redoes(958, await queued(958, null), "Contatto nuovo");
+  await redoes(
+    959,
+    await queued(959, "20 days"),
     "Ricerca di 20 giorni: si rifà, con il margine per l'invio",
   );
+  const tommi = await queued(960, "5 days", {
+    status: "serve_tommaso",
+    reason: "troppi_tentativi",
+  });
+  eq((await tick()).reason, "vuota", "Un lavoro di Tommi non si prende");
   row = await jobOf(960);
   eq(
     [row.status, row.step, row.reason, row.research_note_id],
     ["serve_tommaso", "ricerca", "troppi_tentativi", tommi.research],
     "Un lavoro di Tommi non si tocca",
   );
-  row = await jobOf(961);
-  eq(
-    [row.status, row.step, row.research_note_id, row.choice_note_id],
-    ["in_coda", "ricerca", null, null],
-    "Note del modello su un contatto che non lo usa più: si riparte dalla ricerca, senza note",
+  await stop(960);
+  await redoes(
+    961,
+    await queued(961, "5 days", { content: { text: "Bozza dal testo fisso.", template: true } }),
+    "Una nota del modello non è una ricerca da riusare",
   );
-  for (const [co, job, message] of [
-    [963, noFact, "L'attesa senza fatto riprova con una ricerca nuova"],
-    [964, blankFact, "Un fatto di soli spazi non è un fatto"],
-    [965, noTimezone, "L'attesa senza fuso riprova con una ricerca nuova"],
-    [966, eventPast, "Evento già passato: la ricerca è superata"],
-    [967, eventToday, "Evento iniziato oggi: la ricerca è superata"],
-    [969, cardChanged, "Scheda cambiata dopo la ricerca: si rifà"],
-  ]) {
-    row = await jobOf(co);
-    eq(
-      [row.status, row.step, row.research_note_id, row.choice_note_id],
-      ["in_coda", "ricerca", job.research, job.choice],
-      message,
-    );
-  }
-  row = await jobOf(968);
-  eq(
-    [row.step, row.research_note_id, row.choice_note_id],
-    ["estrazione", eventAhead.research, null],
+  await redoes(
+    963,
+    await waiting(963, "5 days", 0, { choice: { fact_text: "" } }),
+    "L'attesa senza fatto riprova con una ricerca nuova",
+  );
+  await redoes(
+    964,
+    await waiting(964, "5 days", 0, { choice: { fact_text: " \n " } }),
+    "Un fatto di soli spazi non è un fatto",
+  );
+  await redoes(
+    965,
+    await waiting(965, "5 days", 0, { choice: { timezone: "" } }),
+    "L'attesa senza fuso riprova con una ricerca nuova",
+  );
+  await redoes(
+    966,
+    await waiting(966, "5 days", 0, { choice: { event_starts_on: "2026-01-01" } }),
+    "Evento già passato: la ricerca è superata",
+  );
+  const today = await value(`select ${ROME_TODAY}::text as v`);
+  const tomorrow = await value(`select (${ROME_TODAY} + 1)::text as v`);
+  await redoes(
+    967,
+    await waiting(967, "5 days", 0, { choice: { event_starts_on: today } }),
+    "Evento iniziato oggi: la ricerca è superata",
+  );
+  await reuses(
+    968,
+    await waiting(968, "5 days", 0, { choice: { event_starts_on: tomorrow } }),
     "Evento non ancora iniziato: la ricerca vale",
   );
-  row = await jobOf(970);
-  eq(
-    [row.step, row.research_note_id],
-    ["ricerca", noChoice.research],
+  const cardChanged = await waiting(969, "5 days");
+  await asOwner("update public.partners set updated_at = now() where id = $1", [
+    cardChanged.partnerId,
+  ]);
+  await redoes(969, cardChanged, "Scheda cambiata dopo la ricerca: si rifà");
+  await redoes(
+    970,
+    await queued(970, "5 days", { choice: false }),
     "Senza una scelta di prima: si rifà",
   );
-  row = await jobOf(971);
-  eq(
-    [row.step, row.research_note_id],
-    ["ricerca", null],
+  // Le note di una ricerca ci sono, ma il lavoro non ne ha più una: come dopo «Ridai all'assistente».
+  const cleared = await queued(971, null);
+  await researchNote(cleared.partnerId, "5 days");
+  const clearedChoice = await choiceNote(cleared.partnerId, "5 days");
+  await asOwner(
+    "update public.partner_assistant_jobs set choice_note_id = $1 where partner_id = $2",
+    [clearedChoice, cleared.partnerId],
+  );
+  await redoes(
+    971,
+    { research: null, choice: clearedChoice },
     "Conta la nota del lavoro, non le altre note del contatto",
   );
-  row = await jobOf(972);
-  eq(
-    [row.status, row.step, row.research_note_id, row.attempts],
-    ["in_coda", "ricerca", agedOut.research, 0],
-    "Fermo prima dell'estrazione finché la ricerca è invecchiata: si rifà",
-  );
-  row = await jobOf(973);
+  const stillGood = await queued(973, "5 days", { step: "estrazione", attempts: 1, choice: false });
+  row = await picked(973);
   eq(
     [row.step, row.research_note_id, row.attempts],
     ["estrazione", stillGood.research, 1],
-    "All'estrazione con una ricerca recente non cambia niente",
+    "Un lavoro già all'estrazione non cambia",
   );
-  row = await jobOf(974);
+  await stop(973);
+  const decided = await queued(974, "20 days", { step: "estrazione" });
+  row = await picked(974);
   eq(
     [row.step, row.research_note_id, row.choice_note_id],
     ["estrazione", decided.research, decided.choice],
     "Una scelta già fatta non si tocca, come prima",
   );
-  // Il giro dopo non cambia più niente: nessun rimbalzo tra i due passi.
-  await tick();
-  eq((await jobOf(972)).step, "ricerca", "Nessun rimbalzo verso l'estrazione");
-  eq((await jobOf(953)).step, "estrazione", "Nessun rimbalzo verso la ricerca");
-  for (const co of [953, 954, 955, 956, 957, 958, 959, 960, 961]) await stop(co);
-  for (const co of [963, 964, 965, 966, 967, 968, 969, 970, 971, 972, 973, 974]) await stop(co);
+  await stop(974);
 
-  // 5. Una ricerca in corso non si tocca; a lease scaduta il lavoro riparte dall'estrazione.
+  // 5. Il controllo è sul lavoro preso: chi resta indietro nella coda non cambia, e si giudica quando
+  // tocca a lui.
+  const ahead = await queued(977, "5 days");
+  const behind = await queued(978, "5 days");
+  row = await picked(977);
+  eq([row.step, row.research_note_id], ["estrazione", ahead.research]);
+  await stop(977);
+  row = await jobOf(978);
+  eq(
+    [row.step, row.research_note_id, row.choice_note_id],
+    ["ricerca", behind.research, behind.choice],
+    "Chi resta indietro nella coda non cambia",
+  );
+  await asOwner("update public.partners set updated_at = now() where id = $1", [behind.partnerId]);
+  await redoes(978, behind, "Scheda corretta mentre aspettava il suo turno: si rifà");
+
+  // 6. Una ricerca in corso non si tocca; a lease scaduta il lavoro riparte dall'estrazione.
   const leased = await queued(975, "5 days");
   await asOwner(
     `update public.partner_assistant_jobs set lease_token = gen_random_uuid(),
@@ -554,30 +566,40 @@ try {
      where partner_id = $1`,
     [leased.partnerId],
   );
-  const resumed = await tick();
-  eq([resumed.status, resumed.job.step], ["claimed", "estrazione"]);
-  row = await jobOf(975);
+  row = await picked(975);
   eq([row.step, row.attempts, row.research_note_id], ["estrazione", 0, leased.research]);
-
-  // 6. Un contatto fermato durante l'attesa, con la data che arriva mentre è fermo: il lavoro passa
-  // all'estrazione, e alla ripresa la ricerca è giudicata di nuovo (qui già invecchiata).
   await stop(975);
+
+  // 7. Un contatto fermato durante l'attesa, con la data che arriva mentre è fermo: resta alla ricerca
+  // e si giudica alla ripresa, con la ricerca di quel momento.
   const stopped = await waiting(976, "5 days");
+  const stoppedYoung = await waiting(979, "5 days");
   await stop(976);
+  await stop(979);
   eq((await tick()).reason, "vuota", "Nessun contatto da prendere");
-  eq((await jobOf(976)).step, "estrazione");
+  row = await jobOf(976);
+  eq(
+    [row.status, row.step, row.research_note_id, row.choice_note_id, row.write_on],
+    ["in_coda", "ricerca", stopped.research, stopped.choice, null],
+    "La data arriva mentre è fermo: non si decide ancora",
+  );
+  const restart = (partnerId) =>
+    asOwner("update public.partner_assistant_contacts set active = true where partner_id = $1", [
+      partnerId,
+    ]);
   await asOwner(
     `alter table public.partner_assistant_notes disable trigger user;
      update public.partner_assistant_notes set created_at = now() - interval '30 days'
        where id = '${stopped.research}';
-     alter table public.partner_assistant_notes enable trigger user;
-     update public.partner_assistant_contacts set active = true where partner_id = '${stopped.partnerId}';`,
+     alter table public.partner_assistant_notes enable trigger user;`,
   );
-  const restarted = await tick();
-  eq(
-    [restarted.job.partner_id, restarted.job.step],
-    [stopped.partnerId, "ricerca"],
-    "Riattivato dopo 30 giorni: si rifà la ricerca",
+  await restart(stopped.partnerId);
+  await redoes(976, stopped, "Riattivato dopo 30 giorni: si rifà la ricerca");
+  await restart(stoppedYoung.partnerId);
+  await reuses(
+    979,
+    stoppedYoung,
+    "Riattivato con la ricerca ancora buona: riparte dall'estrazione",
   );
 
   console.log(`PASS ${checks} controlli`);
