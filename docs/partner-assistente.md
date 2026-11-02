@@ -475,7 +475,7 @@ Se ne manca una, si rifà la ricerca, come prima.
 
 ### Codice, test e produzione
 
-- `supabase/migrations/20261102001128_assistente_partner_ricerca_valida.sql`, additiva: `claim_partner_assistant_step` sostituita, stessa firma, stessi permessi, stesse risposte. Nessuna tabella nuova, nessun dato cambiato dalla migrazione.
+- `supabase/migrations/20261102101934_assistente_partner_ricerca_valida.sql`, additiva: `claim_partner_assistant_step` sostituita, stessa firma, stessi permessi, stesse risposte. Nessuna tabella nuova, nessun dato cambiato dalla migrazione.
 - `src/lib/partner-assistant/prompts.ts`: la riga con il giorno della ricerca. Prima il deploy del codice, poi la migrazione: così ogni ricerca riusata ha già la riga con il suo giorno.
 - `npm run test:db`: `assistente-partner-ricerca-valida.mjs` (PGlite, 88 controlli). `npm test`: i casi del giorno della ricerca in `prompts.test.ts`. Esiti in [verification.md](verification.md), «Ricerca ancora valida alla data di ripresa, 2 novembre 2026».
-- La migrazione non è ancora applicata in produzione: serve l'OK di Tommi.
+- In produzione dal 2 novembre 2026 (versione cloud `20261102101934`), applicata da Claude dopo il deploy del codice, con l'OK di Tommi («Sì, entrambe») e la procedura delle impronte; esiti in [verification.md](verification.md).
