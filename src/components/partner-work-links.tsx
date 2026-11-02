@@ -222,7 +222,9 @@ export function PartnerWorkLinks({
       </nav>
       <p className={styles.explanation}>
         Ogni invio, segnato nella scheda o arrivato dai file «Esporta» dei dispositivi, genera un
-        sollecito a sette giorni; una risposta chiude il sollecito collegato.
+        sollecito a sette giorni. «Registra una risposta» nel registro Partner, oppure «Ha risposto»
+        in Oggi, chiude il sollecito collegato; cambiare soltanto lo stato in «Risposto» non lo
+        chiude.
       </p>
       {preview && (
         <p role="status" className={styles.notice}>

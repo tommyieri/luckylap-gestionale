@@ -129,7 +129,7 @@ describe("tentativi in sospeso", () => {
 
   it("righe leggibili senza id né codici", () => {
     const lines = pendingPartnerLines(stateCommand, { co: 12, name: "Garage Sintetico" });
-    expect(lines).toEqual(["Contatto: CO 012 · Garage Sintetico", "Stato: Ha risposto"]);
+    expect(lines).toEqual(["Contatto: CO 012 · Garage Sintetico", "Stato: Risposto"]);
     expect(pendingPartnerLines(activityCommand, null)).toEqual([
       "Registro: Sollecito inviato",
       "Giorno: 21/10/2026",

@@ -212,7 +212,7 @@ describe("PartnerActivityLog", () => {
       expect(labels, String(co)).toEqual([
         "Segna inviato",
         "Segna sollecito inviato",
-        "Ha risposto",
+        "Registra una risposta",
         "Chiamata",
         "Incontro",
         "Nota",
@@ -283,7 +283,7 @@ describe("PartnerActivityLog", () => {
     const tree = render(4, true);
     for (const label of ["Segna inviato", "Segna sollecito inviato", "Chiamata", "Incontro"])
       expect(button(tree, label).props.disabled, label).toBe(true);
-    for (const label of ["Ha risposto", "Nota"])
+    for (const label of ["Registra una risposta", "Nota"])
       expect(button(tree, label).props.disabled, label).toBe(false);
   });
 });

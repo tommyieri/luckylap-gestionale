@@ -8,9 +8,7 @@ import {
   PARTNER_ASSISTANT_SEND_UNREADABLE,
   PARTNER_ASSISTANT_STOP_LABELS,
   PARTNER_ASSISTANT_UNREADABLE,
-  formatPartnerAssistantUsd,
   type PartnerAssistantInactive,
-  type PartnerAssistantPausedReason,
   type PartnerAssistantSendStatus,
   type PartnerAssistantStatus,
 } from "../../lib/partner/assistant";
@@ -21,18 +19,13 @@ import styles from "./partner.module.css";
 
 /*
  * La striscia in cima a /partner (specifica dell'assistente Partner, «Interfaccia»), sul modello
- * di «Area aperta» (SensitiveAreaSessionBar): modalità, bozze pronte e spesa, con «Ferma
+ * di «Area aperta» (SensitiveAreaSessionBar): invio e preparazione distinti, con «Ferma
  * l'assistente». Spento, in pausa, non configurato o non leggibile: fondo ambra con la parola
  * scritta. In «Prova» e «Invio» (consegna 2a) la riga conta le email di oggi, e il fondo è ambra
  * anche con gli invii fermi, la posta dell'assistente non configurata o lo stato degli invii non
  * leggibile. Mai indirizzi. Mostra i dati del caricamento: dopo «Ferma» la pagina la rilegge la
  * Server Action. Senza le migrazioni dell'assistente («non attivo») la striscia non c'è.
  */
-
-const PAUSED: Record<PartnerAssistantPausedReason, string> = {
-  credito: "in pausa per credito finito",
-  errore_claude: "in pausa per un errore di Claude",
-};
 
 /** Gli avvisi dell'invio, solo in «Prova» e «Invio»: lì il worker manda davvero. */
 function sendWarnings(
@@ -94,7 +87,12 @@ export function PartnerAssistantStrip({
             PARTNER_ASSISTANT_UNREADABLE
           ) : (
             <>
-              <StatusLine status={status} send={send} />
+              <StatusLine
+                status={status}
+                send={send}
+                mailConfigured={mailConfigured}
+                today={today}
+              />
               {warnings.length > 0 && `. ${warnings.join(" ")}`}
             </>
           )}
@@ -131,49 +129,49 @@ export function PartnerAssistantStrip({
 }
 
 /**
- * «Assistente: prepara · 12 bozze pronte · 21,40 USD spesi», «Assistente in invio · 3 email oggi
- * su 5 · 12,30 USD spesi», «Assistente in prova · 4 email di prova oggi · 12,30 USD spesi», con la
- * pausa se c'è. Senza lo stato dell'invio, in «Prova» e «Invio» niente conteggio.
+ * Gli invii pronti possono proseguire mentre la preparazione è in pausa per credito.
+ * Senza una lettura certa della posta non dichiara invii attivi. La spesa è nella pagina Assistente.
  */
 function StatusLine({
   status,
   send,
+  mailConfigured,
+  today,
 }: {
   status: PartnerAssistantStatus;
   send: PartnerAssistantSendStatus | null;
+  mailConfigured: boolean;
+  today: string;
 }) {
-  const ready = status.counts.pronta;
-  const sending = status.mode === "prova" || status.mode === "invio";
-  const parts = [
-    sending
-      ? `Assistente in ${status.mode}`
-      : `Assistente: ${PARTNER_ASSISTANT_MODE_LABELS[status.mode].toLowerCase()}`,
-    ...(status.configured ? [] : ["non ancora configurato"]),
-    ...(status.pausedReason === null ? [] : [PAUSED[status.pausedReason]]),
-  ];
-  if (sending)
-    return (
-      <>
-        {parts.join(" · ")} ·{" "}
-        {send !== null &&
-          (status.mode === "invio" ? (
-            <>
-              <span className="num">{send.firstSentToday}</span> email oggi su{" "}
-              <span className="num">{send.firstLimitToday}</span> ·{" "}
-            </>
-          ) : (
-            <>
-              <span className="num">{send.testSentToday}</span> email di prova oggi ·{" "}
-            </>
-          ))}
-        <span className="num">{formatPartnerAssistantUsd(status.spentUsd)}</span> spesi
-      </>
-    );
-  return (
-    <>
-      {parts.join(" · ")} · <span className="num">{ready}</span>{" "}
-      {ready === 1 ? "bozza pronta" : "bozze pronte"} ·{" "}
-      <span className="num">{formatPartnerAssistantUsd(status.spentUsd)}</span> spesi
-    </>
-  );
+  const active =
+    status.mode === "invio" &&
+    status.configured &&
+    mailConfigured &&
+    send !== null &&
+    send.stopReason === null &&
+    send.dayStoppedOn !== today;
+  const delivery = active
+    ? "Prime email automatiche attive"
+    : status.mode === "prova"
+      ? "Invii di prova"
+      : status.mode === "invio"
+        ? "Prime email automatiche da verificare"
+        : `Prime email automatiche ferme · ${PARTNER_ASSISTANT_MODE_LABELS[status.mode]}`;
+  const preparation =
+    status.pausedReason === "credito"
+      ? "Preparazione in pausa: credito finito"
+      : status.pausedReason === "errore_claude"
+        ? "Preparazione in pausa: errore di Claude"
+        : !status.configured
+          ? "Preparazione non ancora configurata"
+          : status.mode === "spento"
+            ? "Preparazione ferma"
+            : `${status.counts.pronta} ${status.counts.pronta === 1 ? "bozza pronta" : "bozze pronte"}`;
+  const counter =
+    status.mode === "invio" && send
+      ? `${send.firstSentToday} email oggi su ${send.firstLimitToday}`
+      : status.mode === "prova" && send
+        ? `${send.testSentToday} email di prova oggi`
+        : null;
+  return <>{[delivery, counter, preparation].filter(Boolean).join(" · ")}</>;
 }

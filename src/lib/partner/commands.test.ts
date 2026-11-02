@@ -807,7 +807,7 @@ describe("esiti dei comandi", () => {
       partnerId: PARTNER,
       version: 5,
       stage: "contattato",
-      message: "Registrato. Stato: Contattato.",
+      message: "Registrato. Stato: Scritto.",
       occurredAt: "2026-10-22T10:00:00+00:00",
     });
     const created = partnerCommandOutcome(parsed("save_partner"), {

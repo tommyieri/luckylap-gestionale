@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, type FormEvent } from "react";
+import { PARTNER_ASSISTANT_INACTIVE } from "../../lib/partner/assistant";
 import { partnerDomain, hostLabel, routeText } from "../../lib/partner/contacts";
 import { partnerDoNotContactPayload, partnerStatePayload } from "../../lib/partner/commands";
 import { instantDay, longDay, monthLong } from "../../lib/partner/dates";
@@ -21,8 +22,9 @@ import {
   type PartnerDifference,
   type PartnerSummary,
 } from "../../lib/partner/model";
+import type { PartnerWorkReply } from "../../lib/partner/work";
 import { PartnerActivityLog } from "./partner-activity";
-import { PartnerAssistantBlock } from "./partner-assistant-block";
+import { PartnerAssistantBlock, partnerAssistantSkipReasons } from "./partner-assistant-block";
 import { PartnerCardForm } from "./partner-card-form";
 import { CommandFeedback, usePartnerCommand } from "./partner-command";
 import { PartnerContacts } from "./partner-contacts";
@@ -128,7 +130,13 @@ function DifferenceItem({
 }
 
 /** «Seguito da», «Prossima azione» con il giorno, «Salva». */
-function OwnerStrip({ partner }: { partner: PartnerSummary }) {
+function OwnerStrip({
+  partner,
+  assistantEligible,
+}: {
+  partner: PartnerSummary;
+  assistantEligible: boolean;
+}) {
   const { preview, members } = usePartnerContext();
   const command = usePartnerCommand(`responsabile-${partner.id}`);
   const [owner, setOwner] = useState(partner.ownerId ?? "");
@@ -159,6 +167,13 @@ function OwnerStrip({ partner }: { partner: PartnerSummary }) {
 
   return (
     <form className={styles.strip} onSubmit={submit} noValidate>
+      {assistantEligible &&
+        ((ownerChanged && owner !== "") || (nextChanged && nextText.trim() !== "")) && (
+          <p className={`${styles.stripFeedback} ${styles.noteAmber}`}>
+            Salvare un responsabile o una prossima azione esclude questo contatto dalle prime email
+            automatiche dell'assistente.
+          </p>
+        )}
       <label className={styles.field}>
         <span>Seguito da</span>
         <select value={owner} onChange={(event) => setOwner(event.target.value)}>
@@ -314,9 +329,8 @@ function DoNotContact({ detail, block }: { detail: PartnerDetail; block: Partner
   );
 }
 
-/** Testi della ricerca, in sola lettura, come detailsHtml del sito. */
-function Research({ detail }: { detail: PartnerDetail }) {
-  const { today } = usePartnerContext();
+/** Nome, tipo, motivo e proposta restano davanti al lavoro corrente. */
+function ContactContext({ detail }: { detail: PartnerDetail }) {
   const { partner } = detail;
   const research = partner.research;
   const why = [research.description, research.why].filter(Boolean);
@@ -330,28 +344,70 @@ function Research({ detail }: { detail: PartnerDetail }) {
         : "Hanno già lavorato con",
       text: research.pitch,
     });
+  return (
+    <section className={styles.detailBlock} aria-labelledby={`contesto-${partner.co}`}>
+      <h4 id={`contesto-${partner.co}`}>{partner.name}</h4>
+      <p>
+        {partner.typeLabel || "Tipo da completare"} ·{" "}
+        {partner.sections.map((section) => PARTNER_SECTION_LABELS[section]).join(" · ")}
+      </p>
+      {why.length > 0 ? (
+        why.map((text, index) => <p key={index}>{text}</p>)
+      ) : (
+        <p>Motivo da completare.</p>
+      )}
+      {ideas.map((idea) => (
+        <p key={idea.label}>
+          <b className={styles.ideaLabel}>{idea.label}.</b> {idea.text}
+        </p>
+      ))}
+    </section>
+  );
+}
+
+/** La risposta resta leggibile anche quando è uscita dalla pagina del registro. */
+function LatestResponse({
+  response,
+  co,
+}: {
+  response: Pick<PartnerWorkReply, "occurredAt" | "body"> | null;
+  co: number;
+}) {
+  const { today } = usePartnerContext();
+  if (response === null) return null;
+  const day = instantDay(response.occurredAt);
+  const text = response.body.trim();
+  return (
+    <section className={styles.detailBlock} aria-label="Ultima risposta registrata">
+      <h4>Ultima risposta registrata</h4>
+      {day && <p>{longDay(day, today)}</p>}
+      {text && (
+        <p className={styles.preText}>
+          {text.length > 240 ? `${text.slice(0, 240).trimEnd()}…` : text}
+        </p>
+      )}
+      {text.length > 240 && (
+        <details className={styles.disclosure}>
+          <summary>Leggi risposta completa</summary>
+          <p className={styles.preText}>{response.body}</p>
+        </details>
+      )}
+      <a className={styles.act} href={`#registro-${co}`}>
+        Leggi nel registro
+      </a>
+    </section>
+  );
+}
+
+/** Dati della ricerca importata, in sola lettura. */
+function Research({ detail }: { detail: PartnerDetail }) {
+  const { today } = usePartnerContext();
+  const { partner } = detail;
+  const research = partner.research;
   const when = [research.when, research.dateNote, research.application].filter(Boolean);
   const extra = research.extra.filter((item) => item.route || item.application);
   return (
     <div className={styles.researchGrid}>
-      {why.length > 0 && (
-        <section className={styles.detailBlock}>
-          <h4>Perché è in lista</h4>
-          {why.map((text, index) => (
-            <p key={index}>{text}</p>
-          ))}
-        </section>
-      )}
-      {ideas.length > 0 && (
-        <section className={styles.detailBlock}>
-          <h4>Cosa proporre</h4>
-          {ideas.map((idea) => (
-            <p key={idea.label}>
-              <b className={styles.ideaLabel}>{idea.label}.</b> {idea.text}
-            </p>
-          ))}
-        </section>
-      )}
       <section className={styles.detailBlock}>
         <h4>Come contattarli</h4>
         <p>
@@ -389,9 +445,9 @@ function Research({ detail }: { detail: PartnerDetail }) {
 }
 
 /**
- * Dettagli di un contatto (spec 02 §5.5): differenze, fuori dalla ricerca, responsabile e
- * prossima azione, «Esito» con l'accordo fatto, assistente, registro, ricerca, recapiti,
- * attenzione e fonti, scheda, blocco. Dal 31 ottobre 2026 niente «Messaggi pronti» (vedi
+ * Dettagli di un contatto: contesto, avvisi, responsabile e prossima azione, ultima risposta,
+ * bozza dell'assistente e registro. Ricerca, recapiti e fonti restano in sezioni apribili;
+ * modifica della scheda e blocco restano disponibili. Dal 31 ottobre 2026 niente «Messaggi pronti» (vedi
  * partner-messages.tsx): l'email la scrive l'assistente, «Segna inviato» e «Segna sollecito
  * inviato» sono nel Registro e le differenze sui testi vecchi non si mostrano.
  */
@@ -399,18 +455,43 @@ export function PartnerDetails({
   detail,
   summary,
   block,
+  latestReply,
 }: {
   detail: PartnerDetail;
   summary: PartnerSummary;
   block: PartnerBlock | null;
+  /** Ultima risposta dalla vista completa; senza questa proprietà vale il registro caricato. */
+  latestReply?: PartnerWorkReply | null;
 }) {
-  const { today } = usePartnerContext();
+  const { today, members } = usePartnerContext();
   const { partner, research } = { partner: detail.partner, research: detail.partner.research };
   const removedDay = partner.researchRemovedAt ? instantDay(partner.researchRemovedAt) : null;
   const blocked = detail.blocks.length > 0 || block !== null;
   const differences = detail.differences.filter(isReviewableDifference);
+  const loadedResponse =
+    detail.activities
+      .filter((activity) => activity.kind === "risposta")
+      .sort((a, b) => Date.parse(b.occurredAt) - Date.parse(a.occurredAt))[0] ?? null;
+  // A parità d'istante conserviamo la fonte completa, senza dedurre un ordine dagli UUID.
+  const latestResponse =
+    latestReply &&
+    (!loadedResponse || Date.parse(latestReply.occurredAt) >= Date.parse(loadedResponse.occurredAt))
+      ? latestReply
+      : loadedResponse;
+  const assistantEligible =
+    detail.assistant !== null &&
+    detail.assistant !== PARTNER_ASSISTANT_INACTIVE &&
+    detail.assistant.active &&
+    partnerAssistantSkipReasons({
+      partner: summary,
+      ownerName: members.find((member) => member.id === summary.ownerId)?.name ?? null,
+      blocked,
+      contacts: detail.contacts,
+      activities: detail.activities,
+    }).length === 0;
   return (
     <div className={styles.details}>
+      <ContactContext detail={detail} />
       {differences.length > 0 && (
         <section className={`${styles.detailBlock} ${styles.flag}`}>
           <h4>Differenze da controllare</h4>
@@ -427,8 +508,13 @@ export function PartnerDetails({
           contatto. Lo storico resta.
         </p>
       )}
-      <OwnerStrip key={`${summary.id}-${summary.version}`} partner={summary} />
+      <OwnerStrip
+        key={`${summary.id}-${summary.version}`}
+        partner={summary}
+        assistantEligible={assistantEligible}
+      />
       <PartnerOutcomePanel partner={summary} />
+      <LatestResponse response={latestResponse} co={partner.co} />
       <PartnerAssistantBlock
         partner={summary}
         assistant={detail.assistant}
@@ -437,32 +523,41 @@ export function PartnerDetails({
         activities={detail.activities}
       />
       <PartnerActivityLog detail={detail} blocked={blocked} />
-      <Research detail={detail} />
-      <PartnerContacts detail={detail} blocked={blocked} />
+      <details className={styles.disclosure}>
+        <summary>Ricerca importata</summary>
+        <Research detail={detail} />
+      </details>
+      <details className={styles.disclosure}>
+        <summary>Recapiti</summary>
+        <PartnerContacts detail={detail} blocked={blocked} />
+      </details>
       {(research.flags || research.sources.length > 0) && (
-        <div className={styles.researchGrid}>
-          {research.flags && (
-            <section className={`${styles.detailBlock} ${styles.flag}`}>
-              <h4>Attenzione</h4>
-              <p>{research.flags}</p>
-            </section>
-          )}
-          {research.sources.length > 0 && (
-            <section className={styles.detailBlock}>
-              <h4>Fonti</h4>
-              <ul className={styles.sources}>
-                {research.sources.map((url) => (
-                  <li key={url}>
-                    <a href={url} target="_blank" rel="noopener noreferrer">
-                      {hostLabel(url)}
-                      <span className="sr-only"> (si apre in una nuova scheda)</span>
-                    </a>
-                  </li>
-                ))}
-              </ul>
-            </section>
-          )}
-        </div>
+        <details className={styles.disclosure}>
+          <summary>Attenzione e fonti</summary>
+          <div className={styles.researchGrid}>
+            {research.flags && (
+              <section className={`${styles.detailBlock} ${styles.flag}`}>
+                <h4>Attenzione</h4>
+                <p>{research.flags}</p>
+              </section>
+            )}
+            {research.sources.length > 0 && (
+              <section className={styles.detailBlock}>
+                <h4>Fonti</h4>
+                <ul className={styles.sources}>
+                  {research.sources.map((url) => (
+                    <li key={url}>
+                      <a href={url} target="_blank" rel="noopener noreferrer">
+                        {hostLabel(url)}
+                        <span className="sr-only"> (si apre in una nuova scheda)</span>
+                      </a>
+                    </li>
+                  ))}
+                </ul>
+              </section>
+            )}
+          </div>
+        </details>
       )}
       <details className={styles.disclosure}>
         <summary>Modifica la scheda</summary>

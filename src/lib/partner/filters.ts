@@ -1,9 +1,8 @@
 // Partner: filtri, conteggi e stato nell'indirizzo (spec 02 §5.3). Funzioni pure.
 //
-// `/partner?periodo=1&sezione=eventi&stato=da_fare&chi=io&q=porsche&co=12`: un link apre la
-// stessa vista. Valori non validi: si usano i default, senza errore. Periodo, sezione e ricerca
-// lavorano nel browser sui dati già caricati; i conteggi delle celle dei periodi applicano tutti
-// i filtri tranne il periodo, come nel sito.
+// Un link apre la stessa vista. Valori non validi: si usano i default, senza errore.
+// Da seguire e Risposte attraversano i periodi; la sezione scelta resta sempre attiva.
+// I conteggi dei periodi applicano tutti i filtri tranne il periodo stesso.
 import { partnerDomain } from "./contacts";
 import { partnerLeadAnchor, PARTNER_PATH } from "./links";
 import {
@@ -21,6 +20,7 @@ import {
   type PartnerSummary,
 } from "./model";
 import { PARTNER_PERIOD_NUMBERS, partnerPeriod, type PartnerPeriodNumber } from "./periods";
+import { comparePartnerWork, type PartnerWorkData, type PartnerWorkView } from "./work";
 
 export const PARTNER_VIEW_SECTIONS = ["tutti", ...PARTNER_SECTIONS] as const;
 export type PartnerViewSection = (typeof PARTNER_VIEW_SECTIONS)[number];
@@ -44,6 +44,8 @@ export type PartnerOwnerFilter = "tutti" | "io" | "nessuno" | (string & {});
 export const PARTNER_QUERY_MAX = 80;
 
 export type PartnerView = {
+  /** Assente negli oggetti delle versioni precedenti: conserva la lista per periodo. */
+  lavoro?: "da_seguire" | "risposte" | "tutti";
   periodo: PartnerPeriodNumber;
   sezione: PartnerViewSection;
   stato: PartnerStatusFilter;
@@ -52,12 +54,13 @@ export type PartnerView = {
   /** Contatto con i dettagli aperti. */
   co: number | null;
   /**
-   * «Ci siamo»: solo gli accordi fatti (stato `chiuso`), di ogni periodo e sezione, con gli
-   * eventi in arrivo per primi. Nell'indirizzo è `vista=ci_siamo`.
+   * «Accordi fatti»: stato `chiuso`, di ogni periodo nella sezione scelta, con gli eventi in
+   * arrivo per primi. Nell'indirizzo resta `vista=ci_siamo` per i link esistenti.
    */
   accordi: boolean;
 };
 export const DEFAULT_PARTNER_VIEW: PartnerView = {
+  lavoro: "da_seguire",
   periodo: 1,
   sezione: "tutti",
   stato: "da_fare",
@@ -66,7 +69,7 @@ export const DEFAULT_PARTNER_VIEW: PartnerView = {
   co: null,
   accordi: false,
 };
-/** Valore di `vista` nell'indirizzo per «Ci siamo». */
+/** Valore storico di `vista` nell'indirizzo per «Accordi fatti». */
 export const PARTNER_AGREED_VIEW = "ci_siamo";
 
 type Params =
@@ -108,23 +111,30 @@ export function parsePartnerView(
     .trim();
   const coText = param(params, "co");
   const co = coText !== undefined && /^[1-9][0-9]{0,4}$/.test(coText) ? Number(coText) : null;
+  const vista = param(params, "vista");
+  const accordi = vista === PARTNER_AGREED_VIEW;
+  const lavoro = accordi
+    ? "tutti"
+    : (oneOf(["da_seguire", "risposte", "tutti"] as const, vista) ??
+      (periodo !== null ? "tutti" : "da_seguire"));
   return {
     view: {
+      lavoro,
       periodo: periodo ?? DEFAULT_PARTNER_VIEW.periodo,
       sezione: sezione ?? DEFAULT_PARTNER_VIEW.sezione,
       stato: stato ?? DEFAULT_PARTNER_VIEW.stato,
       chi,
       q,
       co: co !== null && isPartnerCo(co) ? co : null,
-      accordi: param(params, "vista") === PARTNER_AGREED_VIEW,
+      accordi,
     },
     explicit: { periodo: periodo !== null, sezione: sezione !== null },
   };
 }
 
 /**
- * Testo della query, senza «?»: periodo e sezione sempre (così un link apre la stessa vista
- * anche su un altro browser), gli altri filtri solo se diversi dal default.
+ * Testo della query, senza «?»: periodo, sezione e vista sempre, così il ritorno conserva
+ * anche la scelta operativa. Gli altri filtri compaiono solo se diversi dal default.
  */
 export function partnerViewQuery(view: PartnerView): string {
   const params = new URLSearchParams();
@@ -133,12 +143,12 @@ export function partnerViewQuery(view: PartnerView): string {
   if (view.stato !== DEFAULT_PARTNER_VIEW.stato) params.set("stato", view.stato);
   if (view.chi !== DEFAULT_PARTNER_VIEW.chi) params.set("chi", view.chi);
   if (view.q !== "") params.set("q", view.q);
-  if (view.accordi) params.set("vista", PARTNER_AGREED_VIEW);
+  params.set("vista", view.accordi ? PARTNER_AGREED_VIEW : (view.lavoro ?? "tutti"));
   if (view.co !== null) params.set("co", String(view.co));
   return params.toString();
 }
 
-/** `/partner?periodo=1&sezione=tutti&co=12#lead-12`. */
+/** Link alla vista corrente, con ancora del contatto se è aperto. */
 export function partnerViewHref(view: PartnerView): string {
   const query = partnerViewQuery(view);
   return `${PARTNER_PATH}?${query}${view.co !== null ? `#${partnerLeadAnchor(view.co)}` : ""}`;
@@ -201,6 +211,8 @@ export function buildPartnerIndex(workspace: {
 
 export type PartnerFilterContext = {
   index: PartnerIndex;
+  work?: PartnerWorkData | null;
+  workViews?: ReadonlyMap<string, PartnerWorkView>;
   /** Giorno di Roma «AAAA-MM-GG». */
   today: string;
   /** Membro della sessione, per `chi=io`. */
@@ -250,26 +262,37 @@ function ownerMatch(partner: PartnerSummary, chi: PartnerOwnerFilter, memberId: 
   return partner.ownerId !== null && partner.ownerId.toLowerCase() === chi.toLowerCase();
 }
 
+function hasReply(partner: PartnerSummary, context: PartnerFilterContext): boolean {
+  return context.work?.replies.some((reply) => reply.partnerId === partner.id) ?? false;
+}
+
+function needsAction(partner: PartnerSummary, context: PartnerFilterContext): boolean {
+  return context.workViews
+    ? (context.workViews.get(partner.id)?.needsAction ?? false)
+    : partner.stage !== "chiuso" && partner.stage !== "no";
+}
+
 export function partnerMatches(
   partner: PartnerSummary,
   view: PartnerView,
   context: PartnerFilterContext,
   options: { ignorePeriod?: boolean } = {},
 ): boolean {
-  if (view.accordi)
-    return (
-      partner.stage === "chiuso" &&
-      ownerMatch(partner, view.chi, context.memberId) &&
-      partnerSearchMatch(partner, view.q)
-    );
   if (view.sezione !== "tutti" && !partner.sections.includes(view.sezione as PartnerSection))
     return false;
+  if (!ownerMatch(partner, view.chi, context.memberId) || !partnerSearchMatch(partner, view.q))
+    return false;
+  if (view.accordi) return partner.stage === "chiuso";
+  if (view.lavoro === "risposte") return hasReply(partner, context);
+  if (view.lavoro === "da_seguire" && view.stato === "da_controllare")
+    return statusMatch(partner, view.stato, context.index);
+  if (view.lavoro === "da_seguire")
+    return (
+      needsAction(partner, context) &&
+      (view.stato === "da_fare" || statusMatch(partner, view.stato, context.index))
+    );
   if (!options.ignorePeriod && partnerPeriod(partner, context.today) !== view.periodo) return false;
-  return (
-    statusMatch(partner, view.stato, context.index) &&
-    ownerMatch(partner, view.chi, context.memberId) &&
-    partnerSearchMatch(partner, view.q)
-  );
+  return statusMatch(partner, view.stato, context.index);
 }
 
 /** Evento non ancora finito, giorno di Roma «AAAA-MM-GG»: è (o sarà) nel calendario del team. */
@@ -280,8 +303,8 @@ export function upcomingEventStart(partner: PartnerSummary, today: string): stri
 }
 
 /**
- * Contatti della vista, per CO. In «Ci siamo» prima gli eventi in arrivo, per data, poi gli
- * altri accordi per CO.
+ * Da seguire per urgenza e scadenza, poi CO. Negli accordi prima gli eventi in arrivo per
+ * data; nelle altre viste per CO.
  */
 export function filterPartners(
   partners: readonly PartnerSummary[],
@@ -289,12 +312,21 @@ export function filterPartners(
   context: PartnerFilterContext,
 ): PartnerSummary[] {
   const visible = partners.filter((partner) => partnerMatches(partner, view, context));
-  if (!view.accordi) return visible.sort((a, b) => a.co - b.co);
-  const key = (partner: PartnerSummary) => upcomingEventStart(partner, context.today) ?? "9999";
-  return visible.sort((a, b) => key(a).localeCompare(key(b)) || a.co - b.co);
+  if (view.accordi) {
+    const key = (partner: PartnerSummary) => upcomingEventStart(partner, context.today) ?? "9999";
+    return visible.sort((a, b) => key(a).localeCompare(key(b)) || a.co - b.co);
+  }
+  return visible.sort((a, b) => {
+    if (view.lavoro === "da_seguire" && context.workViews) {
+      const left = context.workViews.get(a.id);
+      const right = context.workViews.get(b.id);
+      if (left && right) return comparePartnerWork(left, right) || a.co - b.co;
+    }
+    return a.co - b.co;
+  });
 }
 
-/** Accordi fatti: il numero sul pulsante «Ci siamo». */
+/** Accordi fatti: il totale degli accordi in tutte le sezioni. */
 export const agreedCount = (partners: readonly PartnerSummary[]): number =>
   partners.filter((partner) => partner.stage === "chiuso").length;
 
@@ -341,6 +373,8 @@ export function viewShowing(
   context: PartnerFilterContext,
 ): PartnerView {
   const next: PartnerView = { ...view, co: partner.co };
+  if (next.sezione !== "tutti" && !partner.sections.includes(next.sezione as PartnerSection))
+    next.sezione = "tutti";
   if (next.accordi) {
     if (partner.stage === "chiuso") {
       if (!ownerMatch(partner, next.chi, context.memberId)) next.chi = "tutti";
@@ -349,10 +383,16 @@ export function viewShowing(
     }
     next.accordi = false;
   }
-  next.periodo = partnerPeriod(partner, context.today);
-  if (next.sezione !== "tutti" && !partner.sections.includes(next.sezione as PartnerSection))
-    next.sezione = "tutti";
-  if (!statusMatch(partner, next.stato, context.index)) next.stato = "tutti";
+  if (
+    (next.lavoro === "risposte" && !hasReply(partner, context)) ||
+    (next.lavoro === "da_seguire" &&
+      !needsAction(partner, context) &&
+      !(next.stato === "da_controllare" && statusMatch(partner, next.stato, context.index)))
+  )
+    next.lavoro = "tutti";
+  if (!next.lavoro || next.lavoro === "tutti") next.periodo = partnerPeriod(partner, context.today);
+  if (next.lavoro !== "risposte" && !statusMatch(partner, next.stato, context.index))
+    next.stato = "tutti";
   if (!ownerMatch(partner, next.chi, context.memberId)) next.chi = "tutti";
   if (!partnerSearchMatch(partner, next.q)) next.q = "";
   return next;
@@ -361,7 +401,7 @@ export function viewShowing(
 /** Nessun filtro oltre a periodo e sezione: per «Togli i filtri». */
 export const withoutFilters = (view: PartnerView): PartnerView => ({
   ...view,
-  stato: DEFAULT_PARTNER_VIEW.stato,
+  stato: view.lavoro === "da_seguire" ? DEFAULT_PARTNER_VIEW.stato : "tutti",
   chi: DEFAULT_PARTNER_VIEW.chi,
   q: "",
   co: null,

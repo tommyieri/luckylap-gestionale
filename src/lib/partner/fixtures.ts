@@ -20,6 +20,7 @@ import {
 } from "./assistant";
 import { partnerLinkValue } from "./contacts";
 import { addDays, addMonths, romeDay } from "./dates";
+import { partnerWorkFromRows } from "./work-read";
 import {
   type PartnerContactKind,
   type PartnerDetail,
@@ -1101,7 +1102,7 @@ Testo di prova per l'anteprima locale: le regole vere arrivano con l'import dell
 
 export function partnerFixtureWorkspace(today: string): PartnerWorkspace {
   const rows = partnerFixtureRows(today);
-  return partnerWorkspaceFromRows({
+  const workspace = partnerWorkspaceFromRows({
     partners: rows.partners,
     contacts: rows.contacts,
     variants: rows.variants,
@@ -1111,6 +1112,20 @@ export function partnerFixtureWorkspace(today: string): PartnerWorkspace {
     memberships: rows.memberships,
     lastImport: rows.imports[0],
   });
+  const assistant = partnerAssistantFixtureRows(today);
+  workspace.work = partnerWorkFromRows(
+    {
+      assistantStatus: "ready",
+      jobs: assistant.jobs,
+      toggles: assistant.switches,
+      activities: rows.activities,
+      replies: rows.activities.filter((activity) => activity.kind === "risposta"),
+      links: [],
+      tasks: [],
+    },
+    workspace.partners.map((partner) => partner.id),
+  );
+  return workspace;
 }
 
 export function partnerFixtureDetail(co: number, today: string): PartnerDetail | null {

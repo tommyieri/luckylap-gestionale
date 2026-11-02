@@ -37,7 +37,7 @@ const BUTTONS: LogButton[] = [
     messageKind: "sollecito",
     label: "Segna sollecito inviato",
   },
-  { id: "risposta", kind: "risposta", label: "Ha risposto" },
+  { id: "risposta", kind: "risposta", label: "Registra una risposta" },
   { id: "chiamata", kind: "chiamata", label: "Chiamata" },
   { id: "incontro", kind: "incontro", label: "Incontro" },
   { id: "nota", kind: "nota", label: "Nota" },

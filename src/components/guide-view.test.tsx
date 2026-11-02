@@ -241,7 +241,7 @@ describe("Partner", () => {
       expect(copy).toContain(closing);
     expect(copy).toContain("un «Contattato» del file crea il sollecito per chi carica il file");
     expect(copy).toContain("la conferma ti dice il giorno");
-    expect(copy).toContain("«Ha risposto», qui o in Oggi");
+    expect(copy).toContain("«Registra una risposta» nel «Registro»");
     expect(copy).toContain("il riquadro «Esito»");
   });
 
@@ -257,8 +257,7 @@ describe("Partner", () => {
     const copy = text(part(everyone));
     expect(copy).toContain("In cima a Partner c’è la striscia dell’assistente");
     expect(copy).toContain("«Apri l'assistente» porta alla sua pagina");
-    expect(copy).toContain("Nella scheda del contatto, il blocco «Assistente»");
-    expect(copy).toContain("la ricerca con le fonti, la proposta scelta e la bozza dell’email");
+    expect(copy).toContain("Nella scheda del contatto la bozza è visibile prima della ricerca");
   });
 
   it("dice quando l'assistente manda le email, con la prova di Tommi prima", () => {
@@ -276,11 +275,9 @@ describe("Partner", () => {
     expect(copy).not.toContain("non manda niente");
   });
 
-  it("dice quale testo manda l'assistente: la «Bozza dell'email» del blocco «Assistente»", () => {
+  it("dice quale testo manda l'assistente: la «Bozza dell'email» nella scheda", () => {
     const copy = text(part(everyone));
-    expect(copy).toContain(
-      "L’email che l’assistente manda è la «Bozza dell'email» di questo blocco.",
-    );
+    expect(copy).toContain("L’email che l’assistente manda è la «Bozza dell'email» nella scheda.");
   });
 
   it("niente più «Messaggi pronti»: gli invii si segnano nel «Registro»", () => {
@@ -305,7 +302,7 @@ describe("Partner", () => {
   it("il sollecito lo scrive Tommi dalla «Bozza dell'email» mandata, e lo segna nel «Registro»", () => {
     const copy = text(part(everyone));
     expect(copy).toContain(
-      "Per ora lo scrive lui, partendo dalla «Bozza dell'email» mandata, che resta nel blocco «Assistente». Quando l’ha mandato, nel «Registro» preme «Segna sollecito inviato», poi «Registra».",
+      "Per ora lo scrive lui, partendo dalla «Bozza dell'email» mandata, che resta nella scheda. Quando l’ha mandato, nel «Registro» preme «Segna sollecito inviato», poi «Registra».",
     );
   });
 
@@ -470,7 +467,7 @@ describe("i nomi citati esistono davvero", () => {
         '"Segna inviato"',
         '"Segna sollecito inviato"',
         '"Registra"',
-        "Ha risposto",
+        "Registra una risposta",
         "Registro</h4>",
       ],
     ],

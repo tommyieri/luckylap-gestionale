@@ -34,6 +34,8 @@ import {
 } from "./device-file";
 import { followUpConfirmation, readSentFollowUp } from "./follow-up";
 import { isPartnerCo, isPartnerId, type PartnerDetail, type PartnerWorkspace } from "./model";
+import { partnerWorkFromRows } from "./work-read";
+import type { PartnerWorkData } from "./work";
 import {
   partnerDataFromRows,
   partnerDetailFromRows,
@@ -62,9 +64,9 @@ export class PartnerUnavailableError extends Error {
   }
 }
 
-/** Colonne della lista: nessun testo della ricerca oltre a percorso e follower. */
+/** Colonne della lista: sintesi della motivazione, percorso e follower della ricerca. */
 export const PARTNER_SUMMARY_COLUMNS =
-  "id,co,source_key,origin,name,city,country,type_label,sections,priority,contact_month,event_starts_on,event_ends_on,application_deadline,preferred_channel,research_removed_at,stage,stage_from_file_at,owner_id,next_action,next_action_on,chosen_approach,approach_from_file_at,version,updated_at,route:research->>route,followers:research->>followers";
+  "id,co,source_key,origin,name,city,country,type_label,sections,priority,contact_month,event_starts_on,event_ends_on,application_deadline,preferred_channel,research_removed_at,stage,stage_from_file_at,owner_id,next_action,next_action_on,chosen_approach,approach_from_file_at,version,updated_at,route:research->>route,followers:research->>followers,why:research->>why";
 /** Recapiti della lista: il valore pulito, non il testo intero. */
 export const PARTNER_CONTACT_LINK_COLUMNS =
   "id,partner_id,kind,link_value,label,verified,active,position,version";
@@ -150,7 +152,11 @@ function reader(supabase: SupabaseClient) {
               ? query.is(column, null)
               : query.in(column, value as string[]);
       if (after !== null) query = query.gt(idColumn, after);
-      return query;
+      return query.then((result) => {
+        // Conserva il codice di tabella mancante per l'errore proprio dell'assistente.
+        if (result.error) throw result.error;
+        return result;
+      });
     }, idColumn);
 }
 
@@ -196,7 +202,7 @@ export async function loadPartnerWorkspace(supabase: SupabaseClient): Promise<Pa
       ]);
     const lastImport = rowsOf(imports);
     ensure(lastImport.length <= 1);
-    return partnerWorkspaceFromRows({
+    const workspace = partnerWorkspaceFromRows({
       partners,
       contacts,
       variants,
@@ -206,7 +212,61 @@ export async function loadPartnerWorkspace(supabase: SupabaseClient): Promise<Pa
       memberships,
       lastImport: lastImport[0] ?? null,
     });
+    workspace.work = await readPartnerWork(
+      supabase,
+      workspace.partners.map((p) => p.id),
+    ).catch(() => null);
+    return workspace;
   });
+}
+
+/** Nessuna scrittura: soltanto attività registrate e lavori già esistenti. */
+async function readPartnerWork(
+  supabase: SupabaseClient,
+  partnerIds: readonly string[],
+): Promise<PartnerWorkData> {
+  const read = reader(supabase);
+  const activityColumns = "id,partner_id,kind,origin,occurred_at,channel,created_by";
+  const [activities, replies, links, assistant] = await Promise.all([
+    read("partner_activities", activityColumns),
+    read("partner_activities", `${activityColumns},body`, [["eq", "kind", "risposta"]]),
+    read("partner_work_links", "id,partner_id,kind,task_id,activity_id", [
+      ["eq", "kind", "follow_up"],
+    ]),
+    Promise.allSettled([
+      read("partner_assistant_jobs", ASSISTANT_JOB_COLUMNS, [], "partner_id"),
+      read("partner_assistant_contacts", "partner_id,active", [], "partner_id"),
+    ]),
+  ]);
+  const failures = assistant.filter((result) => result.status === "rejected");
+  const assistantStatus = failures.length
+    ? failures.every((failure) => isPartnerAssistantMissing(failure.reason))
+      ? "inactive"
+      : "error"
+    : "ready";
+  const taskIds = [
+    ...new Set(links.map((link) => (link as Record<string, unknown>).task_id).filter(isPartnerId)),
+  ];
+  const tasks: unknown[] = [];
+  // Evita URL grandi: nessuna lettura delle attività del team estranee a Partner.
+  for (let start = 0; start < taskIds.length; start += 100)
+    tasks.push(
+      ...(await read("tasks", "id,due_at,assigned_to,status", [
+        ["in", "id", taskIds.slice(start, start + 100)],
+      ])),
+    );
+  return partnerWorkFromRows(
+    {
+      assistantStatus,
+      jobs: assistant[0].status === "fulfilled" ? assistant[0].value : [],
+      toggles: assistant[1].status === "fulfilled" ? assistant[1].value : [],
+      activities,
+      replies,
+      links,
+      tasks,
+    },
+    partnerIds,
+  );
 }
 
 /**

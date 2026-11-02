@@ -4,6 +4,7 @@
 // I parser delle righe lette dal database rifiutano ogni riga non valida (PartnerReadError):
 // la pagina mostra un errore, mai dati parziali o inventati.
 import type { PartnerAssistantContactView, PartnerAssistantInactive } from "./assistant";
+import type { PartnerWorkData } from "./work";
 import { instantDay, instantTime, isCalendarDay, isMonthStart, longDay, shortDay } from "./dates";
 
 export const PARTNER_STAGES = [
@@ -17,9 +18,9 @@ export const PARTNER_STAGES = [
 export type PartnerStage = (typeof PARTNER_STAGES)[number];
 export const PARTNER_STAGE_LABELS: Record<PartnerStage, string> = {
   da_contattare: "Da contattare",
-  contattato: "Contattato",
-  risposto: "Ha risposto",
-  trattativa: "In trattativa",
+  contattato: "Scritto",
+  risposto: "Risposto",
+  trattativa: "Primi contatti avviati",
   // Esito positivo: ci andiamo, c'è una collab o un accordo. Le date entrano nel calendario.
   chiuso: "Accordo fatto",
   no: "Non interessato",
@@ -342,6 +343,8 @@ export type PartnerSummary = {
   updatedAt: string;
   /** research->>route: «Come.» nella riga. */
   route: string;
+  /** Sintesi opzionale della ricerca; contenuti inattesi valgono vuoti. */
+  why?: string;
   /** research->>followers. */
   followers: string;
 };
@@ -407,6 +410,8 @@ export type PartnerResearchImport = {
 };
 
 export type PartnerWorkspace = {
+  /** Dati operativi separati: null se attività o solleciti non sono leggibili. */
+  work?: PartnerWorkData | null;
   partners: PartnerSummary[];
   contacts: PartnerContactLink[];
   variants: PartnerVariantSummary[];
@@ -668,6 +673,7 @@ export function parsePartnerSummary(value: unknown): PartnerSummary {
     updatedAt: instant(r.updated_at, what),
     // Campi della ricerca letti con research->>…: testo o assenti.
     route: typeof r.route === "string" ? r.route : r.route == null ? "" : fail(what),
+    why: typeof r.why === "string" ? r.why : "",
     followers:
       typeof r.followers === "string" ? r.followers : r.followers == null ? "" : fail(what),
   };
@@ -729,7 +735,12 @@ export function parsePartnerDetailRow(value: unknown): PartnerDetailPartner {
   const r = row(value, "Contatto");
   const research = parsePartnerResearch(r.research);
   return {
-    ...parsePartnerSummary({ ...r, route: research.route, followers: research.followers }),
+    ...parsePartnerSummary({
+      ...r,
+      route: research.route,
+      followers: research.followers,
+      why: research.why,
+    }),
     research,
     createdAt: instant(r.created_at, "Contatto"),
     createdBy: optionalId(r.created_by, "Contatto"),

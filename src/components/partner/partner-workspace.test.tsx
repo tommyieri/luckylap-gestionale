@@ -35,6 +35,7 @@ import { PartnerWorkspace, partnerDetailGone } from "./partner-workspace";
 import styles from "./partner.module.css";
 import {
   PARTNER_FIXTURE_MEMBER_ID,
+  partnerFixtureId,
   partnerAssistantFixture,
   partnerFixtureData,
   partnerFixtureDetail,
@@ -53,8 +54,60 @@ import {
 
 const TODAY = "2026-10-22";
 
+describe("riordino operativo Partner", () => {
+  it("conserva le quattro sezioni anche nelle Risposte, fuori periodo e con accordo fatto", () => {
+    const workspace = partnerFixtureWorkspace(TODAY);
+    const partner = workspace.partners[0];
+    workspace.partners = [{ ...partner, stage: "chiuso", contactMonth: "2028-01-01" }];
+    const reply = {
+      id: partnerFixtureId(9801),
+      partnerId: partner.id,
+      kind: "risposta" as const,
+      occurredAt: "2026-10-22T09:00:00Z",
+      createdBy: PARTNER_FIXTURE_MEMBER_ID,
+      origin: "team" as const,
+      channel: "email" as const,
+      body: "Risposta sintetica: chiedono una proposta per la prossima edizione.",
+    };
+    workspace.work = {
+      assistantStatus: "ready",
+      jobs: [],
+      toggles: [],
+      activities: [reply],
+      replies: [reply],
+      followUps: [],
+    };
+    const html = render({ vista: "risposte", periodo: "3", stato: "da_contattare" }, { workspace });
+    const visible = text(html);
+    expect(row(html, partner.co)).toContain(partner.name);
+    expect(visible).toContain(reply.body);
+    expect(visible).toContain("La casella non è ancora sincronizzata");
+    for (const label of ["Vendita", "Eventi", "Collab", "Club"])
+      expect(buttons(html).some((button) => button.text.startsWith(label))).toBe(true);
+    expect(visible).toContain("Accordo fatto");
+    expect(visible).not.toContain("Approva risposta");
+  });
+
+  it("distingue la preparazione in pausa dagli invii automatici e sposta la spesa nell’assistente", () => {
+    const fixture = partnerAssistantFixture(TODAY);
+    const html = render(
+      {},
+      {
+        assistant: { ...fixture.status, mode: "invio", pausedReason: "credito" },
+        send: { ...fixture.send, stopReason: null, dayStoppedOn: null },
+      },
+    );
+    const visible = text(html);
+    expect(visible).toContain("Prime email automatiche attive");
+    expect(visible).toContain("Preparazione in pausa: credito finito");
+    expect(visible).not.toContain("USD");
+    expect(buttons(html).some((button) => button.text === "Da seguire")).toBe(true);
+    expect(buttons(html).some((button) => button.text.startsWith("Risposte"))).toBe(true);
+  });
+});
+
 function render(
-  query: Record<string, string> = {},
+  query: Record<string, string> = { vista: "tutti" },
   options: {
     workspace?: PartnerWorkspaceData;
     preview?: boolean;
@@ -178,7 +231,7 @@ describe("PartnerWorkspace", () => {
     const log = buttons(registro(html, 4));
     for (const label of ["Segna inviato", "Segna sollecito inviato", "Chiamata", "Incontro"])
       expect(log.find((b) => b.text === label)?.tag, label).toContain("disabled");
-    for (const label of ["Ha risposto", "Nota"])
+    for (const label of ["Registra una risposta", "Nota"])
       expect(log.find((b) => b.text === label)?.tag, label).not.toContain("disabled");
   });
 
@@ -242,7 +295,7 @@ describe("PartnerWorkspace", () => {
     expect(log).toEqual([
       "Segna inviato",
       "Segna sollecito inviato",
-      "Ha risposto",
+      "Registra una risposta",
       "Chiamata",
       "Incontro",
       "Nota",
@@ -267,16 +320,16 @@ describe("PartnerWorkspace", () => {
 
   it("«Ci siamo»: gli accordi fatti di ogni periodo, con le date nel calendario del team", () => {
     const html = render({ vista: "ci_siamo" });
-    const agreed = buttons(html).find((b) => b.text.startsWith("Ci siamo"))!;
-    expect(agreed.text).toBe("Ci siamo 1");
+    const agreed = buttons(html).find((b) => b.text.startsWith("Accordi fatti"))!;
+    expect(agreed.text).toBe("Accordi fatti 1");
     expect(agreed.tag).toContain('aria-pressed="true"');
     const pressed = buttons(html).filter((b) => b.tag.includes('aria-pressed="true"'));
-    expect(pressed.map((b) => b.text)).toEqual(["Ci siamo 1"]);
+    expect(pressed.map((b) => b.text)).toEqual(["Tutti 6", "Accordi fatti 1"]);
     expect(html.match(/<li id="lead-\d+"/g)).toEqual(['<li id="lead-6"']);
-    expect(text(html)).toContain("Ci siamo Accordi fatti");
+    expect(text(html)).toContain("Accordi fatti");
     expect(text(html)).toContain("Apri il calendario del team");
     const periods = buttons(html).filter((b) => /^(Adesso|Dic|Feb|Apr|Da lug)/.test(b.text));
-    expect(periods.map((b) => b.text)[4]).toBe("Da lug 2027 0 contatti");
+    expect(periods).toHaveLength(0);
     expect(html).toContain('href="/team#calendario"');
     const sixth = row(html, 6);
     expect(text(sixth)).toContain("Nel calendario del team");
@@ -285,7 +338,7 @@ describe("PartnerWorkspace", () => {
     const second = row(render(), 2);
     expect(text(second)).toContain("Raduno Sintetico Due");
     expect(text(second)).not.toContain("Nel calendario del team");
-    const off = buttons(render()).find((b) => b.text.startsWith("Ci siamo"))!;
+    const off = buttons(render()).find((b) => b.text.startsWith("Accordi fatti"))!;
     expect(off.tag).toContain('aria-pressed="false"');
   });
 
@@ -293,7 +346,7 @@ describe("PartnerWorkspace", () => {
     const html = render({ q: "nessunrisultato" });
     expect(html).not.toContain('<li id="lead-');
     expect(text(html)).toContain(
-      "Nessun contatto qui con questi filtri. Prova un altro periodo, un’altra sezione o togli la ricerca.",
+      "Nessun contatto qui con questi filtri. Prova un’altra sezione o togli i filtri; in Tutti i contatti trovi anche i periodi futuri.",
     );
     expect(text(html)).toContain("Togli i filtri");
   });
@@ -330,8 +383,8 @@ describe("PartnerWorkspace", () => {
       "Segna inviato",
       "Segna sollecito inviato",
       "Registro",
-      "Ha risposto",
-      "Perché è in lista",
+      "Registra una risposta",
+      "Ricerca importata",
       "Tutti i contatti",
       "Aggiungi un recapito",
       "Modifica la scheda",
@@ -352,11 +405,13 @@ describe("PartnerWorkspace", () => {
     const third = render({ periodo: "2", co: "3" });
     const other = text(third.slice(third.indexOf('id="dettagli-3"')));
     expect(other).toContain("Differenze da controllare");
-    expect(other).toContain("Stato. Nel gestionale: Ha risposto");
+    expect(other).toContain("Stato. Nel gestionale: Risposto");
     expect(other).toContain("Tieni il nostro");
     expect(text(row(third, 3))).toContain("Da controllare");
     // Il filtro «Da controllare» non trova CO 1, trova CO 3.
-    expect(render({ stato: "da_controllare" })).not.toContain('<li id="lead-');
+    expect(render({ stato: "da_controllare" }).match(/<li id="lead-\d+"/g)).toEqual([
+      '<li id="lead-3"',
+    ]);
     expect(render({ periodo: "2", stato: "da_controllare" }).match(/<li id="lead-\d+"/g)).toEqual([
       '<li id="lead-3"',
     ]);
@@ -417,17 +472,17 @@ describe("PartnerWorkspace", () => {
     expect(row(html, 1)).toMatch(/<select id="stato-1"[^>]*disabled/);
   });
 
-  it("striscia dell'assistente: il primo elemento della pagina, prima del titolo", () => {
+  it("striscia dell'assistente dopo le sezioni, con arresto accessibile", () => {
     const html = render();
     const strip = `<section class="${styles.assistantStrip}"`;
-    expect(html.startsWith(`<div class="${styles.workspace}">${strip}`)).toBe(true);
-    expect(html.indexOf(strip)).toBeLessThan(html.indexOf("<h1>Partner</h1>"));
-    expect(text(html)).toContain("Assistente: prepara · 1 bozza pronta · 1,37 USD spesi");
+    expect(html).toContain(strip);
+    expect(html.indexOf(strip)).toBeGreaterThan(html.indexOf("<h1>Partner</h1>"));
+    expect(text(html)).toContain("Prime email automatiche ferme · Prepara · 1 bozza pronta");
     expect(buttons(html).map((b) => b.text)).toContain("Ferma l'assistente");
   });
 
   it("stato dell'assistente non leggibile: la pagina Partner si vede lo stesso", () => {
-    const html = render({ co: "2" }, { assistant: null });
+    const html = render({ periodo: "1", co: "2" }, { assistant: null });
     expect(html).toContain("<h1>Partner</h1>");
     expect(html.match(/<li id="lead-\d+"/g)).toEqual(['<li id="lead-1"', '<li id="lead-2"']);
     expect(html).toContain('id="dettagli-2"');
@@ -439,7 +494,7 @@ describe("PartnerWorkspace", () => {
   it("striscia in «Invio»: le prime email di oggi dallo stato dell'invio passato alla pagina", () => {
     const fixture = partnerAssistantFixture(TODAY);
     const html = render({}, { assistant: { ...fixture.status, mode: "invio" } });
-    expect(text(html)).toContain("Assistente in invio · 1 email oggi su 5 · 1,37 USD spesi");
+    expect(text(html)).toContain("Prime email automatiche attive · 1 email oggi su 5");
     const noMail = render(
       {},
       { assistant: { ...fixture.status, mode: "prova" }, mailConfigured: false },
