@@ -6,6 +6,7 @@ L'assistente lavora i contatti del modulo Partner con Claude: cerca notizie su o
 - la **consegna 2a** («invio», branch `claude/assistente-partner-invio`): l'assistente manda le prime email già pronte e approvate, prima in prova verso le caselle di Tommaso e poi ai contatti. Vedi «Seconda consegna, parte 1 (2a): l'invio»;
 - la **modalità modello per i club** (branch `claude/assistente-modello-club`): per i contatti della sezione Club la prima email è il testo fisso approvato da Tommaso e Claude fa solo la seconda lettura. Vedi «Modalità modello per i club»;
 - i **due lavori d'invio** (branch `claude/club-marca-alternanza`): il testo per i club nomina i modelli della marca del club, e le email del giorno si dividono a metà tra i club e gli altri contatti. Vedi «Due lavori d'invio».
+- il **riordino Partner, Tappa 1** del 2 novembre 2026: sezioni permanenti Eventi, Collab, Vendita e Club e viste operative, con bozza visibile nella scheda. Non cambia il worker, non importa risposte e non aggiunge invii. Vedi [progetto](superpowers/specs/2026-11-02-partner-riordino.md) e [Partner](partner.md#riordino-tappa-1).
 
 Il perché di ogni scelta è nella [specifica](superpowers/specs/2026-10-27-assistente-partner-design.md), approvata da Tommaso il 27 ottobre 2026. I passi di lavoro sono nei piani: [prima consegna](superpowers/plans/2026-10-27-assistente-partner-consegna-1.md) e [consegna 2a](superpowers/plans/2026-10-28-assistente-partner-consegna-2a.md). Il resto del modulo è in [partner.md](partner.md).
 
@@ -28,13 +29,13 @@ I passi di un contatto sono quattro, ognuno con una chiamata a Claude Opus 5.5 (
 3. **Scrittura**: oggetto e corpo; la firma la compone il codice. Poi i controlli nel codice: parole vietate in tutte le lingue (conto vendita compreso), segnaposto, un solo `?`, nessun `!` né emoji, unico link `https://luckylap.com`, nessun telefono nel corpo, firma giusta per la lingua, solo 964 e GT3 RS con i contatti Porsche, corpo tra 110 e 160 parole. Una bozza che non passa si riscrive una volta; alla seconda il contatto passa a Tommi.
 4. **Controllo**: una seconda lettura di Claude con le regole davanti, che approva o rimanda indietro. Una bozza scritta con regole superate torna in scrittura senza chiamare Claude.
 
-Alla fine il lavoro è «Bozza pronta»: il team la legge nella scheda del contatto, nel blocco «Assistente». La bozza va sempre all'email attiva del gestionale (prima la verificata); un indirizzo diverso trovato dalla ricerca resta una proposta scritta nel blocco.
+Alla fine il lavoro è «Bozza pronta»: il team la legge nella scheda del contatto, prima della ricerca e dello storico. La bozza va sempre all'email attiva del gestionale (prima la verificata); un indirizzo diverso trovato dalla ricerca resta una proposta scritta nel blocco.
 
 L'assistente prende solo contatti «Da contattare», senza «Seguito da», senza prossima azione, non tolti dalla ricerca, non in «Non contattare», con l'interruttore della scheda assente o attivo, con un'email attiva e senza attività del team o dei file «Esporta». Prima quelli pianificati entro due mesi, poi per priorità (alta, media, bassa), per mese e per CO. Se il team cambia il contatto durante un passo (lo segue, lo ferma, lo mette in «Non contattare», cambia l'email), il passo non avanza.
 
 Errori e tentativi:
 
-- credito finito (402, `billing_error`, 400 con «credit balance»): pausa di tutto l'assistente, nessun tentativo consumato; la striscia e la pagina lo dicono;
+- credito finito (402, `billing_error`, 400 con «credit balance»): pausa della preparazione, nessun tentativo consumato; la striscia e la pagina lo dicono. Dalla consegna 2a gli invii di prime email già pronte mantengono il loro percorso e i controlli d'invio;
 - chiave o permessi rifiutati (401, 403) ed errori di configurazione (404, oppure un 400 che dice che il modello o una funzione non è disponibile): pausa per errore di Claude, nessun tentativo consumato;
 - Claude sovraccarico, al limite di velocità o non raggiungibile (429, 529, 5xx, connessione caduta anche a metà risposta): attesa di dieci minuti per tutto l'assistente. Se la chiamata non aveva ancora speso, nessun tentativo consumato; se aveva già speso (token in uscita o una ripresa), si consuma un tentativo e l'attesa per tutti resta: così un contatto non spende all'infinito;
 - risposta di Claude rotta, rifiutata, troncata o interrotta dal nostro timer: un tentativo consumato; al terzo il contatto va a «Serve Tommi» e la coda continua;
@@ -56,11 +57,13 @@ Le regole di scrittura in vigore sono un testo versionato nel database (versione
 
 ## Dove si vede nel gestionale
 
-- **Striscia** in cima a `/partner`: modalità, bozze pronte e spesa, con «Apri l'assistente» e «Ferma l'assistente». Spento, in pausa, non configurato o non leggibile: fondo ambra con la parola scritta.
+- **Striscia operativa** in `/partner`, sotto sezioni e viste: modalità, bozze pronte o invii del giorno, con «Apri l'assistente» e «Ferma l'assistente». Distingue la preparazione in pausa dagli invii automatici ancora attivi. Spento, in pausa, non configurato o non leggibile: fondo ambra con la parola scritta. Costi, regole e diagnostica stanno nella pagina dell'assistente.
 - **Pagina** `/partner/assistente` (link «Assistente» nel piede di Partner): stato e ultimi eventi, modalità e credito di partenza, coda, spesa, «Da vedere» (i contatti passati a Tommi, con «Ridai all'assistente») e regole, con le versioni. «Da vedere» e i conteggi In coda, In attesa della data, Bozza pronta e Serve Tommi contano solo i contatti che l'assistente può ancora prendere: un contatto fermato nella scheda, seguito dal team o non più «Da contattare» esce da lì. «Fermati dal team» conta invece i contatti con l'interruttore fermo. Credito e regole partono dalla versione letta: se un collega le cambia nel frattempo, il campo si riallinea al valore salvato e il proprio resta visibile a parte.
-- **Blocco «Assistente»** nella scheda del contatto: stato del lavoro, motivo per cui l'assistente non lo prende, proposta e motivo, ricerca con le fonti, bozza in una sezione apribile («Bozza dell'email») e l'interruttore «Assistente su questo contatto: attivo / fermo» (diverso da «Non contattare»).
+- **Blocco «Assistente»** nella scheda del contatto: stato del lavoro, motivo per cui l'assistente non lo prende, proposta e motivo, bozza già aperta («Bozza dell'email») e l'interruttore «Assistente su questo contatto: attivo / fermo» (diverso da «Non contattare»). Ricerca e fonti si aprono sotto la bozza. Una bozza non più valida resta leggibile con il motivo; questo non autorizza un invio e i controlli finali del worker restano quelli esistenti.
 - Con la consegna 2a la striscia, la pagina e il blocco mostrano anche prova, invii, limite, variabili e accessi: vedi «Seconda consegna, parte 1 (2a): l'invio», «Nell'interfaccia».
 - La guida «Come si usa», parte «Partner», spiega tutto questo al team.
+
+«Risposte» legge solo le risposte già registrate nel gestionale, in ogni fase commerciale e fuori dal periodo selezionato; le quattro sezioni restano applicabili. Nessuna lettura della casella o nuova chiamata Claude viene introdotta dalla Tappa 1. Il team continua a leggere la posta e usare «Registra una risposta» nel Registro, oppure «Ha risposto» in Oggi. La sola scelta dello stato «Risposto» non registra una risposta e non chiude il sollecito. Approvazione umana e invio delle risposte dal gestionale sono consegne successive.
 
 Le pagine mostrano i dati del caricamento e funzionano anche in anteprima senza database. Prima delle migrazioni (funzione o tabella mancante: codici `PGRST202`, `PGRST205`, `42883`, `42P01`, con un oggetto dell'assistente, `partner_assistant`, nel messaggio) l'assistente è «non attivo»: striscia e blocco non si mostrano e la pagina dell'assistente dice «Assistente non ancora attivo.». Se invece la lettura non riesce per un altro motivo, striscia e blocco dicono in ambra «stato non leggibile». In tutti e due i casi il resto di Partner resta com'è.
 
@@ -334,7 +337,7 @@ Il riquadro **«Variabili e accessi»** della pagina dell'assistente le fa contr
 
 ### Nell'interfaccia
 
-- **Striscia**: «Assistente in invio · 3 email oggi su 5 · 12,30 USD spesi», «Assistente in prova · 4 email di prova oggi · …». In ambra, con la parola scritta: invii fermi, fermi per oggi, posta non configurata, stato degli invii non leggibile.
+- **Striscia**: stato delle prime email automatiche, invii del giorno e limite, oppure preparazione delle bozze. Non mostra costi. La pausa per credito è descritta come pausa della preparazione, distinta dall'attività degli invii pronti. In ambra, con la parola scritta: invii fermi, fermi per oggi, posta non configurata, stato degli invii non leggibile.
 - **Pagina**, nell'ordine: Stato, Modalità, Prova (solo in «Prova»), Invii (in «Prova» e «Invio»), Limite, Coda, Spesa, Variabili e accessi, Da vedere, Regole. «Invii» ha «Oggi: 3 email su 5», la finestra (solo in «Invio»), il prossimo invio, fermi e attese, «Bozze pronte da inviare», l'elenco «Manda per primo» e «Ultime email» (ora, CO, nome, prova o no, stato, oggetto; mai indirizzi).
 - **Blocco «Assistente» della scheda**: «Email inviata dall'assistente il …» (o incerta, o respinta), lo stato «Email inviata» con «il sollecito dopo 7 giorni lo manda Tommi», e per Tommi «Manda per primo» o «Togli la precedenza».
 - **«Da vedere»**: «Ridai all'assistente» non c'è per «Conversazione recente nella casella» e «Invio incerto»: ridarli costerebbe una ricerca nuova e finirebbe allo stesso punto.

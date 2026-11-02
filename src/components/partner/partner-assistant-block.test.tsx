@@ -215,10 +215,13 @@ describe("PartnerAssistantBlock", () => {
     expect(sections).toHaveLength(1);
     expect(sections[0].props.className).toBe(styles.detailBlock);
     const titles = descendants(tree).filter((node) => /^h[1-6]$/.test(String(node.type)));
-    expect(titles.map((node) => `${String(node.type)} ${text(node)}`)).toEqual(["h4 Assistente"]);
+    expect(titles.map((node) => `${String(node.type)} ${text(node)}`)).toEqual([
+      "h4 Assistente",
+      "h5 Bozza dell'email",
+    ]);
   });
 
-  it("bozza pronta: stato, proposta e motivo, indirizzo proposto, ricerca e bozza, in ordine", () => {
+  it("bozza pronta: la bozza precede indirizzo proposto e ricerca", () => {
     const tree = render(2);
     const all = words(tree);
     expect(all).toContain("Bozza pronta");
@@ -235,9 +238,9 @@ describe("PartnerAssistantBlock", () => {
     const order = [
       "Bozza pronta",
       "Proposta: Merch co-firmato",
+      "Bozza dell'email",
       "Indirizzo trovato dalla ricerca",
       "Ricerca del 22 ottobre",
-      "Bozza dell'email",
       "Assistente su questo contatto: attivo",
     ].map((part) => all.indexOf(part));
     expect(order.every((at) => at >= 0)).toBe(true);
@@ -260,14 +263,17 @@ describe("PartnerAssistantBlock", () => {
     ]);
   });
 
-  it("la bozza in una sezione apribile: destinatario, oggetto, corpo e firma come salvati", () => {
+  it("la bozza è subito leggibile: destinatario completo, oggetto, corpo e firma come salvati", () => {
     const tree = render(2);
     const details = descendants(tree).filter((node) => node.type === "details");
     expect(details).toHaveLength(1);
-    const draft = details[0];
-    expect(draft.props.open).toBeUndefined();
-    const summary = descendants(draft).find((node) => node.type === "summary")!;
-    expect(words(summary)).toBe("Bozza dell'email");
+    expect(words(details[0])).toContain("Ricerca del 22 ottobre");
+    expect(details[0].props.open).toBeUndefined();
+    const draft = descendants(tree).find(
+      (node) => node.props["aria-label"] === "Bozza dell'email",
+    )!;
+    expect(draft).toBeDefined();
+    expect(descendants(details[0])).not.toContain(draft);
     const fields = descendants(draft)
       .filter((node) => node.type === "dt" || node.type === "dd")
       .map(words);
@@ -361,8 +367,10 @@ describe("PartnerAssistantBlock", () => {
     );
     // Anche con l'interruttore attivo.
     expect(words(tree)).toContain("Assistente su questo contatto: attivo");
-    // Senza bozza: niente sezione apribile.
-    expect(descendants(tree).some((node) => node.type === "details")).toBe(false);
+    // Senza bozza: la ricerca resta consultabile, senza un contenitore vuoto per l'email.
+    expect(descendants(tree).some((node) => node.props["aria-label"] === "Bozza dell'email")).toBe(
+      false,
+    );
   });
 
   it("in attesa: la data da cui scriverà", () => {

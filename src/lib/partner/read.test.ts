@@ -43,6 +43,14 @@ const workspaceRows = (change: (r: ReturnType<typeof rows>) => void = () => {}) 
 };
 
 describe("anteprima locale di Partner", () => {
+  it("mostra gli stessi lavori e risposte registrate nella coda operativa sintetica", () => {
+    const workspace = partnerFixtureWorkspace(TODAY);
+    expect(workspace.work?.assistantStatus).toBe("ready");
+    expect(workspace.work?.jobs.some((job) => job.status === "pronta")).toBe(true);
+    expect(workspace.work?.jobs.some((job) => job.status === "serve_tommaso")).toBe(true);
+    expect(workspace.work?.replies.length).toBeGreaterThan(0);
+    expect(workspace.work?.activities.every((activity) => !("body" in activity))).toBe(true);
+  });
   it("non si attiva su Vercel né con NODE_ENV=production, anche con il flag", () => {
     const now = new Date("2026-10-22T10:00:00Z");
     expect(partnerLocalPreview(now, { LUCKYLAP_LOCAL_PREVIEW: "true", VERCEL: "1" })).toBeNull();
@@ -86,7 +94,7 @@ describe("anteprima locale di Partner", () => {
       };
       const counts = periodCounts(
         workspace.partners,
-        { ...DEFAULT_PARTNER_VIEW, stato: "tutti" },
+        { ...DEFAULT_PARTNER_VIEW, lavoro: "tutti", stato: "tutti" },
         context,
       );
       expect(
@@ -111,7 +119,9 @@ describe("anteprima locale di Partner", () => {
     expect(workspace.partners.find((partner) => partner.researchRemovedAt)?.co).toBe(5);
     const context = { index, today: TODAY, memberId: PARTNER_FIXTURE_MEMBER_ID };
     expect(
-      filterPartners(workspace.partners, DEFAULT_PARTNER_VIEW, context).map((p) => p.co),
+      filterPartners(workspace.partners, { ...DEFAULT_PARTNER_VIEW, lavoro: "tutti" }, context).map(
+        (p) => p.co,
+      ),
     ).toEqual([1, 2]);
     expect(workspace.lastImport?.sourceCommit).toBe("0a1b2c3d");
   });

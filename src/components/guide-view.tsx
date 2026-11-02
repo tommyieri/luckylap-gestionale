@@ -186,7 +186,7 @@ export const TODAY_TILES: { title: string; text: string; finance?: true }[] = [
   },
   {
     title: "Contatti e solleciti",
-    text: "I contatti Partner da sentire, gli stessi di «Adesso» in Partner: «Da contattare» entro il mese prossimo, più quelli con la prossima azione di oggi o già passata. Sotto, i tuoi solleciti di oggi o in ritardo, ognuno con «Ha risposto».",
+    text: "I contatti Partner da sentire: quelli a cui scrivere entro il mese prossimo, più quelli con la prossima azione di oggi o già passata. Sotto, i tuoi solleciti di oggi o in ritardo, ognuno con «Ha risposto». Apri una scheda per vedere fase, bozza e registro.",
   },
   {
     title: "Ordini da preparare",
@@ -404,10 +404,20 @@ export function GuideView({ access, preview = false }: { access: GuideAccess; pr
           <Part id="guida-partner">
             <ul className={styles.points}>
               <li>
-                Ogni riga è un contatto da sentire, con il suo numero CO. In alto scegli la sezione
-                (Vendita, Eventi, Collab, Club) e il periodo: «Adesso» sono i contatti da sentire
-                entro il mese prossimo. In Club ci sono i Porsche Club fuori dall’Italia e i club
-                Ferrari e Mercedes.
+                Eventi, Collab, Vendita e Club restano sempre visibili, anche sul telefono. Ogni
+                riga è un contatto, con nome, numero CO, fase e prossima azione. In Club ci sono i
+                Porsche Club fuori dall’Italia e i club Ferrari e Mercedes.
+              </li>
+              <li>
+                In ogni sezione scegli «Da seguire», «Risposte», «Tutti i contatti» o «Accordi
+                fatti». «Da seguire» mette prima il lavoro da gestire e non dipende dal periodo. In
+                «Tutti i contatti» puoi cercare anche per CO e filtrare per periodo.
+              </li>
+              <li>
+                «Risposte» raccoglie le risposte già registrate dal team, anche fuori dal periodo
+                selezionato. Non legge ancora la casella: apri la posta, poi registra la risposta
+                nella scheda. L’approvazione e l’invio delle risposte dal gestionale non sono ancora
+                disponibili.
               </li>
               <li>
                 Tocca un contatto per aprirlo. Quando gli scrivi tu, dalla tua email o dal tuo
@@ -415,8 +425,11 @@ export function GuideView({ access, preview = false }: { access: GuideAccess; pr
                 sollecito, premi «Segna sollecito inviato», poi «Registra».
               </li>
               <li>
-                Quando ti risponde, «Ha risposto». Lo stato si cambia dalla tendina della riga e si
-                salva subito.
+                Quando ti risponde, premi «Registra una risposta» nel «Registro», poi «Registra». In
+                Oggi trovi anche «Ha risposto». Cambiare soltanto lo stato in «Risposto» dalla
+                tendina non registra la risposta e non chiude il sollecito. Le fasi «Scritto»,
+                «Risposto», «Primi contatti avviati» e «Accordo fatto» descrivono il rapporto; il
+                lavoro dell’assistente compare accanto con l’eventuale motivo del fermo.
               </li>
               <li>
                 Quando registri «Segna inviato» o «Segna sollecito inviato», si crea per te
@@ -425,17 +438,18 @@ export function GuideView({ access, preview = false }: { access: GuideAccess; pr
                 Team.
               </li>
               <li>
-                Il sollecito si chiude da solo con «Ha risposto», qui o in Oggi, con un nuovo invio,
-                con lo stato «Accordo fatto» o «Non interessato» e con «Metti tra i non contattare».
-                Vale anche per i file «Esporta» dei dispositivi: un «Contattato» del file crea il
-                sollecito per chi carica il file, 7 giorni dopo la data dell’esportazione (può
-                essere già in ritardo); «Risposto» o «Accordo fatto» lo chiudono.
+                Il sollecito si chiude quando registri la risposta, anche con «Ha risposto» in Oggi,
+                con un nuovo invio, con lo stato «Accordo fatto» o «Non interessato» e con «Metti
+                tra i non contattare». Vale anche per i file «Esporta» dei dispositivi: un
+                «Contattato» del file crea il sollecito per chi carica il file, 7 giorni dopo la
+                data dell’esportazione (può essere già in ritardo); «Risposto» o «Accordo fatto» lo
+                chiudono.
               </li>
               <li>
                 Quando una scheda passa ad «Accordo fatto», le sue date di evento e candidatura
                 compaiono da sole nel calendario del Team, come giornate intere. Senza accordo non
-                ci sono: in calendario va solo dove ci saremo. «Ci siamo» in Partner mostra gli
-                accordi fatti.
+                ci sono: in calendario va solo dove ci saremo. «Accordi fatti» in Partner mostra
+                questi contatti.
               </li>
               <li>
                 In Team, «Partner nel Team» porta un contatto nel lavoro del team: l’evento nel
@@ -479,19 +493,19 @@ export function GuideView({ access, preview = false }: { access: GuideAccess; pr
               <li>
                 Le risposte arrivano nella casella aziendale come sempre: l’assistente non le legge.
                 Il sollecito dopo 7 giorni lo manda Tommi: lo trova nella sua Oggi. Per ora lo
-                scrive lui, partendo dalla «Bozza dell'email» mandata, che resta nel blocco
-                «Assistente». Quando l’ha mandato, nel «Registro» preme «Segna sollecito inviato»,
-                poi «Registra».
+                scrive lui, partendo dalla «Bozza dell'email» mandata, che resta nella scheda.
+                Quando l’ha mandato, nel «Registro» preme «Segna sollecito inviato», poi «Registra».
               </li>
               <li>
                 In cima a Partner c’è la striscia dell’assistente: dice cosa sta facendo, quante
-                bozze sono pronte o quante email ha mandato oggi, e quanto ha speso. «Apri
-                l'assistente» porta alla sua pagina.
+                bozze sono pronte o quante email ha mandato oggi. «Apri l'assistente» porta alla sua
+                pagina, con modalità, costi, regole e verifiche.
               </li>
               <li>
-                Nella scheda del contatto, il blocco «Assistente» mostra la ricerca con le fonti, la
-                proposta scelta e la bozza dell’email. L’email che l’assistente manda è la «Bozza
-                dell'email» di questo blocco.
+                Nella scheda del contatto la bozza è visibile prima della ricerca e dello storico.
+                L’email che l’assistente manda è la «Bozza dell'email» nella scheda. Se non è più
+                valida, resta leggibile con il motivo; il contatto aspetta una nuova bozza valida.
+                Ricerca, fonti e dati estesi si aprono quando servono.
               </li>
               <li>
                 Per fermarlo del tutto premi «Ferma l'assistente» nella striscia, oppure «Spento»

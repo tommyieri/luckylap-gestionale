@@ -255,7 +255,8 @@ describe("«contatti da fare» di Oggi e il periodo «Adesso»", () => {
       })),
   });
   const context: PartnerFilterContext = { index, today: fixture.today, memberId: null };
-  const adesso = filterPartners(partners, DEFAULT_PARTNER_VIEW, context);
+  const archiveView = { ...DEFAULT_PARTNER_VIEW, lavoro: "tutti" as const };
+  const adesso = filterPartners(partners, archiveView, context);
 
   it("conta come read_partner_today sugli stessi dati", () => {
     expect(due).toHaveLength(fixture.expected_today);
@@ -266,7 +267,7 @@ describe("«contatti da fare» di Oggi e il periodo «Adesso»", () => {
 
   it("ogni contatto da fare di Oggi è nel periodo «Adesso» della pagina Partner", () => {
     expect(adesso).toHaveLength(fixture.expected_adesso_da_fare);
-    expect(periodCounts(partners, DEFAULT_PARTNER_VIEW, context)[1]).toBe(adesso.length);
+    expect(periodCounts(partners, archiveView, context)[1]).toBe(adesso.length);
     const listed = new Set(adesso.map((p) => p.co));
     expect(due.every((p) => listed.has(p.co))).toBe(true);
   });
@@ -274,7 +275,7 @@ describe("«contatti da fare» di Oggi e il periodo «Adesso»", () => {
   it("dentro «Adesso»: «Da contattare», più le prossime azioni scadute degli altri stati aperti", () => {
     const daContattare = filterPartners(
       partners,
-      { ...DEFAULT_PARTNER_VIEW, stato: "da_contattare" },
+      { ...archiveView, stato: "da_contattare" },
       context,
     ).filter((p) => !blocked.has(p.co) && p.researchRemovedAt === null);
     const scadute = adesso.filter(

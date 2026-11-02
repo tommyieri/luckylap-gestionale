@@ -119,6 +119,29 @@
 .sections::-webkit-scrollbar {
   display: none;
 }
+.workViews {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px 16px;
+  margin: 0 0 16px;
+  border-bottom: 1px solid var(--ink);
+}
+.workViews button {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  min-height: var(--tap);
+  padding: 8px 0;
+  border-bottom: 3px solid transparent;
+  font-family: var(--f-cond);
+  font-size: var(--text-lg);
+  font-weight: 600;
+  color: var(--ink-2);
+}
+.workViews button[aria-pressed="true"] {
+  color: var(--ink);
+  border-bottom-color: var(--ink);
+}
 .sectionTab {
   flex: none;
   display: inline-flex;
@@ -401,6 +424,7 @@
   grid-template-areas:
     "co leg channel state"
     "co open channel state"
+    "co replies replies replies"
     "co feedback feedback feedback"
     "co more more more";
   border-bottom: 1px solid var(--rule);
@@ -677,6 +701,54 @@
 .state {
   grid-area: state;
   padding: 12px 16px 4px 0;
+}
+.workPhase {
+  font-weight: 600;
+  color: var(--ink);
+}
+.workTurn,
+.workReason {
+  margin-top: 6px;
+  font-size: var(--text-sm);
+  color: var(--muted);
+}
+.workMotivation {
+  color: var(--ink-2);
+}
+.workDue {
+  display: grid;
+  gap: 3px;
+  margin-top: 12px;
+}
+.workDue > span {
+  font-size: var(--text-sm);
+  color: var(--muted);
+}
+.rowContacts,
+.rowStateEditor {
+  margin-top: 8px;
+}
+.rowContacts summary,
+.rowStateEditor summary {
+  min-height: var(--tap);
+  padding: 10px 0;
+  font-size: var(--text-sm);
+  color: var(--green);
+}
+.replyHistory {
+  grid-area: replies;
+  min-width: 0;
+  padding: 0 16px 12px;
+}
+.replyItem {
+  padding: 12px 0;
+  border-top: 1px solid var(--rule-soft);
+}
+.replyItem p + p {
+  margin-top: 8px;
+}
+.row .coMonth {
+  display: none;
 }
 .stageSelect {
   width: 100%;
@@ -1531,6 +1603,7 @@
       "co leg state"
       "co channel channel"
       "co open open"
+      "co replies replies"
       "co feedback feedback"
       "co more more";
   }
@@ -1559,6 +1632,7 @@
       "co leg leg"
       "co channel channel"
       "co open state"
+      "replies replies replies"
       "feedback feedback feedback"
       "more more more";
   }

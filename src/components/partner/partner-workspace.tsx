@@ -58,6 +58,7 @@ import { PartnerCardForm } from "./partner-card-form";
 import { PartnerPendingRecovery } from "./partner-command";
 import { PartnerProvider, usePartnerContext } from "./partner-context";
 import { PartnerRow } from "./partner-row";
+import { partnerWorkView } from "../../lib/partner/work";
 import styles from "./partner.module.css";
 
 export const UNSAVED_MESSAGE = "Hai modifiche non salvate. Salvale o annullale.";
@@ -146,9 +147,25 @@ function WorkspaceBody({
   const router = useRouter();
   const { hasDirty } = usePartnerContext();
   const index = useMemo(() => buildPartnerIndex(workspace), [workspace]);
+  const workViews = useMemo(
+    () =>
+      new Map(
+        workspace.partners.map((partner) => [
+          partner.id,
+          partnerWorkView(partner, {
+            today,
+            work: workspace.work,
+            contacts: index.contacts.get(partner.id) ?? [],
+            block: index.blocks.get(partner.id) ?? null,
+            members: workspace.members,
+          }),
+        ]),
+      ),
+    [workspace, index, today],
+  );
   const context: PartnerFilterContext = useMemo(
-    () => ({ index, today, memberId }),
-    [index, today, memberId],
+    () => ({ index, today, memberId, work: workspace.work, workViews }),
+    [index, today, memberId, workspace.work, workViews],
   );
   const byCo = useMemo(
     () => new Map(workspace.partners.map((partner) => [partner.co, partner])),
@@ -162,6 +179,7 @@ function WorkspaceBody({
     const partner = byCo.get(initial.co);
     return partner ? viewShowing(initial, partner, context) : { ...initial, co: null };
   });
+  const workView = view.accordi ? "accordi" : (view.lavoro ?? "tutti");
   const [queryText, setQueryText] = useState(view.q);
   const [navigating, startNavigation] = useTransition();
   const [guard, setGuard] = useState<string | null>(null);
@@ -341,7 +359,6 @@ function WorkspaceBody({
 
   return (
     <div className={styles.workspace}>
-      <PartnerAssistantStrip status={assistant} send={send} mailConfigured={mailConfigured} />
       <header className={styles.heading}>
         <h1>Partner</h1>
         <p className={styles.totals}>{totalsLine(sections)}</p>
@@ -359,47 +376,84 @@ function WorkspaceBody({
             key={section}
             type="button"
             className={styles.sectionTab}
-            aria-pressed={!view.accordi && view.sezione === section}
-            onClick={() => changeView({ sezione: section, accordi: false })}
+            aria-pressed={view.sezione === section}
+            onClick={() => changeView({ sezione: section })}
           >
             {SECTION_BUTTON_LABELS[section]}
             <span className={styles.sectionCount}>{sections[section]}</span>
           </button>
         ))}
-        <button
-          type="button"
-          className={`${styles.sectionTab} ${styles.agreedTab}`}
-          aria-pressed={view.accordi}
-          onClick={() => changeView({ accordi: true })}
-        >
-          <span className={styles.agreedDot} aria-hidden="true" />
-          Ci siamo
-          <span className={styles.sectionCount}>{agreed}</span>
-        </button>
       </nav>
 
-      <div className={styles.periodBar} ref={barRef}>
-        <div className={styles.periods} role="group" aria-label="Quando contattare">
-          {periods.map((item) => (
-            <button
-              key={item.number}
-              type="button"
-              className={styles.period}
-              data-now={item.number === 1 || undefined}
-              aria-pressed={!view.accordi && view.periodo === item.number}
-              onClick={() =>
-                changeView({ periodo: item.number as PartnerPeriodNumber, accordi: false })
-              }
-            >
-              <span className={styles.periodLabel}>{item.cell}</span>
-              <span className={styles.periodCount}>
-                {counts[item.number]}
-                <small>{counts[item.number] === 1 ? "contatto" : "contatti"}</small>
-              </span>
-            </button>
-          ))}
+      <nav className={styles.workViews} aria-label="Viste di lavoro">
+        {(
+          [
+            ["da_seguire", "Da seguire"],
+            ["risposte", "Risposte"],
+            ["tutti", "Tutti i contatti"],
+            ["accordi", "Accordi fatti"],
+          ] as const
+        ).map(([key, label]) => (
+          <button
+            key={key}
+            type="button"
+            aria-pressed={workView === key}
+            onClick={() => {
+              if (
+                changeView({
+                  lavoro: key === "accordi" ? "tutti" : key,
+                  accordi: key === "accordi",
+                  stato: key === "da_seguire" ? "da_fare" : "tutti",
+                  chi: "tutti",
+                  q: "",
+                })
+              )
+                setQueryText("");
+            }}
+          >
+            {label}
+            {key === "accordi" && <span className={styles.sectionCount}>{agreed}</span>}
+          </button>
+        ))}
+      </nav>
+      <PartnerAssistantStrip status={assistant} send={send} mailConfigured={mailConfigured} />
+      {workspace.work === null && (
+        <p role="alert" className={styles.noteAmber}>
+          Il lavoro Partner non è leggibile. Ricarica la pagina per aggiornare fasi, risposte e
+          solleciti; le schede restano disponibili.
+        </p>
+      )}
+      {workspace.work?.assistantStatus === "error" && (
+        <p role="alert" className={styles.noteAmber}>
+          Il lavoro dell’assistente non è leggibile. Ricarica la pagina; i comandi nella scheda e
+          nella pagina Assistente restano disponibili.
+        </p>
+      )}
+
+      {workView === "tutti" && (
+        <div className={styles.periodBar} ref={barRef}>
+          <div className={styles.periods} role="group" aria-label="Quando contattare">
+            {periods.map((item) => (
+              <button
+                key={item.number}
+                type="button"
+                className={styles.period}
+                data-now={item.number === 1 || undefined}
+                aria-pressed={!view.accordi && view.periodo === item.number}
+                onClick={() =>
+                  changeView({ periodo: item.number as PartnerPeriodNumber, accordi: false })
+                }
+              >
+                <span className={styles.periodLabel}>{item.cell}</span>
+                <span className={styles.periodCount}>
+                  {counts[item.number]}
+                  <small>{counts[item.number] === 1 ? "contatto" : "contatti"}</small>
+                </span>
+              </button>
+            ))}
+          </div>
         </div>
-      </div>
+      )}
 
       <div className={styles.toolbar}>
         <label className={styles.search}>
@@ -431,21 +485,23 @@ function WorkspaceBody({
             </button>
           )}
         </label>
-        <label className={styles.filter}>
-          <span>Stato</span>
-          <select
-            value={view.stato}
-            onChange={(event) =>
-              changeView({ stato: event.target.value as PartnerStatusFilter, accordi: false })
-            }
-          >
-            {PARTNER_STATUS_FILTERS.map((status) => (
-              <option key={status} value={status}>
-                {PARTNER_STATUS_FILTER_LABELS[status]}
-              </option>
-            ))}
-          </select>
-        </label>
+        {workView !== "risposte" && workView !== "accordi" && (
+          <label className={styles.filter}>
+            <span>Stato</span>
+            <select
+              value={view.stato}
+              onChange={(event) =>
+                changeView({ stato: event.target.value as PartnerStatusFilter, accordi: false })
+              }
+            >
+              {PARTNER_STATUS_FILTERS.map((status) => (
+                <option key={status} value={status}>
+                  {PARTNER_STATUS_FILTER_LABELS[status]}
+                </option>
+              ))}
+            </select>
+          </label>
+        )}
         <label className={styles.filter}>
           <span>Seguito da</span>
           <select
@@ -478,7 +534,19 @@ function WorkspaceBody({
           <button
             type="button"
             className={`${styles.act} ${styles.actMini}`}
-            onClick={() => changeView({ stato: "da_controllare" })}
+            onClick={() => {
+              if (
+                changeView({
+                  lavoro: "da_seguire",
+                  accordi: false,
+                  stato: "da_controllare",
+                  sezione: "tutti",
+                  chi: "tutti",
+                  q: "",
+                })
+              )
+                setQueryText("");
+            }}
           >
             Mostrale
           </button>
@@ -498,7 +566,7 @@ function WorkspaceBody({
       <div className={styles.periodHead}>
         {view.accordi ? (
           <>
-            <h2>Ci siamo</h2>
+            <h2>Accordi fatti</h2>
             <p className={styles.periodNote}>
               Accordi fatti: eventi, collab e negozi dove ci saremo davvero. Prima gli eventi in
               arrivo; le loro date sono nel calendario del team.
@@ -507,6 +575,24 @@ function WorkspaceBody({
               <Link href="/team#calendario" prefetch={false} className="text-button">
                 Apri il calendario del team
               </Link>
+            </p>
+          </>
+        ) : workView === "risposte" ? (
+          <>
+            <h2>Risposte</h2>
+            <p className={styles.periodNote}>
+              Tutti i periodi. Qui trovi le risposte registrate nel gestionale, anche per gli
+              accordi fatti. La casella non è ancora sincronizzata: puoi registrare una risposta dal
+              Registro della scheda. Approvazione e invio delle risposte arriveranno nelle prossime
+              consegne.
+            </p>
+          </>
+        ) : workView === "da_seguire" ? (
+          <>
+            <h2>Da seguire</h2>
+            <p className={styles.periodNote}>
+              Prima le verifiche, le risposte e le azioni in scadenza, poi le email da preparare o
+              già pronte. Tutti i periodi.
             </p>
           </>
         ) : (
@@ -548,8 +634,9 @@ function WorkspaceBody({
       ) : visible.length === 0 ? (
         <div className={styles.empty}>
           <p>
-            Nessun contatto qui con questi filtri. Prova un altro periodo, un’altra sezione o togli
-            la ricerca.
+            {workView === "risposte"
+              ? "Nessuna risposta registrata in questa sezione con questi filtri. Le risposte ancora nella casella non compaiono qui."
+              : "Nessun contatto qui con questi filtri. Prova un’altra sezione o togli i filtri; in Tutti i contatti trovi anche i periodi futuri."}
           </p>
           {(view.stato !== DEFAULT_PARTNER_VIEW.stato ||
             view.chi !== DEFAULT_PARTNER_VIEW.chi ||
@@ -573,11 +660,16 @@ function WorkspaceBody({
             <PartnerRow
               key={partner.id}
               partner={partner}
+              work={workViews.get(partner.id)}
+              replies={(workspace.work?.replies ?? []).filter(
+                (reply) => reply.partnerId === partner.id,
+              )}
+              showReplies={workView === "risposte"}
               contacts={index.contacts.get(partner.id) ?? []}
               differences={index.differences.get(partner.id)?.length ?? 0}
               block={index.blocks.get(partner.id) ?? null}
               period={partnerPeriod(partner, today)}
-              section={view.accordi ? "tutti" : view.sezione}
+              section={view.sezione}
               open={view.co === partner.co}
               dimmed={view.co !== null && view.co !== partner.co}
               detail={view.co === partner.co ? openDetail : null}

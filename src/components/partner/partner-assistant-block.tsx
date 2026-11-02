@@ -25,8 +25,8 @@ import styles from "./partner.module.css";
 /*
  * Il blocco «Assistente» nella scheda del contatto (specifica dell'assistente Partner,
  * «Interfaccia»): lo stato del lavoro, perché l'assistente non prende il contatto, la proposta
- * scelta con il motivo, l'indirizzo trovato dalla ricerca (solo una proposta), la ricerca con le
- * fonti, la bozza com'è salvata e l'interruttore «Assistente su questo contatto: attivo / fermo».
+ * scelta con il motivo, la bozza sempre visibile come salvata, l'indirizzo trovato dalla ricerca
+ * (solo una proposta), la ricerca chiusa con le fonti e l'interruttore «Assistente su questo contatto: attivo / fermo».
  * Dalla consegna 2a anche le prime email dell'assistente (data ed esito, mai indirizzi) e, per
  * Tommi, la precedenza d'invio («Manda per primo»). Mostra i dati del caricamento: dopo un comando
  * la scheda la rilegge la Server Action. Senza le migrazioni dell'assistente («non attivo») il
@@ -204,13 +204,6 @@ export function PartnerAssistantBlock({
           {choice.reasonIt.trim() && ` ${choice.reasonIt.trim()}`}
         </p>
       )}
-      {showProposed && (
-        <p>
-          Indirizzo trovato dalla ricerca (proposta): {proposed}.
-          {target !== null && " La bozza va all'email del gestionale."}
-        </p>
-      )}
-      {research && <Research research={research} />}
       {draft && (
         <Draft
           draft={draft}
@@ -219,6 +212,13 @@ export function PartnerAssistantBlock({
           editorial={research?.approvalSource === "founder_editorial"}
         />
       )}
+      {showProposed && (
+        <p>
+          Indirizzo trovato dalla ricerca (proposta): {proposed}.
+          {target !== null && " La bozza va all'email del gestionale."}
+        </p>
+      )}
+      {research && <Research research={research} />}
       {/* La precedenza si dà a un contatto in coda; una rimasta, come la elenca la pagina
           dell'assistente, si toglie anche dopo. */}
       {(queued || assistant.sendPriority > 0) && (
@@ -305,28 +305,30 @@ function Research({
   const { today } = usePartnerContext();
   const day = instantDay(research.createdAt);
   return (
-    <div className={styles.draftBlock}>
-      <p className={styles.miniTitle}>
+    <details className={styles.disclosure}>
+      <summary>
         {templateDraft(research)
           ? "Testo per i club"
           : day === null
             ? "Ricerca"
             : `Ricerca del ${longDay(day, today)}`}
-      </p>
-      <p className={styles.preText}>{research.text}</p>
-      {research.sources.length > 0 && (
-        <ul className={styles.sources}>
-          {research.sources.map((url) => (
-            <li key={url}>
-              <a href={url} target="_blank" rel="noopener noreferrer">
-                {hostLabel(url)}
-                <span className="sr-only"> (si apre in una nuova scheda)</span>
-              </a>
-            </li>
-          ))}
-        </ul>
-      )}
-    </div>
+      </summary>
+      <div className={styles.draftBlock}>
+        <p className={styles.preText}>{research.text}</p>
+        {research.sources.length > 0 && (
+          <ul className={styles.sources}>
+            {research.sources.map((url) => (
+              <li key={url}>
+                <a href={url} target="_blank" rel="noopener noreferrer">
+                  {hostLabel(url)}
+                  <span className="sr-only"> (si apre in una nuova scheda)</span>
+                </a>
+              </li>
+            ))}
+          </ul>
+        )}
+      </div>
+    </details>
   );
 }
 
@@ -355,8 +357,8 @@ function Draft({
 }) {
   const { today } = usePartnerContext();
   return (
-    <details className={styles.disclosure}>
-      <summary>Bozza dell'email</summary>
+    <div className={styles.draft} role="region" aria-label="Bozza dell'email">
+      <h5 className={styles.miniTitle}>Bozza dell'email</h5>
       <div className={styles.draftBlock}>
         <dl className={styles.recipients}>
           <dt>A</dt>
@@ -376,7 +378,7 @@ function Draft({
             : `Scritta ${moment(draft.createdAt, today)} con le regole in versione ${draft.rulesVersion}.`}
         </p>
       </div>
-    </details>
+    </div>
   );
 }
 

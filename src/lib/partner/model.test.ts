@@ -83,9 +83,9 @@ describe("valori di dominio Partner", () => {
   it("etichette italiane per ogni stato e approccio (spec 02 §1 e §5.6)", () => {
     expect(PARTNER_STAGES.map((stage) => PARTNER_STAGE_LABELS[stage])).toEqual([
       "Da contattare",
-      "Contattato",
-      "Ha risposto",
-      "In trattativa",
+      "Scritto",
+      "Risposto",
+      "Primi contatti avviati",
       "Accordo fatto",
       "Non interessato",
     ]);
@@ -449,9 +449,7 @@ describe("testi derivati", () => {
       ),
       device: "telefono" as const,
     };
-    expect(partnerActivityLine(fromFile, members)).toBe(
-      "20 ott · dal file del telefono · Contattato",
-    );
+    expect(partnerActivityLine(fromFile, members)).toBe("20 ott · dal file del telefono · Scritto");
     const meeting = parsePartnerActivity(
       activityRow({ kind: "incontro", message_kind: null, channel: "visita", approach: null }),
     );
@@ -481,7 +479,7 @@ describe("testi derivati", () => {
         stage_before: "contattato",
       }),
     );
-    expect(partnerActivityText(state)).toBe("Stato: Ha risposto");
+    expect(partnerActivityText(state)).toBe("Stato: Risposto");
     const next = parsePartnerActivity(
       activityRow({
         kind: "prossima_azione",

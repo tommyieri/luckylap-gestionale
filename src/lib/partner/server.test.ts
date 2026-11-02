@@ -185,6 +185,136 @@ function tables(extra: Partial<Record<string, Row[]>> = {}): Record<string, Row[
 }
 
 describe("lettura della lista", () => {
+  it("legge attività senza testi, risposte registrate con testo e solleciti realmente aperti", async () => {
+    const data = tables();
+    const p = data.partners[0];
+    const activity = data.partner_activities.find((row) => row.partner_id === p.id)!;
+    data.partner_work_links = [
+      {
+        id: partnerFixtureId(8501),
+        partner_id: p.id,
+        kind: "follow_up",
+        task_id: partnerFixtureId(8502),
+        activity_id: activity.id,
+      },
+      {
+        id: partnerFixtureId(8503),
+        partner_id: p.id,
+        kind: "follow_up",
+        task_id: partnerFixtureId(8504),
+        activity_id: activity.id,
+      },
+    ];
+    data.tasks = [
+      {
+        id: partnerFixtureId(8502),
+        due_at: "2026-11-04T23:30:00Z",
+        status: "todo",
+        assigned_to: MEMBER,
+      },
+      {
+        id: partnerFixtureId(8504),
+        due_at: "2026-10-01T09:00:00Z",
+        status: "done",
+        assigned_to: MEMBER,
+      },
+      {
+        id: partnerFixtureId(8505),
+        due_at: "2026-10-01T09:00:00Z",
+        status: "todo",
+        assigned_to: MEMBER,
+      },
+    ];
+    const fake = fakeSupabase(data);
+    const first = (await loadPartnerWorkspace(fake.client)).work!;
+    expect(first.assistantStatus).toBe("ready");
+    expect(first.jobs.length).toBeGreaterThan(0);
+    expect(first.activities.length).toBe(data.partner_activities.length);
+    expect(first.activities.every((row) => !("body" in row))).toBe(true);
+    expect(first.replies.length).toBe(
+      data.partner_activities.filter((row) => row.kind === "risposta").length,
+    );
+    expect(first.followUps.map((row) => row.id)).toEqual([partnerFixtureId(8502)]);
+    const activityCalls = fake.calls.filter((call) => call.table === "partner_activities");
+    expect(
+      activityCalls
+        .filter((call) => call.columns.includes("body"))
+        .every((call) =>
+          call.ops.some((op) => op[0] === "eq" && op[1] === "kind" && op[2] === "risposta"),
+        ),
+    ).toBe(true);
+    expect(fake.calls.find((call) => call.table === "tasks")?.ops).toContainEqual([
+      "in",
+      "id",
+      [partnerFixtureId(8502), partnerFixtureId(8504)],
+    ]);
+    expect((await loadPartnerWorkspace(fake.client)).work).toEqual(first);
+    expect(fake.rpcCalls).toHaveLength(0);
+  });
+
+  it("mantiene la lista se fallisce l'assistente e distingue le tabelle non applicate", async () => {
+    const error = await loadPartnerWorkspace(
+      fakeSupabase(tables(), { failTable: "partner_assistant_jobs" }).client,
+    );
+    expect(error.partners).toHaveLength(6);
+    expect(error.work?.assistantStatus).toBe("error");
+    const absent = await loadPartnerWorkspace(
+      fakeSupabase(tables(), {
+        failTable: "partner_assistant_jobs",
+        failCode: "42P01",
+        failMessage: "relation public.partner_assistant_jobs does not exist",
+      }).client,
+    );
+    expect(absent.work?.assistantStatus).toBe("inactive");
+    const activityFailure = await loadPartnerWorkspace(
+      fakeSupabase(tables(), { failTable: "partner_activities" }).client,
+    );
+    expect(activityFailure.partners).toHaveLength(6);
+    expect(activityFailure.work).toBeNull();
+  });
+
+  it("pagine complete dell'assistente e rifiuto isolato di duplicati e riferimenti non propri", async () => {
+    const data = tables();
+    const p = data.partners[0];
+    data.partner_assistant_jobs = [data.partner_assistant_jobs[0], data.partner_assistant_jobs[0]];
+    expect((await loadPartnerWorkspace(fakeSupabase(data).client)).work?.assistantStatus).toBe(
+      "error",
+    );
+    const wrong = tables({
+      partner_activities: [
+        { ...tables().partner_activities[0], partner_id: partnerFixtureId(99999) },
+      ],
+    });
+    expect((await loadPartnerWorkspace(fakeSupabase(wrong).client)).work).toBeNull();
+    const many = Array.from({ length: 450 }, (_, index) => ({
+      ...p,
+      id: partnerFixtureId(10000 + index),
+      co: 100 + index,
+      source_key: `Z${index}`,
+    }));
+    const fake = fakeSupabase(
+      tables({
+        partners: many,
+        partner_contacts: [],
+        partner_message_variants: [],
+        partner_import_differences: [],
+        partner_do_not_contact: [],
+        partner_activities: [],
+        partner_assistant_jobs: many.map((row) => ({
+          ...tables().partner_assistant_jobs[0],
+          partner_id: row.id,
+        })),
+        partner_assistant_contacts: many.map((row) => ({ partner_id: row.id, active: true })),
+      }),
+    );
+    const result = await loadPartnerWorkspace(fake.client);
+    expect(result.work?.jobs).toHaveLength(450);
+    expect(fake.calls.filter((call) => call.table === "partner_assistant_jobs")).toHaveLength(3);
+    expect(fake.calls.filter((call) => call.table === "partner_assistant_contacts")).toHaveLength(
+      3,
+    );
+  });
+
   it("legge tutto a pagine complete, anche oltre 200 contatti", async () => {
     const base = partnerFixtureRows(TODAY).partners[0];
     const many = Array.from({ length: 450 }, (_, i) => ({
@@ -237,6 +367,7 @@ describe("lettura della lista", () => {
       "research_removed_at",
       "route:research->>route",
       "followers:research->>followers",
+      "why:research->>why",
     ]);
     expect(columns("partner_import_differences")).not.toContain("team_value");
     expect(columns("partner_research_imports")).not.toContain("context_md");
@@ -736,7 +867,7 @@ describe("comandi del team", () => {
     expect(result).toMatchObject({
       status: "success",
       version: 5,
-      message: "Salvato. Stato: Ha risposto.",
+      message: "Salvato. Stato: Risposto.",
     });
     expect(fake.rpcCalls).toEqual([
       {
@@ -927,7 +1058,7 @@ describe("«Segna inviato»: la conferma dice quando scade il sollecito", () => 
     const result = await executePartnerCommand(fake.client, sent(), NOW);
     expect(result).toMatchObject({
       status: "success",
-      message: "Registrato. Stato: Contattato. Sollecito per te giovedì 29 ottobre.",
+      message: "Registrato. Stato: Scritto. Sollecito per te giovedì 29 ottobre.",
     });
     expect(fake.order[0]).toBe("getUser");
     expect(fake.order[1]).toBe("rpc:record_partner_activity");
@@ -939,11 +1070,11 @@ describe("«Segna inviato»: la conferma dice quando scade il sollecito", () => 
   it("senza sollecito (contatto chiuso o da non contattare) la conferma resta quella", async () => {
     const none = fakeSupabase(tables(), { rpc });
     expect((await executePartnerCommand(none.client, sent(), NOW)).message).toBe(
-      "Registrato. Stato: Contattato.",
+      "Registrato. Stato: Scritto.",
     );
     const closed = fakeSupabase(tables(followUp({ status: "done" })), { rpc });
     expect((await executePartnerCommand(closed.client, sent(), NOW)).message).toBe(
-      "Registrato. Stato: Contattato.",
+      "Registrato. Stato: Scritto.",
     );
   });
 
@@ -951,7 +1082,7 @@ describe("«Segna inviato»: la conferma dice quando scade il sollecito", () => 
     const broken = fakeSupabase(tables(followUp()), { rpc, failTable: "tasks" });
     expect(await executePartnerCommand(broken.client, sent(), NOW)).toMatchObject({
       status: "success",
-      message: "Registrato. Stato: Contattato.",
+      message: "Registrato. Stato: Scritto.",
     });
     const strange = fakeSupabase(tables(followUp({ due_at: "domani" })), { rpc });
     expect((await executePartnerCommand(strange.client, sent(), NOW)).status).toBe("success");

@@ -10,6 +10,8 @@ import {
   type PartnerAction,
 } from "../../lib/partner/contacts";
 import { upcomingEventStart, type PartnerViewSection } from "../../lib/partner/filters";
+import { instantDay, longDay } from "../../lib/partner/dates";
+import type { PartnerWorkReply, PartnerWorkView } from "../../lib/partner/work";
 import {
   PARTNER_PRIORITY_LABELS,
   PARTNER_SECTION_LABELS,
@@ -118,6 +120,9 @@ function RowActions({ actions, now }: { actions: PartnerAction[]; now: boolean }
 
 export type PartnerRowProps = {
   partner: PartnerSummary;
+  work?: PartnerWorkView;
+  replies?: readonly PartnerWorkReply[];
+  showReplies?: boolean;
   contacts: readonly PartnerContactLink[];
   /** Differenze aperte da controllare. */
   differences: number;
@@ -135,6 +140,9 @@ export type PartnerRowProps = {
 
 export function PartnerRow({
   partner,
+  work,
+  replies,
+  showReplies,
   contacts,
   differences,
   block,
@@ -258,34 +266,61 @@ export function PartnerRow({
         </p>
       </div>
       <div className={styles.channel}>
-        {blocked ? (
-          <p className={styles.blockedNote}>Non contattare: {shortReason(block.reason)}</p>
-        ) : (
-          <>
-            <p className={styles.route}>
-              <b>Come.</b> {shortRoute(routeText(partner.route, contacts))}
-            </p>
-            <RowActions actions={partnerActions(partner, contacts, false)} now={now} />
-          </>
+        <p className={styles.workMotivation}>
+          {work?.motivation ?? shortRoute(routeText(partner.route, contacts))}
+        </p>
+        {work && (
+          <p className={styles.workDue}>
+            <span>Per quando</span>
+            {work.dueLabel}
+          </p>
         )}
+        <details className={styles.rowContacts}>
+          <summary>Recapiti</summary>
+          {blocked ? (
+            <p className={styles.blockedNote}>Non contattare: {shortReason(block.reason)}</p>
+          ) : (
+            <>
+              <p className={styles.route}>
+                <b>Come.</b> {shortRoute(routeText(partner.route, contacts))}
+              </p>
+              <RowActions actions={partnerActions(partner, contacts, false)} now={now} />
+            </>
+          )}
+        </details>
       </div>
       <div className={styles.state}>
-        <label className="sr-only" htmlFor={`stato-${partner.co}`}>
-          Stato di {partner.name}
-        </label>
-        <select
-          id={`stato-${partner.co}`}
-          className={styles.stageSelect}
-          value={stage}
-          disabled={preview || command.busy}
-          onChange={(event) => changeStage(event.target.value)}
-        >
-          {PARTNER_STAGES.map((item) => (
-            <option key={item} value={item}>
-              {PARTNER_STAGE_LABELS[item]}
-            </option>
-          ))}
-        </select>
+        <p className={styles.workPhase}>
+          {stage !== partner.stage
+            ? PARTNER_STAGE_LABELS[stage]
+            : (work?.label ?? PARTNER_STAGE_LABELS[stage])}
+        </p>
+        <p className={styles.workTurn}>A chi tocca: {work?.turn ?? "Da verificare"}</p>
+        {work?.reason && <p className={styles.workReason}>{work.reason}</p>}
+        {work?.warning && work.sortPriority === 0 && (
+          <p role="alert" className={styles.noteAmber}>
+            {work.warning}
+          </p>
+        )}
+        <details className={styles.rowStateEditor}>
+          <summary>Modifica stato</summary>
+          <label className="sr-only" htmlFor={`stato-${partner.co}`}>
+            Stato di {partner.name}
+          </label>
+          <select
+            id={`stato-${partner.co}`}
+            className={styles.stageSelect}
+            value={stage}
+            disabled={preview || command.busy}
+            onChange={(event) => changeStage(event.target.value)}
+          >
+            {PARTNER_STAGES.map((item) => (
+              <option key={item} value={item}>
+                {PARTNER_STAGE_LABELS[item]}
+              </option>
+            ))}
+          </select>
+        </details>
       </div>
       <button
         type="button"
@@ -298,6 +333,32 @@ export function PartnerRow({
         <TulipIcon />
         <span>{loading ? "Apro…" : open ? "Chiudi" : "Dettagli"}</span>
       </button>
+      {showReplies && replies && (
+        <section
+          className={styles.replyHistory}
+          aria-label={`Risposte registrate di ${partner.name}`}
+        >
+          {[...replies]
+            .sort(
+              (a, b) =>
+                Date.parse(b.occurredAt) - Date.parse(a.occurredAt) || b.id.localeCompare(a.id),
+            )
+            .map((reply) => (
+              <article key={reply.id} className={styles.replyItem}>
+                <p className={styles.workReason}>
+                  {instantDay(reply.occurredAt)
+                    ? longDay(instantDay(reply.occurredAt)!, today)
+                    : "Data da verificare"}{" "}
+                  · registrata da {memberName(members, reply.createdBy)}
+                </p>
+                <p className={styles.preText}>
+                  {reply.body ||
+                    "Testo della risposta non registrato. Consulta il Registro nella scheda."}
+                </p>
+              </article>
+            ))}
+        </section>
+      )}
       {(command.state.status !== "idle" && command.state.status !== "success") || guard ? (
         <div className={styles.rowFeedback}>
           {guard && (
@@ -317,7 +378,14 @@ export function PartnerRow({
           aria-busy={loading || undefined}
         >
           {detail ? (
-            <PartnerDetails detail={detail} summary={partner} block={block} />
+            <PartnerDetails
+              detail={detail}
+              summary={partner}
+              block={block}
+              latestReply={
+                replies?.toSorted((a, b) => Date.parse(b.occurredAt) - Date.parse(a.occurredAt))[0]
+              }
+            />
           ) : (
             <div className={styles.skeletonLines} aria-hidden="true">
               <span />
