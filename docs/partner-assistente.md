@@ -24,7 +24,7 @@ Ogni due minuti pg_cron chiama la route `POST /api/integrations/partner-assistan
 I passi di un contatto sono quattro, ognuno con una chiamata a Claude Opus 5.5 (`claude-opus-5-5`, thinking adattivo):
 
 1. **Ricerca**: sul web (`web_search`, `web_fetch`), con le fonti. Parte dalla scheda ma non si fida di date e nomi già scritti.
-2. **Estrazione**: dalla ricerca, in campi fissi (output strutturato), il tipo di contatto, la lingua e la forma di cortesia, la persona giusta, il fuso, il fatto da citare con la fonte, il prossimo evento e il momento giusto per scrivere. Poi il codice sceglie la proposta da un elenco chiuso e decide: scrivere adesso, aspettare una data (`attesa`) o passare il contatto a Tommi (manca un fatto vero o il fuso).
+2. **Estrazione**: dalla ricerca, in campi fissi (output strutturato), il tipo di contatto, la lingua e la forma di cortesia, la persona giusta, il fuso, il fatto da citare con la fonte, il prossimo evento e il momento giusto per scrivere. Poi il codice sceglie la proposta da un elenco chiuso e decide: scrivere adesso, aspettare una data (`attesa`) o passare il contatto a Tommi (manca un fatto vero o il fuso). Arrivata la data, l'estrazione si rifà; la ricerca solo se ha 14 giorni o più (vedi «Ricerca ancora valida alla data di ripresa»).
 3. **Scrittura**: oggetto e corpo; la firma la compone il codice. Poi i controlli nel codice: parole vietate in tutte le lingue (conto vendita compreso), segnaposto, un solo `?`, nessun `!` né emoji, unico link `https://luckylap.com`, nessun telefono nel corpo, firma giusta per la lingua, solo 964 e GT3 RS con i contatti Porsche, corpo tra 110 e 160 parole. Una bozza che non passa si riscrive una volta; alla seconda il contatto passa a Tommi.
 4. **Controllo**: una seconda lettura di Claude con le regole davanti, che approva o rimanda indietro. Una bozza scritta con regole superate torna in scrittura senza chiamare Claude.
 
@@ -452,3 +452,21 @@ Stato al 1° novembre 2026, prima del merge: assistente «Spento» dal 31 ottobr
 2. «Prepara»: l'assistente compone le bozze dei club (fino a 20 pronte) e le fa rileggere a Claude; per gli altri contatti riprende ricerca e scrittura con Claude.
 3. «Invio» lunedì 2 novembre prima delle 9:30 di Roma, così la prima email è quella di Milano AutoClassica, come deciso il 30 ottobre. Acceso prima, partirebbero già la domenica sera di Roma i contatti in Nuova Zelanda e Australia, dove è lunedì mattina.
 4. Dal 2 novembre: 3 email agli altri e 2 ai club ogni giorno feriale per la prima settimana, poi 5 e 5. Se il credito Anthropic finisce, l'assistente va in pausa solo per la preparazione: gli invii delle bozze già pronte continuano.
+
+## Ricerca ancora valida alla data di ripresa
+
+Dal 2 novembre 2026, su richiesta di Tommi. Un contatto in attesa di una data tornava sempre alla ricerca, anche con una ricerca di pochi giorni, e la ricerca è il passo che costa di più. Di solito aspettava solo il momento giusto per scrivere («inizio novembre», «dopo l'assemblea»), non fatti nuovi.
+
+- **La regola.** Quando arriva la data, il contatto riparte dall'estrazione se la ricerca ha meno di 14 giorni. Con 14 giorni o più riparte dalla ricerca, come prima.
+- **Il margine.** L'invio accetta una ricerca fino a 21 giorni. I 7 giorni di margine lasciano alla bozza il tempo di partire: senza margine si pagherebbero estrazione, scrittura e seconda lettura, e poco dopo la bozza tornerebbe alla ricerca.
+- **La scelta si rifà sempre.** L'estrazione legge la stessa ricerca con la data di oggi e può decidere di scrivere, di aspettare ancora o di passare il contatto a Tommi. Il lavoro riparte nello stesso stato di una ricerca appena salvata: scelta e bozza vuote, tentativi e riscritture a zero.
+- **Lavori già tornati alla ricerca.** Il controllo è al giro di presa del lavoro, quindi vale anche per i lavori che erano già tornati alla ricerca prima della migrazione.
+- **Gli altri ritorni alla ricerca non cambiano.** Ricerca scaduta all'invio, «Ridai all'assistente» e l'interruttore della scheda tolgono la nota di ricerca e ripartono dalla ricerca. Un contatto che non usa più il testo per i club e ha le note del modello riparte dalla ricerca, senza note.
+- **Club con il testo fisso.** Non cambia il costo: il worker compone la bozza da qualsiasi passo prima del controllo, senza Claude.
+- **Nell'interfaccia.** Non cambia niente: la scheda continua a mostrare la data della ricerca usata, anche se è di qualche giorno prima della bozza.
+
+### Codice, test e produzione
+
+- `supabase/migrations/20261102001128_assistente_partner_ricerca_valida.sql`, additiva: `claim_partner_assistant_step` sostituita, stessa firma, stessi permessi, stesse risposte. Nessuna tabella nuova, nessun dato cambiato dalla migrazione. Il worker non cambia.
+- `npm run test:db`: `assistente-partner-ricerca-valida.mjs` (PGlite, 42 controlli). Esiti in [verification.md](verification.md), «Ricerca ancora valida alla data di ripresa, 2 novembre 2026».
+- La migrazione non è ancora applicata in produzione: serve l'OK di Tommi.

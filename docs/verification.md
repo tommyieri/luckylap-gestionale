@@ -7,6 +7,18 @@ Stato del 23 ottobre 2026, dal branch `claude/revisione-pre-invio` (P7, revision
 
 Prove applicative, SQL sintetico, PostgreSQL concorrente e Auth cloud sono conteggiati separatamente. Le sezioni «Avvio del 21 ottobre 2026» restano come verbale dell'avvio: i numeri di allora non sono quelli di oggi.
 
+## Ricerca ancora valida alla data di ripresa, 2 novembre 2026
+
+Branch `claude/ricerca-valida-alla-ripresa`, base `origin/main` a `8f67353` (merge della pull request #36). Dettagli in [partner-assistente.md](partner-assistente.md), «Ricerca ancora valida alla data di ripresa».
+
+- `npm run typecheck`, `npm test` (452 file, 8.475 test), `npm run build`, `npm run format:check`: superati.
+- `npm run test:db` con `LUCKYLAP_PG_BIN` su un PostgreSQL 17 già presente: 31 harness PGlite (5.870 controlli) e 19 harness PostgreSQL 17 (2.172 controlli), tutti superati.
+- Harness nuovo: `assistente-partner-ricerca-valida.mjs` (PGlite, minimo 42): permessi, percorso intero dall'attesa alla scrittura senza una ricerca nuova, seconda attesa, club con il testo fisso che si salva dall'estrazione, 13 giorni e 23 ore contro 14 giorni e un minuto, data futura e già passata, lavoro già tornato alla ricerca, contatto nuovo, ricerca di 20 giorni, lavoro di Tommi, note del modello su un contatto che non lo usa più, lease attiva e lease scaduta. Con la migrazione vuota l'harness fallisce al primo caso: il contatto torna alla ricerca invece che all'estrazione.
+- La funzione cambia solo per l'aggiornamento nuovo: il confronto con la versione di `20261101012650` dà sei righe aggiunte e nessuna tolta.
+- In una copia temporanea, con tutte le migrazioni fino a quella nuova applicate agli harness che ne hanno meno: `assistente-partner-worker.mjs` 576 controlli, `assistente-partner-invio-comandi.mjs` 275, `assistente-partner-invio.mjs` 429, `assistente-partner-modello.mjs` 109, `assistente-partner-due-lavori.mjs` 41, `assistente-partner-concurrency.mjs` 51 e `assistente-partner-invio-concurrency.mjs` 60 su PostgreSQL 17: stessi controlli e stesso esito. Nel worker l'unico caso che si aspetta la ricerca rifatta è stato provato con la nota invecchiata di 20 giorni.
+
+**Produzione.** Migrazione non ancora applicata: serve l'OK di Tommi.
+
 ## Due lavori d'invio, 1° novembre 2026
 
 Branch `claude/club-marca-alternanza`, base `origin/main` a `79fa76a` (merge della pull request #34). Testo per i club con i modelli della marca (versione 2) e limite del giorno diviso a metà tra i club e gli altri contatti. Dettagli in [partner-assistente.md](partner-assistente.md), «Due lavori d'invio».
