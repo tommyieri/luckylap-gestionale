@@ -368,6 +368,20 @@ describe("PARTNER_ASSISTANT_CHOICE_SCHEMA", () => {
 });
 
 describe("writeCall", () => {
+  it("il club anche evento usa il riferimento generico in scrittura e seconda lettura", () => {
+    const context: PartnerAssistantContext = {
+      ...ctx,
+      partner: { ...ctx.partner, sections: ["club", "eventi"] },
+    };
+    for (const call of [writeCall(context, context.today), reviewCall(context)]) {
+      const message = userText(call);
+      expect(message).toContain("come nelle collaborazioni con Porsche Club in Italia");
+      expect(message).toContain("senza nominare i singoli club o le quantità");
+      expect(message).not.toContain("Toscana");
+    }
+    expect(userText(writeCall(ctx, ctx.today))).toContain("come per il Porsche Club Toscana");
+  });
+
   const call = writeCall(evCtx, "2026-10-27");
   const text = userText(call);
 
@@ -566,7 +580,8 @@ describe("templateReviewCall", () => {
   });
 
   it("ha i fatti confermati e i divieti di sempre", () => {
-    expect(text).toContain("150 magliette dedicate ai soci del Porsche Club Toscana");
+    expect(text).toContain("alcune collaborazioni avviate con Porsche Club in Italia");
+    expect(text).toContain("senza nominare i singoli club o le quantità");
     expect(text).toContain("modelli da uomo e da donna");
     expect(text).toContain("Made in Italy");
     expect(text).toContain("senza «ß»");

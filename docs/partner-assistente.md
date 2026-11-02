@@ -416,6 +416,24 @@ Le stesse frasi ci sono in inglese («our range already features the 300 SL, but
 - **Ferrari.** Il 1° novembre 2026 Tommi ha deciso che i club Ferrari fuori dalla rete Scuderia Ferrari Club partono da subito con la F40 e la 512 TR, anche se il parere legale sulle immagini e sulle silhouette delle auto Ferrari non c'è ancora. La rete Scuderia Ferrari Club resta fuori (`rete_scuderia_ferrari`).
 - **La versione** sale a 2. Una bozza del modello al controllo con il testo vecchio si ricompone senza Claude, come prima.
 
+### Collaborazioni con Porsche Club in Italia, testo versione 3
+
+Il 2 novembre 2026 Tommi ha chiesto di togliere dalle email ai club il nome «Porsche Club Toscana» e il caso delle 150 magliette. La frase italiana diventa: «Abbiamo già avviato alcune collaborazioni con Porsche Club in Italia, realizzando magliette dedicate ai soci con il logo del club ricamato sulla manica.». Le altre quattro lingue dicono la stessa cosa. Il testo per marca resta quello della versione 2; la seconda lettura di Claude resta per le nuove bozze. Anche scrittura e controllo dei contatti Club che sono eventi ricevono l'indicazione di usare il riferimento generico.
+
+Cambiare il testo nel codice aggiorna le bozze future e quelle ancora al controllo, ma non quelle già pronte. La migrazione `20261102120000_assistente_partner_club_generici.sql`, **da applicare soltanto con l'OK di Tommi, dopo il deploy del codice**, prepara la revisione editoriale delle bozze del modello versione 2 già approvate e ancora pronte (18 alla verifica del 2 novembre). Non richiede credito Anthropic:
+
+- sostituisce solo la frase concordata, nella lingua della bozza;
+- aggiunge note e bozza nuove, con nuova impronta e approvazione editoriale attribuita a Tommi e collegata al precedente controllo di Claude; le righe originali restano nello storico;
+- mantiene l'età della nota del modello originale, senza allungare la validità per l'invio;
+- lascia il lavoro pronto, la pausa per credito e tutti i controlli d'invio come sono; non manda email;
+- non cambia gli invii già fatti, i contatti passati a Tommi o quelli che non hanno più il contesto valido. Con una lease attiva l'operazione si ferma prima di scrivere.
+
+La scheda distingue queste revisioni: «già controllata da Claude, con modifica del testo approvata da Tommi». Non attribuisce a Claude una nuova lettura. Una seconda applicazione non crea altre revisioni. I controlli sintetici dell'harness `assistente-partner-club-generici.mjs` verificano storico, impronte, approvazione editoriale, contesti cambiati, invii esclusi e ripetizione.
+
+Prima dell'applicazione si ricontrollano in sola lettura le bozze candidate. Dopo si verifica che il numero delle revisioni coincida con quelle attese e che non restino bozze del modello versione 2 ancora idonee all'invio. Le bozze saltate restano col testo precedente: vanno controllate prima di riattivarle, perché il normale invio non confronta la versione del modello.
+
+Le prime email restano senza allegati. Un PDF è un allegato normale, ma non garantisce la consegna in posta in arrivo: l'eventuale aggiunta richiede una verifica separata con il file e il formato effettivi.
+
 ### La quota del giorno
 
 Il limite del giorno resta uno (5 prime email nei primi 7 giorni dal primo invio vero, poi il limite della pagina, oggi 10) e si divide a metà tra i due lavori, con il posto dispari agli altri:

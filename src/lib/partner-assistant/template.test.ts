@@ -41,7 +41,7 @@ describe("testo fisso per i club", () => {
         expect(body.match(/\?/gu)).toHaveLength(1);
         expect(body).not.toMatch(/[!¡]/u);
         expect(body).toContain("Porsche Club Sintetico");
-        expect(body).toContain("150");
+        expect(body).not.toMatch(/Toscana|\b150\b/u);
         expect(text.subject("Porsche Club Sintetico")).toContain("Porsche Club Sintetico");
         const words = partnerAssistantBodyWords(body);
         expect(words, `${language} ${brand}`).toBeGreaterThanOrEqual(180);

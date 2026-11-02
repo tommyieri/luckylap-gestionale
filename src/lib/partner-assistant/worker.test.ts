@@ -1652,7 +1652,7 @@ describe("modalità modello per i club", () => {
     expect(lease).toEqual(state.lease);
     expect(operationId).toMatch(UUID);
     expect(input).toMatchObject({
-      templateVersion: 2,
+      templateVersion: 3,
       register: "sie",
       timezone: "Europe/Berlin",
       porscheCommunity: true,

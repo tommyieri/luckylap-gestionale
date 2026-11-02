@@ -307,6 +307,25 @@ describe("PartnerAssistantBlock", () => {
     expect(all).not.toContain("Scritta oggi");
   });
 
+  it("la revisione editoriale attribuisce a Tommi la modifica del testo anche dopo l'invio", () => {
+    for (const status of ["pronta", "inviata"] as const) {
+      const tree = render(2, {
+        assistant: (view) => ({
+          ...view,
+          job: { ...view.job!, status },
+          research: {
+            ...view.research!,
+            text: "Nessuna ricerca: bozza dal testo fisso per i club, versione 3.",
+            approvalSource: "founder_editorial",
+          },
+        }),
+      });
+      expect(words(tree)).toContain(
+        "già controllata da Claude, con modifica del testo approvata da Tommi",
+      );
+    }
+  });
+
   it("la bozza senza recapito lo dice invece dell'indirizzo", () => {
     const tree = render(2, {
       assistant: (view) => ({ ...view, draft: { ...view.draft!, toAddress: null } }),
