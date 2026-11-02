@@ -1,17 +1,25 @@
 -- Assistente Partner, ricerca ancora valida alla data di ripresa (2 novembre 2026, su richiesta di
--- Tommi). Un contatto in attesa di una data tornava sempre alla ricerca, anche con una
--- ricerca di pochi giorni: la ricerca è il passo che costa di più. Ora riparte dall'estrazione se la
--- ricerca ha meno di 14 giorni: l'invio accetta una ricerca fino a 21 giorni, e i 7 di margine lasciano
--- alla bozza il tempo di partire. Con una ricerca più vecchia si rifà, come prima.
+-- Tommi). Un contatto in attesa di una data tornava sempre alla ricerca, anche con una ricerca di pochi
+-- giorni: la ricerca è il passo che costa di più. Ora riparte dall'estrazione se la ricerca è ancora
+-- buona:
+-- - ha meno di 14 giorni: l'invio accetta una ricerca fino a 21 giorni, e i 7 di margine lasciano alla
+--   bozza il tempo di partire;
+-- - la scelta di prima ha il fatto e il fuso: l'attesa senza fatto o senza fuso serve proprio a
+--   riprovare con una ricerca nuova;
+-- - l'evento della scelta di prima non è ancora iniziato: dopo l'evento la ricerca è superata;
+-- - la scheda non è cambiata dopo la ricerca: il team può averla corretta.
+-- Altrimenti si rifà la ricerca, come prima.
 --
 -- Additiva: claim_partner_assistant_step sostituita, stessa firma, stessi permessi, stesse risposte.
 -- Tocca anche i lavori già tornati alla ricerca prima di questa migrazione, al primo giro. Nessuna
 -- tabella nuova, nessun permesso nuovo.
 
--- Come 20261101012650, con il ritorno dalla ricerca all'estrazione dopo le attese arrivate al giorno
--- giusto. Solo quel ritorno tiene la nota di ricerca: tutti gli altri la tolgono. Il lavoro passa nello
--- stesso stato di una ricerca appena salvata (complete_partner_assistant_research): la scelta vecchia
--- non vale più, e l'estrazione la rifà con la data di oggi. Qui non ci sono lease attive.
+-- Come 20261101012650, con due aggiornamenti dopo le attese arrivate al giorno giusto. Solo quel ritorno
+-- tiene la nota di ricerca: tutti gli altri la tolgono. Il lavoro passa nello stesso stato di una ricerca
+-- appena salvata (complete_partner_assistant_research): la scelta vecchia non vale più, e l'estrazione
+-- la rifà con la data di oggi. Il secondo aggiornamento rimanda alla ricerca un lavoro rimasto fermo
+-- prima dell'estrazione finché la ricerca non è invecchiata (contatto fermato, pausa per il credito).
+-- Qui non ci sono lease attive.
 create or replace function private.claim_partner_assistant_step(p_worker_id uuid, p_lease_seconds integer) returns jsonb
 language plpgsql security definer set search_path = '' as $$
 declare
@@ -60,12 +68,24 @@ begin
   update public.partner_assistant_jobs set status = 'in_coda', step = 'ricerca', write_on = null,
       next_attempt_at = now(), updated_at = now()
     where status = 'attesa' and write_on <= v_today;
-  -- Ricerca di meno di 14 giorni: non si rifà, si riparte dall'estrazione.
+  -- Ricerca ancora buona: non si rifà, si riparte dall'estrazione.
   update public.partner_assistant_jobs l set step = 'estrazione', choice_note_id = null, draft_id = null,
       rewrites = 0, attempts = 0, next_attempt_at = now(), updated_at = now()
     where l.status = 'in_coda' and l.step = 'ricerca'
       and exists (select 1 from public.partner_assistant_notes n
-        where n.id = l.research_note_id and n.created_at > now() - interval '14 days');
+          join public.partners p on p.id = l.partner_id
+        where n.id = l.research_note_id and n.created_at > now() - interval '14 days'
+          and p.updated_at <= n.created_at)
+      and exists (select 1 from public.partner_assistant_notes s
+        where s.id = l.choice_note_id and btrim(s.content ->> 'fact_text') <> ''
+          and btrim(s.content ->> 'timezone') <> ''
+          and coalesce(nullif(s.content ->> 'event_starts_on', '')::date > v_today, true));
+  -- Ricerca invecchiata prima dell'estrazione: si rifà.
+  update public.partner_assistant_jobs l set step = 'ricerca', attempts = 0, next_attempt_at = now(),
+      updated_at = now()
+    where l.status = 'in_coda' and l.step = 'estrazione' and l.choice_note_id is null
+      and exists (select 1 from public.partner_assistant_notes n
+        where n.id = l.research_note_id and n.created_at <= now() - interval '14 days');
   -- Note del modello su un contatto che non usa più il modello: si riparte dalla ricerca.
   update public.partner_assistant_jobs l set step = 'ricerca', research_note_id = null, choice_note_id = null,
       draft_id = null, rewrites = 0, updated_at = now()

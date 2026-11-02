@@ -112,9 +112,9 @@ export function partnerAssistantEventMerch(
 }
 
 /** Se il momento giusto è più avanti si aspetta fino a quel giorno, quando si rifà la scelta, e
- * anche la ricerca se ha 14 giorni o più; altrimenti, senza un fatto vero da citare o senza il fuso
- * del destinatario, il contatto passa a Tommi; altrimenti si scrive. Fatto e fuso servono per
- * scrivere, non per aspettare. */
+ * anche la ricerca se non è più buona (senza fatto o senza fuso non lo è); altrimenti, senza un fatto
+ * vero da citare o senza il fuso del destinatario, il contatto passa a Tommi; altrimenti si scrive.
+ * Fatto e fuso servono per scrivere, non per aspettare. */
 export function partnerAssistantDecision(
   choice: Pick<PartnerAssistantChoice, "factText" | "timezone" | "writeNow" | "writeOn">,
   today: string,

@@ -1,9 +1,11 @@
-// test-db: pglite minimo 42
+// test-db: pglite minimo 61
 // Assistente Partner, ricerca ancora valida alla data di ripresa
-// (_assistente_partner_ricerca_valida.sql): un contatto che torna dall'attesa con una ricerca di meno
-// di 14 giorni riparte dall'estrazione, senza pagare una ricerca nuova. Vale anche per i lavori già
-// tornati alla ricerca prima della migrazione. Migrazioni applicate in ordine su PGlite. Solo dati
-// sintetici (CO da 951, domini example.test), nessun accesso cloud.
+// (_assistente_partner_ricerca_valida.sql): un contatto che torna dall'attesa con una ricerca ancora
+// buona riparte dall'estrazione, senza pagare una ricerca nuova. Buona vuol dire: meno di 14 giorni,
+// fatto e fuso nella scelta di prima, evento non ancora iniziato, scheda non cambiata dopo la ricerca.
+// Vale anche per i lavori già tornati alla ricerca prima della migrazione; un lavoro fermo finché la
+// ricerca invecchia torna alla ricerca. Migrazioni applicate in ordine su PGlite. Solo dati sintetici
+// (CO da 951, domini example.test), nessun accesso cloud.
 import assert from "node:assert/strict";
 import { createHash, randomUUID } from "node:crypto";
 import { readFileSync, readdirSync } from "node:fs";
@@ -94,6 +96,11 @@ async function scheda(co, { sections = ["collab"], country = "Germania" } = {}) 
      values ($1, 'email', $2, $2, $3, $3)`,
     [partnerId, `info@contatto-${co}.example.test`, founder],
   );
+  // Una scheda di prima della ricerca: toccata dopo, la ricerca non vale più.
+  await asOwner(
+    "update public.partners set updated_at = now() - interval '60 days' where id = $1",
+    [partnerId],
+  );
   return partnerId;
 }
 const researchNote = (partnerId, age, content = { text: "Ricerca sintetica." }) =>
@@ -104,20 +111,32 @@ const researchNote = (partnerId, age, content = { text: "Ricerca sintetica." }) 
      returning id as v`,
     [partnerId, JSON.stringify(content), MODEL, assistant, age],
   );
-const choiceNote = (partnerId, age) =>
+const choiceNote = (partnerId, age, content = {}) =>
   value(
     `insert into public.partner_assistant_notes(partner_id, kind, content, rules_version, model, operation_id,
        created_by, created_at)
-     values ($1, 'scelta', '{"decision": {"kind": "attendi"}}'::jsonb, 1, $2, gen_random_uuid(), $3, now() - $4::interval)
+     values ($1, 'scelta', $2::jsonb, 1, $3, gen_random_uuid(), $4, now() - $5::interval)
      returning id as v`,
-    [partnerId, MODEL, assistant, age],
+    [
+      partnerId,
+      JSON.stringify({
+        fact_text: "Raduno sintetico di ottobre.",
+        timezone: "Europe/London",
+        event_starts_on: "",
+        decision: { kind: "attendi" },
+        ...content,
+      }),
+      MODEL,
+      assistant,
+      age,
+    ],
   );
 const ROME_TODAY = "(now() at time zone 'Europe/Rome')::date";
 /** Un contatto in attesa, con la ricerca dell'età data e la data a `days` giorni da oggi. */
-async function waiting(co, age, days = 0, options) {
+async function waiting(co, age, days = 0, { choice: content, ...options } = {}) {
   const partnerId = await scheda(co, options);
   const research = await researchNote(partnerId, age);
-  const choice = await choiceNote(partnerId, age);
+  const choice = await choiceNote(partnerId, age, content);
   await asOwner(
     `insert into public.partner_assistant_jobs(partner_id, status, step, write_on, research_note_id, choice_note_id)
      values ($1, 'attesa', 'estrazione', ${ROME_TODAY} + $2::integer, $3, $4)`,
@@ -126,15 +145,28 @@ async function waiting(co, age, days = 0, options) {
   return { partnerId, research, choice };
 }
 /** Un lavoro già tornato alla ricerca, con o senza la nota di prima. */
-async function queued(co, age, { attempts = 0, content, status = "in_coda", reason = null } = {}) {
+async function queued(
+  co,
+  age,
+  {
+    attempts = 0,
+    content,
+    status = "in_coda",
+    step = "ricerca",
+    reason = null,
+    choice = true,
+  } = {},
+) {
   const partnerId = await scheda(co);
   const research = age ? await researchNote(partnerId, age, content) : null;
+  const choiceId = age && choice ? await choiceNote(partnerId, age) : null;
   await asOwner(
-    `insert into public.partner_assistant_jobs(partner_id, status, step, attempts, reason, research_note_id)
-     values ($1, $2, 'ricerca', $3, $4, $5)`,
-    [partnerId, status, attempts, reason, research],
+    `insert into public.partner_assistant_jobs(partner_id, status, step, attempts, reason, research_note_id,
+       choice_note_id)
+     values ($1, $2, $3, $4, $5, $6, $7)`,
+    [partnerId, status, step, attempts, reason, research, choiceId],
   );
-  return { partnerId, research };
+  return { partnerId, research, choice: choiceId };
 }
 const jobOf = (co) =>
   one(
@@ -306,6 +338,8 @@ try {
   row = await jobOf(951);
   eq([row.step, row.research_note_id], ["scrittura", first.research]);
   ok(row.choice_note_id, "La scelta nuova");
+  await tick();
+  eq((await jobOf(951)).step, "scrittura", "Un lavoro già in scrittura resta in scrittura");
   await stop(951);
 
   // 3. Un club con il testo fisso e una ricerca vera di prima: il modello si compone dall'estrazione.
@@ -315,7 +349,7 @@ try {
   const subject = "T-Shirts für die Mitglieder";
   const body =
     "Sehr geehrte Damen und Herren,\n\nTesto sintetico del modello.\n\nVielen Dank und freundliche Grüße";
-  const signature = "Tommaso Ieri\nGründer, LuckyLap\n+39 000 000 0001\nhttps://luckylap.com";
+  const signature = "Nome Sintetico\nGründer, LuckyLap\n+39 000 000 0001\nhttps://luckylap.com";
   eq(
     await worker("complete_partner_assistant_template", {
       job_id: clubJob.job.job_id,
@@ -349,6 +383,8 @@ try {
     { status: "done", job_status: "in_coda", step: "controllo", replayed: false },
     "Il modello si salva anche dall'estrazione",
   );
+  await tick();
+  eq((await jobOf(952)).step, "controllo", "Un lavoro già al controllo resta al controllo");
   await stop(952);
 
   // 4. Tutti i casi nello stesso giro.
@@ -364,6 +400,33 @@ try {
     reason: "troppi_tentativi",
   });
   await queued(961, "5 days", { content: { text: "Bozza dal testo fisso.", template: true } });
+  const noFact = await waiting(963, "5 days", 0, { choice: { fact_text: "" } });
+  const blankFact = await waiting(964, "5 days", 0, { choice: { fact_text: "   " } });
+  const noTimezone = await waiting(965, "5 days", 0, { choice: { timezone: "" } });
+  const today = await value(`select ${ROME_TODAY}::text as v`);
+  const tomorrow = await value(`select (${ROME_TODAY} + 1)::text as v`);
+  const eventPast = await waiting(966, "5 days", 0, { choice: { event_starts_on: "2026-01-01" } });
+  const eventToday = await waiting(967, "5 days", 0, { choice: { event_starts_on: today } });
+  const eventAhead = await waiting(968, "5 days", 0, { choice: { event_starts_on: tomorrow } });
+  const cardChanged = await waiting(969, "5 days");
+  await asOwner("update public.partners set updated_at = now() where id = $1", [
+    cardChanged.partnerId,
+  ]);
+  const noChoice = await queued(970, "5 days", { choice: false });
+  // Le note di una ricerca ci sono, ma il lavoro non ne ha più una: come dopo «Ridai all'assistente».
+  const cleared = await queued(971, null);
+  await researchNote(cleared.partnerId, "5 days");
+  await asOwner(
+    "update public.partner_assistant_jobs set choice_note_id = $1 where partner_id = $2",
+    [await choiceNote(cleared.partnerId, "5 days"), cleared.partnerId],
+  );
+  const agedOut = await queued(972, "14 days 1 minute", {
+    step: "estrazione",
+    attempts: 1,
+    choice: false,
+  });
+  const stillGood = await queued(973, "5 days", { step: "estrazione", attempts: 1, choice: false });
+  const decided = await queued(974, "20 days", { step: "estrazione" });
   eq((await tick()).status, "claimed");
 
   row = await jobOf(953);
@@ -417,17 +480,73 @@ try {
     ["in_coda", "ricerca", null, null],
     "Note del modello su un contatto che non lo usa più: si riparte dalla ricerca, senza note",
   );
+  for (const [co, job, message] of [
+    [963, noFact, "L'attesa senza fatto riprova con una ricerca nuova"],
+    [964, blankFact, "Un fatto di soli spazi non è un fatto"],
+    [965, noTimezone, "L'attesa senza fuso riprova con una ricerca nuova"],
+    [966, eventPast, "Evento già passato: la ricerca è superata"],
+    [967, eventToday, "Evento iniziato oggi: la ricerca è superata"],
+    [969, cardChanged, "Scheda cambiata dopo la ricerca: si rifà"],
+  ]) {
+    row = await jobOf(co);
+    eq(
+      [row.status, row.step, row.research_note_id, row.choice_note_id],
+      ["in_coda", "ricerca", job.research, job.choice],
+      message,
+    );
+  }
+  row = await jobOf(968);
+  eq(
+    [row.step, row.research_note_id, row.choice_note_id],
+    ["estrazione", eventAhead.research, null],
+    "Evento non ancora iniziato: la ricerca vale",
+  );
+  row = await jobOf(970);
+  eq(
+    [row.step, row.research_note_id],
+    ["ricerca", noChoice.research],
+    "Senza una scelta di prima: si rifà",
+  );
+  row = await jobOf(971);
+  eq(
+    [row.step, row.research_note_id],
+    ["ricerca", null],
+    "Conta la nota del lavoro, non le altre note del contatto",
+  );
+  row = await jobOf(972);
+  eq(
+    [row.status, row.step, row.research_note_id, row.attempts],
+    ["in_coda", "ricerca", agedOut.research, 0],
+    "Fermo prima dell'estrazione finché la ricerca è invecchiata: si rifà",
+  );
+  row = await jobOf(973);
+  eq(
+    [row.step, row.research_note_id, row.attempts],
+    ["estrazione", stillGood.research, 1],
+    "All'estrazione con una ricerca recente non cambia niente",
+  );
+  row = await jobOf(974);
+  eq(
+    [row.step, row.research_note_id, row.choice_note_id],
+    ["estrazione", decided.research, decided.choice],
+    "Una scelta già fatta non si tocca, come prima",
+  );
+  // Il giro dopo non cambia più niente: nessun rimbalzo tra i due passi.
+  await tick();
+  eq((await jobOf(972)).step, "ricerca", "Nessun rimbalzo verso l'estrazione");
+  eq((await jobOf(953)).step, "estrazione", "Nessun rimbalzo verso la ricerca");
   for (const co of [953, 954, 955, 956, 957, 958, 959, 960, 961]) await stop(co);
+  for (const co of [963, 964, 965, 966, 967, 968, 969, 970, 971, 972, 973, 974]) await stop(co);
 
   // 5. Una ricerca in corso non si tocca; a lease scaduta il lavoro riparte dall'estrazione.
-  const leased = await queued(962, "5 days");
+  const leased = await queued(975, "5 days");
   await asOwner(
     `update public.partner_assistant_jobs set lease_token = gen_random_uuid(),
        lease_expires_at = clock_timestamp() + interval '5 minutes' where partner_id = $1`,
     [leased.partnerId],
   );
   eq((await claim()).reason, "occupato");
-  row = await jobOf(962);
+  row = await jobOf(975);
   eq(row.step, "ricerca", "Con la lease attiva il passo resta");
   ok(row.lease_token, "La lease resta");
   await asOwner(
@@ -437,8 +556,29 @@ try {
   );
   const resumed = await tick();
   eq([resumed.status, resumed.job.step], ["claimed", "estrazione"]);
-  row = await jobOf(962);
+  row = await jobOf(975);
   eq([row.step, row.attempts, row.research_note_id], ["estrazione", 0, leased.research]);
+
+  // 6. Un contatto fermato durante l'attesa, con la data che arriva mentre è fermo: il lavoro passa
+  // all'estrazione, e alla ripresa la ricerca è giudicata di nuovo (qui già invecchiata).
+  await stop(975);
+  const stopped = await waiting(976, "5 days");
+  await stop(976);
+  eq((await tick()).reason, "vuota", "Nessun contatto da prendere");
+  eq((await jobOf(976)).step, "estrazione");
+  await asOwner(
+    `alter table public.partner_assistant_notes disable trigger user;
+     update public.partner_assistant_notes set created_at = now() - interval '30 days'
+       where id = '${stopped.research}';
+     alter table public.partner_assistant_notes enable trigger user;
+     update public.partner_assistant_contacts set active = true where partner_id = '${stopped.partnerId}';`,
+  );
+  const restarted = await tick();
+  eq(
+    [restarted.job.partner_id, restarted.job.step],
+    [stopped.partnerId, "ricerca"],
+    "Riattivato dopo 30 giorni: si rifà la ricerca",
+  );
 
   console.log(`PASS ${checks} controlli`);
 } catch (error) {
