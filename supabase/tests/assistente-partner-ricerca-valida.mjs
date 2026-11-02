@@ -1,4 +1,4 @@
-// test-db: pglite minimo 86
+// test-db: pglite minimo 88
 // Assistente Partner, ricerca ancora valida alla data di ripresa
 // (_assistente_partner_ricerca_valida.sql): un contatto che torna dall'attesa con una ricerca ancora
 // buona riparte dall'estrazione, senza pagare una ricerca nuova. Buona vuol dire: meno di 14 giorni,
@@ -122,6 +122,7 @@ const choiceNote = (partnerId, age, content = {}) =>
       JSON.stringify({
         fact_text: "Raduno sintetico di ottobre.",
         timezone: "Europe/London",
+        event_name: "",
         event_starts_on: "",
         decision: { kind: "attendi" },
         ...content,
@@ -491,8 +492,15 @@ try {
   );
   await reuses(
     968,
-    await waiting(968, "5 days", 0, { choice: { event_starts_on: tomorrow } }),
+    await waiting(968, "5 days", 0, {
+      choice: { event_name: "Assemblea sintetica", event_starts_on: tomorrow },
+    }),
     "Evento non ancora iniziato: la ricerca vale",
+  );
+  await redoes(
+    980,
+    await waiting(980, "5 days", 0, { choice: { event_name: "Assemblea sintetica" } }),
+    "Evento con il nome e senza una data esatta: non si può giudicare, si rifà",
   );
   const cardChanged = await waiting(969, "5 days");
   await asOwner("update public.partners set updated_at = now() where id = $1", [

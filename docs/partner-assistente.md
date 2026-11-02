@@ -461,7 +461,7 @@ Arrivata la data, il contatto torna in coda. Quando tocca a lui, riparte dall'es
 
 - **Meno di 14 giorni.** L'invio accetta una ricerca fino a 21 giorni. I 7 giorni di margine lasciano alla bozza il tempo di partire: senza margine si pagherebbero estrazione, scrittura e seconda lettura, e poco dopo la bozza tornerebbe alla ricerca.
 - **Fatto e fuso nella scelta di prima.** Un contatto può aspettare anche senza un fatto da citare o senza il fuso: alla data riprova con una ricerca nuova, che può trovarli. Rileggendo lo stesso testo finirebbe subito a Tommi.
-- **Evento della scelta di prima non ancora iniziato.** Se il contatto aspettava la fine di un evento («dopo l'assemblea»), la ricerca non sa com'è andata e il prossimo evento può essere un altro.
+- **Evento della scelta di prima non ancora iniziato.** Se il contatto aspettava la fine di un evento («dopo l'assemblea»), la ricerca non sa com'è andata e il prossimo evento può essere un altro. Un evento con il nome e senza una data esatta non si può giudicare, e conta come iniziato.
 - **Scheda non cambiata dopo la ricerca.** Il team può averla corretta durante l'attesa: conta ogni modifica che aggiorna la scheda.
 
 Se ne manca una, si rifà la ricerca, come prima.
@@ -477,5 +477,5 @@ Se ne manca una, si rifà la ricerca, come prima.
 
 - `supabase/migrations/20261102001128_assistente_partner_ricerca_valida.sql`, additiva: `claim_partner_assistant_step` sostituita, stessa firma, stessi permessi, stesse risposte. Nessuna tabella nuova, nessun dato cambiato dalla migrazione.
 - `src/lib/partner-assistant/prompts.ts`: la riga con il giorno della ricerca. Prima il deploy del codice, poi la migrazione: così ogni ricerca riusata ha già la riga con il suo giorno.
-- `npm run test:db`: `assistente-partner-ricerca-valida.mjs` (PGlite, 86 controlli). `npm test`: i casi del giorno della ricerca in `prompts.test.ts`. Esiti in [verification.md](verification.md), «Ricerca ancora valida alla data di ripresa, 2 novembre 2026».
+- `npm run test:db`: `assistente-partner-ricerca-valida.mjs` (PGlite, 88 controlli). `npm test`: i casi del giorno della ricerca in `prompts.test.ts`. Esiti in [verification.md](verification.md), «Ricerca ancora valida alla data di ripresa, 2 novembre 2026».
 - La migrazione non è ancora applicata in produzione: serve l'OK di Tommi.

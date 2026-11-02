@@ -6,7 +6,8 @@
 --   bozza il tempo di partire;
 -- - la scelta di prima ha il fatto e il fuso: l'attesa senza fatto o senza fuso serve proprio a
 --   riprovare con una ricerca nuova;
--- - l'evento della scelta di prima non è ancora iniziato: dopo l'evento la ricerca è superata;
+-- - l'evento della scelta di prima non è ancora iniziato: dopo l'evento la ricerca è superata. Un evento
+--   senza data esatta non si può giudicare, e conta come iniziato;
 -- - la scheda non è cambiata dopo la ricerca: il team può averla corretta.
 -- Altrimenti si rifà la ricerca, come prima.
 --
@@ -97,7 +98,8 @@ begin
         and p.updated_at <= n.created_at and not private.partner_assistant_is_template(n.id))
     and exists (select 1 from public.partner_assistant_notes s
       where s.id = j.choice_note_id and s.content ->> 'fact_text' ~ '\S' and s.content ->> 'timezone' ~ '\S'
-        and coalesce(nullif(s.content ->> 'event_starts_on', '')::date > v_today, true)) then
+        and coalesce(nullif(s.content ->> 'event_starts_on', '')::date > v_today,
+          s.content ->> 'event_name' !~ '\S')) then
     update public.partner_assistant_jobs set step = 'estrazione', choice_note_id = null, draft_id = null,
         rewrites = 0, attempts = 0, next_attempt_at = now()
       where partner_id = j.partner_id;
