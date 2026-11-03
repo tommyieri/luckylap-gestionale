@@ -7,6 +7,10 @@ import {
   PARTNER_ASSISTANT_SEND_RPC_NAMES,
   type PartnerAssistantSendStore,
 } from "./send-store";
+import {
+  PARTNER_ASSISTANT_TEST_LOOKBOOKS,
+  PARTNER_ASSISTANT_TEST_MIME_MAX_BYTES,
+} from "./test-lookbook-metadata";
 
 // Solo dati sintetici: domini example.test, CO da 951, UUID inventati.
 const config = {
@@ -417,6 +421,80 @@ const keyMutations = (row: unknown): [string, unknown][] =>
 const store = () => createPartnerAssistantSendStore(config);
 const replying = (data: unknown) => mocks.abortSignal.mockResolvedValue({ data, error: null });
 const signal = () => new AbortController().signal;
+
+describe("prove Club con allegato: store", () => {
+  const lookbook = PARTNER_ASSISTANT_TEST_LOOKBOOKS.porsche_club;
+  const testInput = () => ({
+    ...prepareInput,
+    mode: "prova" as const,
+    testRunId: id(20),
+    testIndex: 0,
+    lookbook,
+  });
+  const claimed = (row: unknown, appends: unknown[] = []) => ({
+    status: "claimed",
+    lease_token: lease,
+    mode: "prova",
+    candidate: row,
+    appends,
+  });
+  const club = { ...testCandidateRow, choice: candidateRow.choice, lookbook };
+
+  it("legge il PDF fissato alla bozza senza cambiare i vecchi candidati", async () => {
+    replying(claimed(club));
+    expect(await claim(store(), signal())).toMatchObject({
+      ok: true,
+      value: { candidate: { lookbook } },
+    });
+  });
+  it.each([
+    { ...club, lookbook: { ...lookbook, bytes: 1 } },
+    { ...club, lookbook: { ...lookbook, sha256: "0".repeat(64) } },
+    { ...club, lookbook: { ...lookbook, path: "/private/file.pdf" } },
+    { ...club, choice: testCandidateRow.choice },
+  ])("rifiuta metadati diversi o un contatto non Club", async (row) => {
+    replying(claimed(row));
+    expect(await claim(store(), signal())).toEqual({ ok: false });
+  });
+  it("legge il PDF nel candidato Club per l'invio reale deciso dal database", async () => {
+    replying({ ...claimed({ ...candidateRow, lookbook }), mode: "invio" });
+    expect(await claim(store(), signal())).toMatchObject({
+      ok: true,
+      value: { candidate: { lookbook } },
+    });
+  });
+  it("prepara oltre 64 KiB un messaggio con PDF riconosciuto", async () => {
+    replying({ status: "pronto", message_row_id: messageRowId });
+    const input = { ...testInput(), raw: "a".repeat(100_000) };
+    expect(await store().prepare(lease, operationId, input, signal())).toMatchObject({ ok: true });
+    expect(mocks.rpc).toHaveBeenCalledWith(
+      "prepare_partner_assistant_send",
+      expect.objectContaining({ p_payload: expect.objectContaining({ lookbook, raw: input.raw }) }),
+    );
+  });
+  it.each(["reale solo testo", "prova solo testo", "oltre 4 MiB", "PDF modificato"])(
+    "non manda la richiesta: %s",
+    async (kind) => {
+      const input =
+        kind === "reale solo testo"
+          ? { ...prepareInput, raw: "a".repeat(65_537) }
+          : kind === "prova solo testo"
+            ? { ...testInput(), lookbook: null, raw: "a".repeat(65_537) }
+            : kind === "oltre 4 MiB"
+              ? { ...testInput(), raw: "a".repeat(PARTNER_ASSISTANT_TEST_MIME_MAX_BYTES + 1) }
+              : { ...testInput(), lookbook: { ...lookbook, bytes: 1 } };
+      expect(await store().prepare(lease, operationId, input, signal())).toEqual({ ok: false });
+      expect(mocks.rpc).not.toHaveBeenCalled();
+    },
+  );
+  it("il batch di copie ha un limite cumulativo, anche con sole due copie", async () => {
+    const big = { ...appendRow, raw: "a".repeat(2_200_000) };
+    replying(claimed(null, [big]));
+    expect(await claim(store(), signal())).toMatchObject({ ok: true });
+    replying(claimed(null, [big, { ...big, message_row_id: id(99) }]));
+    expect(await claim(store(), signal())).toEqual({ ok: false });
+  });
+});
 
 beforeEach(() => {
   vi.clearAllMocks();

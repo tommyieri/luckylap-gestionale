@@ -1,5 +1,7 @@
 import { describe, expect, it } from "vitest";
+import { createHash } from "node:crypto";
 import {
+  composePartnerAssistantLookbookTestMessage,
   composePartnerAssistantMessage,
   PARTNER_ASSISTANT_OPT_OUT_LINES,
   partnerAssistantMessageId,
@@ -7,6 +9,7 @@ import {
   partnerAssistantOptOutLine,
   type PartnerAssistantOutgoing,
 } from "./mail-compose";
+import { PARTNER_ASSISTANT_TEST_MIME_MAX_BYTES } from "./test-lookbook-metadata";
 import type { PartnerAssistantLanguage, PartnerAssistantRegister } from "./types";
 
 // Appendice A del piano, copiata così com'è: è il riferimento byte per byte.
@@ -149,6 +152,14 @@ describe("composizione MIME", () => {
     expect(await composePartnerAssistantMessage(first)).toBe(
       await composePartnerAssistantMessage(first),
     ));
+  it("la composizione reale ignora qualsiasi opzione di allegato estranea", async () => {
+    const raw = await composePartnerAssistantMessage({
+      ...first,
+      attachments: [{ path: "https://file.example.test/club.pdf" }],
+    } as PartnerAssistantOutgoing);
+    expect(raw).not.toMatch(/multipart|application\/pdf|Content-Disposition|file\.example\.test/);
+    expect(decodeBody(raw)).toBe(first.text);
+  });
   it("rifiuta un Message-ID che non resterebbe su una riga", async () =>
     await expect(
       composePartnerAssistantMessage({
@@ -156,4 +167,66 @@ describe("composizione MIME", () => {
         messageId: `<11111111-1111-4111-8111-111111111111@${"casella-molto-lunga.".repeat(4)}example.test>`,
       }),
     ).rejects.toThrow());
+});
+
+describe("composizione MIME della prova con lookbook", () => {
+  const pdf = Buffer.from("%PDF-1.4\n1 0 obj\n<< /Type /Catalog >>\nendobj\n%%EOF\n");
+  const digest = (content: Buffer) => createHash("sha256").update(content).digest("hex");
+
+  it.each([
+    ["porsche_club", "LuckyLap-Lookbook-Porsche-Clubs.pdf"],
+    ["club", "LuckyLap-Lookbook-Clubs.pdf"],
+  ] as const)(
+    "%s: intestazioni e testo invariati, un solo PDF con byte e hash recuperabili",
+    async (code, filename) => {
+      const raw = await composePartnerAssistantLookbookTestMessage(first, { code, content: pdf });
+      const boundary = raw.match(/boundary="([^"]+)"/)?.[1];
+      expect(boundary).toBeDefined();
+      expect(raw).not.toMatch(/(?<!\r)\n/);
+      expect(raw).toMatch(/^[\x00-\x7f]*$/);
+      expect(raw).toMatch(/^Content-Type: multipart\/mixed;/m);
+      expect(raw).not.toMatch(/X-Mailer|In-Reply-To|References|^Cc:|^Bcc:|^Reply-To:/im);
+      const parts = raw
+        .split(`--${boundary}`)
+        .slice(1, -1)
+        .map((part) => part.replace(/^\r\n/, ""));
+      expect(parts).toHaveLength(2);
+      expect(parts[0]).toMatch(/^Content-Type: text\/plain; charset=utf-8/m);
+      expect(decodeBody(parts[0]!)).toBe(first.text);
+      expect(parts[1]).toMatch(/^Content-Type: application\/pdf;/m);
+      expect(parts[1]).toContain(`filename=${filename}`);
+      expect(parts[1]).toMatch(/^Content-Disposition: attachment;/m);
+      expect(parts[1]).toMatch(/^Content-Transfer-Encoding: base64/m);
+      const attachment = Buffer.from(parts[1]!.split("\r\n\r\n")[1]!.replace(/\s/g, ""), "base64");
+      expect(attachment).toEqual(pdf);
+      expect(digest(attachment)).toBe(digest(pdf));
+      const original = await composePartnerAssistantMessage(first);
+      const headers = (mime: string) =>
+        mime
+          .split("\r\n\r\n")[0]!
+          .split("\r\n")
+          .filter((line) => /^(From|To|Subject|Message-ID|Date):/.test(line));
+      expect(headers(raw)).toEqual(headers(original));
+      expect(Buffer.byteLength(raw, "ascii")).toBeLessThan(PARTNER_ASSISTANT_TEST_MIME_MAX_BYTES);
+    },
+  );
+
+  it.each([
+    { code: "../../club", content: pdf },
+    { code: "club", content: "https://file.example.test/club.pdf" },
+    { code: "club", content: { path: "/tmp/club.pdf" } },
+    { code: "club", content: Buffer.from("Documento sintetico che non è PDF") },
+  ])("rifiuta percorsi, URL e contenuti diversi dai byte PDF", async (input) => {
+    await expect(composePartnerAssistantLookbookTestMessage(first, input as never)).rejects.toThrow(
+      "Allegato",
+    );
+  });
+
+  it("applica il limite a tutto il MIME, compresa l'espansione base64", async () => {
+    const large = Buffer.alloc(3_200_000, 0x61);
+    large.write("%PDF-1.4\n", "ascii");
+    await expect(
+      composePartnerAssistantLookbookTestMessage(first, { code: "club", content: large }),
+    ).rejects.toThrow("4 MiB");
+  });
 });

@@ -9,6 +9,7 @@ import {
   type PartnerAssistantMailbox,
 } from "./imap";
 import {
+  composePartnerAssistantLookbookMessage,
   composePartnerAssistantMessage,
   partnerAssistantMessageId,
   partnerAssistantMessageText,
@@ -30,6 +31,8 @@ import {
   type PartnerAssistantSmtpResult,
 } from "./smtp";
 import { PARTNER_ASSISTANT_RPC_TIMEOUT_MS } from "./store";
+import { loadPartnerAssistantTestLookbook } from "./test-lookbook";
+import { PARTNER_ASSISTANT_CLUB_LOOKBOOKS_FROM } from "./test-lookbook-metadata";
 import type { StoreResult } from "./types";
 
 /** Il tempo del passo d'invio, prima del passo con Claude nello stesso giro di 300 secondi. */
@@ -51,6 +54,7 @@ export type PartnerAssistantSendDependencies = {
   store?: PartnerAssistantSendStore;
   smtp?: PartnerAssistantSmtp;
   openMailbox?: typeof openPartnerAssistantMailbox;
+  loadTestLookbook?: typeof loadPartnerAssistantTestLookbook;
   /** Misura solo il budget (predefinito performance.now). Mai per una data. */
   clock?: () => number;
   /** L'ora vera (predefinito Date.now): Date:, since e il giorno di Roma del ricontrollo. */
@@ -201,6 +205,16 @@ export async function runPartnerAssistantSendStep(
     };
 
     async function round(): Promise<void> {
+      // La SQL sceglie i club del modello; prima del giorno concordato un candidato reale
+      // con allegato non arriva alla composizione né all'SMTP, neppure con uno store incoerente.
+      if (
+        candidate?.lookbook != null &&
+        candidate.mode === "invio" &&
+        romeDay(new Date(now())) < PARTNER_ASSISTANT_CLUB_LOOKBOOKS_FROM
+      ) {
+        outcome = "allegato_prima_avvio";
+        candidate = null;
+      }
       // 2. Il ricontrollo delle date, solo in invio: senza aprire la casella.
       if (candidate && candidate.mode === "invio") {
         phase = "ricontrollo";
@@ -351,14 +365,19 @@ export async function runPartnerAssistantSendStep(
       const messageId = partnerAssistantMessageId(mail.domain, newId());
       let raw: string;
       try {
-        raw = await composePartnerAssistantMessage({
+        const message = {
           messageId,
           from: { name: mail.fromName, address: mail.user },
           to,
           subject: draft.subject,
           text,
           date: new Date(now()),
-        });
+        };
+        if (chosen.lookbook != null) {
+          const load = dependencies.loadTestLookbook ?? loadPartnerAssistantTestLookbook;
+          const lookbook = await load(chosen.lookbook);
+          raw = await composePartnerAssistantLookbookMessage(message, lookbook);
+        } else raw = await composePartnerAssistantMessage(message);
       } catch (error) {
         console.error("partner_assistant_send_bug", { phase, error: errorName(error) });
         outcome = "composizione_fallita";
@@ -382,6 +401,7 @@ export async function runPartnerAssistantSendStep(
             optOut,
             raw,
             mailboxCheck,
+            ...(chosen.lookbook == null ? {} : { lookbook: chosen.lookbook }),
           },
           signal,
         ),

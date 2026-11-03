@@ -382,7 +382,7 @@ Decisione di Tommi del 31 ottobre 2026: ai club l'assistente non fa ricerca, est
 - **Nell'interfaccia.** Il blocco «Assistente» della scheda mostra «Testo per i club» al posto di «Ricerca del …» e, nella bozza, «Composta … dal testo per i club», con «controllata da Claude» solo per le bozze pronte o inviate («in attesa della seconda lettura», «bocciata nella seconda lettura» o «non ha passato i controlli del codice e Claude non l'ha letta» negli altri casi). La pagina dell'assistente ha gli esiti «Bozza dal testo per i club, senza ricerca», `modello_controlli` e `modello_bocciato` e i motivi relativi. La guida ne parla nella parte «L'assistente».
 - **Migrazione.** `supabase/migrations/20261101012650_assistente_partner_modello.sql`, additiva: `private.partner_assistant_lock_any_step` (la guardia dei complete con più passi), `private.partner_assistant_uses_template` (Club e non evento), `private.partner_assistant_is_template`, `complete_partner_assistant_template` (privata e wrapper, solo `service_role`), e `complete_partner_assistant_review` e `claim_partner_assistant_step` sostituite con lo stesso comportamento per gli altri contatti. In produzione dal 1° novembre 2026 (versione cloud `20261101012650`), applicata da Claude prima del merge della pull request #31, con l'OK di Tommi («Sì, procedi») e la procedura delle impronte; esiti in [verification.md](verification.md), «Modalità modello per i club, 1° novembre 2026». L'assistente è rimasto spento: la modalità lavora solo quando Tommi lo riaccende.
 - **Spesa.** Solo la seconda lettura, senza ricerca sul web: qualche centesimo a club.
-- **Allegati.** La prima email resta solo testo, come tutto l'invio: un PDF a sconosciuti da una casella nuova peggiora la consegna. I lookbook «Porsche Clubs» e «Clubs» (`/partner/dati`) li manda Tommi a chi risponde.
+- **Allegati.** La decisione iniziale era di tenere i lookbook per chi rispondeva. Il 3 novembre Tommi ha chiesto una prova con i PDF già nel gestionale e l'aggiunta alle prime email dei Club dal 4 novembre: vedi «Lookbook Club dal 4 novembre» sotto.
 
 ### Test della modalità modello
 
@@ -435,7 +435,19 @@ La scheda distingue queste revisioni: «già controllata da Claude, con modifica
 
 Prima dell'applicazione si ricontrollano in sola lettura le bozze candidate. Dopo si verifica che il numero delle revisioni coincida con quelle attese e che non restino bozze del modello versione 2 ancora idonee all'invio. Le bozze saltate restano col testo precedente: vanno controllate prima di riattivarle, perché il normale invio non confronta la versione del modello.
 
-Le prime email restano senza allegati. Un PDF è un allegato normale, ma non garantisce la consegna in posta in arrivo: l'eventuale aggiunta richiede una verifica separata con il file e il formato effettivi.
+### Lookbook Club dal 4 novembre
+
+Decisione di Tommi del 3 novembre 2026: dal **4 novembre, giorno di Roma**, le prime email dei Club che usano il modello approvato includono un PDF. «Porsche Clubs» per le comunità Porsche, «Clubs» per gli altri Club. Oggetto, corpo, firma, frase di uscita, limiti e finestra d'invio restano quelli approvati; nessuna nuova chiamata a Claude. Gli altri contatti restano senza allegati.
+
+In «Prova», Tommi può selezionare **«Prova Club con lookbook allegato»**: il sistema prende esattamente una bozza Porsche e una degli altri Club, entrambe del modello versione 3, pronte e approvate nel contesto attuale. Se manca una delle due, non avvia una prova parziale. Ogni bozza va solo agli indirizzi già configurati in `PARTNER_TEST_TO`, con un solo PDF per messaggio. Con quattro indirizzi partono otto email, una ogni 4-11 minuti, entro il limite condiviso delle 15 prove al giorno. La prova non cambia schede, stato delle bozze, quota degli invii reali o solleciti.
+
+Passare a «Prova» o tornare a «Invio» conserva l'eventuale pausa della preparazione e la sua attesa. Salvare il credito dopo la ricarica, o premere nuovamente la modalità in vigore, continua a riavviare la preparazione come prima. La pausa e le attese della casella sono indipendenti e non si cancellano.
+
+Il database decide il PDF e ricontrolla l'abbinamento anche subito prima dell'SMTP: una email preparata prima del 4 novembre senza allegato viene ricomposta se la partenza supera la data di avvio. Il worker carica esclusivamente i due file del repository, verificando firma PDF, dimensione e SHA-256. Un file mancante o diverso ferma quel giro prima dell'invio. Il MIME completo, fino a 4 MiB solo con un lookbook previsto, resta immutabile con i metadati dell'allegato; messaggi senza PDF ancora entro 65.536 byte. SMTP e copia IMAP usano gli stessi byte. Le copie arretrate sono limitate anche per dimensione cumulativa, così più PDF non superano il limite della RPC.
+
+**Attivazione da completare:** pubblicare l'app compatibile e applicare `20261103090000_assistente_partner_prova_allegati.sql` prima del 4 novembre, con l'OK richiesto da `AGENTS.md`. Se la data è già passata, fermare prima gli invii durante il passaggio. La migrazione da sola non cambia modalità né avvia prove. Fare poi la prova dalla casella IONOS e verificare la copia in «Posta inviata»; Tommi controlla posta in arrivo/spam nelle caselle destinatarie prima di confermare l'arrivo. Un'accettazione SMTP non dimostra l'arrivo in posta in arrivo. Alla fine della prova tornare a «Invio» conservando la pausa per credito.
+
+La modifica è predisposta nel codice: questa sezione non certifica né un deploy né una prova già inviata.
 
 ### La quota del giorno
 

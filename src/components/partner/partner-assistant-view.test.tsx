@@ -955,6 +955,41 @@ describe("PartnerAssistantView", () => {
     expect(mocks.startTest).not.toHaveBeenCalled();
   });
 
+  it("la prova Club forza due bozze e il PDF solo agli indirizzi di prova", () => {
+    const options = { founder: true, mail: { ...MAIL, testRecipients: 4 } };
+    const checkbox = descendants(render(options, { mode: "prova" })).find(
+      (node) => node.type === "input" && node.props.type === "checkbox",
+    )!;
+    expect(checkbox.props.checked).toBe(false);
+    (checkbox.props.onChange as (event: unknown) => void)({ target: { checked: true } });
+    const tree = render(options, { mode: "prova" });
+    expect(button(tree, "1 bozza").props.disabled).toBe(true);
+    expect(button(tree, "2 bozze").props["aria-pressed"]).toBe(true);
+    expect(words(tree)).toContain("Partono 2 × 4 email di prova");
+    expect(words(tree)).toContain(
+      "Dal 4 novembre anche le email ai Club includono il relativo lookbook.",
+    );
+    click(button(tree, "Manda la prova"));
+    expect(mocks.startTest).toHaveBeenCalledExactlyOnceWith(
+      command("start_partner_assistant_test", { drafts: 2, recipients: 4, club_lookbooks: true }),
+    );
+  });
+
+  it.each([
+    ["invio", "Prova"],
+    ["prova", "Invio"],
+  ] as const)("da %s a %s conserva la pausa della preparazione", (mode, label) => {
+    const tree = render({ founder: true }, { mode, pausedReason: "credito" });
+    click(button(tree, label));
+    expect(mocks.setMode).toHaveBeenCalledExactlyOnceWith(
+      command("set_partner_assistant_mode", {
+        mode: label.toLowerCase(),
+        expected_version: 2,
+        preserve_preparation_pause: true,
+      }),
+    );
+  });
+
   it("chi non è Tommi vede la prova senza i comandi", () => {
     const tree = render(
       {},

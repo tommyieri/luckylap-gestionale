@@ -383,6 +383,14 @@ describe("invio dell'assistente (read_partner_assistant_send)", () => {
     });
   });
 
+  it("legge il nuovo tipo di prova senza rompere le prove precedenti", () => {
+    const row = sendRow();
+    row.test_run!.club_lookbooks = true;
+    expect(partnerAssistantSendFrom(row).testRun?.clubLookbooks).toBe(true);
+    row.test_run!.club_lookbooks = "true";
+    expect(() => partnerAssistantSendFrom(row)).toThrow();
+  });
+
   it("fermo, variabili mai controllate, nessuna prova: valori nulli ammessi", () => {
     const send = partnerAssistantSendFrom({
       ...sendRow(),
@@ -986,6 +994,9 @@ describe("etichette in italiano", () => {
         "fermo_rimbalzi",
         "fermo_oggi",
         "invio_ripreso",
+        "allegato_prova",
+        "allegato_cambiato",
+        "allegato_prima_avvio",
       ],
     };
     const listed = new Set(Object.values(byStep).flat());

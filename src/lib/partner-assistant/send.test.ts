@@ -1,5 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 vi.mock("server-only", () => ({}));
+import { createHash } from "node:crypto";
 import { partnerAssistantConfig } from "./config";
 import type { PartnerAssistantFolders, PartnerAssistantMailboxOpening } from "./imap";
 import { PARTNER_ASSISTANT_OPT_OUT_LINES } from "./mail-compose";
@@ -22,6 +23,11 @@ import type {
   PartnerAssistantSendCandidate,
 } from "./send-types";
 import type { PartnerAssistantSmtpResult } from "./smtp";
+import type { loadPartnerAssistantTestLookbook } from "./test-lookbook";
+import {
+  PARTNER_ASSISTANT_TEST_LOOKBOOKS,
+  PARTNER_ASSISTANT_TEST_MIME_MAX_BYTES,
+} from "./test-lookbook-metadata";
 import type { StoreResult } from "./types";
 
 // Solo dati sintetici: domini example.test, CO da 951, UUID inventati. Store, SMTP e casella sono
@@ -124,6 +130,8 @@ type Options = {
   start?: StoreResult<unknown>;
   finish?: StoreResult<unknown>;
   smtp?: (input: SmtpInput) => Promise<PartnerAssistantSmtpResult>;
+  now?: number;
+  loadTestLookbook?: typeof loadPartnerAssistantTestLookbook;
   /** Il clock del budget dopo una chiamata, per simulare il tempo che passa. */
   clockAfter?: Partial<Record<"claim" | "correspondence" | "start", number>>;
   /** Una chiamata alla casella che non risponde: il clock arriva a fine budget e la promessa resta
@@ -276,9 +284,10 @@ function setup(options: Options) {
       smtp,
       openMailbox: openMailbox as never,
       clock: () => clockNow,
-      now: () => NOW,
+      now: () => options.now ?? NOW,
       workerId: () => id(1),
       uuid: () => id(next++),
+      ...(options.loadTestLookbook ? { loadTestLookbook: options.loadTestLookbook } : {}),
     },
   };
 }
@@ -413,6 +422,93 @@ describe("passo d'invio dell'assistente Partner", () => {
   it("in italiano con il lei, la frase del lei", async () => {
     await runSend({ candidate: { ...candidate, register: "lei" } });
     expect(state.recorded.prepare[0]!.optOut).toBe(PARTNER_ASSISTANT_OPT_OUT_LINES.it_lei);
+  });
+  it("prova con lookbook: un solo PDF, indirizzo di prova e stessi byte a prepare, SMTP e IMAP", async () => {
+    const lookbook = PARTNER_ASSISTANT_TEST_LOOKBOOKS.porsche_club;
+    const chosen = { ...testCandidate(1), lookbook };
+    expect(await runSend({ candidate: chosen })).toEqual({ status: "complete" });
+    const input = state.recorded.prepare[0]!;
+    expect(input.lookbook).toEqual(lookbook);
+    expect(input.toAddress).toBe(mail.testTo[1]);
+    expect(input.subject).toBe(chosen.draft.subject);
+    expect(input.text).toBe(
+      `${chosen.draft.body}\n\n${chosen.draft.signature}\n\n${PARTNER_ASSISTANT_OPT_OUT_LINES.it_voi}`,
+    );
+    expect(input.raw.match(/Content-Disposition: attachment;/g)).toHaveLength(1);
+    expect(input.raw).toContain("LuckyLap-Lookbook-Porsche-Clubs.pdf");
+    expect(Buffer.byteLength(input.raw, "ascii")).toBeGreaterThan(65_536);
+    expect(Buffer.byteLength(input.raw, "ascii")).toBeLessThanOrEqual(
+      PARTNER_ASSISTANT_TEST_MIME_MAX_BYTES,
+    );
+    const boundary = input.raw.match(/boundary="([^"]+)"/)![1];
+    const part = input.raw.split(`--${boundary}`).find((value) => /application\/pdf/.test(value))!;
+    const content = Buffer.from(part.slice(part.indexOf("\r\n\r\n") + 4), "base64");
+    expect(content.byteLength).toBe(lookbook.bytes);
+    expect(createHash("sha256").update(content).digest("hex")).toBe(lookbook.sha256);
+    expect(state.recorded.smtp).toHaveLength(1);
+    expect(state.recorded.smtp[0]!.to).toBe(mail.testTo[1]);
+    expect(state.recorded.smtp[0]!.raw).toBe(input.raw);
+    expect(state.recorded.append[0]!.raw).toBe(input.raw);
+  });
+  it("dal 4 novembre di Roma il candidato reale porta il lookbook al recapito della scheda", async () => {
+    const lookbook = PARTNER_ASSISTANT_TEST_LOOKBOOKS.club;
+    expect(
+      await runSend({
+        candidate: { ...candidate, lookbook },
+        now: Date.parse("2026-11-03T23:00:00Z"),
+      }),
+    ).toEqual({ status: "complete" });
+    expect(state.recorded.prepare[0]!.lookbook).toEqual(lookbook);
+    expect(preparedRaw()).toContain("LuckyLap-Lookbook-Clubs.pdf");
+    expect(state.recorded.smtp[0]!.to).toBe(address);
+    expect(state.recorded.append[0]!.raw).toBe(preparedRaw());
+  });
+  it("prima del 4 novembre di Roma un candidato reale con metadati non prepara né manda", async () => {
+    expect(
+      await runSend({
+        candidate: { ...candidate, lookbook: PARTNER_ASSISTANT_TEST_LOOKBOOKS.club },
+        now: Date.parse("2026-11-03T22:59:59Z"),
+      }),
+    ).toEqual({ status: "complete" });
+    expect(calls).toEqual(["claim", "release"]);
+    expect(released()?.outcome).toBe("allegato_prima_avvio");
+    expect(state.recorded.prepare).toHaveLength(0);
+    expect(state.recorded.smtp).toHaveLength(0);
+  });
+  it("un altro contatto reale resta solo testo e non passa metadati a prepare", async () => {
+    await runSend({
+      candidate: {
+        ...candidate,
+        choice: { contactKind: "brand", request: "collab_capsule", eventStartsOn: "" },
+      },
+      now: Date.parse("2026-11-04T09:00:00Z"),
+    });
+    expect(state.recorded.prepare[0]).not.toHaveProperty("lookbook");
+    expect(preparedRaw()).not.toMatch(/multipart|application\/pdf|Content-Disposition/);
+  });
+  it("impronta prenotata diversa: nessun prepare né SMTP", async () => {
+    await runSend({
+      candidate: {
+        ...testCandidate(0),
+        lookbook: { ...PARTNER_ASSISTANT_TEST_LOOKBOOKS.club, sha256: "f".repeat(64) },
+      },
+    });
+    expect(state.recorded.prepare).toHaveLength(0);
+    expect(state.recorded.smtp).toHaveLength(0);
+    expect(released()?.outcome).toBe("composizione_fallita");
+  });
+  it("file distribuito cambiato o mancante: nessun prepare né SMTP", async () => {
+    const load = vi.fn(async () => {
+      throw new Error("Impronta del PDF sintetico cambiata");
+    });
+    await runSend({
+      candidate: { ...testCandidate(0), lookbook: PARTNER_ASSISTANT_TEST_LOOKBOOKS.club },
+      loadTestLookbook: load,
+    });
+    expect(load).toHaveBeenCalledExactlyOnceWith(PARTNER_ASSISTANT_TEST_LOOKBOOKS.club);
+    expect(state.recorded.prepare).toHaveLength(0);
+    expect(state.recorded.smtp).toHaveLength(0);
+    expect(released()?.outcome).toBe("composizione_fallita");
   });
   it("bozza scaduta (data del corpo passata): skip bozza_scaduta, casella non aperta senza appends", async () => {
     expect(

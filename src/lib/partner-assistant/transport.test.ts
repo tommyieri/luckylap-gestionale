@@ -12,6 +12,10 @@ import {
   createPartnerAssistantSendStore,
   PARTNER_ASSISTANT_SEND_RPC_NAMES,
 } from "./send-store";
+import {
+  PARTNER_ASSISTANT_TEST_LOOKBOOKS,
+  PARTNER_ASSISTANT_TEST_RPC_MAX_BYTES,
+} from "./test-lookbook-metadata";
 
 // Il codice installato di Supabase/PostgREST è quello vero; solo la rete è finta.
 const config = {
@@ -238,6 +242,64 @@ const sendNames = [
 ];
 
 describe("trasporto delle RPC d'invio dell'assistente Partner", () => {
+  it("manda il MIME grande solo a prepare con metadati Club riconosciuti", async () => {
+    const fetcher = vi.fn().mockImplementation(async () => Response.json(idle));
+    const transport = createPartnerAssistantSendFetch(config, fetcher);
+    const payload = {
+      mode: "prova",
+      lookbook: PARTNER_ASSISTANT_TEST_LOOKBOOKS.club,
+      raw: "a".repeat(3_600_000),
+    };
+    await transport(
+      rpcUrl("prepare_partner_assistant_send"),
+      init(JSON.stringify({ p_payload: payload })),
+    );
+    expect(fetcher).toHaveBeenCalledOnce();
+    await transport(
+      rpcUrl("prepare_partner_assistant_send"),
+      init(JSON.stringify({ p_payload: { ...payload, mode: "invio" } })),
+    );
+    expect(fetcher).toHaveBeenCalledTimes(2);
+    fetcher.mockClear();
+    for (const change of [
+      { mode: "prepara" },
+      { lookbook: null },
+      { lookbook: { ...payload.lookbook, bytes: 1 } },
+    ]) {
+      await expect(
+        transport(
+          rpcUrl("prepare_partner_assistant_send"),
+          init(JSON.stringify({ p_payload: { ...payload, ...change } })),
+        ),
+      ).rejects.toThrow("worker_transport_invalid");
+    }
+    await expect(
+      transport(
+        rpcUrl("finish_partner_assistant_send"),
+        init(JSON.stringify({ p_payload: payload })),
+      ),
+    ).rejects.toThrow("worker_transport_invalid");
+    await expect(
+      transport(
+        "https://attacker.test/rest/v1/rpc/prepare_partner_assistant_send",
+        init(JSON.stringify({ p_payload: payload })),
+      ),
+    ).rejects.toThrow("worker_transport_invalid");
+    expect(fetcher).not.toHaveBeenCalled();
+  });
+  it("claim può leggere le copie PDF, mentre le altre risposte mantengono 1 MiB", async () => {
+    const fetcher = vi
+      .fn()
+      .mockImplementation(async () => Response.json({ raw: "a".repeat(3_600_000) }));
+    const transport = createPartnerAssistantSendFetch(config, fetcher);
+    const response = await transport(rpcUrl("claim_partner_assistant_send"), init());
+    expect((await response.json()).raw).toHaveLength(3_600_000);
+    await expect(transport(rpcUrl("start_partner_assistant_send"), init())).rejects.toThrow();
+    fetcher.mockImplementation(async () =>
+      Response.json({ raw: "a".repeat(PARTNER_ASSISTANT_TEST_RPC_MAX_BYTES) }),
+    );
+    await expect(transport(rpcUrl("claim_partner_assistant_send"), init())).rejects.toThrow();
+  });
   it("le due liste sono separate", () => {
     expect([...PARTNER_ASSISTANT_SEND_RPC_NAMES]).toEqual(sendNames);
     for (const name of sendNames) expect(names).not.toContain(name);

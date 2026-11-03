@@ -401,6 +401,9 @@ function AssistantMode({
                 schema_version: 1,
                 mode,
                 expected_version: status.version,
+                ...(mode !== status.mode && sendingMode(mode) && restart
+                  ? { preserve_preparation_pause: true }
+                  : {}),
               });
             }}
           >
@@ -408,6 +411,12 @@ function AssistantMode({
           </button>
         ))}
       </div>
+      {restart && (
+        <p className={styles.hint}>
+          Passare a «Prova» o tornare a «Invio» mantiene la preparazione in pausa. Per riavviarla,
+          salva il credito dopo la ricarica o premi di nuovo la modalità in vigore.
+        </p>
+      )}
       {sendingNote !== null && (
         <p id={noteId} className={styles.hint}>
           {sendingNote}
@@ -485,6 +494,8 @@ function AssistantTest({
   const start = usePartnerCommand("assistente-prova");
   const confirm = usePartnerCommand("assistente-prova-conferma");
   const [drafts, setDrafts] = useState(1);
+  const [clubLookbooks, setClubLookbooks] = useState(false);
+  const selectedDrafts = clubLookbooks ? 2 : drafts;
   const recipients = mail.testRecipients;
   const locked = preview || start.busy || confirm.busy;
   const run = send?.testRun ?? null;
@@ -502,6 +513,22 @@ function AssistantTest({
         <>
           {founder ? (
             <>
+              <label className={styles.dataLine}>
+                <input
+                  type="checkbox"
+                  checked={clubLookbooks}
+                  disabled={locked}
+                  onChange={(event) => setClubLookbooks(event.target.checked)}
+                />{" "}
+                Prova Club con lookbook allegato
+              </label>
+              {clubLookbooks && (
+                <p className={styles.hint}>
+                  Usa due bozze Club pronte: una Porsche con il lookbook Porsche Clubs e una di un
+                  altro club con il lookbook Clubs. Un solo PDF per email, soltanto agli indirizzi
+                  di prova. Dal 4 novembre anche le email ai Club includono il relativo lookbook.
+                </p>
+              )}
               <div
                 className={styles.assistantModes}
                 role="group"
@@ -512,8 +539,8 @@ function AssistantTest({
                     key={n}
                     type="button"
                     className={styles.act}
-                    aria-pressed={drafts === n}
-                    disabled={locked}
+                    aria-pressed={selectedDrafts === n}
+                    disabled={locked || clubLookbooks}
                     onClick={() => setDrafts(n)}
                   >
                     {draftsLabel(n)}
@@ -523,7 +550,7 @@ function AssistantTest({
               <p className={recipients === 0 ? styles.noteAmber : styles.dataLine}>
                 {recipients === 0
                   ? "Nessun indirizzo di prova configurato."
-                  : `Partono ${drafts} × ${recipients} email di prova, una ogni 4-11 minuti.`}
+                  : `Partono ${selectedDrafts} × ${recipients} email di prova, una ogni 4-11 minuti.`}
               </p>
               <div className={styles.inlineActions}>
                 <button
@@ -535,8 +562,9 @@ function AssistantTest({
                     if (recipients === 0 || !mail.configured) return;
                     start.run("start_partner_assistant_test", {
                       schema_version: 1,
-                      drafts,
+                      drafts: selectedDrafts,
                       recipients,
+                      ...(clubLookbooks ? { club_lookbooks: true } : {}),
                     });
                   }}
                 >
@@ -554,6 +582,9 @@ function AssistantTest({
               ? "Nessuna prova finora."
               : `Avviata ${at(run.requestedAt, today)} · ${run.sent} su ${total} partite.`}
           </p>
+          {run?.clubLookbooks && (
+            <p className={styles.dataLine}>Prova Club con lookbook allegato.</p>
+          )}
           {send.testConfirmedAt !== null ? (
             <p className={styles.dataLine}>
               {`Prova confermata ${onDay(send.testConfirmedAt, today)}`}
