@@ -2,6 +2,7 @@
 // (supabase/migrations/20261030114722_assistente_partner_invio.sql, sezione 2) in camelCase. Lo
 // store d'invio converte da e verso le chiavi SQL e controlla ogni valore che legge.
 import type { PartnerAssistantRecheckChoice } from "./send-recheck";
+import type { PartnerAssistantTestLookbook } from "./test-lookbook-metadata";
 import type { PartnerAssistantLanguage, PartnerAssistantRegister } from "./types";
 
 export type PartnerAssistantSendMode = "prova" | "invio";
@@ -41,6 +42,8 @@ export type PartnerAssistantSendCandidate = {
   address: string | null;
   testRunId: string | null;
   testIndex: number | null;
+  /** PDF Club deciso dal database: fissato all'avvio della prova o attivo dal 4 novembre. */
+  lookbook?: PartnerAssistantTestLookbook | null;
 };
 
 /** Una copia arretrata in «Posta inviata»: un messaggio inviato e non ancora copiato. */
@@ -77,6 +80,7 @@ export type PartnerAssistantPrepareInput = {
   optOut: string;
   raw: string;
   mailboxCheck: PartnerAssistantMailboxCheck;
+  lookbook?: PartnerAssistantTestLookbook | null;
 };
 export type PartnerAssistantPrepared =
   { status: "pronto"; messageRowId: string } | { status: "rifiutato"; reason: string };

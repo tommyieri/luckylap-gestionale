@@ -215,6 +215,9 @@ export const PARTNER_ASSISTANT_EVENT_LABELS = {
   // founder, rifiuti di prepare e start, spostamenti della coda d'invio, esiti di finish, copie in
   // «Posta inviata» e fermi della casella.
   prova_avviata: "Prova avviata da Tommi",
+  allegato_prova: "Lookbook diverso da quello previsto: l'email non parte",
+  allegato_cambiato: "Lookbook cambiato: il messaggio va ricomposto",
+  allegato_prima_avvio: "Lookbook in attesa del giorno di avvio",
   prova_casella_vuota: "Prova: nessuno scambio recente nella casella",
   prova_casella_trovata: "Prova: scambio recente trovato nella casella",
   prova_casella_incerta: "Prova: ricerca nella casella senza risposta",
@@ -519,7 +522,13 @@ export type PartnerAssistantSendStatus = {
   /** Nome del profilo di chi ha confermato la prova. */
   testConfirmedBy: string | null;
   /** L'ultima prova avviata; `sent` = suoi messaggi inviati. */
-  testRun: { requestedAt: string; drafts: number; recipients: number; sent: number } | null;
+  testRun: {
+    requestedAt: string;
+    drafts: number;
+    recipients: number;
+    sent: number;
+    clubLookbooks?: boolean;
+  } | null;
   windowOpenRome: boolean;
   nextWindowRome: string | null;
   /** Bozze nella coda d'invio. */
@@ -583,10 +592,21 @@ const nameOf = (value: unknown, what: string): string => text(value, 1, PARTNER_
 export function partnerAssistantSendFrom(value: unknown): PartnerAssistantSendStatus {
   const what = "Invio dell'assistente";
   const r = exact(value, SEND_KEYS, what);
+  const runRow = r.test_run === null ? null : record(r.test_run, what);
   const run =
-    r.test_run === null
+    runRow === null
       ? null
-      : exact(r.test_run, ["requested_at", "drafts", "recipients", "sent"], what);
+      : exact(
+          runRow,
+          [
+            "requested_at",
+            "drafts",
+            "recipients",
+            "sent",
+            ...(Object.hasOwn(runRow, "club_lookbooks") ? ["club_lookbooks"] : []),
+          ],
+          what,
+        );
   return {
     stopReason: nullable((v, w) => oneOf(STOP_REASONS, v, w))(r.stop_reason, what),
     stoppedAt: nullable(instant)(r.stopped_at, what),
@@ -611,6 +631,9 @@ export function partnerAssistantSendFrom(value: unknown): PartnerAssistantSendSt
             drafts: between(run.drafts, 1, 3, what),
             recipients: between(run.recipients, 1, 5, what),
             sent: between(run.sent, 0, 15, what),
+            ...(Object.hasOwn(run, "club_lookbooks")
+              ? { clubLookbooks: bool(run.club_lookbooks, what) }
+              : {}),
           },
     windowOpenRome: bool(r.window_open_rome, what),
     nextWindowRome: nullable(instant)(r.next_window_rome, what),

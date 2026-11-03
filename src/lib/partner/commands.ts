@@ -401,7 +401,13 @@ const validators: Record<PartnerCommandKind, (p: Record<string, unknown>, now: D
     keys(
       p,
       ["schema_version", "mode", "expected_version"],
-      ["schema_version", "mode", "expected_version", "starting_credit_usd"],
+      [
+        "schema_version",
+        "mode",
+        "expected_version",
+        "starting_credit_usd",
+        "preserve_preparation_pause",
+      ],
     );
     check(
       enumOf(p, "mode", PARTNER_ASSISTANT_MODES) !== null &&
@@ -410,6 +416,8 @@ const validators: Record<PartnerCommandKind, (p: Record<string, unknown>, now: D
     // Credito di partenza: facoltativo, da 0 a 10.000 dollari con al massimo due decimali. Il
     // database legge il numero come lo scrive JSON.stringify, cioè String(value).
     const credit = p.starting_credit_usd;
+    if (p.preserve_preparation_pause !== undefined)
+      check(typeof p.preserve_preparation_pause === "boolean");
     if (credit !== undefined && credit !== null)
       check(
         typeof credit === "number" &&
@@ -440,8 +448,14 @@ const validators: Record<PartnerCommandKind, (p: Record<string, unknown>, now: D
   },
   // Consegna 2a: i comandi del founder per la prova e l'invio.
   start_partner_assistant_test(p) {
-    keys(p, ["schema_version", "drafts", "recipients"], ["schema_version", "drafts", "recipients"]);
+    keys(
+      p,
+      ["schema_version", "drafts", "recipients"],
+      ["schema_version", "drafts", "recipients", "club_lookbooks"],
+    );
     check(integerOf(p, "drafts", 1, 3) !== null && integerOf(p, "recipients", 1, 5) !== null);
+    if (p.club_lookbooks !== undefined) check(typeof p.club_lookbooks === "boolean");
+    if (p.club_lookbooks === true) check(p.drafts === 2);
   },
   confirm_partner_assistant_test(p) {
     keys(p, ["schema_version", "expected_version"], ["schema_version", "expected_version"]);
@@ -930,6 +944,11 @@ export const PARTNER_ERROR_MESSAGES: Record<string, { sqlstate: string; message:
   partner_assistant_test_empty: {
     sqlstate: "55000",
     message: "Non ci sono bozze pronte da mandare in prova.",
+  },
+  partner_assistant_test_club_pair_missing: {
+    sqlstate: "55000",
+    message:
+      "Per la prova con allegato servono due bozze Club pronte e approvate: una Porsche e una di un altro club.",
   },
 };
 

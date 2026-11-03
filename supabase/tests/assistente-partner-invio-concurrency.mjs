@@ -7,6 +7,8 @@
 // in deadlock. L'ora dell'assistente è fissata in ogni client (martedì 10 novembre 2026, 10:00 a
 // Roma), mai quella della CI. Cluster usa e getta in /private/tmp su socket privata, Auth e dati solo
 // sintetici, nessun DSN o accesso cloud.
+// Carica anche le definizioni correnti di claim, prepare e start, comprese quelle degli allegati.
+// Le schede sintetiche restano Collab senza note del modello: continuano a partire solo come testo.
 import assert from "node:assert/strict";
 import { createHash, randomUUID } from "node:crypto";
 import { mkdirSync, mkdtempSync, readFileSync, readdirSync, rmSync } from "node:fs";
@@ -228,6 +230,11 @@ try {
     "_assistente_partner.sql",
     "_assistente_partner_worker.sql",
     "_assistente_partner_invio.sql",
+    "_partner_sezione_club.sql",
+    "_assistente_partner_modello.sql",
+    "_assistente_partner_due_lavori.sql",
+    "_assistente_partner_ricerca_valida.sql",
+    "_assistente_partner_prova_allegati.sql",
   ]) {
     const found = names.filter((name) => name.endsWith(suffix));
     assert.equal(found.length, 1, `Una sola migrazione ${suffix}`);

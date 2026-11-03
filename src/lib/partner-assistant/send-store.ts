@@ -25,6 +25,12 @@ import type {
   PartnerAssistantStart,
 } from "./send-types";
 import { PARTNER_ASSISTANT_RPC_MAX_BYTES, PARTNER_ASSISTANT_RPC_TIMEOUT_MS } from "./store";
+import {
+  partnerAssistantTestLookbook,
+  PARTNER_ASSISTANT_TEXT_MAX_BYTES,
+  PARTNER_ASSISTANT_TEST_MIME_MAX_BYTES,
+  PARTNER_ASSISTANT_TEST_RPC_MAX_BYTES,
+} from "./test-lookbook-metadata";
 import type { StoreResult } from "./types";
 
 /** Le RPC d'invio (sezione 2 di 20261030114722_assistente_partner_invio.sql): una lista separata
@@ -42,13 +48,13 @@ export const PARTNER_ASSISTANT_SEND_RPC_NAMES = [
 ] as const;
 type PartnerAssistantSendRpcName = (typeof PARTNER_ASSISTANT_SEND_RPC_NAMES)[number];
 
-/** Lo stesso trasporto di createPartnerAssistantFetch, con la lista d'invio: 10 secondi, 1 MiB in
- * uscita e in entrata, la chiave mai inoltrata in un redirect. */
+/** Un limite maggiore solo per il MIME con lookbook Club e le copie arretrate. Le altre RPC
+ * conservano 1 MiB, gli stessi cancelli sull'origine e nessun redirect della chiave. */
 export function createPartnerAssistantSendFetch(
   config: Pick<PartnerAssistantConfig, "supabaseUrl">,
   fetcher: typeof fetch = fetch,
 ): typeof fetch {
-  return createWorkerRpcFetch(
+  const regular = createWorkerRpcFetch(
     {
       supabaseUrl: config.supabaseUrl,
       rpcNames: PARTNER_ASSISTANT_SEND_RPC_NAMES,
@@ -58,6 +64,47 @@ export function createPartnerAssistantSendFetch(
     },
     fetcher,
   );
+  const claim = createWorkerRpcFetch(
+    {
+      supabaseUrl: config.supabaseUrl,
+      rpcNames: ["claim_partner_assistant_send"],
+      timeoutMs: PARTNER_ASSISTANT_RPC_TIMEOUT_MS,
+      maxResponseBytes: PARTNER_ASSISTANT_TEST_RPC_MAX_BYTES,
+      maxRequestBytes: PARTNER_ASSISTANT_RPC_MAX_BYTES,
+    },
+    fetcher,
+  );
+  const prepare = createWorkerRpcFetch(
+    {
+      supabaseUrl: config.supabaseUrl,
+      rpcNames: ["prepare_partner_assistant_send"],
+      timeoutMs: PARTNER_ASSISTANT_RPC_TIMEOUT_MS,
+      maxResponseBytes: PARTNER_ASSISTANT_RPC_MAX_BYTES,
+      maxRequestBytes: PARTNER_ASSISTANT_TEST_RPC_MAX_BYTES,
+    },
+    fetcher,
+  );
+  return (input, init) => {
+    const url = new URL(input instanceof Request ? input.url : String(input));
+    if (url.pathname === "/rest/v1/rpc/claim_partner_assistant_send") return claim(input, init);
+    if (
+      url.pathname === "/rest/v1/rpc/prepare_partner_assistant_send" &&
+      typeof init?.body === "string" &&
+      init.body.length <= PARTNER_ASSISTANT_TEST_RPC_MAX_BYTES
+    ) {
+      try {
+        const payload = record(record(JSON.parse(init.body))?.p_payload);
+        if (
+          (payload?.mode === "prova" || payload?.mode === "invio") &&
+          partnerAssistantTestLookbook(payload.lookbook)
+        )
+          return prepare(input, init);
+      } catch {
+        // Il trasporto ordinario rifiuta un corpo grande o malformato prima della rete.
+      }
+    }
+    return regular(input, init);
+  };
 }
 
 // ---------------------------------------------------------------------------
@@ -114,6 +161,7 @@ const requests = oneOf([
 ] as const);
 const registers = oneOf(["voi", "lei", "you", "sie", "vous", "usted"] as const);
 const prepareRefusals = oneOf([
+  "allegato_prova",
   "modalita_cambiata",
   "fermo",
   "bozza_cambiata",
@@ -131,6 +179,7 @@ const prepareRefusals = oneOf([
   "doppione",
 ] as const);
 const startStops = oneOf([
+  "allegato_cambiato",
   "bozza_cambiata",
   "modalita_cambiata",
   "fermo",
@@ -161,6 +210,7 @@ const mailboxChecks = oneOf(["vuota", "trovata", "incerta"] as const);
 function appendsFrom(value: unknown): PartnerAssistantPendingAppend[] | null {
   if (!Array.isArray(value) || value.length > 3) return null;
   const appends: PartnerAssistantPendingAppend[] = [];
+  let bytes = 0;
   for (const item of value) {
     const row = exact(item, ["message_row_id", "message_id", "raw", "sent_at"]);
     if (
@@ -171,6 +221,8 @@ function appendsFrom(value: unknown): PartnerAssistantPendingAppend[] | null {
       !instant(row.sent_at)
     )
       return null;
+    bytes += new TextEncoder().encode(row.raw).byteLength;
+    if (bytes > PARTNER_ASSISTANT_TEST_MIME_MAX_BYTES) return null;
     appends.push({
       messageRowId: row.message_row_id,
       messageId: row.message_id,
@@ -185,6 +237,7 @@ function candidateFrom(
   value: unknown,
   mode: PartnerAssistantSendMode,
 ): PartnerAssistantSendCandidate | null {
+  const hasLookbook = Object.hasOwn(record(value) ?? {}, "lookbook");
   const row = exact(value, [
     "job_id",
     "partner_id",
@@ -197,6 +250,7 @@ function candidateFrom(
     "address",
     "test_run_id",
     "test_index",
+    ...(hasLookbook ? ["lookbook"] : []),
   ]);
   const draft = exact(row?.draft, [
     "draft_id",
@@ -239,6 +293,8 @@ function candidateFrom(
       ? uuid(row.test_run_id) && integer(row.test_index, 0, 4)
       : row.test_run_id === null && row.test_index === null;
   if (!test) return null;
+  const lookbook = row.lookbook == null ? null : partnerAssistantTestLookbook(row.lookbook);
+  if (row.lookbook != null && (!lookbook || choice.contact_kind !== "club")) return null;
   return {
     jobId: row.job_id,
     partnerId: row.partner_id,
@@ -264,6 +320,7 @@ function candidateFrom(
     address: row.address,
     testRunId: mode === "prova" ? (row.test_run_id as string) : null,
     testIndex: mode === "prova" ? (row.test_index as number) : null,
+    ...(lookbook ? { lookbook } : {}),
   };
 }
 
@@ -382,6 +439,11 @@ const nullableCode = (value: unknown): value is string | null =>
   value === null || safeReason(value);
 
 function validPrepare(input: PartnerAssistantPrepareInput): boolean {
+  const lookbook = input.lookbook == null ? null : partnerAssistantTestLookbook(input.lookbook);
+  if (input.lookbook != null && !lookbook) return false;
+  const maxRawBytes = lookbook
+    ? PARTNER_ASSISTANT_TEST_MIME_MAX_BYTES
+    : PARTNER_ASSISTANT_TEXT_MAX_BYTES;
   const test =
     input.mode === "prova"
       ? uuid(input.testRunId) && integer(input.testIndex, 0, 4)
@@ -397,6 +459,7 @@ function validPrepare(input: PartnerAssistantPrepareInput): boolean {
     filled(input.text) &&
     filled(input.optOut) &&
     filled(input.raw) &&
+    new TextEncoder().encode(input.raw).byteLength <= maxRawBytes &&
     mailboxChecks(input.mailboxCheck)
   );
 }
@@ -490,6 +553,7 @@ export function createPartnerAssistantSendStore(
             opt_out: input.optOut,
             raw: input.raw,
             mailbox_check: input.mailboxCheck,
+            ...(input.lookbook ? { lookbook: input.lookbook } : {}),
           },
         },
         preparedFrom,

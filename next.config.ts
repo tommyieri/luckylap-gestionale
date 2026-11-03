@@ -35,6 +35,10 @@ const config: NextConfig = {
   // I cinque lookbook Partner viaggiano con la route che li serve ai membri (00-sequenza §5, 02-2).
   outputFileTracingIncludes: {
     "/partner/lookbook/\\[code\\]": ["./data/partner-lookbooks/*.pdf"],
+    "/api/integrations/partner-assistant/worker": [
+      "./data/partner-lookbooks/porsche_club.pdf",
+      "./data/partner-lookbooks/club.pdf",
+    ],
   },
   redirects: async () => CONSIGNMENT_REDIRECTS,
 };

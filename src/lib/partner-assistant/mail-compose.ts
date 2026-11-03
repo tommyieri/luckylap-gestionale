@@ -1,6 +1,11 @@
 // Testo, frasi di uscita, Message-ID e MIME del messaggio dell'assistente Partner. Le costanti non
 // sono solo del server (la pagina può mostrarle); nodemailer si carica solo dentro la funzione.
 import type { PartnerAssistantLanguage, PartnerAssistantRegister } from "./types";
+import { isPdfBytes, partnerLookbookFileName } from "../partner/lookbook";
+import {
+  PARTNER_ASSISTANT_TEST_MIME_MAX_BYTES,
+  type PartnerAssistantTestLookbook,
+} from "./test-lookbook-metadata";
 
 /** Appendice A del piano, così com'è. Le rivede Luca: una modifica è una pull request qui. */
 export const PARTNER_ASSISTANT_OPT_OUT_LINES: Readonly<{
@@ -93,3 +98,55 @@ export async function composePartnerAssistantMessage(
     throw new Error("Il Message-ID del messaggio composto non è su una riga sola.");
   return raw;
 }
+
+export type PartnerAssistantLookbookAttachment = {
+  code: PartnerAssistantTestLookbook["code"];
+  content: Buffer;
+};
+
+/** Gli stessi campi dell'email di testo e un solo lookbook Club già letto e verificato.
+ * Si accettano byte, mai percorsi, URL o opzioni di nodemailer dal chiamante. */
+export async function composePartnerAssistantLookbookMessage(
+  message: PartnerAssistantOutgoing,
+  lookbook: PartnerAssistantLookbookAttachment,
+): Promise<string> {
+  if (
+    (lookbook.code !== "porsche_club" && lookbook.code !== "club") ||
+    !Buffer.isBuffer(lookbook.content) ||
+    !isPdfBytes(lookbook.content)
+  )
+    throw new Error("Allegato del messaggio non valido.");
+  const { default: MailComposer } = await import("nodemailer/lib/mail-composer");
+  const built = await new MailComposer({
+    from: message.from,
+    to: { name: "", address: message.to },
+    subject: message.subject,
+    text: message.text,
+    messageId: message.messageId,
+    date: message.date,
+    newline: "\r\n",
+    disableFileAccess: true,
+    disableUrlAccess: true,
+    attachments: [
+      {
+        filename: partnerLookbookFileName(lookbook.code),
+        content: lookbook.content,
+        contentType: "application/pdf",
+        contentDisposition: "attachment",
+      },
+    ],
+  })
+    .compile()
+    .build();
+  if (built.byteLength > PARTNER_ASSISTANT_TEST_MIME_MAX_BYTES)
+    throw new Error("Il messaggio con lookbook supera 4 MiB.");
+  if (!built.every((byte) => byte < 0x80))
+    throw new Error("Il messaggio composto non è solo ASCII.");
+  const raw = built.toString("ascii");
+  if (!`\r\n${raw}`.includes(`\r\nMessage-ID: ${message.messageId}\r\n`))
+    throw new Error("Il Message-ID del messaggio composto non è su una riga sola.");
+  return raw;
+}
+
+/** Nome mantenuto per i chiamanti della prova; l'autorizzazione dell'invio resta nel worker. */
+export const composePartnerAssistantLookbookTestMessage = composePartnerAssistantLookbookMessage;

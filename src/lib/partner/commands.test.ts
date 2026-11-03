@@ -38,7 +38,12 @@ const command = (kind: string, payload: Record<string, unknown>, extra = {}) =>
  */
 const teamSql = () => {
   const migrations = join(__dirname, "../../../supabase/migrations");
-  return ["_partner_module.sql", "_assistente_partner.sql", "_assistente_partner_invio.sql"]
+  return [
+    "_partner_module.sql",
+    "_assistente_partner.sql",
+    "_assistente_partner_invio.sql",
+    "_assistente_partner_prova_allegati.sql",
+  ]
     .map((suffix) =>
       readFileSync(
         join(
@@ -240,6 +245,24 @@ describe("controllo dei comandi sul server", () => {
       command("start_partner_assistant_test", payload);
     expect(test({ drafts: 1, recipients: 1 })).not.toBeNull();
     expect(test({ drafts: 3, recipients: 5 })).not.toBeNull();
+    expect(test({ drafts: 2, recipients: 5, club_lookbooks: true })).not.toBeNull();
+    expect(test({ drafts: 1, recipients: 1, club_lookbooks: false })).not.toBeNull();
+    expect(test({ drafts: 1, recipients: 1, club_lookbooks: true })).toBeNull();
+    expect(test({ drafts: 2, recipients: 1, club_lookbooks: "true" })).toBeNull();
+    expect(
+      command("set_partner_assistant_mode", {
+        mode: "prova",
+        expected_version: 2,
+        preserve_preparation_pause: true,
+      }),
+    ).not.toBeNull();
+    expect(
+      command("set_partner_assistant_mode", {
+        mode: "invio",
+        expected_version: 2,
+        preserve_preparation_pause: "true",
+      }),
+    ).toBeNull();
     for (const payload of [
       { drafts: 4, recipients: 1 },
       { drafts: 0, recipients: 1 },
@@ -779,6 +802,7 @@ describe("esiti dei comandi", () => {
             match[1] !== "partner_import_incomplete" &&
             // Solo il trigger dei messaggi, che nessun comando del team tocca.
             match[1] !== "partner_assistant_message_immutable" &&
+            match[1] !== "partner_assistant_test_immutable" &&
             // Solo le RPC d'invio del worker (sezione 2): non arriva mai alla pagina.
             match[1] !== "partner_assistant_worker_access_required",
         )
