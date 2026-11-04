@@ -167,7 +167,7 @@ export function checkPartnerAssistantDraft(
   const checks: [PartnerAssistantCheckCode, boolean][] = [
     ["parola_vietata", anyMatch(FORBIDDEN, texts)],
     ["segnaposto", anyMatch(PLACEHOLDERS, texts)],
-    ["domande", (body.match(/\?/gu) ?? []).length !== 1],
+    ["domande", (body.match(/\?/gu) ?? []).length > 1],
     ["esclamativo", anyMatch([/[!¡]/u], texts)],
     ["emoji", anyMatch([/\p{Extended_Pictographic}/u], texts)],
     ["link", !texts.every(onlyLuckyLapHome)],

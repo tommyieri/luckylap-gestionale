@@ -161,6 +161,8 @@ const requests = oneOf([
 ] as const);
 const registers = oneOf(["voi", "lei", "you", "sie", "vous", "usted"] as const);
 const prepareRefusals = oneOf([
+  "modifica_in_corso",
+  "bozza_manuale_da_rivedere",
   "allegato_prova",
   "modalita_cambiata",
   "fermo",
@@ -179,6 +181,8 @@ const prepareRefusals = oneOf([
   "doppione",
 ] as const);
 const startStops = oneOf([
+  "modifica_in_corso",
+  "bozza_manuale_da_rivedere",
   "allegato_cambiato",
   "bozza_cambiata",
   "modalita_cambiata",

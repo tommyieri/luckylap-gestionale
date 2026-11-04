@@ -151,6 +151,9 @@ export const PARTNER_ASSISTANT_REASON_LABELS = {
     "Indirizzo non valido: il server di posta lo rifiuta, oppure è scritto in un modo che l'assistente non usa.",
   invio_rifiutato: "Il server di posta ha rifiutato l'email.",
   impronta: "Il testo da inviare non era quello approvato: l'email non è partita.",
+  modifica_in_corso: "Questa email è sospesa mentre Tommi ne modifica il testo.",
+  bozza_manuale_da_rivedere:
+    "Il contesto della bozza modificata da Tommi è cambiato: va rivista prima dell'invio.",
 } as const;
 export type PartnerAssistantReason = keyof typeof PARTNER_ASSISTANT_REASON_LABELS;
 
@@ -215,6 +218,11 @@ export const PARTNER_ASSISTANT_EVENT_LABELS = {
   // founder, rifiuti di prepare e start, spostamenti della coda d'invio, esiti di finish, copie in
   // «Posta inviata» e fermi della casella.
   prova_avviata: "Prova avviata da Tommi",
+  modifica_iniziata: "Email sospesa per la modifica di Tommi",
+  modifica_salvata: "Testo approvato da Tommi per l'invio",
+  modifica_annullata: "Modifica annullata: testo precedente conservato",
+  modifica_in_corso: "Email sospesa durante la modifica",
+  bozza_manuale_da_rivedere: "Testo di Tommi da rivedere: contesto cambiato",
   allegato_prova: "Lookbook diverso da quello previsto: l'email non parte",
   allegato_cambiato: "Lookbook cambiato: il messaggio va ricomposto",
   allegato_prima_avvio: "Lookbook in attesa del giorno di avvio",

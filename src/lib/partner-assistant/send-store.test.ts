@@ -295,6 +295,8 @@ const cases: Case[] = [
   },
   ...[
     "modalita_cambiata",
+    "modifica_in_corso",
+    "bozza_manuale_da_rivedere",
     "fermo",
     "bozza_cambiata",
     "impronta",
@@ -328,6 +330,8 @@ const cases: Case[] = [
   },
   ...[
     "bozza_cambiata",
+    "modifica_in_corso",
+    "bozza_manuale_da_rivedere",
     "modalita_cambiata",
     "fermo",
     "non_idoneo",

@@ -1771,7 +1771,8 @@ describe("modalità modello per i club", () => {
     await run(state);
     expect(state.call).toHaveBeenCalledTimes(1);
     const [input] = state.call.mock.calls[0];
-    expect(input.system).toBe(context.rules.body);
+    expect(input.system).toContain(context.rules.body);
+    expect(input.system).toContain("Indicazione prioritaria sullo stile delle email");
     expect(input.effort).toBe("medium");
     expect(JSON.stringify(input.messages)).toContain("testo fisso per i club");
     expect(JSON.stringify(input.messages)).not.toContain("<ricerca>");

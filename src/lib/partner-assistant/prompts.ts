@@ -1,9 +1,9 @@
 // Le quattro chiamate a Claude dell'assistente Partner e la lettura delle risposte. Il system è
-// sempre il testo delle regole in vigore, identico byte per byte; data, scheda, ricerca e bozza
-// stanno nel messaggio dell'utente, marcate come dati. Nella cache gli strumenti vengono prima del
-// system: la ricerca, l'unica con gli strumenti, ha un prefisso suo, mentre estrazione, scrittura e
-// controllo condividono quello delle regole. Il numero di Tommaso non arriva mai al modello: la
-// firma la aggiunge il codice.
+// sempre le regole in vigore con l'indicazione corrente sullo stile, identiche byte per byte;
+// data, scheda, ricerca e bozza stanno nel messaggio dell'utente, marcate come dati. Nella cache gli
+// strumenti vengono prima del system: la ricerca, l'unica con gli strumenti, ha un prefisso suo,
+// mentre estrazione, scrittura e controllo condividono quello delle regole. Il numero di Tommaso
+// non arriva mai al modello: la firma la aggiunge il codice.
 import type Anthropic from "@anthropic-ai/sdk";
 import type { PartnerAssistantCheckCode } from "./checks";
 import { partnerAssistantEventMerch } from "./choice";
@@ -19,6 +19,19 @@ import type {
   PartnerAssistantSavedDraft,
 } from "./types";
 import { romeDay } from "../partner/dates";
+
+/** Lo stile corrente aggiorna le vecchie richieste di recapito e chiamata senza cambiare le regole
+ * salvate o le bozze già pronte. Lo stesso system in ogni fase conserva il prefisso della cache. */
+const EMAIL_STYLE = [
+  "# Indicazione prioritaria sullo stile delle email",
+  "Questa indicazione prevale sulle clausole e sugli esempi precedenti che richiedono una domanda, un recapito o una conversazione a voce. Le altre regole restano valide.",
+  "Presenta LuckyLap e i suoi prodotti con fatti verificati e spiega la proposta indicata dal sistema e il suo valore concreto per il destinatario.",
+  "Non chiedere un recapito telefonico, una chiamata o un appuntamento; evita «parliamone», inviti a contattarci o a sentirci e formule equivalenti in ogni lingua.",
+  "Una domanda sulla proposta è facoltativa: puoi terminare con una chiusura dichiarativa e cordiale. Nel corpo è ammessa al massimo una domanda.",
+  "In revisione non segnalare come mancanze l'assenza di una domanda o del recapito e applica questa indicazione anche agli esempi di tono precedenti.",
+].join("\n");
+
+const systemRules = (context: PartnerAssistantContext) => `${context.rules.body}\n\n${EMAIL_STYLE}`;
 
 // ---------------------------------------------------------------------------
 // Strumenti e schemi
@@ -228,7 +241,7 @@ const userMessage = (lines: string[]): Anthropic.MessageParam[] => [
 /** Ricerca sul web prima della prima email, in testo libero con le fonti. */
 export function researchCall(context: PartnerAssistantContext): ClaudeCall {
   return {
-    system: context.rules.body,
+    system: systemRules(context),
     messages: userMessage([
       `Oggi è il ${context.today}.`,
       "",
@@ -261,7 +274,7 @@ export function researchCall(context: PartnerAssistantContext): ClaudeCall {
 export function extractCall(context: PartnerAssistantContext): ClaudeCall {
   const researchDay = olderResearchDay(context, context.today);
   return {
-    system: context.rules.body,
+    system: systemRules(context),
     messages: userMessage([
       `Oggi è il ${context.today}.`,
       ...(researchDay === null
@@ -300,7 +313,7 @@ const CHECK_SENTENCES: Record<PartnerAssistantCheckCode, string> = {
   parola_vietata: "c'è una parola dell'elenco Mai, anche dentro un'altra parola",
   segnaposto:
     "c'è un segnaposto da riempire, per esempio tra parentesi quadre o graffe, oppure XXX o TODO",
-  domande: "serve esattamente un punto interrogativo nel corpo",
+  domande: "nel corpo è ammesso al massimo un punto interrogativo; una domanda non è obbligatoria",
   esclamativo: "niente punti esclamativi, né nell'oggetto né nel corpo",
   emoji: "niente emoji, né nell'oggetto né nel corpo",
   link: "l'unico link ammesso è la home https://luckylap.com, senza pagine interne né altri siti",
@@ -333,7 +346,7 @@ export function writeCall(context: PartnerAssistantContext, today: string): Clau
         ]
       : [];
   return {
-    system: context.rules.body,
+    system: systemRules(context),
     messages: userMessage([
       `Oggi è il ${today}.`,
       "",
@@ -354,7 +367,7 @@ export function reviewCall(context: PartnerAssistantContext): ClaudeCall {
   const choice = choiceOf(context);
   const draft = draftOf(context);
   return {
-    system: context.rules.body,
+    system: systemRules(context),
     messages: userMessage([
       `Oggi è il ${context.today}.`,
       "",
@@ -371,15 +384,15 @@ export function reviewCall(context: PartnerAssistantContext): ClaudeCall {
   };
 }
 
-/** Seconda lettura di una bozza del testo fisso per i club (modalità modello). Il system resta il
- * testo delle regole, per la cache condivisa; il messaggio dice che cosa delle regole non vale per un
+/** Seconda lettura di una bozza del testo fisso per i club (modalità modello). Il system conserva
+ * regole e stile della cache condivisa; il messaggio dice che cosa delle regole non vale per un
  * testo fisso approvato da Tommaso e quali fatti sono confermati. Senza ricerca: la nota di ricerca
  * del modello non contiene notizie. */
 export function templateReviewCall(context: PartnerAssistantContext): ClaudeCall {
   const choice = choiceOf(context);
   const draft = draftOf(context);
   return {
-    system: context.rules.body,
+    system: systemRules(context),
     messages: userMessage([
       `Oggi è il ${context.today}.`,
       "",
