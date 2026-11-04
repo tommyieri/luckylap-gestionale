@@ -1,0 +1,2012 @@
+<!doctype html>
+<html lang="it">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="color-scheme" content="light" />
+    <title>Partner LuckyLap · ricostruzione HTML</title>
+    <style>
+      :root {
+        --paper: #fff;
+        --ink: #121512;
+        --ink-2: #394037;
+        --muted: #5a6257;
+        --rule: #c9cfc3;
+        --rule-soft: #e1e5dc;
+        --tint: #f3f5f0;
+        --green: #1d4b07;
+        --green-2: #2b6311;
+        --green-wash: #e4ecdb;
+        --on-green: #fff;
+        --on-green-2: #cfdec2;
+        --amber: #875800;
+        --amber-wash: #f6ead1;
+        --red: #9b3b25;
+        --f-cond: "Barlow Condensed", "Arial Narrow", "Helvetica Neue", Arial, sans-serif;
+        --f-body: Barlow, "Helvetica Neue", Arial, sans-serif;
+      }
+      * {
+        box-sizing: border-box;
+      }
+      body {
+        margin: 0;
+        background: var(--paper);
+        color: var(--ink);
+        font: 16px/1.5 var(--f-body);
+      }
+      h1,
+      h2,
+      h3,
+      p {
+        margin: 0;
+      }
+      h1 {
+        font: 700 clamp(28px, 4vw, 38px)/1.05 var(--f-cond);
+      }
+      h2 {
+        font: 600 24px/1.2 var(--f-cond);
+      }
+      h3 {
+        font: 600 19px/1.25 var(--f-cond);
+      }
+      button,
+      input,
+      select,
+      textarea {
+        font: inherit;
+      }
+      button,
+      select,
+      summary {
+        cursor: pointer;
+      }
+      button {
+        color: inherit;
+      }
+      button:disabled {
+        cursor: not-allowed;
+        opacity: 0.55;
+      }
+      a {
+        color: var(--green);
+      }
+      :focus-visible {
+        outline: 3px solid var(--amber);
+        outline-offset: 3px;
+      }
+      [hidden] {
+        display: none !important;
+      }
+      small,
+      .small {
+        font-size: 13px;
+      }
+      .muted {
+        color: var(--muted);
+      }
+      .grid {
+        display: grid;
+        gap: 16px;
+      }
+      .row {
+        display: flex;
+        align-items: center;
+        gap: 12px;
+        flex-wrap: wrap;
+      }
+      .between {
+        justify-content: space-between;
+      }
+      .button {
+        display: inline-flex;
+        gap: 7px;
+        align-items: center;
+        justify-content: center;
+        min-height: 40px;
+        padding: 8px 13px;
+        border: 1px solid var(--rule);
+        background: var(--paper);
+        border-radius: 2px;
+        text-decoration: none;
+        line-height: 1.3;
+      }
+      .button.primary {
+        background: var(--green);
+        border-color: var(--green);
+        color: var(--on-green);
+      }
+      .text-button {
+        border: 0;
+        background: none;
+        padding: 7px 0;
+        color: var(--green);
+        text-decoration: underline;
+        text-underline-offset: 3px;
+      }
+      .skip {
+        position: absolute;
+        left: 16px;
+        top: -80px;
+        z-index: 90;
+        background: var(--paper);
+        padding: 10px;
+      }
+      .skip:focus {
+        top: 10px;
+      }
+      .frame {
+        display: grid;
+        grid-template-columns: 232px minmax(0, 1fr);
+        min-height: 100vh;
+      }
+      .sidebar {
+        position: sticky;
+        top: 0;
+        display: flex;
+        flex-direction: column;
+        height: 100vh;
+        background: var(--green);
+        color: var(--on-green);
+      }
+      .brand {
+        display: grid;
+        gap: 3px;
+        padding: 24px 20px 22px;
+      }
+      .brand strong {
+        font: 700 30px/1 var(--f-cond);
+        letter-spacing: 0.01em;
+      }
+      .brand small {
+        color: var(--on-green-2);
+      }
+      .sidenav {
+        border-top: 1px solid var(--green-2);
+        padding-top: 8px;
+      }
+      .sidenav button {
+        display: flex;
+        gap: 12px;
+        align-items: center;
+        width: 100%;
+        min-height: 48px;
+        padding: 0 20px;
+        border: 0;
+        color: var(--on-green-2);
+        background: none;
+        text-align: left;
+        font: 600 18px/1.1 var(--f-cond);
+      }
+      .sidenav button[aria-current] {
+        color: var(--ink);
+        background: var(--paper);
+      }
+      .sidenav button:disabled {
+        opacity: 1;
+        cursor: default;
+      }
+      .navmark {
+        width: 20px;
+        text-align: center;
+        font-size: 18px;
+        font-family: var(--f-body);
+      }
+      .sidefoot {
+        display: grid;
+        gap: 9px;
+        margin-top: auto;
+        border-top: 1px solid var(--green-2);
+        padding: 20px;
+        font-size: 13px;
+        color: var(--on-green-2);
+      }
+      .sidefoot a {
+        color: inherit;
+      }
+      .column {
+        min-width: 0;
+      }
+      .demo-nav {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 4px 20px;
+        align-items: center;
+        border-bottom: 1px solid var(--rule);
+        padding: 8px 24px;
+        background: var(--tint);
+      }
+      .demo-nav > span {
+        font-size: 12px;
+        color: var(--muted);
+        text-transform: uppercase;
+        letter-spacing: 0.06em;
+      }
+      .demo-nav button {
+        min-height: 38px;
+        padding: 5px 0;
+        background: none;
+        border: 0;
+        color: var(--muted);
+        font-size: 14px;
+      }
+      .demo-nav button[aria-pressed="true"] {
+        color: var(--ink);
+        font-weight: 600;
+        box-shadow: inset 0 -2px var(--ink);
+      }
+      main {
+        max-width: 1280px;
+        padding: 24px;
+      }
+      .preview {
+        border-left: 3px solid var(--amber);
+        background: var(--amber-wash);
+        color: var(--amber);
+        padding: 11px 14px;
+        margin-bottom: 22px;
+        font-size: 13px;
+        line-height: 1.6;
+      }
+      .preview strong {
+        display: block;
+      }
+      .heading {
+        display: grid;
+        gap: 7px;
+        margin-bottom: 20px;
+      }
+      .totals {
+        color: var(--ink-2);
+        font: 500 18px/1.4 var(--f-cond);
+      }
+      .sections,
+      .tabs {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 0 22px;
+        border-bottom: 1px solid var(--rule);
+      }
+      .sections button,
+      .tabs button {
+        border: 0;
+        background: none;
+        color: var(--muted);
+        min-height: 47px;
+        padding: 10px 2px;
+        display: flex;
+        gap: 7px;
+        align-items: center;
+      }
+      .sections button[aria-pressed="true"],
+      .tabs button[aria-pressed="true"] {
+        color: var(--ink);
+        font-weight: 600;
+        border-bottom: 3px solid var(--ink);
+        padding-bottom: 7px;
+      }
+      .sections button {
+        font: 600 21px/1.3 var(--f-cond);
+      }
+      .count {
+        font: 400 12px/1.3 var(--f-body);
+        color: var(--muted);
+        font-variant-numeric: tabular-nums;
+      }
+      .tabs {
+        gap: 0 20px;
+        border-color: var(--rule-soft);
+      }
+      .tabs button {
+        font-size: 14px;
+      }
+      .assistant-strip {
+        display: flex;
+        flex-wrap: wrap;
+        align-items: center;
+        justify-content: space-between;
+        gap: 8px 18px;
+        border-block: 1px solid var(--rule);
+        background: var(--green-wash);
+        padding: 12px 14px;
+        margin-top: 16px;
+        font-size: 14px;
+      }
+      .assistant-strip p {
+        flex: 1;
+        min-width: 220px;
+      }
+      .toolbar {
+        display: flex;
+        gap: 16px;
+        align-items: flex-end;
+        flex-wrap: wrap;
+        margin: 22px 0;
+      }
+      label.field {
+        display: grid;
+        gap: 5px;
+        font-size: 13px;
+        font-weight: 600;
+      }
+      input,
+      select,
+      textarea {
+        border: 1px solid var(--rule);
+        border-radius: 2px;
+        background: var(--paper);
+        color: var(--ink);
+        padding: 9px 10px;
+        min-height: 44px;
+        min-width: 0;
+        max-width: 100%;
+      }
+      label.search {
+        flex: 1;
+        min-width: min(230px, 100%);
+      }
+      .search input {
+        width: 100%;
+      }
+      .periods {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 7px;
+        margin-block: 18px;
+      }
+      .periods button {
+        min-height: 40px;
+        border: 1px solid var(--rule);
+        background: var(--paper);
+        padding: 8px 12px;
+        font-size: 14px;
+      }
+      .periods button[aria-pressed="true"] {
+        background: var(--green);
+        border-color: var(--green);
+        color: var(--on-green);
+      }
+      .view-heading {
+        margin: 22px 0 16px;
+        display: grid;
+        gap: 5px;
+      }
+      .view-heading p {
+        font-size: 14px;
+        color: var(--muted);
+      }
+      .contact-list {
+        list-style: none;
+        padding: 0;
+        margin: 0;
+        border-top: 1px solid var(--ink);
+      }
+      .contact {
+        display: grid;
+        grid-template-columns: 52px minmax(170px, 1.25fr) minmax(170px, 1fr) minmax(145px, 0.75fr);
+        gap: 18px;
+        padding: 20px 0;
+        border-bottom: 1px solid var(--rule);
+        align-items: start;
+      }
+      .contact[data-blocked="true"] {
+        color: var(--muted);
+      }
+      .co {
+        border: 1px solid var(--rule);
+        text-align: center;
+        display: grid;
+        align-content: start;
+        font-family: var(--f-cond);
+      }
+      .co small {
+        font-size: 10px;
+        padding-top: 3px;
+        line-height: 1.1;
+      }
+      .co strong {
+        font-size: 25px;
+        line-height: 1.2;
+      }
+      .co span {
+        font: 600 11px/1.2 var(--f-body);
+        background: var(--green);
+        color: var(--on-green);
+        padding: 5px 2px;
+        margin-top: 4px;
+        text-transform: uppercase;
+      }
+      .contact h3 {
+        margin-bottom: 6px;
+      }
+      .meta {
+        font-size: 13px;
+        color: var(--muted);
+      }
+      .tags {
+        display: flex;
+        gap: 6px;
+        flex-wrap: wrap;
+        margin-top: 9px;
+      }
+      .tag,
+      .badge {
+        display: inline-flex;
+        padding: 3px 6px;
+        border: 1px solid var(--rule);
+        font-size: 11px;
+        line-height: 1.3;
+      }
+      .tag.agreed {
+        border-color: var(--green);
+        color: var(--green);
+        background: var(--green-wash);
+      }
+      .tag.attention,
+      .badge.attention {
+        border-color: var(--amber);
+        background: var(--amber-wash);
+        color: var(--amber);
+      }
+      .motivation {
+        font-size: 14px;
+      }
+      .due {
+        display: grid;
+        gap: 2px;
+        font-size: 13px;
+        margin-top: 8px;
+      }
+      .due > span {
+        color: var(--muted);
+        font-size: 11px;
+        text-transform: uppercase;
+        letter-spacing: 0.03em;
+      }
+      .phase {
+        font: 600 21px/1.2 var(--f-cond);
+      }
+      .turn {
+        font-size: 13px;
+        color: var(--muted);
+        margin: 5px 0 10px;
+      }
+      .state-actions {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 4px 12px;
+      }
+      .state-actions button {
+        font-size: 13px;
+        min-height: 32px;
+      }
+      details {
+        font-size: 14px;
+      }
+      details summary {
+        min-height: 36px;
+        padding: 6px 0;
+        color: var(--green);
+      }
+      .detail {
+        grid-column: 2 / -1;
+        padding-top: 18px;
+        border-top: 1px solid var(--rule-soft);
+        display: grid;
+        gap: 22px;
+      }
+      .detail h3 {
+        margin-bottom: 8px;
+      }
+      .detail p {
+        font-size: 14px;
+      }
+      .detail .fields {
+        display: grid;
+        grid-template-columns: 1fr 2fr 1fr;
+        gap: 12px;
+      }
+      .detail .fields .button {
+        align-self: end;
+      }
+      .detail details {
+        border-top: 1px solid var(--rule-soft);
+        padding-top: 7px;
+      }
+      .detail details p {
+        margin-block: 6px;
+      }
+      .detail .registry {
+        display: grid;
+        gap: 12px;
+      }
+      .entry {
+        border-left: 2px solid var(--rule);
+        padding-left: 12px;
+      }
+      .entry small {
+        color: var(--muted);
+      }
+      .notice {
+        border-left: 3px solid var(--amber);
+        background: var(--amber-wash);
+        color: var(--amber);
+        padding: 11px 14px;
+        font-size: 14px;
+      }
+      .success {
+        color: var(--green);
+      }
+      .foot {
+        margin-top: 24px;
+        padding-top: 20px;
+        border-top: 1px solid var(--rule);
+        display: grid;
+        gap: 12px;
+        font-size: 13px;
+        color: var(--muted);
+      }
+      .footlinks {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 8px 22px;
+      }
+      .foot button {
+        font-size: 13px;
+      }
+      .empty {
+        padding: 32px 0;
+      }
+      .summary {
+        display: grid;
+        grid-template-columns: repeat(3, minmax(0, 1fr));
+        border-block: 1px solid var(--rule);
+        margin: 20px 0;
+      }
+      .summary p {
+        display: grid;
+        gap: 4px;
+        padding: 17px 16px 17px 0;
+      }
+      .summary p + p {
+        border-left: 1px solid var(--rule-soft);
+        padding-left: 20px;
+      }
+      .summary strong {
+        font: 600 24px/1.2 var(--f-cond);
+      }
+      .summary span {
+        font-size: 13px;
+        color: var(--muted);
+      }
+      .day {
+        border: 1px solid var(--rule);
+        margin-block: 20px;
+      }
+      .day > header {
+        display: flex;
+        gap: 10px;
+        justify-content: space-between;
+        align-items: center;
+        flex-wrap: wrap;
+        padding: 13px 16px;
+        background: var(--tint);
+        border-bottom: 1px solid var(--rule);
+      }
+      .day header p {
+        font-size: 12px;
+        color: var(--muted);
+      }
+      .email-row {
+        width: 100%;
+        display: grid;
+        grid-template-columns: minmax(0, 1fr) minmax(150px, 235px) 18px;
+        gap: 18px;
+        align-items: center;
+        text-align: left;
+        border: 0;
+        border-bottom: 1px solid var(--rule-soft);
+        padding: 18px 16px;
+        background: var(--paper);
+      }
+      .email-row:last-child {
+        border: 0;
+      }
+      .email-row:hover {
+        background: var(--tint);
+      }
+      .email-row > span {
+        display: grid;
+        gap: 5px;
+      }
+      .email-row small {
+        color: var(--muted);
+        font-size: 12px;
+      }
+      .email-row strong {
+        font: 600 21px/1.2 var(--f-cond);
+      }
+      .email-row .subject {
+        font-size: 14px;
+      }
+      .email-row .reason {
+        font-size: 13px;
+        color: var(--muted);
+      }
+      .email-row .badge {
+        width: fit-content;
+      }
+      .email-row .time {
+        font-size: 16px;
+      }
+      dialog {
+        border: 1px solid var(--rule);
+        background: var(--paper);
+        color: var(--ink);
+        max-width: min(860px, calc(100vw - 28px));
+        width: 100%;
+        max-height: calc(100dvh - 40px);
+        padding: 0;
+      }
+      dialog::backdrop {
+        background: #12151288;
+      }
+      .dialog-inner {
+        display: grid;
+        gap: 20px;
+        padding: 25px;
+      }
+      .dialog-head {
+        display: flex;
+        justify-content: space-between;
+        align-items: flex-start;
+        gap: 16px;
+        border-bottom: 1px solid var(--rule);
+        padding-bottom: 18px;
+      }
+      .dialog-head h2 {
+        margin-top: 4px;
+      }
+      .email-meta {
+        display: grid;
+        gap: 5px;
+        font-size: 14px;
+      }
+      .email-body {
+        border-block: 1px solid var(--rule-soft);
+        padding-block: 20px;
+        display: grid;
+        gap: 20px;
+      }
+      .email-body p {
+        white-space: pre-wrap;
+        font-size: 15px;
+        line-height: 1.7;
+      }
+      .editor {
+        display: grid;
+        gap: 15px;
+      }
+      .editor input,
+      .editor textarea {
+        width: 100%;
+      }
+      .fixed-text {
+        padding: 14px 0;
+        border-top: 1px solid var(--rule-soft);
+        display: grid;
+        gap: 7px;
+        font-size: 14px;
+      }
+      .block {
+        border-top: 1px solid var(--rule);
+        padding-top: 22px;
+        margin-top: 24px;
+        display: grid;
+        gap: 13px;
+      }
+      .kv {
+        display: grid;
+        grid-template-columns: minmax(150px, 0.5fr) minmax(0, 1fr);
+        gap: 12px;
+        padding-block: 10px;
+        border-bottom: 1px solid var(--rule-soft);
+      }
+      .kv dt {
+        color: var(--muted);
+      }
+      .kv dd {
+        margin: 0;
+      }
+      .mode-buttons {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 8px;
+      }
+      .mode-buttons button[aria-pressed="true"] {
+        background: var(--green);
+        color: var(--on-green);
+      }
+      .source-note {
+        margin-top: 28px;
+        color: var(--muted);
+        font-size: 12px;
+      }
+      .feedback {
+        min-height: 1.5em;
+        font-size: 14px;
+        color: var(--green);
+      }
+      .bottom {
+        display: none;
+      }
+      @media (max-width: 1100px) {
+        .frame {
+          grid-template-columns: 200px minmax(0, 1fr);
+        }
+        .contact {
+          grid-template-columns: 48px minmax(0, 1fr) minmax(130px, 0.6fr);
+          gap: 14px;
+        }
+        .contact .channel {
+          grid-column: 2;
+          grid-row: 2;
+        }
+        .contact .state {
+          grid-column: 3;
+          grid-row: 1 / span 2;
+        }
+        .detail {
+          grid-column: 2 / -1;
+        }
+        .detail .fields {
+          grid-template-columns: 1fr;
+        }
+      }
+      @media (max-width: 760px) {
+        .frame {
+          display: block;
+        }
+        .sidebar {
+          position: static;
+          height: auto;
+        }
+        .brand {
+          padding: 14px 18px;
+          display: flex;
+          align-items: baseline;
+          gap: 10px;
+        }
+        .brand strong {
+          font-size: 26px;
+        }
+        .sidenav,
+        .sidefoot {
+          display: none;
+        }
+        .demo-nav {
+          padding: 7px 16px;
+          gap: 2px 16px;
+        }
+        .demo-nav > span {
+          width: 100%;
+        }
+        main {
+          padding: 20px 16px 90px;
+        }
+        .sections {
+          gap: 0 16px;
+        }
+        .sections button {
+          font-size: 19px;
+        }
+        .tabs {
+          gap: 0 15px;
+        }
+        .tabs button {
+          font-size: 13px;
+        }
+        .contact {
+          grid-template-columns: 45px minmax(0, 1fr);
+          gap: 12px;
+          padding: 18px 0;
+        }
+        .contact .state {
+          grid-column: 2;
+          grid-row: auto;
+          display: grid;
+          grid-template-columns: 1fr auto;
+          gap: 0 8px;
+          align-items: center;
+        }
+        .contact .turn {
+          grid-column: 1;
+          margin: 4px 0;
+        }
+        .contact .state-actions {
+          grid-column: 2;
+          grid-row: 1 / span 2;
+        }
+        .contact .channel {
+          grid-row: auto;
+        }
+        .detail {
+          grid-column: 1 / -1;
+        }
+        .summary {
+          grid-template-columns: 1fr;
+        }
+        .summary p {
+          padding: 12px 0;
+        }
+        .summary p + p {
+          padding: 12px 0;
+          border-left: 0;
+          border-top: 1px solid var(--rule-soft);
+        }
+        .email-row {
+          grid-template-columns: minmax(0, 1fr) 18px;
+          gap: 12px;
+        }
+        .email-row .when {
+          grid-column: 1;
+        }
+        .email-row .arrow {
+          grid-column: 2;
+          grid-row: 1 / span 2;
+        }
+        .dialog-inner {
+          padding: 18px;
+        }
+        .kv {
+          grid-template-columns: 1fr;
+          gap: 4px;
+        }
+        .bottom {
+          display: flex;
+          position: fixed;
+          bottom: 0;
+          left: 0;
+          right: 0;
+          z-index: 5;
+          background: var(--paper);
+          border-top: 1px solid var(--rule);
+          justify-content: space-around;
+          padding: 6px 4px;
+        }
+        .bottom span {
+          display: grid;
+          justify-items: center;
+          gap: 4px;
+          font-size: 11px;
+          color: var(--muted);
+          min-width: 48px;
+        }
+        .bottom span[aria-current] {
+          color: var(--green);
+          font-weight: 600;
+        }
+        .bottom b {
+          font-size: 18px;
+          line-height: 1.1;
+        }
+      }
+      @media (prefers-reduced-motion: no-preference) {
+        button {
+          transition: background-color 130ms ease;
+        }
+      }
+      @media print {
+        .sidebar,
+        .demo-nav,
+        .bottom,
+        .state-actions,
+        .foot {
+          display: none;
+        }
+        .frame {
+          display: block;
+        }
+        main {
+          max-width: none;
+          padding: 0;
+        }
+        .contact,
+        .day {
+          break-inside: avoid;
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <a class="skip" href="#contenuto">Vai al contenuto</a>
+    <div class="frame">
+      <aside class="sidebar" aria-label="Guscio del gestionale">
+        <div class="brand"><strong>LuckyLap</strong><small>Gestionale</small></div>
+        <nav class="sidenav" aria-label="Sezioni del gestionale">
+          <button type="button" disabled>
+            <span class="navmark" aria-hidden="true">⌂</span>Oggi
+          </button>
+          <button type="button" disabled>
+            <span class="navmark" aria-hidden="true">▱</span>Vendite
+          </button>
+          <button type="button" disabled>
+            <span class="navmark" aria-hidden="true">□</span>Magazzino
+          </button>
+          <button type="button" aria-current="page" data-page="partner">
+            <span class="navmark" aria-hidden="true">↔</span>Partner
+          </button>
+          <button type="button" disabled>
+            <span class="navmark" aria-hidden="true">♧</span>Team
+          </button>
+          <button type="button" disabled>
+            <span class="navmark" aria-hidden="true">≡</span>Finance
+          </button>
+          <button type="button" disabled>
+            <span class="navmark" aria-hidden="true">◇</span>Controllo CEO
+          </button>
+        </nav>
+        <div class="sidefoot">
+          <strong>Anteprima locale</strong><span>Dati sintetici in questa pagina</span
+          ><span>Come si usa</span><span>Account e sicurezza</span>
+        </div>
+      </aside>
+      <div class="column">
+        <nav class="demo-nav" aria-label="Pagine della ricostruzione">
+          <span>Esplora l’HTML</span>
+          <button type="button" data-page="partner" aria-pressed="true">Partner</button>
+          <button type="button" data-page="email" aria-pressed="false">Calendario email</button>
+          <button type="button" data-page="assistente" aria-pressed="false">Assistente</button>
+          <button type="button" data-page="dati" aria-pressed="false">Dati</button>
+          <button type="button" data-page="regole" aria-pressed="false">Regole</button>
+        </nav>
+        <main id="contenuto">
+          <div class="preview" role="note">
+            <strong
+              >Ricostruzione HTML dal codice · dati sintetici · nessun salvataggio o invio</strong
+            >
+            Esempi fissati al 4 novembre 2026. Filtri, dettagli e revisione funzionano solo in
+            memoria: ricaricando si azzerano. La navigazione superiore serve a esplorare questa
+            ricostruzione; i caratteri usano il font locale disponibile.
+          </div>
+          <section id="page-partner" aria-label="Partner">
+            <header class="heading">
+              <h1>Partner</h1>
+              <p class="totals" id="totals"></p>
+              <div>
+                <button class="button" type="button" data-page="email">Calendario email</button>
+              </div>
+            </header>
+            <nav id="partner-sections" class="sections" aria-label="Sezioni"></nav>
+            <nav id="partner-views" class="tabs" aria-label="Viste di lavoro"></nav>
+            <section class="assistant-strip" aria-label="Assistente Partner">
+              <p>
+                <strong>Prime email automatiche attive</strong> · 1 inviata oggi · preparazione
+                attiva <span class="small">(esempio)</span>
+              </p>
+              <div class="row">
+                <button class="text-button" type="button" data-page="assistente">
+                  Apri l’assistente</button
+                ><button class="button" type="button" disabled>Ferma l’assistente</button>
+              </div>
+            </section>
+            <div
+              id="partner-periods"
+              class="periods"
+              role="group"
+              aria-label="Periodi"
+              hidden
+            ></div>
+            <div class="toolbar">
+              <label class="field search"
+                >Cerca<input
+                  type="search"
+                  id="partner-search"
+                  placeholder="Cerca nome, città o CO"
+                  maxlength="80"
+              /></label>
+              <label class="field" id="status-field"
+                >Stato<select id="partner-status">
+                  <option value="tutti">Tutti</option>
+                  <option value="da_contattare">Da contattare</option>
+                  <option value="contattato">Scritto</option>
+                  <option value="risposto">Risposto</option>
+                  <option value="trattativa">Primi contatti avviati</option>
+                  <option value="chiuso">Accordo fatto</option>
+                  <option value="no">Non interessato</option>
+                  <option value="bloccato">Non contattare</option>
+                </select></label
+              >
+              <label class="field"
+                >Seguito da<select id="partner-owner">
+                  <option value="tutti">Tutti</option>
+                  <option value="Founder di prova">Me</option>
+                  <option value="Membro di prova">Membro di prova</option>
+                  <option value="nessuno">Nessuno</option>
+                </select></label
+              >
+            </div>
+            <div class="view-heading">
+              <h2 id="partner-view-title">Da seguire</h2>
+              <p id="partner-view-note"></p>
+            </div>
+            <p id="partner-feedback" class="feedback" role="status" aria-live="polite"></p>
+            <ul id="partner-list" class="contact-list"></ul>
+            <footer class="foot">
+              <div>
+                <button class="button" type="button" disabled>＋ Aggiungi un contatto</button>
+              </div>
+              <div class="footlinks">
+                <span>Lookbook:</span><span>Negozi</span><span>Eventi</span><span>Collab</span
+                ><span>Porsche Club</span><span>Club</span>
+              </div>
+              <div class="footlinks">
+                <button class="text-button" type="button" data-page="dati">
+                  Dati e importazioni</button
+                ><button class="text-button" type="button" data-page="regole">
+                  Regole per scrivere
+                </button>
+              </div>
+              <p>Ricerca di esempio · nessun import reale in questa ricostruzione.</p>
+            </footer>
+          </section>
+          <section id="page-email" aria-label="Calendario email" hidden>
+            <header class="heading">
+              <div>
+                <button class="text-button" type="button" data-page="partner">← Partner</button>
+              </div>
+              <div class="row between">
+                <div>
+                  <h1>Calendario email</h1>
+                  <p class="muted">Chi contattiamo, perché e con quale testo.</p>
+                </div>
+                <button class="button" type="button" id="refresh-demo">↻ Aggiorna</button>
+              </div>
+            </header>
+            <div class="summary">
+              <p><strong>1 email inviata oggi</strong><span>0 Club · 1 altro contatto</span></p>
+              <p>
+                <strong id="ready-count">3 bozze pronte</strong
+                ><span>Club e altri contatti, due flussi distinti</span>
+              </p>
+              <p>
+                <strong>Previsione aggiornabile</strong
+                ><span>Orari stimati; limite e precedenza sull’intera coda</span>
+              </p>
+            </div>
+            <p class="muted small">
+              Date e ore future sono stime, non appuntamenti prenotati. I filtri cambiano ciò che
+              vedi e non liberano posti nella coda. Esempio statico con passo di otto minuti.
+            </p>
+            <nav id="email-sections" class="sections" aria-label="Sezioni Partner"></nav>
+            <div class="toolbar">
+              <label class="field"
+                >Flusso<select id="email-flow">
+                  <option value="tutti">Tutti i flussi</option>
+                  <option value="club">Club</option>
+                  <option value="altri">Altri contatti</option>
+                </select></label
+              ><label class="field search"
+                >Cerca destinatario<input id="email-search" type="search" placeholder="Nome o CO"
+              /></label>
+            </div>
+            <nav id="email-views" class="tabs" aria-label="Stato delle email"></nav>
+            <div
+              class="periods"
+              id="email-periods"
+              role="group"
+              aria-label="Periodo del programma"
+            ></div>
+            <label id="email-test-filter" class="row small" hidden
+              ><input id="email-tests" type="checkbox" />Mostra anche le prove</label
+            >
+            <p id="email-feedback" class="feedback" role="status" aria-live="polite"></p>
+            <div id="email-list"></div>
+            <p class="source-note">
+              Le prossime bozze presentano brand, prodotti e proposta concreta. Una bozza già pronta
+              si rivede singolarmente. Risposte e solleciti successivi sono manuali.
+            </p>
+          </section>
+          <section id="page-assistente" aria-label="Assistente Partner" hidden>
+            <header class="heading">
+              <div>
+                <button class="text-button" type="button" data-page="partner">← Partner</button>
+              </div>
+              <h1>Assistente Partner</h1>
+              <p class="muted">Prime email, coda, controlli e regole.</p>
+            </header>
+            <p class="notice">
+              I comandi operativi sono disattivati nella ricostruzione. In Partner tutti gestiscono
+              le schede; Prova, Invio, conferma della prova, ripresa degli invii e limite sono
+              riservati al founder.
+            </p>
+            <section class="block">
+              <h2>Modalità</h2>
+              <div class="mode-buttons">
+                <button class="button" disabled>Spento</button
+                ><button class="button" disabled>Prepara</button
+                ><button class="button" disabled>Prova</button
+                ><button class="button" aria-pressed="true" disabled>Invio</button>
+              </div>
+              <p class="small">
+                Invio: l’assistente manda le prime email ai contatti dalla casella aziendale, nei
+                giorni feriali tra le 9:30 e le 11 dell’ora del contatto, una ogni 4–11 minuti.
+              </p>
+              <p class="small muted">
+                La preparazione continua anche in Prova e Invio. La pausa per credito può fermare
+                nuove bozze mentre quelle pronte continuano a partire.
+              </p>
+            </section>
+            <section class="block">
+              <h2>Prova dell’invio</h2>
+              <p>
+                Il founder sceglie le bozze, riceve le email di prova e conferma che sono arrivate
+                in posta in arrivo. Solo allora è disponibile la modalità Invio.
+              </p>
+              <div class="row">
+                <button class="button" disabled>Manda la prova</button
+                ><button class="button" disabled>La prova è arrivata in posta in arrivo</button>
+              </div>
+            </section>
+            <section class="block">
+              <h2>Coda</h2>
+              <dl>
+                <div class="kv">
+                  <dt>Pronte</dt>
+                  <dd>3 bozze sintetiche</dd>
+                </div>
+                <div class="kv">
+                  <dt>In preparazione</dt>
+                  <dd>1 contatto di prova</dd>
+                </div>
+                <div class="kv">
+                  <dt>Serve Tommi</dt>
+                  <dd>1 verifica su una data</dd>
+                </div>
+                <div class="kv">
+                  <dt>Fermi</dt>
+                  <dd>1 contatto escluso</dd>
+                </div>
+              </dl>
+              <button type="button" class="text-button" data-page="email">
+                Leggi i destinatari e le email
+              </button>
+            </section>
+            <section class="block">
+              <h2>Controlli e accessi</h2>
+              <p class="small">
+                Nel gestionale questa pagina mostra gli esiti della configurazione e degli accessi a
+                Claude, SMTP e IMAP. Qui non sono stati verificati servizi esterni e non sono
+                presenti credenziali.
+              </p>
+            </section>
+            <section class="block">
+              <h2>Regole in vigore</h2>
+              <p>
+                Brand e prodotti, proposta concreta, valore per il destinatario. Il testo approvato
+                è legato alle regole, alla ricerca e al recapito usati.
+              </p>
+              <button type="button" class="text-button" data-page="regole">
+                Regole per scrivere
+              </button>
+            </section>
+          </section>
+          <section id="page-dati" aria-label="Dati Partner" hidden>
+            <header class="heading">
+              <div>
+                <button class="text-button" type="button" data-page="partner">← Partner</button>
+              </div>
+              <h1>Dati Partner</h1>
+            </header>
+            <section class="block">
+              <h2>Ricerca</h2>
+              <p>Ultimo import, import precedenti e differenze da controllare.</p>
+              <p class="notice">
+                Questa ricostruzione non contiene dati di import reali. Le modifiche del team, nel
+                gestionale, restano protette: i valori in conflitto diventano differenze da
+                risolvere.
+              </p>
+            </section>
+            <section class="block">
+              <h2>File del vecchio sito</h2>
+              <p>
+                Controlla il file mostra un’anteprima senza scrivere; Importa registra i dati dopo
+                la verifica.
+              </p>
+              <div class="row">
+                <button class="button" disabled>Scegli il file</button
+                ><button class="button" disabled>Controlla il file</button
+                ><button class="button" disabled>Importa</button>
+              </div>
+              <p class="small muted">
+                Il vecchio sito è spento; il percorso di import resta disponibile nel codice.
+              </p>
+            </section>
+            <section class="block">
+              <h2>Lookbook</h2>
+              <p>
+                I cinque PDF sono file del repository, accessibili ai membri. La loro sostituzione
+                richiede un aggiornamento del gestionale.
+              </p>
+              <dl>
+                <div class="kv">
+                  <dt>Negozi</dt>
+                  <dd>PDF della vendita in negozio</dd>
+                </div>
+                <div class="kv">
+                  <dt>Eventi</dt>
+                  <dd>PDF per eventi e stand</dd>
+                </div>
+                <div class="kv">
+                  <dt>Collab</dt>
+                  <dd>PDF per collaborazioni</dd>
+                </div>
+                <div class="kv">
+                  <dt>Porsche Club</dt>
+                  <dd>PDF per il modello dedicato</dd>
+                </div>
+                <div class="kv">
+                  <dt>Club</dt>
+                  <dd>PDF generico per i club</dd>
+                </div>
+              </dl>
+              <p class="small muted">I PDF non sono copiati in questo HTML.</p>
+            </section>
+          </section>
+          <section id="page-regole" aria-label="Regole per scrivere" hidden>
+            <header class="heading">
+              <div>
+                <button class="text-button" type="button" data-page="partner">← Partner</button>
+              </div>
+              <h1>Regole per scrivere</h1>
+            </header>
+            <p class="notice">
+              Estratto funzionale della ricostruzione. La pagina originale legge il testo di
+              contesto dell’ultimo import; le regole versionate dell’assistente si leggono anche
+              nella pagina Assistente.
+            </p>
+            <section class="block">
+              <h2>Prima email</h2>
+              <p>
+                Presenta LuckyLap e i prodotti, poi una proposta concreta e il suo valore per il
+                destinatario. La domanda finale è facoltativa. Lingua e registro derivano dalla
+                scelta del contatto.
+              </p>
+            </section>
+            <section class="block">
+              <h2>Controllo prima dell’invio</h2>
+              <p>
+                Bozza approvata, regole correnti, versione del recapito, ricerca valida, date e
+                conversazioni degli ultimi dodici mesi. Il worker controlla nuovamente bozza e
+                sospensione prima di avviare SMTP.
+              </p>
+            </section>
+            <section class="block">
+              <h2>Dopo la prima email</h2>
+              <p>
+                Risposte, trattativa e sollecito a sette giorni sono gestiti manualmente. «Segna
+                inviato» registra un invio fatto fuori dal gestionale: il pulsante non spedisce
+                l’email.
+              </p>
+            </section>
+          </section>
+          <p class="source-note">
+            Ricostruzione basata su <code>partner-workspace.tsx</code>,
+            <code>partner-row.tsx</code>, <code>partner-details.tsx</code>,
+            <code>partner-email-program.tsx</code> e sugli stili del workspace, stato del codice al
+            4 novembre 2026. Le pagine accessorie sono sintesi navigabili.
+          </p>
+        </main>
+      </div>
+    </div>
+    <div class="bottom" aria-label="Menu mobile illustrativo">
+      <span><b aria-hidden="true">⌂</b>Oggi</span><span><b aria-hidden="true">▱</b>Vendite</span
+      ><span><b aria-hidden="true">□</b>Magazzino</span
+      ><span aria-current="page"><b aria-hidden="true">↔</b>Partner</span
+      ><span><b aria-hidden="true">⋯</b>Altro</span>
+    </div>
+    <dialog id="email-dialog" aria-labelledby="email-dialog-title">
+      <div class="dialog-inner" id="email-dialog-content"></div>
+    </dialog>
+    <script>
+      (() => {
+        "use strict";
+        const labels = {
+          tutti: "Tutti",
+          vendita: "Vendita",
+          eventi: "Eventi",
+          collab: "Collab",
+          club: "Club",
+        };
+        const stages = {
+          da_contattare: "Da contattare",
+          contattato: "Scritto",
+          risposto: "Risposto",
+          trattativa: "Primi contatti avviati",
+          chiuso: "Accordo fatto",
+          no: "Non interessato",
+        };
+        const contacts = [
+          {
+            co: 951,
+            name: "Garage Sintetico Uno",
+            city: "Città di prova",
+            country: "Italia",
+            type: "Concept store car-culture",
+            sections: ["vendita", "collab"],
+            stage: "contattato",
+            phase: "Scritto",
+            owner: "Founder di prova",
+            turn: "A loro",
+            due: "11 novembre · sollecito",
+            reason:
+              "Prima email inviata. Attendiamo una risposta alla proposta di vendita in negozio.",
+            idea: "Una selezione di magliette per clienti appassionati di motori.",
+            assistant: "Prima email inviata",
+            channel: "Email",
+            period: 1,
+            activities: [
+              {
+                day: "4 nov · 09:42 · dall’assistente",
+                title: "Inviato via email",
+                text: "Prima email di presentazione e proposta di vendita in negozio.",
+              },
+            ],
+          },
+          {
+            co: 952,
+            name: "Raduno Sintetico Due",
+            city: "Città di prova",
+            country: "Paesi Bassi",
+            type: "Evento in circuito",
+            sections: ["eventi"],
+            stage: "da_contattare",
+            phase: "Pronta",
+            owner: "nessuno",
+            turn: "A noi",
+            due: "Oggi · prima email",
+            reason: "Ricerca verificata e bozza pronta per proporre uno stand all’evento.",
+            idea: "Banco con le magliette durante il raduno.",
+            assistant: "Bozza dell’email pronta",
+            channel: "Email / modulo",
+            period: 1,
+            activities: [],
+          },
+          {
+            co: 953,
+            name: "Club Registro Tre",
+            city: "Città di prova",
+            country: "Germania",
+            type: "Club e registri",
+            sections: ["club", "collab"],
+            stage: "da_contattare",
+            phase: "Pronta",
+            owner: "nessuno",
+            turn: "A noi",
+            due: "Oggi · prima email",
+            reason: "Club idoneo al modello dedicato. Proposta di merchandising con il club.",
+            idea: "Magliette per soci con grafica dedicata al club.",
+            assistant: "Bozza dell’email pronta",
+            channel: "Email",
+            period: 1,
+            activities: [],
+          },
+          {
+            co: 954,
+            name: "Club Sintetico Quattro",
+            city: "Città di prova",
+            country: "Regno Unito",
+            type: "Club automobilistico",
+            sections: ["club"],
+            stage: "da_contattare",
+            phase: "Pronta",
+            owner: "nessuno",
+            turn: "A noi",
+            due: "Oggi · prima email",
+            reason:
+              "Proposta generica di collaborazione, senza riferimenti a un modello specifico.",
+            idea: "Una collezione dedicata ai soci.",
+            assistant: "Bozza dell’email pronta",
+            channel: "Email",
+            period: 1,
+            activities: [],
+          },
+          {
+            co: 955,
+            name: "Rivista Sintetica Cinque",
+            city: "Città di prova",
+            country: "Italia",
+            type: "Media car-culture",
+            sections: ["collab"],
+            stage: "risposto",
+            phase: "Risposto",
+            owner: "Membro di prova",
+            turn: "A noi",
+            due: "Domani · inviare la proposta",
+            nextAction: "Inviare la proposta",
+            reason: "Risposta registrata dal team: chiedono di leggere una proposta concreta.",
+            idea: "Una capsule dedicata alla community.",
+            assistant: "Passato alla gestione del team",
+            channel: "Email",
+            period: 1,
+            reply: "Grazie per la presentazione. Potete descrivere la collaborazione proposta?",
+            activities: [
+              {
+                day: "3 nov · dal team",
+                title: "Risposta registrata",
+                text: "Chiedono dettagli sulla collaborazione.",
+              },
+            ],
+          },
+          {
+            co: 956,
+            name: "Festival Sintetico Sei",
+            city: "Città di prova",
+            country: "Francia",
+            type: "Evento e club",
+            sections: ["eventi", "club"],
+            stage: "da_contattare",
+            phase: "Serve Tommi",
+            owner: "nessuno",
+            turn: "A noi",
+            due: "Novembre 2026 · periodo di contatto",
+            reason: "Le fonti riportano date diverse: serve una verifica umana.",
+            idea: "Presenza con uno stand alla prossima edizione.",
+            assistant: "Fermo: date da verificare",
+            channel: "Email",
+            period: 1,
+            activities: [],
+          },
+          {
+            co: 957,
+            name: "Raduno Sintetico Sette",
+            city: "Città di prova",
+            country: "Italia",
+            type: "Evento con accordo",
+            sections: ["eventi"],
+            stage: "chiuso",
+            phase: "Accordo fatto",
+            owner: "Membro di prova",
+            turn: "Da verificare",
+            due: "20 novembre · preparare lo stand",
+            nextAction: "Preparare lo stand",
+            reason: "Partecipazione concordata: l’evento può comparire nel calendario del team.",
+            idea: "Stand confermato con esposizione delle magliette.",
+            assistant: "Gestione manuale dell’accordo",
+            channel: "Email",
+            period: 1,
+            activities: [
+              {
+                day: "2 nov · dal team",
+                title: "Accordo fatto",
+                text: "Partecipazione confermata; prossima azione: preparare lo stand.",
+              },
+            ],
+          },
+          {
+            co: 958,
+            name: "Negozio Sintetico Otto",
+            city: "Città di prova",
+            country: "Italia",
+            type: "Negozio",
+            sections: ["vendita"],
+            stage: "no",
+            phase: "Non contattare",
+            owner: "nessuno",
+            turn: "Da verificare",
+            due: "Marzo 2027 · periodo di contatto",
+            reason: "Blocco di contatto inserito dal team: non avviare nuove comunicazioni.",
+            idea: "Nessuna proposta attiva.",
+            assistant: "Fermo su questo contatto",
+            channel: "Nessuno",
+            period: 3,
+            blocked: true,
+            activities: [],
+          },
+          {
+            co: 959,
+            name: "Atelier Sintetico Nove",
+            city: "Città di prova",
+            country: "Italia",
+            type: "Brand indipendente",
+            sections: ["collab"],
+            stage: "da_contattare",
+            phase: "Da scrivere",
+            owner: "nessuno",
+            turn: "A noi",
+            due: "Gennaio 2027 · periodo di contatto",
+            reason: "Contatto idoneo senza lavoro: la ricerca deve ancora cominciare.",
+            idea: "Capsule con grafica congiunta.",
+            assistant: "Da preparare",
+            channel: "Email",
+            period: 2,
+            activities: [],
+          },
+        ];
+        const emails = [
+          {
+            co: 952,
+            state: "programma",
+            flow: "altri",
+            day: "2026-11-04",
+            time: "09:50",
+            timezone: "Europe/Amsterdam",
+            subject: "LuckyLap al vostro raduno",
+            body: "Buongiorno,\n\nsiamo LuckyLap e realizziamo magliette dedicate alla cultura automobilistica.\n\nPer il vostro raduno proponiamo uno stand con una selezione dei nostri prodotti, pensata per i visitatori appassionati di motori. Possiamo condividere una proposta coerente con il programma dell’evento.\n\nGrazie per l’attenzione.",
+            reason: "Evento con area espositori e date coerenti nella ricerca verificata.",
+            attachment: null,
+          },
+          {
+            co: 953,
+            state: "programma",
+            flow: "club",
+            day: "2026-11-04",
+            time: "09:58",
+            timezone: "Europe/Berlin",
+            subject: "Una collezione LuckyLap per i soci del club",
+            body: "Buongiorno,\n\nLuckyLap crea abbigliamento dedicato a chi vive la passione per le auto.\n\nProponiamo una piccola collezione per i vostri soci, con una grafica dedicata al club e prodotti pensati per i vostri incontri. In allegato trovate un lookbook di esempio.\n\nSarebbe un modo concreto per dare forma all’identità della vostra community.",
+            reason: "Club idoneo al modello di merchandising dedicato.",
+            attachment: "Lookbook Club",
+          },
+          {
+            co: 954,
+            state: "programma",
+            flow: "club",
+            day: "2026-11-05",
+            time: "09:30",
+            timezone: "Europe/London",
+            subject: "Una collaborazione LuckyLap per il vostro club",
+            body: "Hello,\n\nLuckyLap creates apparel inspired by automotive culture.\n\nWe would like to explore a collection for your club, with dedicated artwork and products designed around your community. The attached lookbook illustrates our approach.\n\nThank you for your time.",
+            reason:
+              "Club con proposta generica coerente; il modello non richiede un riferimento a una marca specifica.",
+            attachment: "Lookbook Club",
+          },
+          {
+            co: 956,
+            state: "da_rivedere",
+            flow: "altri",
+            day: null,
+            time: null,
+            subject: null,
+            body: null,
+            reason: "Date non concordanti nelle fonti: verifica di Tommi prima della preparazione.",
+            attachment: null,
+          },
+          {
+            co: 959,
+            state: "da_preparare",
+            flow: "altri",
+            day: null,
+            time: null,
+            subject: null,
+            body: null,
+            reason:
+              "Contatto idoneo senza ricerca e senza bozza. Non viene attribuito un orario d’invio.",
+            attachment: null,
+          },
+          {
+            co: 951,
+            state: "inviate",
+            flow: "altri",
+            day: "2026-11-04",
+            time: "09:42",
+            subject: "LuckyLap per il vostro negozio",
+            body: "Buongiorno,\n\nsiamo LuckyLap, un progetto di abbigliamento ispirato alla cultura automobilistica.\n\nPer il vostro negozio proponiamo una selezione di magliette pensate per clienti appassionati di motori. La proposta è un assortimento contenuto, da valutare insieme in base allo spazio e al pubblico del negozio.\n\nGrazie per l’attenzione.\n\nIl team LuckyLap · firma sintetica\n\nSe preferite non ricevere altre comunicazioni, potete comunicarcelo rispondendo a questa email.",
+            reason: "Prima email registrata come inviata nell’esempio sintetico.",
+            attachment: null,
+          },
+          {
+            co: 953,
+            state: "inviate",
+            flow: "club",
+            day: "2026-11-03",
+            time: "16:24",
+            subject: "Una collezione LuckyLap per i soci del club",
+            body: "Messaggio di prova sintetico della bozza del club. Nessuna email è stata inviata da questo HTML.",
+            reason: "Prova sintetica: non cambia stato commerciale, registro o sollecito.",
+            test: true,
+            attachment: "Lookbook Club",
+          },
+        ];
+        const state = {
+          page: "partner",
+          section: "tutti",
+          view: "da_seguire",
+          period: "tutti",
+          search: "",
+          status: "tutti",
+          owner: "tutti",
+          open: null,
+          emailSection: "tutti",
+          emailView: "programma",
+          emailPeriod: "oggi",
+          emailFlow: "tutti",
+          emailSearch: "",
+          tests: false,
+          openedEmail: null,
+        };
+        const $ = (id) => document.getElementById(id);
+        const esc = (value) =>
+          String(value ?? "").replace(
+            /[&<>\"']/g,
+            (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" })[c],
+          );
+        const find = (co) => contacts.find((p) => p.co === Number(co));
+        const sectionText = (p) => p.sections.map((s) => labels[s]).join(" / ");
+        const sectionNav = (selected, kind, showCounts) =>
+          Object.entries(labels)
+            .map(
+              ([id, label]) =>
+                `<button type="button" data-${kind}="${id}" aria-pressed="${selected === id}">${label}${showCounts ? `<span class="count">${contacts.filter((p) => id === "tutti" || p.sections.includes(id)).length}</span>` : ""}</button>`,
+            )
+            .join("");
+        const feedback = (text, page = "partner") => {
+          $(`${page}-feedback`).textContent = text;
+        };
+        function page(id) {
+          state.page = id;
+          for (const key of ["partner", "email", "assistente", "dati", "regole"])
+            $("page-" + key).hidden = key !== id;
+          document
+            .querySelectorAll(".demo-nav [data-page]")
+            .forEach((b) => b.setAttribute("aria-pressed", String(b.dataset.page === id)));
+          if (id === "partner") renderPartner();
+          if (id === "email") renderEmail();
+          document.title = `${id === "email" ? "Calendario email" : id === "partner" ? "Partner" : id === "assistente" ? "Assistente Partner" : id === "dati" ? "Dati Partner" : "Regole per scrivere"} · ricostruzione LuckyLap`;
+          window.scrollTo({ top: 0, behavior: "instant" });
+        }
+        function renderPartner() {
+          $("totals").textContent =
+            `${contacts.length} contatti di esempio · ${contacts.filter((p) => p.sections.includes("vendita")).length} Vendita · ${contacts.filter((p) => p.sections.includes("eventi")).length} Eventi · ${contacts.filter((p) => p.sections.includes("collab")).length} Collab · ${contacts.filter((p) => p.sections.includes("club")).length} Club`;
+          $("partner-sections").innerHTML = sectionNav(state.section, "section", true);
+          const views = {
+            da_seguire: "Da seguire",
+            risposte: "Risposte",
+            tutti: "Tutti i contatti",
+            accordi: "Accordi fatti",
+          };
+          $("partner-views").innerHTML = Object.entries(views)
+            .map(
+              ([id, label]) =>
+                `<button type="button" data-view="${id}" aria-pressed="${state.view === id}">${label}${id === "accordi" ? `<span class="count">${contacts.filter((p) => p.stage === "chiuso").length}</span>` : ""}</button>`,
+            )
+            .join("");
+          $("partner-view-title").textContent = views[state.view];
+          $("partner-view-note").textContent = {
+            da_seguire:
+              "Contatti da seguire, preparazioni in corso e azioni del team. Fase, a chi tocca e per quando.",
+            risposte:
+              "Solo risposte già registrate dal team. La casella non viene importata automaticamente.",
+            tutti: "L’archivio dei contatti con periodi, stato, responsabile e ricerca.",
+            accordi:
+              "Accordi fatti di ogni periodo. In calendario vanno solo gli eventi a cui partecipiamo davvero.",
+          }[state.view];
+          $("partner-periods").hidden = state.view !== "tutti";
+          $("status-field").hidden = ["risposte", "accordi"].includes(state.view);
+          $("partner-periods").innerHTML = Object.entries({
+            tutti: "Tutti i periodi",
+            1: "Adesso",
+            2: "Gen – Feb",
+            3: "Mar – Apr",
+            4: "Mag – Lug",
+            5: "Da ago 2027",
+          })
+            .map(
+              ([id, label]) =>
+                `<button type="button" data-period="${id}" aria-pressed="${state.period === id}">${label}</button>`,
+            )
+            .join("");
+          const list = contacts.filter(
+            (p) =>
+              (state.section === "tutti" || p.sections.includes(state.section)) &&
+              (state.owner === "tutti" || p.owner === state.owner) &&
+              `${p.name} ${p.co} ${p.city} ${p.type}`
+                .toLocaleLowerCase("it")
+                .includes(state.search.toLocaleLowerCase("it")) &&
+              (state.view === "risposte"
+                ? !!p.reply
+                : state.view === "accordi"
+                  ? p.stage === "chiuso"
+                  : state.view === "da_seguire"
+                    ? !p.blocked && p.stage !== "chiuso"
+                    : true) &&
+              (["risposte", "accordi"].includes(state.view) ||
+                state.status === "tutti" ||
+                (state.status === "bloccato" ? p.blocked : p.stage === state.status)) &&
+              (state.view !== "tutti" ||
+                state.period === "tutti" ||
+                String(p.period) === state.period),
+          );
+          $("partner-list").innerHTML = list.length
+            ? list.map(contactRow).join("")
+            : `<li class="empty"><h3>Nessun contatto in questa vista</h3><p class="muted">Modifica i filtri o apri Tutti i contatti.</p></li>`;
+        }
+        function contactRow(p) {
+          const open = state.open === p.co;
+          return `<li id="lead-${p.co}" class="contact" data-blocked="${!!p.blocked}">
+            <div class="co" aria-hidden="true"><small>CO</small><strong>${p.co}</strong><span>${p.period === 1 ? "nov" : p.period === 2 ? "gen" : "mar"}</span></div>
+            <div><h3>${esc(p.name)}</h3><p class="meta">${esc(p.type)} · ${esc(p.city)}, ${esc(p.country)}</p><div class="tags">${p.sections.map((s) => `<span class="tag">${labels[s]}</span>`).join("")}${p.owner !== "nessuno" ? `<span class="tag">Seguito da ${esc(p.owner)}</span>` : ""}${p.stage === "chiuso" ? '<span class="tag agreed">Nel calendario del team</span>' : ""}${p.blocked ? '<span class="tag attention">Non contattare</span>' : ""}</div>${state.view === "risposte" && p.reply ? `<p class="motivation" style="margin-top:12px">${esc(p.reply)}</p>` : ""}</div>
+            <div class="channel"><p class="motivation">${esc(p.reason)}</p><p class="due"><span>Per quando</span>${esc(p.due)}</p><details><summary>Recapiti</summary><p>${p.blocked ? "Non contattare: comunicazioni escluse." : `Canale: ${esc(p.channel)}. Recapiti sintetici omessi in questa ricostruzione.`}</p></details></div>
+            <div class="state"><p class="phase">${esc(p.phase)}</p><p class="turn">A chi tocca: ${esc(p.turn)}</p><div class="state-actions"><button type="button" class="text-button" data-open="${p.co}" aria-expanded="${open}" aria-controls="detail-${p.co}">${open ? "Chiudi dettagli" : "Dettagli"}</button></div></div>
+            ${open ? detail(p) : `<div id="detail-${p.co}" hidden></div>`}</li>`;
+        }
+        function detail(p) {
+          const email = emails.find((e) => e.co === p.co && !e.test);
+          return `<div class="detail" id="detail-${p.co}">
+            <section><h3>Contesto e prossima azione</h3><p>${esc(p.idea)}</p><div class="fields" style="margin-top:12px"><label class="field">Seguito da<select disabled><option>${p.owner === "nessuno" ? "Nessuno" : esc(p.owner)}</option></select></label><label class="field">Prossima azione<input value="${esc(p.nextAction || "")}" placeholder="Nessuna prossima azione del team" disabled /></label><button class="button" type="button" disabled>Salva</button></div></section>
+            ${p.stage === "chiuso" ? '<section><h3>Esito</h3><p>Accordo fatto. Portalo nel lavoro del team: l’evento in calendario, il progetto per Produzione o l’apertura del conto vendita.</p><button type="button" class="button" disabled>Apri in Partner nel Team</button></section>' : ""}
+            ${p.reply ? `<section><h3>Ultima risposta registrata</h3><p>${esc(p.reply)}</p></section>` : ""}
+            <section><h3>Assistente</h3><p>${esc(p.assistant)}</p>${email ? `<p class="small muted">${email.subject ? esc(email.subject) : "Il testo deve ancora essere preparato."}</p><button class="text-button" type="button" data-email="${emails.indexOf(email)}">${email.state === "inviate" ? "Leggi l’email inviata" : "Apri la bozza e il motivo"}</button>` : ""}<p class="small muted">Le prime email sono dell’assistente. Non sono presenti i vecchi “Messaggi pronti”.</p></section>
+            <section class="registry"><h3>Registro</h3>${p.activities.length ? p.activities.map((a) => `<div class="entry"><small>${esc(a.day)}</small><p><strong>${esc(a.title)}</strong></p><p>${esc(a.text)}</p></div>`).join("") : '<p class="small muted">Nessuna attività registrata in questo esempio.</p>'}<div class="row"><button class="button" type="button" data-register="primo" data-co="${p.co}" ${p.blocked ? "disabled" : ""}>Segna inviato</button><button class="button" type="button" data-register="sollecito" data-co="${p.co}" ${p.blocked ? "disabled" : ""}>Segna sollecito inviato</button><button class="button" type="button" disabled>Registra una risposta</button><button class="button" type="button" disabled>Chiamata</button><button class="button" type="button" disabled>Incontro</button><button class="button" type="button" disabled>Nota</button></div><p class="small muted">“Segna inviato” registra un’email già mandata tramite un altro strumento. Non prepara né spedisce un messaggio.</p></section>
+            <details><summary>Ricerca, recapiti e fonti</summary><p><strong>Perché:</strong> ${esc(p.reason)}</p><p><strong>Idea:</strong> ${esc(p.idea)}</p><p><strong>Recapiti:</strong> non inclusi nell’esempio.</p><p><strong>Fonti:</strong> scheda di ricerca sintetica verificata.</p></details>
+            <div class="row"><button type="button" class="button" disabled>Modifica la scheda</button><button type="button" class="button" disabled>Non contattare</button></div>
+          </div>`;
+        }
+        function renderEmail() {
+          $("email-sections").innerHTML = sectionNav(state.emailSection, "email-section", false);
+          const views = {
+            programma: "In programma",
+            da_preparare: "Da preparare",
+            da_rivedere: "Da rivedere / sospese",
+            inviate: "Inviate e tentativi",
+          };
+          $("email-views").innerHTML = Object.entries(views)
+            .map(
+              ([id, label]) =>
+                `<button type="button" data-email-view="${id}" aria-pressed="${state.emailView === id}">${label}<span class="count">${emails.filter((e) => (id === "da_rivedere" ? e.state === "da_rivedere" || e.hold : e.state === id && !e.test)).length}</span></button>`,
+            )
+            .join("");
+          $("ready-count").textContent =
+            `${emails.filter((e) => e.state === "programma").length} bozze pronte`;
+          $("email-periods").hidden = state.emailView !== "programma";
+          $("email-periods").innerHTML = Object.entries({
+            oggi: "Oggi",
+            domani: "Domani",
+            dopodomani: "Dopodomani",
+            "14giorni": "Due settimane",
+            mese: "Un mese",
+            tutto: "Tutto il programma",
+          })
+            .map(
+              ([id, label]) =>
+                `<button type="button" data-email-period="${id}" aria-pressed="${state.emailPeriod === id}">${label}</button>`,
+            )
+            .join("");
+          $("email-test-filter").hidden = state.emailView !== "inviate";
+          const rows = emails.filter((e) => {
+            const p = find(e.co);
+            if (
+              !(state.emailSection === "tutti" || p.sections.includes(state.emailSection)) ||
+              !(state.emailFlow === "tutti" || e.flow === state.emailFlow) ||
+              !`${p.name} ${p.co}`
+                .toLocaleLowerCase("it")
+                .includes(state.emailSearch.toLocaleLowerCase("it"))
+            )
+              return false;
+            if (state.emailView === "da_rivedere") return e.state === "da_rivedere" || e.hold;
+            if (e.state !== state.emailView || (e.test && !state.tests)) return false;
+            if (state.emailView !== "programma") return true;
+            if (e.hold) return false;
+            return state.emailPeriod === "oggi"
+              ? e.day === "2026-11-04"
+              : state.emailPeriod === "domani"
+                ? e.day === "2026-11-05"
+                : state.emailPeriod === "dopodomani"
+                  ? e.day === "2026-11-06"
+                  : true;
+          });
+          const groups = new Map();
+          rows.forEach((e) => {
+            const key = state.emailView === "programma" ? e.day : "senza_data";
+            groups.set(key, [...(groups.get(key) || []), e]);
+          });
+          $("email-list").innerHTML = rows.length
+            ? [...groups.entries()]
+                .map(
+                  ([day, list]) =>
+                    `<section class="day"><header><h2>${day === "senza_data" ? { da_preparare: "Testi da preparare", da_rivedere: "Email da rivedere", inviate: "Storico delle email" }[state.emailView] : day === "2026-11-04" ? "Oggi, 4 novembre · Roma" : "Domani, 5 novembre · Roma"}</h2>${state.emailView === "programma" ? "<p>Programma completo di esempio · quote Club e altri separate</p>" : ""}</header>${list.map(emailRow).join("")}</section>`,
+                )
+                .join("")
+            : '<div class="empty"><h2>Nessuna email in questa vista</h2><p class="muted">Puoi allargare il periodo o leggere le righe da preparare e da rivedere.</p></div>';
+        }
+        function emailRow(e) {
+          const p = find(e.co);
+          const badge = e.hold
+            ? "Modifica aperta"
+            : e.state === "programma"
+              ? "Prevista · stima"
+              : e.state === "inviate"
+                ? e.test
+                  ? "Prova · inviata"
+                  : "Inviata"
+                : e.state === "da_preparare"
+                  ? "Da preparare"
+                  : "Da rivedere";
+          return `<button type="button" class="email-row" data-email="${emails.indexOf(e)}"><span><small>CO ${p.co} · ${e.flow === "club" ? "Club" : "Altri contatti"} · ${sectionText(p)}</small><strong>${esc(p.name)}</strong><span class="subject">${esc(e.subject || "Testo non ancora preparato")}</span><span class="reason">${esc(e.reason)}</span></span><span class="when"><span class="badge ${e.hold || e.state === "da_rivedere" ? "attention" : ""}">${badge}</span>${e.time ? `<strong class="time">${e.state === "programma" ? "Circa " : ""}${e.time}${e.state === "programma" ? " locale" : ""}</strong><small>${e.day} · ${e.timezone || "Europe/Rome"}</small>${e.state === "programma" && e.timezone === "Europe/London" ? "<small>10:30 a Roma</small>" : ""}` : "<small>Nessuna data d’invio disponibile</small>"}${e.attachment ? "<small>PDF allegato</small>" : ""}</span><span class="arrow" aria-hidden="true">↗</span></button>`;
+        }
+        function dialogEmail(index) {
+          state.openedEmail = Number(index);
+          const e = emails[state.openedEmail];
+          if (!e) return;
+          const p = find(e.co);
+          const editable = !!e.subject && e.state !== "inviate";
+          $("email-dialog-content").innerHTML =
+            `<header class="dialog-head"><div><p class="small muted">CO ${p.co} · ${sectionText(p)}</p><h2 id="email-dialog-title">${esc(p.name)}</h2></div><button type="button" class="button" id="close-email" aria-label="Chiudi email">Chiudi</button></header><div class="email-meta"><p><strong>A</strong> Recapito sintetico omesso</p><p><strong>Quando</strong> ${e.state === "inviate" ? `${e.day}, ${e.time} · ora registrata di esempio` : "La data prevista è nel calendario e può aggiornarsi."}</p>${e.attachment ? `<p><strong>Allegato</strong> ${esc(e.attachment)} · PDF non incluso nell’HTML</p>` : ""}</div><section class="grid"><h3>Perché questa email</h3><p>${esc(e.reason)}</p></section><p class="notice">Simulazione locale come founder. Nessuna sospensione viene creata nel database e nessun testo sarà inviato. Le modifiche restano solo in memoria fino al ricaricamento.</p><p class="feedback" id="editor-feedback" role="status" aria-live="polite"></p>${e.hold ? editorHtml(e) : `<div class="email-body"><h3>${esc(e.subject || "Il testo deve ancora essere preparato")}</h3><p>${esc(e.body || "Qui vedrai la bozza quando sarà pronta. Le attese sono indicate nel programma.")}</p>${e.state !== "inviate" && e.body ? "<p>Il team LuckyLap · firma sintetica</p><p>Se preferite non ricevere altre comunicazioni, potete comunicarcelo rispondendo a questa email.</p>" : ""}</div>${editable ? '<div><button type="button" class="button primary" id="begin-edit">Sospendi e modifica</button></div>' : '<p class="small muted">Questa email non è modificabile: è già inviata oppure il testo non è ancora pronto.</p>'}`}<div class="row"><button type="button" class="text-button" id="open-contact">Apri la scheda del contatto</button><span class="small muted">${e.state === "inviate" ? "Testo effettivo registrato (esempio)" : "Bozza e versione correnti (esempio)"}</span></div>`;
+          if (!$("email-dialog").open) $("email-dialog").showModal();
+        }
+        function editorHtml(e) {
+          return `<p class="notice">Modifica aperta solo in questa ricostruzione. Nel gestionale la sospensione della sola bozza è persistente nel database anche dopo la chiusura del browser.</p><form class="editor" id="email-editor"><label class="field">Oggetto<input id="edit-subject" maxlength="300" value="${esc(e.subject)}" required /></label><label class="field">Testo da inviare<textarea id="edit-body" maxlength="8000" rows="12" required>${esc(e.body)}</textarea></label><section class="fixed-text"><h3>Firma e frase di uscita</h3><p>Il team LuckyLap · firma sintetica</p><p>Se preferite non ricevere altre comunicazioni, potete comunicarcelo rispondendo a questa email.</p></section><div class="row"><button class="button primary" type="submit">Salva il testo da inviare</button><button class="button" type="button" id="cancel-edit">Annulla modifica e riprendi il testo precedente</button></div></form>`;
+        }
+        function editorDirty() {
+          const e = emails[state.openedEmail];
+          return (
+            !!e?.hold &&
+            $("edit-subject") &&
+            ($("edit-subject").value !== e.subject || $("edit-body").value !== e.body)
+          );
+        }
+        function closeEmail() {
+          if (editorDirty()) {
+            $("editor-feedback").textContent =
+              "Salva il testo o annulla la modifica prima di chiudere.";
+            return false;
+          }
+          $("email-dialog").close();
+          state.openedEmail = null;
+          return true;
+        }
+        document.addEventListener("click", (event) => {
+          const b = event.target.closest("button");
+          if (!b || b.disabled) return;
+          if (b.dataset.page) {
+            page(b.dataset.page);
+            return;
+          }
+          if (b.dataset.section) {
+            state.section = b.dataset.section;
+            state.open = null;
+            renderPartner();
+            return;
+          }
+          if (b.dataset.view) {
+            state.view = b.dataset.view;
+            state.status = "tutti";
+            $("partner-status").value = "tutti";
+            state.open = null;
+            renderPartner();
+            return;
+          }
+          if (b.dataset.period) {
+            state.period = b.dataset.period;
+            renderPartner();
+            return;
+          }
+          if (b.dataset.open) {
+            state.open = state.open === Number(b.dataset.open) ? null : Number(b.dataset.open);
+            renderPartner();
+            document.querySelector(`[data-open="${b.dataset.open}"]`)?.focus();
+            return;
+          }
+          if (b.dataset.emailSection) {
+            state.emailSection = b.dataset.emailSection;
+            renderEmail();
+            return;
+          }
+          if (b.dataset.emailView) {
+            state.emailView = b.dataset.emailView;
+            renderEmail();
+            return;
+          }
+          if (b.dataset.emailPeriod) {
+            state.emailPeriod = b.dataset.emailPeriod;
+            renderEmail();
+            return;
+          }
+          if (b.dataset.email !== undefined) {
+            dialogEmail(b.dataset.email);
+            return;
+          }
+          if (b.dataset.register) {
+            feedback(
+              `Simulazione: “${b.dataset.register === "primo" ? "Segna inviato" : "Segna sollecito inviato"}” registrerebbe l’attività di CO ${b.dataset.co}. Non è stata inviata alcuna email e il registro di esempio resta invariato.`,
+            );
+            return;
+          }
+          if (b.id === "refresh-demo") {
+            renderEmail();
+            feedback("Esempio aggiornato in memoria. Nessuna lettura di servizi esterni.", "email");
+            return;
+          }
+          if (b.id === "close-email") {
+            closeEmail();
+            return;
+          }
+          if (b.id === "begin-edit") {
+            emails[state.openedEmail].hold = true;
+            renderEmail();
+            dialogEmail(state.openedEmail);
+            return;
+          }
+          if (b.id === "cancel-edit") {
+            emails[state.openedEmail].hold = false;
+            const index = state.openedEmail;
+            renderEmail();
+            dialogEmail(index);
+            $("editor-feedback").textContent =
+              "Simulazione: testo precedente ripristinato e sospensione locale tolta.";
+            return;
+          }
+          if (b.id === "open-contact") {
+            const co = emails[state.openedEmail].co;
+            if (!closeEmail()) return;
+            state.section = "tutti";
+            state.view = "tutti";
+            state.period = "tutti";
+            state.status = "tutti";
+            state.owner = "tutti";
+            state.search = "";
+            $("partner-search").value = "";
+            $("partner-owner").value = "tutti";
+            $("partner-status").value = "tutti";
+            state.open = co;
+            page("partner");
+            $("lead-" + co).scrollIntoView({ block: "center" });
+          }
+        });
+        document.addEventListener("submit", (event) => {
+          if (event.target.id !== "email-editor") return;
+          event.preventDefault();
+          const subject = $("edit-subject").value.trim();
+          const body = $("edit-body").value.trim();
+          if (!subject || !body) {
+            $("editor-feedback").textContent = "Compila oggetto e testo.";
+            return;
+          }
+          const e = emails[state.openedEmail];
+          e.subject = subject;
+          e.body = body;
+          e.hold = false;
+          const index = state.openedEmail;
+          renderEmail();
+          dialogEmail(index);
+          $("editor-feedback").textContent =
+            "Simulazione: nuova versione conservata solo in memoria. Nessuna scrittura al database o invio.";
+        });
+        $("email-dialog").addEventListener("cancel", (event) => {
+          if (editorDirty()) {
+            event.preventDefault();
+            $("editor-feedback").textContent =
+              "Salva il testo o annulla la modifica prima di chiudere.";
+          }
+        });
+        $("partner-search").addEventListener("input", (e) => {
+          state.search = e.target.value;
+          renderPartner();
+        });
+        $("partner-status").addEventListener("change", (e) => {
+          state.status = e.target.value;
+          renderPartner();
+        });
+        $("partner-owner").addEventListener("change", (e) => {
+          state.owner = e.target.value;
+          renderPartner();
+        });
+        $("email-search").addEventListener("input", (e) => {
+          state.emailSearch = e.target.value;
+          renderEmail();
+        });
+        $("email-flow").addEventListener("change", (e) => {
+          state.emailFlow = e.target.value;
+          renderEmail();
+        });
+        $("email-tests").addEventListener("change", (e) => {
+          state.tests = e.target.checked;
+          renderEmail();
+        });
+        renderPartner();
+        renderEmail();
+        const initialPage = new URLSearchParams(window.location.search).get("pagina");
+        if (["email", "assistente", "dati", "regole"].includes(initialPage)) page(initialPage);
+      })();
+    </script>
+  </body>
+</html>

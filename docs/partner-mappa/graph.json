@@ -1,0 +1,4504 @@
+{
+  "directed": true,
+  "multigraph": false,
+  "graph": {
+    "title": "Partner: flusso funzionale e dati",
+    "date": "2026-11-04",
+    "source_commit": "7a629ea",
+    "scope": "Codice e documentazione; nessun record di produzione",
+    "token_usage_available": false,
+    "original_relationship_count": 158,
+    "aggregated_relationship_count": 0
+  },
+  "nodes": [
+    {
+      "label": "Database contatti completo",
+      "file_type": "concept",
+      "source_file": "docs/partner.md",
+      "source_location": "L146",
+      "source_url": null,
+      "captured_at": null,
+      "author": null,
+      "contributor": null,
+      "group": "dati",
+      "who": "Database / team",
+      "when": "All’import o al salvataggio della scheda",
+      "how": "Una realtà = una riga partners; CO stabile, mai riusato.",
+      "input": "Identità e provenienza: id, co, source_key, origin, name, city, country, type_label. Segmentazione: sections, priority. Tempi: contact_month, event_starts_on, event_ends_on, application_deadline. Contesto: preferred_channel, research, research_base, research_removed_at. Operatività: stage, stage_from_file_at, owner_id, next_action, next_action_on, chosen_approach, approach_from_file_at. Concorrenza e tracciamento: version, created_by/at, updated_by/at.",
+      "output": "Scheda canonica collegata a recapiti, registro, blocchi, lavori e documenti.",
+      "description": "Una realtà = una riga partners. CO unico e stabile, mai riusato; una realtà può appartenere a più sezioni. I recapiti sono separati in partner_contacts. La scheda completa include ricerca/fonti, recapiti, stato, responsabile, azioni, registro, blocchi, lavoro e bozza dell’assistente.",
+      "sources": [
+        {
+          "path": "docs/partner.md",
+          "line": 146
+        },
+        {
+          "path": "supabase/migrations/20261022215908_partner_module.sql",
+          "line": 27
+        }
+      ],
+      "implemented": true,
+      "id": "docs_partner_database",
+      "community": 1,
+      "community_name": "Contatti e lavoro del team",
+      "norm_label": "database contatti completo"
+    },
+    {
+      "label": "Recapiti e canali",
+      "file_type": "concept",
+      "source_file": "docs/partner.md",
+      "source_location": "L147",
+      "source_url": null,
+      "captured_at": null,
+      "author": null,
+      "contributor": null,
+      "group": "dati",
+      "who": "Team / import",
+      "when": "Prima del contatto e a ogni rettifica",
+      "how": "partner_contacts conserva valore, link pulito, tipo, etichetta, verifica, attivo, posizione, versione e cancellazione.",
+      "input": "Email, telefono, WhatsApp, Instagram, form, pagina brand, sito.",
+      "output": "Canali validati disponibili a scheda e assistente.",
+      "description": "partner_contacts conserva valore, link pulito, tipo, etichetta, verifica, attivo, posizione, versione e cancellazione.",
+      "sources": [
+        {
+          "path": "docs/partner.md",
+          "line": 147
+        },
+        {
+          "path": "supabase/migrations/20261022215908_partner_module.sql",
+          "line": 75
+        }
+      ],
+      "implemented": true,
+      "id": "docs_partner_recapiti",
+      "community": 1,
+      "community_name": "Contatti e lavoro del team",
+      "norm_label": "recapiti e canali"
+    },
+    {
+      "label": "Ricerca e fonti",
+      "file_type": "concept",
+      "source_file": "docs/partner.md",
+      "source_location": "L193",
+      "source_url": null,
+      "captured_at": null,
+      "author": null,
+      "contributor": null,
+      "group": "dati",
+      "who": "Ricercatore nel repository Partner",
+      "when": "Prima dell’import; aggiornamenti con nuovo import",
+      "how": "Testi sola lettura in research; correzione nel laboratorio e reimportazione.",
+      "input": "Motivo, descrizione, proposta per sezione, pitch, prodotti, quando, come, date, candidatura, costi, pubblico, avvisi, lingua, fonti, extra.",
+      "output": "Contesto consultabile dal team; research_base confronta gli aggiornamenti.",
+      "description": "Testi sola lettura in research; correzione nel laboratorio e reimportazione.",
+      "sources": [
+        {
+          "path": "docs/partner.md",
+          "line": 193
+        },
+        {
+          "path": "src/lib/partner/model.ts",
+          "line": 431
+        }
+      ],
+      "implemented": true,
+      "id": "docs_partner_ricerca",
+      "community": 1,
+      "community_name": "Contatti e lavoro del team",
+      "norm_label": "ricerca e fonti"
+    },
+    {
+      "label": "Import della ricerca",
+      "file_type": "concept",
+      "source_file": "docs/partner.md",
+      "source_location": "L197",
+      "source_url": null,
+      "captured_at": null,
+      "author": null,
+      "contributor": null,
+      "group": "dati",
+      "who": "Proprietario del database; OK di Tommi per produzione",
+      "when": "Quando si aggiorna la ricerca",
+      "how": "Generatore offline → lotti verificati SHA-256 → apply in transazione; confronto a tre vie.",
+      "input": "Checkout della ricerca committato e completo.",
+      "output": "partners, recapiti, originali, differenze, ricevuta import; i lotti si cancellano.",
+      "description": "Generatore offline → lotti verificati SHA-256 → apply in transazione; confronto a tre vie.",
+      "sources": [
+        {
+          "path": "docs/partner.md",
+          "line": 197
+        },
+        {
+          "path": "supabase/generate-partner-import.mjs",
+          "line": 1
+        }
+      ],
+      "implemented": true,
+      "id": "docs_partner_import_ricerca",
+      "community": 1,
+      "community_name": "Contatti e lavoro del team",
+      "norm_label": "import della ricerca"
+    },
+    {
+      "label": "Differenze da controllare",
+      "file_type": "concept",
+      "source_file": "docs/partner.md",
+      "source_location": "L221",
+      "source_url": null,
+      "captured_at": null,
+      "author": null,
+      "contributor": null,
+      "group": "dati",
+      "who": "Team",
+      "when": "Quando import e team hanno cambiato lo stesso campo diversamente",
+      "how": "Tieni il nostro / Usa il nuovo; resta il valore del team fino alla scelta.",
+      "input": "Valore corrente, base e valore in arrivo.",
+      "output": "Scelta registrata e versione aggiornata; differenze message escluse dall’interfaccia dei contatti.",
+      "description": "Tieni il nostro / Usa il nuovo; resta il valore del team fino alla scelta.",
+      "sources": [
+        {
+          "path": "docs/partner.md",
+          "line": 221
+        },
+        {
+          "path": "src/components/partner/partner-details.tsx",
+          "line": 470
+        }
+      ],
+      "implemented": true,
+      "id": "docs_partner_differenze",
+      "community": 1,
+      "community_name": "Contatti e lavoro del team",
+      "norm_label": "differenze da controllare"
+    },
+    {
+      "label": "Partner: elenco operativo",
+      "file_type": "concept",
+      "source_file": "docs/partner.md",
+      "source_location": "L28",
+      "source_url": null,
+      "captured_at": null,
+      "author": null,
+      "contributor": null,
+      "group": "crm",
+      "who": "Tutti i membri attivi",
+      "when": "A ogni apertura di /partner",
+      "how": "Lettura del database, filtri locali, dettaglio letto dal server con ?co=N.",
+      "input": "Schede, recapiti puliti, blocchi, differenze, attività e stato assistente.",
+      "output": "Nome, tipo, motivo, fase, a chi tocca e per quando.",
+      "description": "Lettura del database, filtri locali, dettaglio letto dal server con ?co=N.",
+      "sources": [
+        {
+          "path": "docs/partner.md",
+          "line": 28
+        },
+        {
+          "path": "src/lib/partner/server.ts",
+          "line": 183
+        }
+      ],
+      "implemented": true,
+      "id": "docs_partner_roadbook",
+      "community": 3,
+      "community_name": "Contatti e lavoro del team",
+      "norm_label": "partner: elenco operativo"
+    },
+    {
+      "label": "Vendita",
+      "file_type": "concept",
+      "source_file": "docs/partner.md",
+      "source_location": "L3",
+      "source_url": null,
+      "captured_at": null,
+      "author": null,
+      "contributor": null,
+      "group": "crm",
+      "who": "Team",
+      "when": "Quando si lavora con negozi e rivenditori",
+      "how": "Sezione permanente; più sezioni possono appartenere alla stessa scheda.",
+      "input": "Contatti con sezione vendita.",
+      "output": "Proposta negozio e percorso verso acquisto, conto vendita o altra formula.",
+      "description": "Sezione permanente; più sezioni possono appartenere alla stessa scheda.",
+      "sources": [
+        {
+          "path": "docs/partner.md",
+          "line": 3
+        },
+        {
+          "path": "src/lib/partner/model.ts",
+          "line": 49
+        }
+      ],
+      "implemented": true,
+      "id": "docs_partner_vendita",
+      "community": 3,
+      "community_name": "Contatti e lavoro del team",
+      "norm_label": "vendita"
+    },
+    {
+      "label": "Eventi",
+      "file_type": "concept",
+      "source_file": "docs/partner.md",
+      "source_location": "L3",
+      "source_url": null,
+      "captured_at": null,
+      "author": null,
+      "contributor": null,
+      "group": "crm",
+      "who": "Team",
+      "when": "Quando si propongono stand, pop-up o partnership",
+      "how": "Sezione permanente con date evento e candidatura.",
+      "input": "Contatti con sezione eventi.",
+      "output": "Presenza, welcome kit o collaborazione proposta; calendario solo con accordo.",
+      "description": "Sezione permanente con date evento e candidatura.",
+      "sources": [
+        {
+          "path": "docs/partner.md",
+          "line": 3
+        },
+        {
+          "path": "src/lib/partner/model.ts",
+          "line": 52
+        }
+      ],
+      "implemented": true,
+      "id": "docs_partner_eventi",
+      "community": 3,
+      "community_name": "Contatti e lavoro del team",
+      "norm_label": "eventi"
+    },
+    {
+      "label": "Collab",
+      "file_type": "concept",
+      "source_file": "docs/partner.md",
+      "source_location": "L3",
+      "source_url": null,
+      "captured_at": null,
+      "author": null,
+      "contributor": null,
+      "group": "crm",
+      "who": "Team",
+      "when": "Quando si propongono capsule e partnership",
+      "how": "Sezione permanente per brand, media, community e altri partner.",
+      "input": "Contatti con sezione collab.",
+      "output": "Proposta specifica e avanzamento commerciale.",
+      "description": "Sezione permanente per brand, media, community e altri partner.",
+      "sources": [
+        {
+          "path": "docs/partner.md",
+          "line": 3
+        },
+        {
+          "path": "src/lib/partner/model.ts",
+          "line": 54
+        }
+      ],
+      "implemented": true,
+      "id": "docs_partner_collab",
+      "community": 3,
+      "community_name": "Contatti e lavoro del team",
+      "norm_label": "collab"
+    },
+    {
+      "label": "Club",
+      "file_type": "concept",
+      "source_file": "docs/partner.md",
+      "source_location": "L129",
+      "source_url": null,
+      "captured_at": null,
+      "author": null,
+      "contributor": null,
+      "group": "crm",
+      "who": "Team / assistente",
+      "when": "Quando si lavora sui club di appassionati",
+      "how": "Sezione permanente, sovrapponibile alle altre.",
+      "input": "Contatti con sezione club; fonti e recapito ufficiale.",
+      "output": "Proposta di magliette co-firmate con logo ricamato.",
+      "description": "Sezione permanente, sovrapponibile alle altre.",
+      "sources": [
+        {
+          "path": "docs/partner.md",
+          "line": 129
+        },
+        {
+          "path": "src/lib/partner/model.ts",
+          "line": 56
+        }
+      ],
+      "implemented": true,
+      "id": "docs_partner_club",
+      "community": 3,
+      "community_name": "Contatti e lavoro del team",
+      "norm_label": "club"
+    },
+    {
+      "label": "Viste di lavoro",
+      "file_type": "concept",
+      "source_file": "docs/partner.md",
+      "source_location": "L37",
+      "source_url": null,
+      "captured_at": null,
+      "author": null,
+      "contributor": null,
+      "group": "crm",
+      "who": "Team",
+      "when": "Durante consultazione, dopo risposta registrata o accordo",
+      "how": "Da seguire ordina per necessità e data; Risposte mostra solo risposte registrate e ignora periodo/stato; Tutti i contatti applica anche periodo e stato; Accordi fatti mostra chiuso di tutti i periodi, prima eventi futuri.",
+      "input": "Stato commerciale, blocchi, lavoro assistente, attività, scadenze e filtri.",
+      "output": "Lista del lavoro e archivio, con fase, a chi tocca e per quando.",
+      "description": "Quattro viste permanenti. Da seguire è predefinita; Risposte non importa la posta. Ogni vista mantiene ricerca, sezione e responsabile.",
+      "sources": [
+        {
+          "path": "docs/partner.md",
+          "line": 37
+        },
+        {
+          "path": "src/lib/partner/work.ts",
+          "line": 212
+        }
+      ],
+      "implemented": true,
+      "id": "docs_partner_da_seguire",
+      "community": 6,
+      "community_name": "Esiti e seguito manuale",
+      "norm_label": "viste di lavoro"
+    },
+    {
+      "label": "Filtri, periodi e indirizzo",
+      "file_type": "concept",
+      "source_file": "docs/partner.md",
+      "source_location": "L90",
+      "source_url": null,
+      "captured_at": null,
+      "author": null,
+      "contributor": null,
+      "group": "crm",
+      "who": "Utente nel browser",
+      "when": "Durante consultazione e condivisione dei link",
+      "how": "Sezione, ricerca, stato, seguito da, periodo; URL conserva la vista.",
+      "input": "Giorno di Roma e parametri validati.",
+      "output": "Lista e conteggi filtrati; link diretto ?co=N apre la scheda anche fuori filtro.",
+      "description": "Sezione, ricerca, stato, seguito da, periodo; URL conserva la vista.",
+      "sources": [
+        {
+          "path": "docs/partner.md",
+          "line": 90
+        },
+        {
+          "path": "src/lib/partner/filters.ts",
+          "line": 1
+        }
+      ],
+      "implemented": true,
+      "id": "docs_partner_filtri",
+      "community": 3,
+      "community_name": "Contatti e lavoro del team",
+      "norm_label": "filtri, periodi e indirizzo"
+    },
+    {
+      "label": "Scheda contatto",
+      "file_type": "concept",
+      "source_file": "docs/partner.md",
+      "source_location": "L42",
+      "source_url": null,
+      "captured_at": null,
+      "author": null,
+      "contributor": null,
+      "group": "crm",
+      "who": "Team",
+      "when": "Aprendo una riga o ?co=N",
+      "how": "Contesto → avvisi → responsabile/azione → Esito se accordo → ultima risposta → assistente/bozza → Registro → ricerca/recapiti/fonti.",
+      "input": "Scheda e dati collegati del solo contatto.",
+      "output": "Decisioni operative e comandi disponibili.",
+      "description": "La scheda completa è letta dal server. Mostra contesto, avvisi, responsabile e prossima azione, eventuale Esito, ultima risposta, bozza assistente, Registro e sezioni apribili di ricerca, recapiti e fonti. L’ordine effettivo del componente prevale sulla descrizione storica nel documento.",
+      "sources": [
+        {
+          "path": "docs/partner.md",
+          "line": 42
+        },
+        {
+          "path": "src/components/partner/partner-details.tsx",
+          "line": 492
+        }
+      ],
+      "implemented": true,
+      "id": "docs_partner_dettaglio",
+      "community": 1,
+      "community_name": "Contatti e lavoro del team",
+      "norm_label": "scheda contatto"
+    },
+    {
+      "label": "Stato commerciale e fase",
+      "file_type": "concept",
+      "source_file": "docs/partner.md",
+      "source_location": "L13",
+      "source_url": null,
+      "captured_at": null,
+      "author": null,
+      "contributor": null,
+      "group": "crm",
+      "who": "Team; sistema dopo invio assistente",
+      "when": "A ogni cambio commerciale o attività registrata",
+      "how": "Da contattare → Scritto → Risposto → Primi contatti avviati → Accordo fatto; Non interessato è alternativo.",
+      "input": "stage, blocchi, lavoro assistente.",
+      "output": "Fase operativa leggibile; non aggiunge stati nel database.",
+      "description": "Da contattare → Scritto → Risposto → Primi contatti avviati → Accordo fatto; Non interessato è alternativo.",
+      "sources": [
+        {
+          "path": "docs/partner.md",
+          "line": 13
+        },
+        {
+          "path": "src/lib/partner/model.ts",
+          "line": 10
+        }
+      ],
+      "implemented": true,
+      "id": "docs_partner_stato",
+      "community": 1,
+      "community_name": "Contatti e lavoro del team",
+      "norm_label": "stato commerciale e fase"
+    },
+    {
+      "label": "Seguito da",
+      "file_type": "concept",
+      "source_file": "docs/partner.md",
+      "source_location": "L172",
+      "source_url": null,
+      "captured_at": null,
+      "author": null,
+      "contributor": null,
+      "group": "crm",
+      "who": "Team",
+      "when": "Quando una persona prende in carico il contatto",
+      "how": "set_partner_state con versione; membro attivo o nessuno.",
+      "input": "owner_id e membri attivi.",
+      "output": "Responsabile condiviso. Un responsabile esclude le prime email automatiche.",
+      "description": "set_partner_state con versione; membro attivo o nessuno.",
+      "sources": [
+        {
+          "path": "docs/partner.md",
+          "line": 172
+        },
+        {
+          "path": "src/components/partner/partner-details.tsx",
+          "line": 168
+        }
+      ],
+      "implemented": true,
+      "id": "docs_partner_responsabile",
+      "community": 1,
+      "community_name": "Contatti e lavoro del team",
+      "norm_label": "seguito da"
+    },
+    {
+      "label": "Prossima azione e scadenza",
+      "file_type": "concept",
+      "source_file": "docs/partner.md",
+      "source_location": "L172",
+      "source_url": null,
+      "captured_at": null,
+      "author": null,
+      "contributor": null,
+      "group": "crm",
+      "who": "Team",
+      "when": "Quando si pianifica il prossimo passo",
+      "how": "Testo e data si salvano insieme; prevalgono nel Per quando.",
+      "input": "next_action e next_action_on.",
+      "output": "Azione datata; una prossima azione esclude le prime email automatiche.",
+      "description": "Testo e data si salvano insieme; prevalgono nel Per quando.",
+      "sources": [
+        {
+          "path": "docs/partner.md",
+          "line": 172
+        },
+        {
+          "path": "src/lib/partner/work.ts",
+          "line": 102
+        }
+      ],
+      "implemented": true,
+      "id": "docs_partner_prossima_azione",
+      "community": 1,
+      "community_name": "Contatti e lavoro del team",
+      "norm_label": "prossima azione e scadenza"
+    },
+    {
+      "label": "Registro attività",
+      "file_type": "concept",
+      "source_file": "docs/partner.md",
+      "source_location": "L44",
+      "source_url": null,
+      "captured_at": null,
+      "author": null,
+      "contributor": null,
+      "group": "crm",
+      "who": "Team / assistente / import storico",
+      "when": "Dopo un’azione effettiva",
+      "how": "Registro append-only con giorno, canale, testo e autore: Segna inviato, Segna sollecito inviato, Registra una risposta, Chiamata, Incontro, Nota. Una sola riga per contatto e operation_id.",
+      "input": "Tipo, origine team/file/assistente, occurred_at, message_kind primo/sollecito, channel, approach, stage_before/after, owner_after, next_action_on, body, created_by.",
+      "output": "Storico condiviso. Ultimo inviato → A loro; ultima risposta → A noi; stesso istante tra due tipi → Da verificare.",
+      "description": "Registra azioni già avvenute. Gli invii registrati creano un sollecito se applicabile; una risposta registrata lo chiude. Cambiare soltanto la tendina in Risposto non registra una risposta e non chiude il sollecito.",
+      "sources": [
+        {
+          "path": "docs/partner.md",
+          "line": 44
+        },
+        {
+          "path": "src/lib/partner/work.ts",
+          "line": 72
+        }
+      ],
+      "implemented": true,
+      "id": "docs_partner_registro",
+      "community": 1,
+      "community_name": "Contatti e lavoro del team",
+      "norm_label": "registro attivita"
+    },
+    {
+      "label": "Segna inviato / sollecito inviato",
+      "file_type": "concept",
+      "source_file": "docs/partner.md",
+      "source_location": "L44",
+      "source_url": null,
+      "captured_at": null,
+      "author": null,
+      "contributor": null,
+      "group": "crm",
+      "who": "Team",
+      "when": "Dopo aver spedito manualmente fuori dal gestionale",
+      "how": "record_partner_activity con kind inviato, message_kind primo/sollecito. Il pulsante registra; non spedisce.",
+      "input": "Giorno, canale, testo e approccio; conferma se invio recente dello stesso tipo.",
+      "output": "Registro, stato Scritto se prima Da contattare, sollecito a 7 giorni quando applicabile.",
+      "description": "record_partner_activity con kind inviato, message_kind primo/sollecito. Il pulsante registra; non spedisce.",
+      "sources": [
+        {
+          "path": "docs/partner.md",
+          "line": 44
+        },
+        {
+          "path": "src/components/partner/partner-activity.tsx",
+          "line": 33
+        }
+      ],
+      "implemented": true,
+      "id": "docs_partner_segna_inviato",
+      "community": 4,
+      "community_name": "Esiti e seguito manuale",
+      "norm_label": "segna inviato / sollecito inviato"
+    },
+    {
+      "label": "Registra una risposta / Ha risposto",
+      "file_type": "concept",
+      "source_file": "docs/partner.md",
+      "source_location": "L46",
+      "source_url": null,
+      "captured_at": null,
+      "author": null,
+      "contributor": null,
+      "group": "crm",
+      "who": "Team",
+      "when": "Dopo risposta arrivata nella casella o altro canale",
+      "how": "Registro o pulsante Ha risposto in Oggi: kind risposta.",
+      "input": "Giorno, canale e testo manualmente riportato.",
+      "output": "Registro, Risposto se prima Da contattare/Scritto, sollecito collegato chiuso.",
+      "description": "Registro o pulsante Ha risposto in Oggi: kind risposta.",
+      "sources": [
+        {
+          "path": "docs/partner.md",
+          "line": 46
+        },
+        {
+          "path": "supabase/migrations/20261030114722_assistente_partner_invio.sql",
+          "line": 366
+        }
+      ],
+      "implemented": true,
+      "id": "docs_partner_registra_risposta",
+      "community": 4,
+      "community_name": "Esiti e seguito manuale",
+      "norm_label": "registra una risposta / ha risposto"
+    },
+    {
+      "label": "Non contattare",
+      "file_type": "concept",
+      "source_file": "docs/partner.md",
+      "source_location": "L179",
+      "source_url": null,
+      "captured_at": null,
+      "author": null,
+      "contributor": null,
+      "group": "crm",
+      "who": "Team",
+      "when": "Alla richiesta di stop o decisione del team",
+      "how": "Blocca contatto o anche dominio; motivo obbligatorio; si può togliere.",
+      "input": "partner_do_not_contact e dominio del sito/email.",
+      "output": "Niente pulsanti di contatto, invii/chiamate/incontri rifiutati; sollecito chiuso.",
+      "description": "Blocca contatto o anche dominio; motivo obbligatorio; si può togliere.",
+      "sources": [
+        {
+          "path": "docs/partner.md",
+          "line": 179
+        },
+        {
+          "path": "supabase/migrations/20261022215908_partner_module.sql",
+          "line": 188
+        }
+      ],
+      "implemented": true,
+      "id": "docs_partner_non_contattare",
+      "community": 1,
+      "community_name": "Contatti e lavoro del team",
+      "norm_label": "non contattare"
+    },
+    {
+      "label": "Comandi e ricevute",
+      "file_type": "concept",
+      "source_file": "docs/partner.md",
+      "source_location": "L168",
+      "source_url": null,
+      "captured_at": null,
+      "author": null,
+      "contributor": null,
+      "group": "crm",
+      "who": "Membro attivo; database verifica autore",
+      "when": "A ogni scrittura del gestionale",
+      "how": "Server Action → RPC; operation_id, schema_version, ricevuta, lock e versione attesa.",
+      "input": "Payload validato e identità della sessione.",
+      "output": "Una modifica atomica e un registro; ripetere la stessa operazione riproduce la ricevuta.",
+      "description": "Server Action → RPC; operation_id, schema_version, ricevuta, lock e versione attesa.",
+      "sources": [
+        {
+          "path": "docs/partner.md",
+          "line": 168
+        },
+        {
+          "path": "src/app/(workspace)/partner/command-runner.ts",
+          "line": 95
+        }
+      ],
+      "implemented": true,
+      "id": "docs_partner_comandi",
+      "community": 1,
+      "community_name": "Contatti e lavoro del team",
+      "norm_label": "comandi e ricevute"
+    },
+    {
+      "label": "Varianti storiche della ricerca",
+      "file_type": "concept",
+      "source_file": "docs/partner.md",
+      "source_location": "L48",
+      "source_url": null,
+      "captured_at": null,
+      "author": null,
+      "contributor": null,
+      "group": "dati",
+      "who": "Import / team; blocco non montato nella scheda",
+      "when": "Conservazione e aggiornamenti storici",
+      "how": "partner_message_variants e revisioni append-only restano nel database.",
+      "input": "Testi originali, revisioni, lingua, approccio, lookbook.",
+      "output": "Storico; non sono le email in partenza dell’assistente.",
+      "description": "partner_message_variants e revisioni append-only restano nel database.",
+      "sources": [
+        {
+          "path": "docs/partner.md",
+          "line": 48
+        },
+        {
+          "path": "src/components/partner/partner-details.tsx",
+          "line": 448
+        }
+      ],
+      "implemented": true,
+      "id": "docs_partner_varianti_storiche",
+      "community": 1,
+      "community_name": "Contatti e lavoro del team",
+      "norm_label": "varianti storiche della ricerca"
+    },
+    {
+      "label": "Dati Partner",
+      "file_type": "concept",
+      "source_file": "docs/partner.md",
+      "source_location": "L61",
+      "source_url": null,
+      "captured_at": null,
+      "author": null,
+      "contributor": null,
+      "group": "crm",
+      "who": "Team",
+      "when": "Aprendo /partner/dati",
+      "how": "Mostra ultimo import, storico, differenze, import file salvati e lookbook.",
+      "input": "Metadati di import e PDF del repository.",
+      "output": "Tracciabilità della ricerca e strumenti di import storico.",
+      "description": "Mostra ultimo import, storico, differenze, import file salvati e lookbook.",
+      "sources": [
+        {
+          "path": "docs/partner.md",
+          "line": 61
+        },
+        {
+          "path": "src/lib/partner/server.ts",
+          "line": 536
+        }
+      ],
+      "implemented": true,
+      "id": "docs_partner_pagina_dati",
+      "community": 3,
+      "community_name": "Contatti e lavoro del team",
+      "norm_label": "dati partner"
+    },
+    {
+      "label": "File Esporta del vecchio sito",
+      "file_type": "concept",
+      "source_file": "docs/partner.md",
+      "source_location": "L315",
+      "source_url": null,
+      "captured_at": null,
+      "author": null,
+      "contributor": null,
+      "group": "dati",
+      "who": "Team",
+      "when": "Solo se esiste un file già scaricato dal vecchio sito",
+      "how": "Controlla il file senza scritture → Importa in transazione idempotente.",
+      "input": "File JSON formato/versione validati e SHA-256.",
+      "output": "Stati, testi e approcci applicati senza sovrascrivere il team; conflitti diventano differenze.",
+      "description": "Controlla il file senza scritture → Importa in transazione idempotente.",
+      "sources": [
+        {
+          "path": "docs/partner.md",
+          "line": 315
+        },
+        {
+          "path": "src/lib/partner/device-file.ts",
+          "line": 1
+        }
+      ],
+      "implemented": true,
+      "id": "docs_partner_file_storici",
+      "community": 1,
+      "community_name": "Contatti e lavoro del team",
+      "norm_label": "file esporta del vecchio sito"
+    },
+    {
+      "label": "Cinque lookbook PDF",
+      "file_type": "concept",
+      "source_file": "docs/partner.md",
+      "source_location": "L334",
+      "source_url": null,
+      "captured_at": null,
+      "author": null,
+      "contributor": null,
+      "group": "dati",
+      "who": "Team scarica; sviluppatore aggiorna con PR",
+      "when": "Prima o durante le proposte",
+      "how": "GET autenticato con codice ammesso; file nel repository, niente Storage.",
+      "input": "Codici negozi, eventi, collab, porsche_club, club.",
+      "output": "PDF privato; nuove versioni passano da aggiornamento del gestionale.",
+      "description": "GET autenticato con codice ammesso; file nel repository, niente Storage.",
+      "sources": [
+        {
+          "path": "docs/partner.md",
+          "line": 334
+        },
+        {
+          "path": "src/lib/partner/lookbook.ts",
+          "line": 1
+        }
+      ],
+      "implemented": true,
+      "id": "docs_partner_lookbook",
+      "community": 3,
+      "community_name": "Contatti e lavoro del team",
+      "norm_label": "cinque lookbook pdf"
+    },
+    {
+      "label": "Regole per scrivere",
+      "file_type": "concept",
+      "source_file": "docs/partner.md",
+      "source_location": "L67",
+      "source_url": null,
+      "captured_at": null,
+      "author": null,
+      "contributor": null,
+      "group": "crm",
+      "who": "Team legge; ricerca aggiorna al reimport",
+      "when": "Aprendo /partner/regole",
+      "how": "Mostra CONTESTO.md dell’ultimo import come solo testo.",
+      "input": "partner_research_imports.context_md.",
+      "output": "Contesto della ricerca; distinto dalle regole versionate dell’assistente.",
+      "description": "Mostra CONTESTO.md dell’ultimo import come solo testo.",
+      "sources": [
+        {
+          "path": "docs/partner.md",
+          "line": 67
+        },
+        {
+          "path": "src/lib/partner/server.ts",
+          "line": 565
+        }
+      ],
+      "implemented": true,
+      "id": "docs_partner_regole",
+      "community": 1,
+      "community_name": "Contatti e lavoro del team",
+      "norm_label": "regole per scrivere"
+    },
+    {
+      "label": "Promemoria a 7 giorni",
+      "file_type": "concept",
+      "source_file": "docs/partner.md",
+      "source_location": "L394",
+      "source_url": null,
+      "captured_at": null,
+      "author": null,
+      "contributor": null,
+      "group": "esiti",
+      "who": "Sistema crea; Tommi esegue se origine assistente",
+      "when": "7 giorni dopo l’invio registrato, mezzanotte di Roma",
+      "how": "Trigger crea task e partner_work_links follow_up; una nuova comunicazione chiude il ciclo precedente.",
+      "input": "Attività inviato, stato e blocchi; handoff_to per invio assistente.",
+      "output": "Un task a +7 giorni (mezzanotte di Roma), collegato all’attività di invio; niente solleciti automatici dell’assistente.",
+      "description": "Promemoria creato automaticamente, email successiva scritta e spedita manualmente. Dopo una prima email dell’assistente il compito è assegnato a handoff_to (Tommi); dopo un invio manuale al membro che lo registra. Una nuova attività di invio chiude il promemoria precedente e ne apre uno a 7 giorni se applicabile. Risposta registrata, accordo, Non interessato o Non contattare chiudono i promemoria applicabili.",
+      "sources": [
+        {
+          "path": "docs/partner.md",
+          "line": 394
+        },
+        {
+          "path": "supabase/migrations/20261030114722_assistente_partner_invio.sql",
+          "line": 360
+        }
+      ],
+      "implemented": true,
+      "id": "docs_partner_sollecito",
+      "community": 4,
+      "community_name": "Esiti e seguito manuale",
+      "norm_label": "promemoria a 7 giorni"
+    },
+    {
+      "label": "Oggi: contatti e solleciti",
+      "file_type": "concept",
+      "source_file": "docs/partner.md",
+      "source_location": "L392",
+      "source_url": null,
+      "captured_at": null,
+      "author": null,
+      "contributor": null,
+      "group": "esiti",
+      "who": "Team; solleciti della persona assegnata",
+      "when": "Alla scadenza o nel periodo Adesso",
+      "how": "Contatti da fare e promemoria aperti; Ha risposto registra e chiude.",
+      "input": "partners, partner_work_links, tasks e giorno di Roma.",
+      "output": "Lista operativa nella home; solleciti non duplicati in Agenda.",
+      "description": "Contatti da fare e promemoria aperti; Ha risposto registra e chiude.",
+      "sources": [
+        {
+          "path": "docs/partner.md",
+          "line": 392
+        },
+        {
+          "path": "supabase/migrations/20261023140414_partner_oggi_fixes.sql",
+          "line": 51
+        }
+      ],
+      "implemented": true,
+      "id": "docs_partner_oggi",
+      "community": 4,
+      "community_name": "Esiti e seguito manuale",
+      "norm_label": "oggi: contatti e solleciti"
+    },
+    {
+      "label": "Accordo fatto",
+      "file_type": "concept",
+      "source_file": "docs/partner.md",
+      "source_location": "L116",
+      "source_url": null,
+      "captured_at": null,
+      "author": null,
+      "contributor": null,
+      "group": "esiti",
+      "who": "Team",
+      "when": "Quando si conclude un’intesa reale",
+      "how": "set_partner_state con stage chiuso o esito collegato.",
+      "input": "Intesa commerciale e date della scheda.",
+      "output": "Esito visibile; date ammesse in calendario; accesso a Partner nel Team.",
+      "description": "set_partner_state con stage chiuso o esito collegato.",
+      "sources": [
+        {
+          "path": "docs/partner.md",
+          "line": 116
+        },
+        {
+          "path": "src/components/partner/partner-outcome-panel.tsx",
+          "line": 16
+        }
+      ],
+      "implemented": true,
+      "id": "docs_partner_accordo",
+      "community": 6,
+      "community_name": "Esiti e seguito manuale",
+      "norm_label": "accordo fatto"
+    },
+    {
+      "label": "Partner nel Team",
+      "file_type": "concept",
+      "source_file": "docs/partner.md",
+      "source_location": "L396",
+      "source_url": null,
+      "captured_at": null,
+      "author": null,
+      "contributor": null,
+      "group": "esiti",
+      "who": "Team",
+      "when": "Dopo accordo, dal pannello Esito",
+      "how": "/team/partner?co=N; crea collega evento, progetto o attività conto vendita.",
+      "input": "Scheda Partner e scelta del team.",
+      "output": "partner_work_links verso lavoro operativo.",
+      "description": "/team/partner?co=N; crea collega evento, progetto o attività conto vendita.",
+      "sources": [
+        {
+          "path": "docs/partner.md",
+          "line": 396
+        },
+        {
+          "path": "src/components/partner/partner-outcome-panel.tsx",
+          "line": 6
+        }
+      ],
+      "implemented": true,
+      "id": "docs_partner_lavoro_collegato",
+      "community": 6,
+      "community_name": "Esiti e seguito manuale",
+      "norm_label": "partner nel team"
+    },
+    {
+      "label": "Evento e scadenza nel calendario",
+      "file_type": "concept",
+      "source_file": "docs/partner.md",
+      "source_location": "L116",
+      "source_url": null,
+      "captured_at": null,
+      "author": null,
+      "contributor": null,
+      "group": "esiti",
+      "who": "Sistema sincronizza; team risolve scelte",
+      "when": "Solo con Accordo fatto e date; collegamento esplicito ammette passato",
+      "how": "Date all-day nel fuso Roma; salvaguarda modifiche manuali e vendite collegate.",
+      "input": "event_starts_on, event_ends_on, application_deadline, stage chiuso.",
+      "output": "calendar_events e collegamento; conflitti → Scelta richiesta.",
+      "description": "Date all-day nel fuso Roma; salvaguarda modifiche manuali e vendite collegate.",
+      "sources": [
+        {
+          "path": "docs/partner.md",
+          "line": 116
+        },
+        {
+          "path": "supabase/migrations/20261023113212_partner_dates_only_agreed.sql",
+          "line": 10
+        }
+      ],
+      "implemented": true,
+      "id": "docs_partner_calendario",
+      "community": 6,
+      "community_name": "Esiti e seguito manuale",
+      "norm_label": "evento e scadenza nel calendario"
+    },
+    {
+      "label": "Progetto per Produzione",
+      "file_type": "concept",
+      "source_file": "docs/partner.md",
+      "source_location": "L396",
+      "source_url": null,
+      "captured_at": null,
+      "author": null,
+      "contributor": null,
+      "group": "esiti",
+      "who": "Team",
+      "when": "Quando l’accordo richiede lavoro sul prodotto",
+      "how": "Crea un progetto da Partner nel Team.",
+      "input": "Scheda con accordo e proposta concreta.",
+      "output": "product_development_projects collegato al contatto.",
+      "description": "Crea un progetto da Partner nel Team.",
+      "sources": [
+        {
+          "path": "docs/partner.md",
+          "line": 396
+        },
+        {
+          "path": "supabase/migrations/20261023091627_partner_work_links.sql",
+          "line": 5
+        }
+      ],
+      "implemented": true,
+      "id": "docs_partner_produzione",
+      "community": 6,
+      "community_name": "Esiti e seguito manuale",
+      "norm_label": "progetto per produzione"
+    },
+    {
+      "label": "Attività di apertura conto vendita",
+      "file_type": "concept",
+      "source_file": "docs/partner.md",
+      "source_location": "L396",
+      "source_url": null,
+      "captured_at": null,
+      "author": null,
+      "contributor": null,
+      "group": "esiti",
+      "who": "Team",
+      "when": "Quando l’accordo richiede conto vendita",
+      "how": "Crea attività da Partner nel Team; non apre automaticamente un conto.",
+      "input": "Scheda e decisione commerciale.",
+      "output": "Task shop_review collegato al contatto.",
+      "description": "Crea attività da Partner nel Team; non apre automaticamente un conto.",
+      "sources": [
+        {
+          "path": "docs/partner.md",
+          "line": 396
+        },
+        {
+          "path": "supabase/migrations/20261023091627_partner_work_links.sql",
+          "line": 7
+        }
+      ],
+      "implemented": true,
+      "id": "docs_partner_conto_vendita",
+      "community": 6,
+      "community_name": "Esiti e seguito manuale",
+      "norm_label": "attivita di apertura conto vendita"
+    },
+    {
+      "label": "Controllo CEO",
+      "file_type": "concept",
+      "source_file": "docs/partner.md",
+      "source_location": "L402",
+      "source_url": null,
+      "captured_at": null,
+      "author": null,
+      "contributor": null,
+      "group": "crm",
+      "who": "Founder legge; sistema registra",
+      "when": "Dopo i cambiamenti del team e gli invii assistente",
+      "how": "Feed leggibile con link alla scheda; audit tecnico nel database.",
+      "input": "Eventi di audit filtrati; nome e CO per collegamento.",
+      "output": "Traccia delle azioni; audit privo di recapiti e testi.",
+      "description": "Feed leggibile con link alla scheda; audit tecnico nel database.",
+      "sources": [
+        {
+          "path": "docs/partner.md",
+          "line": 402
+        },
+        {
+          "path": "docs/audit-workspace.md",
+          "line": 1
+        }
+      ],
+      "implemented": true,
+      "id": "docs_partner_ceo",
+      "community": 1,
+      "community_name": "Contatti e lavoro del team",
+      "norm_label": "controllo ceo"
+    },
+    {
+      "label": "Privacy, blocchi e cancellazione",
+      "file_type": "concept",
+      "source_file": "docs/partner.md",
+      "source_location": "L341",
+      "source_url": null,
+      "captured_at": null,
+      "author": null,
+      "contributor": null,
+      "group": "crm",
+      "who": "Team / database",
+      "when": "A ogni accesso e cancellazione",
+      "how": "RLS membri; recapiti solo nel dettaglio completo; cancellazione definitiva non ripristinata dall’import.",
+      "input": "Identità e dati del contatto.",
+      "output": "Audit senza recapiti/testi; valori e destinatari cancellati rimossi.",
+      "description": "CRM accessibile a tutti i membri attivi, Luca incluso. RLS limita le letture; scritture soltanto tramite comandi. I comandi sensibili dell’assistente hanno regole founder specifiche. Audit senza recapiti e testi; la cancellazione definitiva non viene annullata dagli import.",
+      "sources": [
+        {
+          "path": "docs/partner.md",
+          "line": 341
+        },
+        {
+          "path": "supabase/migrations/20261022215908_partner_module.sql",
+          "line": 75
+        }
+      ],
+      "implemented": true,
+      "id": "docs_partner_privacy",
+      "community": 1,
+      "community_name": "Contatti e lavoro del team",
+      "norm_label": "privacy, blocchi e cancellazione"
+    },
+    {
+      "label": "Modalità e responsabilità",
+      "file_type": "concept",
+      "source_file": "docs/partner-assistente.md",
+      "source_location": "line 98",
+      "source_url": null,
+      "captured_at": null,
+      "author": null,
+      "contributor": null,
+      "group": "preparazione",
+      "who": "Team; Tommi per Prova e Invio",
+      "when": "Quando si avvia o si ferma il lavoro",
+      "how": "Spento ferma; Prepara produce bozze; Prova invia solo alle caselle di test; Invio manda prime email reali dopo prova confermata.",
+      "input": "Configurazione corrente e versione",
+      "output": "Modalità persistita",
+      "description": "Spento ferma; Prepara produce bozze; Prova invia solo alle caselle di test; Invio manda prime email reali dopo prova confermata.",
+      "sources": [
+        {
+          "path": "supabase/migrations/20261103122914_assistente_partner_prova_allegati.sql",
+          "line": 116
+        }
+      ],
+      "implemented": true,
+      "id": "docs_partner_assistente_modalita",
+      "community": 7,
+      "community_name": "Preparazione delle email",
+      "norm_label": "modalita e responsabilita"
+    },
+    {
+      "label": "Giro ogni due minuti",
+      "file_type": "concept",
+      "source_file": "docs/partner-assistente.md",
+      "source_location": "line 23",
+      "source_url": null,
+      "captured_at": null,
+      "author": null,
+      "contributor": null,
+      "group": "preparazione",
+      "who": "pg_cron → route server",
+      "when": "Ogni due minuti; risposta 202 immediata",
+      "how": "Dopo la risposta il server registra configurazione posta, tenta invio/copie e solo se idle esegue un passo di preparazione.",
+      "input": "Segreto worker; configurazione valida",
+      "output": "Un passo persistito o nessuna operazione",
+      "description": "Dopo la risposta il server registra configurazione posta, tenta invio/copie e solo se idle esegue un passo di preparazione.",
+      "sources": [
+        {
+          "path": "src/app/api/integrations/partner-assistant/worker/route.ts",
+          "line": 8
+        },
+        {
+          "path": "src/lib/partner-assistant/worker.ts",
+          "line": 628
+        }
+      ],
+      "implemented": true,
+      "id": "docs_partner_assistente_scheduler",
+      "community": 7,
+      "community_name": "Preparazione delle email",
+      "norm_label": "giro ogni due minuti"
+    },
+    {
+      "label": "Contatto idoneo all’assistente",
+      "file_type": "concept",
+      "source_file": "docs/partner-assistente.md",
+      "source_location": "line 34",
+      "source_url": null,
+      "captured_at": null,
+      "author": null,
+      "contributor": null,
+      "group": "preparazione",
+      "who": "Database",
+      "when": "Prima di prendere e prima di concludere un passo",
+      "how": "Solo Da contattare, senza responsabile/prossima azione, non rimosso o bloccato, assistente attivo, email attiva e nessuna attività team/file che segnali lavoro avviato.",
+      "input": "Scheda; recapiti; blocchi; interruttore; registro",
+      "output": "Contatto ammesso o motivo esclusione",
+      "description": "Solo Da contattare, senza responsabile/prossima azione, non rimosso o bloccato, assistente attivo, email attiva e nessuna attività team/file che segnali lavoro avviato.",
+      "sources": [
+        {
+          "path": "supabase/migrations/20261028122956_assistente_partner_worker.sql",
+          "line": 70
+        }
+      ],
+      "implemented": true,
+      "id": "docs_partner_assistente_idoneita",
+      "community": 1,
+      "community_name": "Contatti e lavoro del team",
+      "norm_label": "contatto idoneo all’assistente"
+    },
+    {
+      "label": "Coda e priorità di preparazione",
+      "file_type": "concept",
+      "source_file": "docs/partner-assistente.md",
+      "source_location": "line 34",
+      "source_url": null,
+      "captured_at": null,
+      "author": null,
+      "contributor": null,
+      "group": "preparazione",
+      "who": "Database; Tommi per Manda per primo",
+      "when": "A ogni presa di lavoro",
+      "how": "Manda per primo precede; ordinamento poi per mese entro due mesi, priorità, mese e CO.",
+      "input": "Contatti idonei; priorità; mese pianificato",
+      "output": "Classifica e un lavoro per contatto",
+      "description": "Manda per primo precede; ordinamento poi per mese entro due mesi, priorità, mese e CO.",
+      "sources": [
+        {
+          "path": "supabase/migrations/20261030114722_assistente_partner_invio.sql",
+          "line": 295
+        }
+      ],
+      "implemented": true,
+      "id": "docs_partner_assistente_coda",
+      "community": 0,
+      "community_name": "Preparazione delle email",
+      "norm_label": "coda e priorita di preparazione"
+    },
+    {
+      "label": "Lavoro persistente del contatto",
+      "file_type": "concept",
+      "source_file": "docs/partner-assistente.md",
+      "source_location": "line 84",
+      "source_url": null,
+      "captured_at": null,
+      "author": null,
+      "contributor": null,
+      "group": "dati",
+      "who": "Database",
+      "when": "Tra un giro e il successivo",
+      "how": "partner_assistant_jobs conserva passo, stato, tentativi, riscritture, write_on, note e bozza corrente; dopo invio vero diventa inviata.",
+      "input": "Contatto idoneo",
+      "output": "Un job durevole",
+      "description": "partner_assistant_jobs conserva passo, stato, tentativi, riscritture, write_on, note e bozza corrente; dopo invio vero diventa inviata.",
+      "sources": [
+        {
+          "path": "supabase/migrations/20261104001229_partner_programma_email.sql",
+          "line": 758
+        }
+      ],
+      "implemented": true,
+      "id": "docs_partner_assistente_lavoro",
+      "community": 0,
+      "community_name": "Preparazione delle email",
+      "norm_label": "lavoro persistente del contatto"
+    },
+    {
+      "label": "Lease e contesto verificato",
+      "file_type": "concept",
+      "source_file": "docs/partner-assistente.md",
+      "source_location": "line 94",
+      "source_url": null,
+      "captured_at": null,
+      "author": null,
+      "contributor": null,
+      "group": "preparazione",
+      "who": "Worker e RPC Database",
+      "when": "Prima della chiamata e prima del salvataggio",
+      "how": "Un passo lungo alla volta; claim, lettura contesto, checkpoint e conclusione legati alla lease. Cambi di scheda/recapito/regole impediscono avanzamento di un contesto obsoleto.",
+      "input": "Job; versione scheda e regole; recapito",
+      "output": "Snapshot coerente o stop",
+      "description": "Un passo lungo alla volta; claim, lettura contesto, checkpoint e conclusione legati alla lease. Cambi di scheda/recapito/regole impediscono avanzamento di un contesto obsoleto.",
+      "sources": [
+        {
+          "path": "src/lib/partner-assistant/worker.ts",
+          "line": 376
+        },
+        {
+          "path": "src/lib/partner-assistant/worker.ts",
+          "line": 446
+        }
+      ],
+      "implemented": true,
+      "id": "docs_partner_assistente_lease",
+      "community": 0,
+      "community_name": "Preparazione delle email",
+      "norm_label": "lease e contesto verificato"
+    },
+    {
+      "label": "Club modello oppure altri contatti",
+      "file_type": "concept",
+      "source_file": "docs/partner-assistente.md",
+      "source_location": "line 398",
+      "source_url": null,
+      "captured_at": null,
+      "author": null,
+      "contributor": null,
+      "group": "preparazione",
+      "who": "Codice e Database",
+      "when": "Per ogni contatto idoneo",
+      "how": "Club senza sezione Eventi usa il testo fisso; un Club che è anche Evento passa nella pipeline completa degli altri.",
+      "input": "Sezioni della scheda",
+      "output": "Flusso Club o Altri",
+      "description": "Club senza sezione Eventi usa il testo fisso; un Club che è anche Evento passa nella pipeline completa degli altri.",
+      "sources": [
+        {
+          "path": "src/lib/partner-assistant/template.ts",
+          "line": 595
+        }
+      ],
+      "implemented": true,
+      "id": "docs_partner_assistente_bivio",
+      "community": 0,
+      "community_name": "Preparazione delle email",
+      "norm_label": "club modello oppure altri contatti"
+    },
+    {
+      "label": "Club: compone il modello approvato",
+      "file_type": "concept",
+      "source_file": "docs/partner-assistente.md",
+      "source_location": "line 360",
+      "source_url": null,
+      "captured_at": null,
+      "author": null,
+      "contributor": null,
+      "group": "preparazione",
+      "who": "Codice; testo approvato da Tommi",
+      "when": "Da qualsiasi passo precedente al controllo",
+      "how": "Compone nome, lingua, registro, fuso e marca; nessuna ricerca o scrittura Claude. Versione 3, cinque lingue, nota sostitutiva e scelta conservate. La rete Scuderia Ferrari Club è bloccata e passa a Tommi.",
+      "input": "Scheda club; telefono di firma riservato",
+      "output": "Bozza modello e note nello storico",
+      "description": "Compone nome, lingua, registro, fuso e marca; nessuna ricerca o scrittura Claude. Versione 3, cinque lingue, nota sostitutiva e scelta conservate. La rete Scuderia Ferrari Club è bloccata e passa a Tommi.",
+      "sources": [
+        {
+          "path": "src/lib/partner-assistant/worker.ts",
+          "line": 450
+        },
+        {
+          "path": "src/lib/partner-assistant/template.ts",
+          "line": 605
+        }
+      ],
+      "implemented": true,
+      "id": "docs_partner_assistente_modello",
+      "community": 0,
+      "community_name": "Preparazione delle email",
+      "norm_label": "club: compone il modello approvato"
+    },
+    {
+      "label": "Altri: ricerca aggiornata con fonti",
+      "file_type": "concept",
+      "source_file": "docs/partner-assistente.md",
+      "source_location": "line 27",
+      "source_url": null,
+      "captured_at": null,
+      "author": null,
+      "contributor": null,
+      "group": "preparazione",
+      "who": "Claude",
+      "when": "Primo passo; quando la ricerca scade",
+      "how": "Studia il contatto sul web senza fidarsi automaticamente di nomi e date della scheda; salva testo e fonti in note append-only.",
+      "input": "Scheda; regole; data corrente",
+      "output": "Nota di ricerca con fonti e data",
+      "description": "Studia il contatto sul web senza fidarsi automaticamente di nomi e date della scheda; salva testo e fonti in note append-only.",
+      "sources": [
+        {
+          "path": "src/lib/partner-assistant/worker.ts",
+          "line": 181
+        }
+      ],
+      "implemented": true,
+      "id": "docs_partner_assistente_ricerca",
+      "community": 0,
+      "community_name": "Preparazione delle email",
+      "norm_label": "altri: ricerca aggiornata con fonti"
+    },
+    {
+      "label": "Estrae contesto e momento giusto",
+      "file_type": "concept",
+      "source_file": "docs/partner-assistente.md",
+      "source_location": "line 28",
+      "source_url": null,
+      "captured_at": null,
+      "author": null,
+      "contributor": null,
+      "group": "preparazione",
+      "who": "Claude",
+      "when": "Dopo la ricerca o alla ripresa con ricerca valida",
+      "how": "Output strutturato: tipo, lingua, registro, destinatario suggerito, fuso, fatto e fonte, evento/date, momento per scrivere.",
+      "input": "Ricerca con data; scheda; regole",
+      "output": "Scelta strutturata validata",
+      "description": "Output strutturato: tipo, lingua, registro, destinatario suggerito, fuso, fatto e fonte, evento/date, momento per scrivere.",
+      "sources": [
+        {
+          "path": "src/lib/partner-assistant/worker.ts",
+          "line": 197
+        },
+        {
+          "path": "src/lib/partner-assistant/choice.ts",
+          "line": 66
+        }
+      ],
+      "implemented": true,
+      "id": "docs_partner_assistente_estrazione",
+      "community": 0,
+      "community_name": "Preparazione delle email",
+      "norm_label": "estrae contesto e momento giusto"
+    },
+    {
+      "label": "Il codice decide proposta e azione",
+      "file_type": "concept",
+      "source_file": "docs/partner-assistente.md",
+      "source_location": "line 28",
+      "source_url": null,
+      "captured_at": null,
+      "author": null,
+      "contributor": null,
+      "group": "preparazione",
+      "who": "Codice",
+      "when": "Dopo l’estrazione",
+      "how": "Club → co-branding; brand/media → capsule; evento raggiungibile → stand, altrimenti co-branding; negozio → vendita. Decide scrivi, attendi oppure Serve Tommi.",
+      "input": "Tipo; raggiungibilità evento; fatto; fuso; write_on",
+      "output": "Proposta da elenco chiuso e decisione",
+      "description": "Club → co-branding; brand/media → capsule; evento raggiungibile → stand, altrimenti co-branding; negozio → vendita. Decide scrivi, attendi oppure Serve Tommi.",
+      "sources": [
+        {
+          "path": "src/lib/partner-assistant/choice.ts",
+          "line": 75
+        },
+        {
+          "path": "src/lib/partner-assistant/choice.ts",
+          "line": 118
+        }
+      ],
+      "implemented": true,
+      "id": "docs_partner_assistente_scelta",
+      "community": 0,
+      "community_name": "Preparazione delle email",
+      "norm_label": "il codice decide proposta e azione"
+    },
+    {
+      "label": "Attesa fino alla data scelta",
+      "file_type": "concept",
+      "source_file": "docs/partner-assistente.md",
+      "source_location": "line 489",
+      "source_url": null,
+      "captured_at": null,
+      "author": null,
+      "contributor": null,
+      "group": "preparazione",
+      "who": "Database",
+      "when": "Quando write_on è futura",
+      "how": "Alla data rientra in coda. Riuso della ricerca solo se meno di 14 giorni, scheda invariata, fatto/fuso presenti ed evento non iniziato; la scelta si rifà sempre.",
+      "input": "Scelta e ricerca precedente",
+      "output": "Nuova estrazione oppure nuova ricerca",
+      "description": "Alla data rientra in coda. Riuso della ricerca solo se meno di 14 giorni, scheda invariata, fatto/fuso presenti ed evento non iniziato; la scelta si rifà sempre.",
+      "sources": [
+        {
+          "path": "supabase/migrations/20261104001229_partner_programma_email.sql",
+          "line": 763
+        },
+        {
+          "path": "supabase/migrations/20261104001229_partner_programma_email.sql",
+          "line": 793
+        }
+      ],
+      "implemented": true,
+      "id": "docs_partner_assistente_attesa",
+      "community": 0,
+      "community_name": "Preparazione delle email",
+      "norm_label": "attesa fino alla data scelta"
+    },
+    {
+      "label": "Scrive oggetto e corpo",
+      "file_type": "concept",
+      "source_file": "docs/partner-assistente.md",
+      "source_location": "line 29",
+      "source_url": null,
+      "captured_at": null,
+      "author": null,
+      "contributor": null,
+      "group": "preparazione",
+      "who": "Claude; codice per la firma",
+      "when": "Quando scelta e momento consentono di scrivere",
+      "how": "Claude scrive testo; il codice aggiunge la firma della lingua e l’impronta SHA-256, senza passare al modello il numero della firma.",
+      "input": "Ricerca; scelta; regole; versione scheda; recapito attivo",
+      "output": "Bozza append-only",
+      "description": "Claude scrive testo; il codice aggiunge la firma della lingua e l’impronta SHA-256, senza passare al modello il numero della firma.",
+      "sources": [
+        {
+          "path": "src/lib/partner-assistant/worker.ts",
+          "line": 215
+        }
+      ],
+      "implemented": true,
+      "id": "docs_partner_assistente_scrittura",
+      "community": 0,
+      "community_name": "Preparazione delle email",
+      "norm_label": "scrive oggetto e corpo"
+    },
+    {
+      "label": "Controlli automatici sul testo",
+      "file_type": "concept",
+      "source_file": "docs/partner-assistente.md",
+      "source_location": "line 29",
+      "source_url": null,
+      "captured_at": null,
+      "author": null,
+      "contributor": null,
+      "group": "preparazione",
+      "who": "Codice",
+      "when": "Su ogni bozza prima della seconda lettura",
+      "how": "Parole vietate, segnaposto, al massimo una domanda, niente esclamativi/emoji, link ammesso, nessun telefono nel corpo, firma, modelli Porsche, lunghezza e versione regole. Altri 110–160 parole, modello Club 180–260. Per gli altri è ammessa una sola riscrittura; ulteriore bocciatura porta a Tommi. Il modello Club bocciato passa a Tommi.",
+      "input": "Oggetto; corpo; firma; regole",
+      "output": "Esito e codici di errore",
+      "description": "Parole vietate, segnaposto, al massimo una domanda, niente esclamativi/emoji, link ammesso, nessun telefono nel corpo, firma, modelli Porsche, lunghezza e versione regole. Altri 110–160 parole, modello Club 180–260. Per gli altri è ammessa una sola riscrittura; ulteriore bocciatura porta a Tommi. Il modello Club bocciato passa a Tommi.",
+      "sources": [
+        {
+          "path": "src/lib/partner-assistant/checks.ts",
+          "line": 155
+        }
+      ],
+      "implemented": true,
+      "id": "docs_partner_assistente_controlli",
+      "community": 0,
+      "community_name": "Preparazione delle email",
+      "norm_label": "controlli automatici sul testo"
+    },
+    {
+      "label": "Seconda lettura indipendente",
+      "file_type": "concept",
+      "source_file": "docs/partner-assistente.md",
+      "source_location": "line 30",
+      "source_url": null,
+      "captured_at": null,
+      "author": null,
+      "contributor": null,
+      "group": "preparazione",
+      "who": "Claude",
+      "when": "Ultimo passo della preparazione",
+      "how": "Rilegge con regole e contesto. Per il modello Club applica la revisione dedicata al testo approvato; memorizza approvazione legata all’impronta della bozza.",
+      "input": "Bozza; scelta; regole",
+      "output": "Nota di controllo con approvazione e SHA-256",
+      "description": "Rilegge con regole e contesto. Per il modello Club applica la revisione dedicata al testo approvato; memorizza approvazione legata all’impronta della bozza.",
+      "sources": [
+        {
+          "path": "src/lib/partner-assistant/worker.ts",
+          "line": 253
+        }
+      ],
+      "implemented": true,
+      "id": "docs_partner_assistente_seconda_lettura",
+      "community": 0,
+      "community_name": "Preparazione delle email",
+      "norm_label": "seconda lettura indipendente"
+    },
+    {
+      "label": "Bozza pronta e visibile",
+      "file_type": "concept",
+      "source_file": "docs/partner-assistente.md",
+      "source_location": "line 32",
+      "source_url": null,
+      "captured_at": null,
+      "author": null,
+      "contributor": null,
+      "group": "preparazione",
+      "who": "Database; team in lettura",
+      "when": "Dopo controllo approvato",
+      "how": "Lo stato pronta entra nella coda d’invio; bozza, ricerca, motivo e proposta sono leggibili nella scheda e nel Programma email.",
+      "input": "Bozza approvata corrente",
+      "output": "Candidato all’invio, soggetto ai controlli finali",
+      "description": "Lo stato pronta entra nella coda d’invio; bozza, ricerca, motivo e proposta sono leggibili nella scheda e nel Programma email.",
+      "sources": [
+        {
+          "path": "src/lib/partner-assistant/worker.ts",
+          "line": 253
+        },
+        {
+          "path": "src/components/partner/partner-assistant-block.tsx",
+          "line": 1
+        }
+      ],
+      "implemented": true,
+      "id": "docs_partner_assistente_pronta",
+      "community": 2,
+      "community_name": "Calendario e revisione",
+      "norm_label": "bozza pronta e visibile"
+    },
+    {
+      "label": "Regole di scrittura versionate",
+      "file_type": "concept",
+      "source_file": "docs/partner-assistente.md",
+      "source_location": "line 82",
+      "source_url": null,
+      "captured_at": null,
+      "author": null,
+      "contributor": null,
+      "group": "dati",
+      "who": "Team; Database",
+      "when": "Quando vengono aggiornate le regole",
+      "how": "Regole append-only. Bozze con regole superate tornano al lavoro appropriato; email già partite restano nello storico. Revisioni umane obsolete tornano a Tommi.",
+      "input": "Testo regole; expected_version",
+      "output": "Nuova versione e invalidazione controllata",
+      "description": "Regole append-only. Bozze con regole superate tornano al lavoro appropriato; email già partite restano nello storico. Revisioni umane obsolete tornano a Tommi.",
+      "sources": [
+        {
+          "path": "supabase/migrations/20261104001229_partner_programma_email.sql",
+          "line": 678
+        }
+      ],
+      "implemented": true,
+      "id": "docs_partner_assistente_regole",
+      "community": 0,
+      "community_name": "Preparazione delle email",
+      "norm_label": "regole di scrittura versionate"
+    },
+    {
+      "label": "Ricerca, scelta e controllo nello storico",
+      "file_type": "concept",
+      "source_file": "docs/partner-assistente.md",
+      "source_location": "line 85",
+      "source_url": null,
+      "captured_at": null,
+      "author": null,
+      "contributor": null,
+      "group": "dati",
+      "who": "RPC del worker",
+      "when": "Alla conclusione di ogni passo",
+      "how": "partner_assistant_notes è append-only; la ricerca assistente resta distinta da partners.research dell’import.",
+      "input": "Risposta completa; fonti; scelta; controllo",
+      "output": "Note immutabili referenziate dal lavoro",
+      "description": "partner_assistant_notes è append-only; la ricerca assistente resta distinta da partners.research dell’import.",
+      "sources": [
+        {
+          "path": "docs/partner-assistente.md",
+          "line": 85
+        }
+      ],
+      "implemented": true,
+      "id": "docs_partner_assistente_note",
+      "community": 0,
+      "community_name": "Preparazione delle email",
+      "norm_label": "ricerca, scelta e controllo nello storico"
+    },
+    {
+      "label": "Bozze, versioni e impronte",
+      "file_type": "concept",
+      "source_file": "docs/partner-assistente.md",
+      "source_location": "line 86",
+      "source_url": null,
+      "captured_at": null,
+      "author": null,
+      "contributor": null,
+      "group": "dati",
+      "who": "Database",
+      "when": "Alla scrittura o revisione",
+      "how": "partner_assistant_drafts conserva contact_id, versione scheda/regole, oggetto/corpo/firma e SHA-256. Il lavoro punta alla bozza corrente.",
+      "input": "Testo; contesto; recapito",
+      "output": "Storico delle bozze verificabile",
+      "description": "partner_assistant_drafts conserva contact_id, versione scheda/regole, oggetto/corpo/firma e SHA-256. Il lavoro punta alla bozza corrente.",
+      "sources": [
+        {
+          "path": "docs/partner-assistente.md",
+          "line": 86
+        }
+      ],
+      "implemented": true,
+      "id": "docs_partner_assistente_bozze",
+      "community": 3,
+      "community_name": "Contatti e lavoro del team",
+      "norm_label": "bozze, versioni e impronte"
+    },
+    {
+      "label": "Pausa preparazione per credito",
+      "file_type": "concept",
+      "source_file": "docs/partner-assistente.md",
+      "source_location": "line 38",
+      "source_url": null,
+      "captured_at": null,
+      "author": null,
+      "contributor": null,
+      "group": "preparazione",
+      "who": "Worker; Tommi per ricarica/ripresa",
+      "when": "Credito esaurito o errore di configurazione Claude",
+      "how": "Sospende nuove chiamate Claude. Gli invii delle bozze già pronte continuano con la loro coda e controlli indipendenti.",
+      "input": "Errore Claude; credito stimato",
+      "output": "Pausa persistita e avviso",
+      "description": "Sospende nuove chiamate Claude. Gli invii delle bozze già pronte continuano con la loro coda e controlli indipendenti.",
+      "sources": [
+        {
+          "path": "src/lib/partner-assistant/worker.ts",
+          "line": 628
+        },
+        {
+          "path": "supabase/migrations/20261104001229_partner_programma_email.sql",
+          "line": 735
+        }
+      ],
+      "implemented": true,
+      "id": "docs_partner_assistente_credito",
+      "community": 7,
+      "community_name": "Preparazione delle email",
+      "norm_label": "pausa preparazione per credito"
+    },
+    {
+      "label": "Attese e tentativi di preparazione",
+      "file_type": "concept",
+      "source_file": "docs/partner-assistente.md",
+      "source_location": "line 36",
+      "source_url": null,
+      "captured_at": null,
+      "author": null,
+      "contributor": null,
+      "group": "preparazione",
+      "who": "Worker e Database",
+      "when": "Errori o lease scaduta",
+      "how": "Sovraccarico/rete: attesa globale di dieci minuti. Risposte rotte/troncate e lavoro già pagato consumano tentativi; al terzo Serve Tommi.",
+      "input": "Errore tecnico e consumo già avvenuto",
+      "output": "Attesa, riprova o passaggio umano",
+      "description": "Sovraccarico/rete: attesa globale di dieci minuti. Risposte rotte/troncate e lavoro già pagato consumano tentativi; al terzo Serve Tommi.",
+      "sources": [
+        {
+          "path": "src/lib/partner-assistant/worker.ts",
+          "line": 339
+        },
+        {
+          "path": "supabase/migrations/20261104001229_partner_programma_email.sql",
+          "line": 746
+        }
+      ],
+      "implemented": true,
+      "id": "docs_partner_assistente_tentativi",
+      "community": 0,
+      "community_name": "Preparazione delle email",
+      "norm_label": "attese e tentativi di preparazione"
+    },
+    {
+      "label": "Serve Tommi e verifica umana",
+      "file_type": "concept",
+      "source_file": "docs/partner-assistente.md",
+      "source_location": "line 61",
+      "source_url": null,
+      "captured_at": null,
+      "author": null,
+      "contributor": null,
+      "group": "esiti",
+      "who": "Tommi",
+      "when": "Fatti/fuso mancanti, bozze respinte, dati cancellati, conversazione esistente o invio incerto",
+      "how": "La pagina Assistente e la scheda mostrano il motivo. Ridai all’assistente vale solo quando idoneo; non riattiva invii incerti o conversazioni già esistenti.",
+      "input": "Contatto e motivo",
+      "output": "Decisione o lavoro manuale",
+      "description": "La pagina Assistente e la scheda mostrano il motivo. Ridai all’assistente vale solo quando idoneo; non riattiva invii incerti o conversazioni già esistenti.",
+      "sources": [
+        {
+          "path": "src/components/partner/partner-assistant-view.tsx",
+          "line": 1
+        }
+      ],
+      "implemented": true,
+      "id": "docs_partner_assistente_serve_tommi",
+      "community": 0,
+      "community_name": "Preparazione delle email",
+      "norm_label": "serve tommi e verifica umana"
+    },
+    {
+      "label": "Prova reale e conferma del founder",
+      "file_type": "concept",
+      "source_file": "docs/partner-assistente.md",
+      "source_location": "line 188",
+      "source_url": null,
+      "captured_at": null,
+      "author": null,
+      "contributor": null,
+      "group": "invio",
+      "who": "Tommi; worker",
+      "when": "Prima di abilitare Invio",
+      "how": "Invia bozze a sole caselle di test configurate; Tommi verifica arrivo in inbox e conferma. Test senza cambio stato contatto, registro o sollecito; massimo 15 email/giorno.",
+      "input": "Bozze; destinatari test configurati",
+      "output": "Prova e conferma persistite",
+      "description": "Invia bozze a sole caselle di test configurate; Tommi verifica arrivo in inbox e conferma. Test senza cambio stato contatto, registro o sollecito; massimo 15 email/giorno.",
+      "sources": [
+        {
+          "path": "supabase/migrations/20261103122914_assistente_partner_prova_allegati.sql",
+          "line": 140
+        },
+        {
+          "path": "docs/partner-assistente.md",
+          "line": 442
+        }
+      ],
+      "implemented": true,
+      "id": "docs_partner_assistente_prova",
+      "community": 7,
+      "community_name": "Preparazione delle email",
+      "norm_label": "prova reale e conferma del founder"
+    },
+    {
+      "label": "Quote di Club e Altri",
+      "file_type": "concept",
+      "source_file": "docs/partner-assistente.md",
+      "source_location": "line 452",
+      "source_url": null,
+      "captured_at": null,
+      "author": null,
+      "contributor": null,
+      "group": "invio",
+      "who": "Database",
+      "when": "Nel giorno di Roma",
+      "how": "5 prime email nei primi 7 giorni di calendario dal primo invio vero, poi limite configurato (predefinito 10). Posto dispari agli Altri; con 5: 3 Altri e 2 Club, con 10: 5 e 5.",
+      "input": "Prime email del giorno; code pronte",
+      "output": "Capacità residua per flusso",
+      "description": "5 prime email nei primi 7 giorni di calendario dal primo invio vero, poi limite configurato (predefinito 10). Posto dispari agli Altri; con 5: 3 Altri e 2 Club, con 10: 5 e 5.",
+      "sources": [
+        {
+          "path": "supabase/migrations/20261030114722_assistente_partner_invio.sql",
+          "line": 1020
+        },
+        {
+          "path": "supabase/migrations/20261101102208_assistente_partner_due_lavori.sql",
+          "line": 32
+        }
+      ],
+      "implemented": true,
+      "id": "docs_partner_assistente_quote",
+      "community": 2,
+      "community_name": "Calendario e revisione",
+      "norm_label": "quote di club e altri"
+    },
+    {
+      "label": "Finestra e intervallo d’invio",
+      "file_type": "concept",
+      "source_file": "docs/partner-assistente.md",
+      "source_location": "line 229",
+      "source_url": null,
+      "captured_at": null,
+      "author": null,
+      "contributor": null,
+      "group": "invio",
+      "who": "Database",
+      "when": "Lun–ven 09:30–11:00 nel fuso del destinatario",
+      "how": "Lun–ven 09:30 incluse–11:00 escluse nel fuso del destinatario, margine finale di 90 secondi. Tra email 4–11 minuti casuali. Nessun invio dal 21 dicembre al 7 gennaio. Calendario feste coperto fino al 31 gennaio 2027: dopo, finestra chiusa finché aggiornata; paese non riconosciuto senza feste note con evento di avviso. Quote sul giorno di Roma.",
+      "input": "Fuso; paese; ora; calendario coperto",
+      "output": "Finestra aperta oppure attesa",
+      "description": "Lun–ven 09:30 incluse–11:00 escluse nel fuso del destinatario, margine finale di 90 secondi. Tra email 4–11 minuti casuali. Nessun invio dal 21 dicembre al 7 gennaio. Calendario feste coperto fino al 31 gennaio 2027: dopo, finestra chiusa finché aggiornata; paese non riconosciuto senza feste note con evento di avviso. Quote sul giorno di Roma.",
+      "sources": [
+        {
+          "path": "supabase/migrations/20261104001229_partner_programma_email.sql",
+          "line": 964
+        },
+        {
+          "path": "docs/partner-assistente.md",
+          "line": 229
+        },
+        {
+          "path": "docs/partner-assistente.md",
+          "line": 232
+        }
+      ],
+      "implemented": true,
+      "id": "docs_partner_assistente_finestre",
+      "community": 2,
+      "community_name": "Calendario e revisione",
+      "norm_label": "finestra e intervallo d’invio"
+    },
+    {
+      "label": "Scelta del prossimo invio",
+      "file_type": "concept",
+      "source_file": "docs/partner-assistente.md",
+      "source_location": "line 259",
+      "source_url": null,
+      "captured_at": null,
+      "author": null,
+      "contributor": null,
+      "group": "invio",
+      "who": "Database; Tommi per precedenza",
+      "when": "A ogni giro con Invio attivo",
+      "how": "Fra le bozze valide sceglie per precedenza, evento vicino, ricerca vecchia, priorità e CO, rispettando le due quote e la finestra. I posti dell’altro flusso restano riservati se ha bozze pronte.",
+      "input": "Coda pronta; quote; finestre",
+      "output": "Un candidato oppure idle",
+      "description": "Fra le bozze valide sceglie per precedenza, evento vicino, ricerca vecchia, priorità e CO, rispettando le due quote e la finestra. I posti dell’altro flusso restano riservati se ha bozze pronte.",
+      "sources": [
+        {
+          "path": "supabase/migrations/20261104001229_partner_programma_email.sql",
+          "line": 368
+        },
+        {
+          "path": "supabase/migrations/20261104001229_partner_programma_email.sql",
+          "line": 914
+        }
+      ],
+      "implemented": true,
+      "id": "docs_partner_assistente_ordine_invio",
+      "community": 2,
+      "community_name": "Calendario e revisione",
+      "norm_label": "scelta del prossimo invio"
+    },
+    {
+      "label": "Una sola email alla volta",
+      "file_type": "concept",
+      "source_file": "docs/partner-assistente.md",
+      "source_location": "line 186",
+      "source_url": null,
+      "captured_at": null,
+      "author": null,
+      "contributor": null,
+      "group": "invio",
+      "who": "Database e worker",
+      "when": "Per tutto il giro d’invio",
+      "how": "Lease della casella per 300 secondi; budget invio 120 secondi. Un messaggio in_invio perso passa a incerto al recupero, senza un altro SMTP.",
+      "input": "Configurazione; coda; lease casella",
+      "output": "Un giro esclusivo",
+      "description": "Lease della casella per 300 secondi; budget invio 120 secondi. Un messaggio in_invio perso passa a incerto al recupero, senza un altro SMTP.",
+      "sources": [
+        {
+          "path": "src/lib/partner-assistant/send.ts",
+          "line": 113
+        },
+        {
+          "path": "supabase/migrations/20261104001229_partner_programma_email.sql",
+          "line": 851
+        }
+      ],
+      "implemented": true,
+      "id": "docs_partner_assistente_lease_casella",
+      "community": 7,
+      "community_name": "Preparazione delle email",
+      "norm_label": "una sola email alla volta"
+    },
+    {
+      "label": "Riconferma contesto, età e date",
+      "file_type": "concept",
+      "source_file": "docs/partner-assistente.md",
+      "source_location": "line 267",
+      "source_url": null,
+      "captured_at": null,
+      "author": null,
+      "contributor": null,
+      "group": "invio",
+      "who": "Database e codice",
+      "when": "Al claim, prepare e immediatamente prima SMTP",
+      "how": "Ricerca minore di 21 giorni; regole/recapito/versioni coerenti; nessuna sospensione editoriale; evento non iniziato; ricontrolla date nel corpo e proposta di co-branding legata alle date.",
+      "input": "Bozza corrente; note; scheda; recapito; data",
+      "output": "Candidato ancora valido o ritorno al lavoro/Serve Tommi",
+      "description": "Ricerca minore di 21 giorni; regole/recapito/versioni coerenti; nessuna sospensione editoriale; evento non iniziato; ricontrolla date nel corpo e proposta di co-branding legata alle date.",
+      "sources": [
+        {
+          "path": "src/lib/partner-assistant/send.ts",
+          "line": 218
+        },
+        {
+          "path": "src/lib/partner-assistant/send-recheck.ts",
+          "line": 261
+        },
+        {
+          "path": "supabase/migrations/20261104001229_partner_programma_email.sql",
+          "line": 474
+        }
+      ],
+      "implemented": true,
+      "id": "docs_partner_assistente_validita",
+      "community": 0,
+      "community_name": "Preparazione delle email",
+      "norm_label": "riconferma contesto, eta e date"
+    },
+    {
+      "label": "Verifica conversazioni degli ultimi 365 giorni",
+      "file_type": "concept",
+      "source_file": "docs/partner-assistente.md",
+      "source_location": "line 190",
+      "source_url": null,
+      "captured_at": null,
+      "author": null,
+      "contributor": null,
+      "group": "invio",
+      "who": "IMAP e codice",
+      "when": "Prima di ogni prima email; anche come verifica durante Prova",
+      "how": "Cerca corrispondenza con il recapito reale; se trovata in Invio passa a Tommi, se incerta attende. Non importa risposte nella vista Risposte.",
+      "input": "Indirizzo reale; cartelle IMAP; limite di 365 giorni",
+      "output": "Vuota, trovata o incerta",
+      "description": "Cerca corrispondenza con il recapito reale; se trovata in Invio passa a Tommi, se incerta attende. Non importa risposte nella vista Risposte.",
+      "sources": [
+        {
+          "path": "src/lib/partner-assistant/send.ts",
+          "line": 335
+        }
+      ],
+      "implemented": true,
+      "id": "docs_partner_assistente_imap_storia",
+      "community": 0,
+      "community_name": "Preparazione delle email",
+      "norm_label": "verifica conversazioni degli ultimi 365 giorni"
+    },
+    {
+      "label": "Compone il messaggio finale",
+      "file_type": "concept",
+      "source_file": "docs/partner-assistente.md",
+      "source_location": "line 269",
+      "source_url": null,
+      "captured_at": null,
+      "author": null,
+      "contributor": null,
+      "group": "invio",
+      "who": "Codice",
+      "when": "Dopo controlli e casella vuota",
+      "how": "Corpo approvato + firma + frase di uscita di lingua/registro; un solo destinatario, niente Cc/Bcc. Compone Message-ID e MIME una volta per usare gli stessi byte SMTP/IMAP.",
+      "input": "Bozza; lingua; registro; mittente configurato",
+      "output": "Testo finale e MIME",
+      "description": "Corpo approvato + firma + frase di uscita di lingua/registro; un solo destinatario, niente Cc/Bcc. Compone Message-ID e MIME una volta per usare gli stessi byte SMTP/IMAP.",
+      "sources": [
+        {
+          "path": "src/lib/partner-assistant/send.ts",
+          "line": 356
+        }
+      ],
+      "implemented": true,
+      "id": "docs_partner_assistente_composizione",
+      "community": 3,
+      "community_name": "Contatti e lavoro del team",
+      "norm_label": "compone il messaggio finale"
+    },
+    {
+      "label": "Lookbook Club dal 4 novembre",
+      "file_type": "concept",
+      "source_file": "docs/partner-assistente.md",
+      "source_location": "line 438",
+      "source_url": null,
+      "captured_at": null,
+      "author": null,
+      "contributor": null,
+      "group": "invio",
+      "who": "Database e codice",
+      "when": "Dal 4 novembre 2026, giorno di Roma, per Club modello v3",
+      "how": "DB sceglie Porsche Clubs per comunità Porsche o Clubs per altri Club. Worker carica solo PDF noto dal repository e ne verifica firma, dimensione e SHA-256. Altri contatti senza PDF.",
+      "input": "Bozza modello v3; scelta; metadati PDF ammessi",
+      "output": "Un allegato validato o giro fermato",
+      "description": "DB sceglie Porsche Clubs per comunità Porsche o Clubs per altri Club. Worker carica solo PDF noto dal repository e ne verifica firma, dimensione e SHA-256. Altri contatti senza PDF.",
+      "sources": [
+        {
+          "path": "src/lib/partner-assistant/test-lookbook-metadata.ts",
+          "line": 23
+        },
+        {
+          "path": "supabase/migrations/20261103122914_assistente_partner_prova_allegati.sql",
+          "line": 31
+        }
+      ],
+      "implemented": true,
+      "id": "docs_partner_assistente_allegato",
+      "community": 3,
+      "community_name": "Contatti e lavoro del team",
+      "norm_label": "lookbook club dal 4 novembre"
+    },
+    {
+      "label": "Prepara e salva il messaggio immutabile",
+      "file_type": "concept",
+      "source_file": "docs/partner-assistente.md",
+      "source_location": "line 200",
+      "source_url": null,
+      "captured_at": null,
+      "author": null,
+      "contributor": null,
+      "group": "invio",
+      "who": "RPC Database",
+      "when": "Prima di SMTP",
+      "how": "prepare verifica testo, impronta, bozza corrente e contesto e salva partner_assistant_messages in stato pronto, con MIME e metadati allegato. Unicità protegge dalla doppia prima email.",
+      "input": "MIME; Message-ID; bozza; lease; esito IMAP",
+      "output": "Messaggio pronto immutabile",
+      "description": "prepare verifica testo, impronta, bozza corrente e contesto e salva partner_assistant_messages in stato pronto, con MIME e metadati allegato. Unicità protegge dalla doppia prima email.",
+      "sources": [
+        {
+          "path": "src/lib/partner-assistant/send.ts",
+          "line": 386
+        },
+        {
+          "path": "supabase/migrations/20261104001229_partner_programma_email.sql",
+          "line": 392
+        }
+      ],
+      "implemented": true,
+      "id": "docs_partner_assistente_prepare",
+      "community": 3,
+      "community_name": "Contatti e lavoro del team",
+      "norm_label": "prepara e salva il messaggio immutabile"
+    },
+    {
+      "label": "Ultima guardia prima della partenza",
+      "file_type": "concept",
+      "source_file": "docs/partner-assistente.md",
+      "source_location": "line 200",
+      "source_url": null,
+      "captured_at": null,
+      "author": null,
+      "contributor": null,
+      "group": "invio",
+      "who": "RPC Database",
+      "when": "Subito prima SMTP",
+      "how": "start ricontrolla contatto, contesto, sospensione e puntatore corrente, finestra e allegato. Solo stato in_invio autorizza il worker a inviare.",
+      "input": "Messaggio pronto; lease corrente",
+      "output": "in_invio oppure stop/scarto",
+      "description": "start ricontrolla contatto, contesto, sospensione e puntatore corrente, finestra e allegato. Solo stato in_invio autorizza il worker a inviare.",
+      "sources": [
+        {
+          "path": "src/lib/partner-assistant/send.ts",
+          "line": 423
+        },
+        {
+          "path": "supabase/migrations/20261104001229_partner_programma_email.sql",
+          "line": 521
+        }
+      ],
+      "implemented": true,
+      "id": "docs_partner_assistente_start",
+      "community": 2,
+      "community_name": "Calendario e revisione",
+      "norm_label": "ultima guardia prima della partenza"
+    },
+    {
+      "label": "Invio SMTP singolo",
+      "file_type": "concept",
+      "source_file": "docs/partner-assistente.md",
+      "source_location": "line 188",
+      "source_url": null,
+      "captured_at": null,
+      "author": null,
+      "contributor": null,
+      "group": "invio",
+      "who": "Worker → server SMTP aziendale",
+      "when": "Solo dopo start valido",
+      "how": "Una sola chiamata SMTP per il messaggio. Accettazione SMTP prova l’invio al server, non la collocazione in inbox del destinatario.",
+      "input": "Byte MIME salvati; mittente; destinatario",
+      "output": "Inviato, respinto, non partito o incerto",
+      "description": "Una sola chiamata SMTP per il messaggio. Accettazione SMTP prova l’invio al server, non la collocazione in inbox del destinatario.",
+      "sources": [
+        {
+          "path": "src/lib/partner-assistant/send.ts",
+          "line": 439
+        }
+      ],
+      "implemented": true,
+      "id": "docs_partner_assistente_smtp",
+      "community": 4,
+      "community_name": "Esiti e seguito manuale",
+      "norm_label": "invio smtp singolo"
+    },
+    {
+      "label": "Registra esito e avanzamento",
+      "file_type": "concept",
+      "source_file": "docs/partner-assistente.md",
+      "source_location": "line 188",
+      "source_url": null,
+      "captured_at": null,
+      "author": null,
+      "contributor": null,
+      "group": "dati",
+      "who": "RPC Database",
+      "when": "Subito dopo SMTP",
+      "how": "finish registra esito e contatori; inviato reale aggiorna scheda/registro/job, incerto passa a Tommi senza ritentare, respinto porta motivo e può fermare la casella.",
+      "input": "Esito SMTP; identificativo messaggio",
+      "output": "Stato durevole e ricevuta idempotente",
+      "description": "finish registra esito e contatori; inviato reale aggiorna scheda/registro/job, incerto passa a Tommi senza ritentare, respinto porta motivo e può fermare la casella.",
+      "sources": [
+        {
+          "path": "src/lib/partner-assistant/send.ts",
+          "line": 463
+        },
+        {
+          "path": "supabase/migrations/20261030114722_assistente_partner_invio.sql",
+          "line": 1637
+        }
+      ],
+      "implemented": true,
+      "id": "docs_partner_assistente_esito",
+      "community": 4,
+      "community_name": "Esiti e seguito manuale",
+      "norm_label": "registra esito e avanzamento"
+    },
+    {
+      "label": "Scritto, registro e sollecito a 7 giorni",
+      "file_type": "concept",
+      "source_file": "docs/partner-assistente.md",
+      "source_location": "line 188",
+      "source_url": null,
+      "captured_at": null,
+      "author": null,
+      "contributor": null,
+      "group": "esiti",
+      "who": "Database e trigger",
+      "when": "Dopo prima email vera accettata",
+      "how": "Scheda contattato (UI Scritto), attività inviato con origine assistente, lavoro inviata e task Sollecito a 7 giorni assegnato al destinatario handoff_to, normalmente Tommi.",
+      "input": "Invio reale riuscito",
+      "output": "Scheda e promemoria aggiornati",
+      "description": "Scheda contattato (UI Scritto), attività inviato con origine assistente, lavoro inviata e task Sollecito a 7 giorni assegnato al destinatario handoff_to, normalmente Tommi.",
+      "sources": [
+        {
+          "path": "supabase/migrations/20261030114722_assistente_partner_invio.sql",
+          "line": 1637
+        },
+        {
+          "path": "supabase/migrations/20261030114722_assistente_partner_invio.sql",
+          "line": 354
+        }
+      ],
+      "implemented": true,
+      "id": "docs_partner_assistente_post_invio",
+      "community": 4,
+      "community_name": "Esiti e seguito manuale",
+      "norm_label": "scritto, registro e sollecito a 7 giorni"
+    },
+    {
+      "label": "Copia gli stessi byte in Posta inviata",
+      "file_type": "concept",
+      "source_file": "docs/partner-assistente.md",
+      "source_location": "line 194",
+      "source_url": null,
+      "captured_at": null,
+      "author": null,
+      "contributor": null,
+      "group": "invio",
+      "who": "IMAP e worker",
+      "when": "Dopo SMTP riuscito; recupero nei giri successivi se necessario",
+      "how": "Cerca Message-ID prima di appendere per evitare duplicati. Una copia mancata si recupera senza un altro SMTP.",
+      "input": "MIME immutabile e Message-ID",
+      "output": "appended_at oppure copia da recuperare",
+      "description": "Cerca Message-ID prima di appendere per evitare duplicati. Una copia mancata si recupera senza un altro SMTP.",
+      "sources": [
+        {
+          "path": "src/lib/partner-assistant/send.ts",
+          "line": 478
+        },
+        {
+          "path": "src/lib/partner-assistant/send.ts",
+          "line": 284
+        }
+      ],
+      "implemented": true,
+      "id": "docs_partner_assistente_copia",
+      "community": 4,
+      "community_name": "Esiti e seguito manuale",
+      "norm_label": "copia gli stessi byte in posta inviata"
+    },
+    {
+      "label": "Fermi della casella e invii incerti",
+      "file_type": "concept",
+      "source_file": "docs/partner-assistente.md",
+      "source_location": "line 191",
+      "source_url": null,
+      "captured_at": null,
+      "author": null,
+      "contributor": null,
+      "group": "invio",
+      "who": "Database; Tommi",
+      "when": "Password rifiutata, rimbalzi, temporanei ripetuti o esito SMTP non certo",
+      "how": "Incerto: mai ritentato automaticamente, passa a Tommi. Credenziali rifiutate: ferma casella. Tre errori temporanei del giorno: stop fino al giorno dopo. Due rifiuti definitivi o uno spam: stop fino a Riprendi l’invio del founder.",
+      "input": "Esito e contatori casella",
+      "output": "Fermo, attesa o Serve Tommi",
+      "description": "Incerto: mai ritentato automaticamente, passa a Tommi. Credenziali rifiutate: ferma casella. Tre errori temporanei del giorno: stop fino al giorno dopo. Due rifiuti definitivi o uno spam: stop fino a Riprendi l’invio del founder.",
+      "sources": [
+        {
+          "path": "supabase/migrations/20261030114722_assistente_partner_invio.sql",
+          "line": 1080
+        },
+        {
+          "path": "supabase/migrations/20261030114722_assistente_partner_invio.sql",
+          "line": 1650
+        },
+        {
+          "path": "supabase/migrations/20261030114722_assistente_partner_invio.sql",
+          "line": 1051
+        }
+      ],
+      "implemented": true,
+      "id": "docs_partner_assistente_incerti",
+      "community": 4,
+      "community_name": "Esiti e seguito manuale",
+      "norm_label": "fermi della casella e invii incerti"
+    },
+    {
+      "label": "Risposte e sollecito restano al team",
+      "file_type": "concept",
+      "source_file": "docs/partner-assistente.md",
+      "source_location": "line 204",
+      "source_url": null,
+      "captured_at": null,
+      "author": null,
+      "contributor": null,
+      "group": "esiti",
+      "who": "Tommi e team",
+      "when": "Quando arriva una risposta o scade il promemoria a 7 giorni",
+      "how": "Leggono la posta esternamente; rispondono o scrivono il sollecito manualmente e registrano la risposta/invio nel Registro. La sola tendina Risposto non chiude il task.",
+      "input": "Prima email e conversazione in casella",
+      "output": "Attività manuale e prosecuzione commerciale",
+      "description": "Leggono la posta esternamente; rispondono o scrivono il sollecito manualmente e registrano la risposta/invio nel Registro. La sola tendina Risposto non chiude il task.",
+      "sources": [
+        {
+          "path": "docs/partner-assistente.md",
+          "line": 66
+        },
+        {
+          "path": "docs/partner-assistente.md",
+          "line": 183
+        }
+      ],
+      "implemented": true,
+      "id": "docs_partner_assistente_seguito_manuale",
+      "community": 4,
+      "community_name": "Esiti e seguito manuale",
+      "norm_label": "risposte e sollecito restano al team"
+    },
+    {
+      "label": "Risposte e solleciti automatici: progetto futuro",
+      "file_type": "concept",
+      "source_file": "docs/partner-assistente.md",
+      "source_location": "line 44",
+      "source_url": null,
+      "captured_at": null,
+      "author": null,
+      "contributor": null,
+      "group": "esiti",
+      "who": "Non implementato nella consegna attuale",
+      "when": "Solo in una futura consegna approvata",
+      "how": "Lettura inbox con smistamento, risposta suggerita, sequenza solleciti 7/17/45/90 giorni e riepilogo serale sono descritti nella specifica, non attivi nel worker attuale.",
+      "input": "Specifiche di progetto",
+      "output": "Nessuna automazione attuale",
+      "description": "Lettura inbox con smistamento, risposta suggerita, sequenza solleciti 7/17/45/90 giorni e riepilogo serale sono descritti nella specifica, non attivi nel worker attuale.",
+      "sources": [
+        {
+          "path": "docs/partner-assistente.md",
+          "line": 44
+        },
+        {
+          "path": "docs/partner-assistente.md",
+          "line": 54
+        }
+      ],
+      "implemented": false,
+      "id": "docs_partner_assistente_futuro",
+      "community": 4,
+      "community_name": "Esiti e seguito manuale",
+      "norm_label": "risposte e solleciti automatici: progetto futuro"
+    },
+    {
+      "label": "Snapshot coerente della coda",
+      "file_type": "concept",
+      "source_file": "docs/partner-programma-email.md",
+      "source_location": "docs/partner-programma-email.md:7",
+      "source_url": null,
+      "captured_at": null,
+      "author": null,
+      "contributor": null,
+      "group": "programma",
+      "who": "Database",
+      "when": "All’apertura di /partner/email",
+      "how": "Legge coda completa, calendario SQL e invii senza creare lavori",
+      "input": "Coda, fasce e messaggi",
+      "output": "Snapshot validato",
+      "description": "Rifiuta letture oltre 2.000 destinatari o messaggi invece di troncare.",
+      "sources": ["docs/partner-programma-email.md:7"],
+      "category": "database",
+      "implemented": true,
+      "id": "docs_partner_programma_email_snapshot",
+      "community": 5,
+      "community_name": "Calendario e revisione",
+      "norm_label": "snapshot coerente della coda"
+    },
+    {
+      "label": "Previsione delle prime email",
+      "file_type": "concept",
+      "source_file": "docs/partner-programma-email.md",
+      "source_location": "docs/partner-programma-email.md:9",
+      "source_url": null,
+      "captured_at": null,
+      "author": null,
+      "contributor": null,
+      "group": "programma",
+      "who": "Simulatore del gestionale",
+      "when": "Oggi, domani, dopodomani, due settimane e un mese",
+      "how": "Calcola su tutta la coda prima dei filtri; passo stimato di otto minuti",
+      "input": "Snapshot e quote",
+      "output": "Date e ore stimate",
+      "description": "Le stime possono cambiare per conversazioni, errori o modifiche alle schede.",
+      "sources": ["docs/partner-programma-email.md:9"],
+      "category": "programma",
+      "implemented": true,
+      "id": "docs_partner_programma_email_previsione",
+      "community": 5,
+      "community_name": "Calendario e revisione",
+      "norm_label": "previsione delle prime email"
+    },
+    {
+      "label": "Finestra e calendario del destinatario",
+      "file_type": "concept",
+      "source_file": "docs/partner-programma-email.md",
+      "source_location": "docs/partner-programma-email.md:7",
+      "source_url": null,
+      "captured_at": null,
+      "author": null,
+      "contributor": null,
+      "group": "programma",
+      "who": "Database",
+      "when": "Quando il calendario consente l’invio",
+      "how": "Usa fuso, feriali, feste conosciute, pausa natalizia e copertura",
+      "input": "Paese e fuso",
+      "output": "Fasce utilizzabili",
+      "description": "Il calendario effettivo arriva dal database.",
+      "sources": ["docs/partner-programma-email.md:7"],
+      "category": "programma",
+      "implemented": true,
+      "id": "docs_partner_programma_email_calendario",
+      "community": 5,
+      "community_name": "Calendario e revisione",
+      "norm_label": "finestra e calendario del destinatario"
+    },
+    {
+      "label": "Quote e due flussi",
+      "file_type": "concept",
+      "source_file": "docs/partner-programma-email.md",
+      "source_location": "docs/partner-programma-email.md:7",
+      "source_url": null,
+      "captured_at": null,
+      "author": null,
+      "contributor": null,
+      "group": "programma",
+      "who": "Database e simulatore",
+      "when": "Ogni giorno di Roma",
+      "how": "Divide capacità Club del modello e altri contatti; da cinque a dieci dopo prima settimana",
+      "input": "Limite giornaliero, quota usata, precedenze",
+      "output": "Capacità residua per flusso",
+      "description": "Un Club anche evento appartiene agli altri contatti.",
+      "sources": ["docs/partner-programma-email.md:7"],
+      "category": "programma",
+      "implemented": true,
+      "id": "docs_partner_programma_email_quote",
+      "community": 5,
+      "community_name": "Calendario e revisione",
+      "norm_label": "quote e due flussi"
+    },
+    {
+      "label": "Filtri visivi del calendario",
+      "file_type": "concept",
+      "source_file": "docs/partner-programma-email.md",
+      "source_location": "docs/partner-programma-email.md:9",
+      "source_url": null,
+      "captured_at": null,
+      "author": null,
+      "contributor": null,
+      "group": "programma",
+      "who": "Tutti i membri",
+      "when": "Durante la consultazione",
+      "how": "Filtra Vendita, Eventi, Collab, Club senza ricalcolare capacità",
+      "input": "Previsione intera",
+      "output": "Sottoinsieme visibile",
+      "description": "Nascondere una sezione non libera posti.",
+      "sources": ["docs/partner-programma-email.md:9"],
+      "category": "interfaccia",
+      "implemented": true,
+      "id": "docs_partner_programma_email_filtri",
+      "community": 5,
+      "community_name": "Calendario e revisione",
+      "norm_label": "filtri visivi del calendario"
+    },
+    {
+      "label": "Destinatari senza bozza pronta",
+      "file_type": "concept",
+      "source_file": "docs/partner-programma-email.md",
+      "source_location": "docs/partner-programma-email.md:11",
+      "source_url": null,
+      "captured_at": null,
+      "author": null,
+      "contributor": null,
+      "group": "programma",
+      "who": "Database e interfaccia",
+      "when": "Anche durante pausa per credito",
+      "how": "Mostra Da preparare, In attesa o Da rivedere, inclusi idonei senza lavoro",
+      "input": "Contatti idonei e lavori",
+      "output": "Nomi e motivi senza testi o date inventati",
+      "description": "write_on indica ripresa della preparazione, non prenotazione SMTP.",
+      "sources": ["docs/partner-programma-email.md:11"],
+      "category": "programma",
+      "implemented": true,
+      "id": "docs_partner_programma_email_non_pronti",
+      "community": 5,
+      "community_name": "Calendario e revisione",
+      "norm_label": "destinatari senza bozza pronta"
+    },
+    {
+      "label": "Pausa per credito",
+      "file_type": "concept",
+      "source_file": "docs/partner-programma-email.md",
+      "source_location": "docs/partner-programma-email.md:11",
+      "source_url": null,
+      "captured_at": null,
+      "author": null,
+      "contributor": null,
+      "group": "programma",
+      "who": "Sistema",
+      "when": "Quando manca credito per la preparazione",
+      "how": "Blocca nuove bozze; le pronte possono continuare a partire",
+      "input": "Credito e coda pronta",
+      "output": "Preparazione ferma e invii distinti",
+      "description": "Pausa preparazione e pausa invii non sono equivalenti.",
+      "sources": ["docs/partner-programma-email.md:11"],
+      "category": "controlli",
+      "implemented": true,
+      "id": "docs_partner_programma_email_pausa_credito",
+      "community": 5,
+      "community_name": "Calendario e revisione",
+      "norm_label": "pausa per credito"
+    },
+    {
+      "label": "Storico con testo effettivo",
+      "file_type": "concept",
+      "source_file": "docs/partner-programma-email.md",
+      "source_location": "docs/partner-programma-email.md:11",
+      "source_url": null,
+      "captured_at": null,
+      "author": null,
+      "contributor": null,
+      "group": "programma",
+      "who": "Tutti i membri",
+      "when": "Dopo l’invio registrato",
+      "how": "Mostra testo e ora dal messaggio, distingue prove",
+      "input": "Messaggi registrati",
+      "output": "Email effettiva consultabile",
+      "description": "Non espone MIME grezzo o PDF codificati.",
+      "sources": ["docs/partner-programma-email.md:11"],
+      "category": "interfaccia",
+      "implemented": true,
+      "id": "docs_partner_programma_email_testo_effettivo",
+      "community": 5,
+      "community_name": "Calendario e revisione",
+      "norm_label": "storico con testo effettivo"
+    },
+    {
+      "label": "Apertura dettaglio email",
+      "file_type": "concept",
+      "source_file": "docs/partner-programma-email.md",
+      "source_location": "docs/partner-programma-email.md:15",
+      "source_url": null,
+      "captured_at": null,
+      "author": null,
+      "contributor": null,
+      "group": "programma",
+      "who": "Tutti i membri",
+      "when": "Prima o dopo l’invio",
+      "how": "Legge testo, destinatario, motivo e stato",
+      "input": "Bozza o messaggio",
+      "output": "Dettaglio consultabile",
+      "description": "Tommi può iniziare una revisione se lo stato lo consente.",
+      "sources": ["docs/partner-programma-email.md:15"],
+      "category": "interfaccia",
+      "implemented": true,
+      "id": "docs_partner_programma_email_apri_email",
+      "community": 5,
+      "community_name": "Calendario e revisione",
+      "norm_label": "apertura dettaglio email"
+    },
+    {
+      "label": "Sospendi e modifica",
+      "file_type": "concept",
+      "source_file": "docs/partner-programma-email.md",
+      "source_location": "docs/partner-programma-email.md:15",
+      "source_url": null,
+      "captured_at": null,
+      "author": null,
+      "contributor": null,
+      "group": "programma",
+      "who": "Tommi",
+      "when": "Prima dell’avvio SMTP e senza prove pendenti sulla bozza",
+      "how": "Prende sospensione editoriale persistente con controllo versione",
+      "input": "Bozza corrente, versione e impronta",
+      "output": "Hold della sola bozza",
+      "description": "Non cambia l’interruttore del contatto né il resto della coda.",
+      "sources": ["docs/partner-programma-email.md:15"],
+      "category": "revisione",
+      "implemented": true,
+      "id": "docs_partner_programma_email_sospensione",
+      "community": 2,
+      "community_name": "Calendario e revisione",
+      "norm_label": "sospendi e modifica"
+    },
+    {
+      "label": "Revisione umana append-only",
+      "file_type": "concept",
+      "source_file": "docs/partner-programma-email.md",
+      "source_location": "docs/partner-programma-email.md:17",
+      "source_url": null,
+      "captured_at": null,
+      "author": null,
+      "contributor": null,
+      "group": "programma",
+      "who": "Tommi e database",
+      "when": "Con Salva il testo da inviare",
+      "how": "Crea revisione approvata, conserva ricerca e scadenza, aggiorna puntatore e toglie hold in transazione",
+      "input": "Oggetto e corpo modificati",
+      "output": "Nuova versione pronta",
+      "description": "Non richiede nuova ricerca né seconda lettura Claude.",
+      "sources": ["docs/partner-programma-email.md:17"],
+      "category": "revisione",
+      "implemented": true,
+      "id": "docs_partner_programma_email_revisione",
+      "community": 2,
+      "community_name": "Calendario e revisione",
+      "norm_label": "revisione umana append-only"
+    },
+    {
+      "label": "Firma e frase di uscita separate",
+      "file_type": "concept",
+      "source_file": "docs/partner-programma-email.md",
+      "source_location": "docs/partner-programma-email.md:17",
+      "source_url": null,
+      "captured_at": null,
+      "author": null,
+      "contributor": null,
+      "group": "programma",
+      "who": "Sistema",
+      "when": "Durante modifica e composizione email",
+      "how": "Mantiene separati corpo modificabile, firma e frase di uscita",
+      "input": "Corpo, firma e lingua",
+      "output": "Testo completo",
+      "description": "La firma aziendale resta disponibile.",
+      "sources": ["docs/partner-programma-email.md:17"],
+      "category": "revisione",
+      "implemented": true,
+      "id": "docs_partner_programma_email_firma",
+      "community": 2,
+      "community_name": "Calendario e revisione",
+      "norm_label": "firma e frase di uscita separate"
+    },
+    {
+      "label": "Annulla modifica",
+      "file_type": "concept",
+      "source_file": "docs/partner-programma-email.md",
+      "source_location": "docs/partner-programma-email.md:15",
+      "source_url": null,
+      "captured_at": null,
+      "author": null,
+      "contributor": null,
+      "group": "programma",
+      "who": "Tommi e database",
+      "when": "Durante sospensione editoriale",
+      "how": "Riprende testo precedente solo se il contesto resta valido",
+      "input": "Hold e contesto corrente",
+      "output": "Ripresa o revisione richiesta",
+      "description": "La chiusura del browser non elimina il hold nel gestionale.",
+      "sources": ["docs/partner-programma-email.md:15"],
+      "category": "revisione",
+      "implemented": true,
+      "id": "docs_partner_programma_email_annulla",
+      "community": 2,
+      "community_name": "Calendario e revisione",
+      "norm_label": "annulla modifica"
+    },
+    {
+      "label": "Controllo bozza prima di SMTP",
+      "file_type": "concept",
+      "source_file": "docs/partner-programma-email.md",
+      "source_location": "docs/partner-programma-email.md:19",
+      "source_url": null,
+      "captured_at": null,
+      "author": null,
+      "contributor": null,
+      "group": "programma",
+      "who": "Worker e database",
+      "when": "Alla presa lavoro, composizione MIME e ultimo controllo SMTP",
+      "how": "Rispetta hold e puntatore; scarta messaggio vecchio solo preparato",
+      "input": "Bozza reclamata, hold e puntatore",
+      "output": "Invio della versione valida o stop",
+      "description": "Dopo avvio SMTP la modifica è rifiutata; non promette annullamento.",
+      "sources": ["docs/partner-programma-email.md:19"],
+      "category": "controlli",
+      "implemented": true,
+      "id": "docs_partner_programma_email_guardia_smtp",
+      "community": 2,
+      "community_name": "Calendario e revisione",
+      "norm_label": "controllo bozza prima di smtp"
+    },
+    {
+      "label": "Versione e impronta recapito",
+      "file_type": "concept",
+      "source_file": "docs/partner-programma-email.md",
+      "source_location": "docs/partner-programma-email.md:21",
+      "source_url": null,
+      "captured_at": null,
+      "author": null,
+      "contributor": null,
+      "group": "programma",
+      "who": "Database",
+      "when": "A ogni revisione e prima dell’invio",
+      "how": "Conserva versione recapito e impronta indirizzo",
+      "input": "Recapito usato nella revisione",
+      "output": "Legame verificabile bozza-destinatario",
+      "description": "Cambiare email sullo stesso recapito richiede nuova revisione.",
+      "sources": ["docs/partner-programma-email.md:21"],
+      "category": "controlli",
+      "implemented": true,
+      "id": "docs_partner_programma_email_identita_recapito",
+      "community": 2,
+      "community_name": "Calendario e revisione",
+      "norm_label": "versione e impronta recapito"
+    },
+    {
+      "label": "Revisione umana obsoleta",
+      "file_type": "concept",
+      "source_file": "docs/partner-programma-email.md",
+      "source_location": "docs/partner-programma-email.md:21",
+      "source_url": null,
+      "captured_at": null,
+      "author": null,
+      "contributor": null,
+      "group": "programma",
+      "who": "Tommi",
+      "when": "Quando cambia il contesto",
+      "how": "Ritorna alla revisione del founder senza sovrascrittura automatica",
+      "input": "Revisione con contesto superato",
+      "output": "Da rivedere",
+      "description": "La cancellazione definitiva elimina hold e impedisce ripristino da vecchio token.",
+      "sources": ["docs/partner-programma-email.md:21"],
+      "category": "revisione",
+      "implemented": true,
+      "id": "docs_partner_programma_email_obsoleta",
+      "community": 2,
+      "community_name": "Calendario e revisione",
+      "norm_label": "revisione umana obsoleta"
+    },
+    {
+      "label": "Presentazione di brand e prodotti",
+      "file_type": "concept",
+      "source_file": "docs/partner-programma-email.md",
+      "source_location": "docs/partner-programma-email.md:25",
+      "source_url": null,
+      "captured_at": null,
+      "author": null,
+      "contributor": null,
+      "group": "programma",
+      "who": "Assistente e regole di scrittura",
+      "when": "Per le prossime nuove bozze",
+      "how": "Presenta LuckyLap, prodotti, proposta concreta e valore; domanda finale facoltativa",
+      "input": "Regole attuali e ricerca",
+      "output": "Prima email coerente",
+      "description": "Le bozze già pronte restano finché Tommi le rivede singolarmente.",
+      "sources": ["docs/partner-programma-email.md:25"],
+      "category": "preparazione",
+      "implemented": true,
+      "id": "docs_partner_programma_email_policy",
+      "community": 2,
+      "community_name": "Calendario e revisione",
+      "norm_label": "presentazione di brand e prodotti"
+    },
+    {
+      "label": "Sollecito e risposte manuali",
+      "file_type": "concept",
+      "source_file": "docs/partner-programma-email.md",
+      "source_location": "docs/partner-programma-email.md:27",
+      "source_url": null,
+      "captured_at": null,
+      "author": null,
+      "contributor": null,
+      "group": "programma",
+      "who": "Tommi / team",
+      "when": "Promemoria a sette giorni e dopo la risposta",
+      "how": "Scrive e gestisce gli scambi successivi manualmente",
+      "input": "Prima email inviata o risposta ricevuta",
+      "output": "Attività umana registrata",
+      "description": "Questa consegna non aggiunge solleciti o risposte automatiche.",
+      "sources": ["docs/partner-programma-email.md:27"],
+      "category": "manuale",
+      "implemented": true,
+      "id": "docs_partner_programma_email_sollecito_manual",
+      "community": 5,
+      "community_name": "Calendario e revisione",
+      "norm_label": "sollecito e risposte manuali"
+    }
+  ],
+  "links": [
+    {
+      "relation": "shares_data_with",
+      "confidence": "EXTRACTED",
+      "confidence_score": 1.0,
+      "source_file": "docs/partner-assistente.md",
+      "source_location": "line 401",
+      "weight": 1.0,
+      "action": "Altri compresi Club Eventi",
+      "source": "docs_partner_assistente_bivio",
+      "target": "docs_partner_assistente_ricerca"
+    },
+    {
+      "relation": "shares_data_with",
+      "confidence": "EXTRACTED",
+      "confidence_score": 1.0,
+      "source_file": "docs/partner-assistente.md",
+      "source_location": "line 398",
+      "weight": 1.0,
+      "action": "Club senza Eventi",
+      "source": "docs_partner_assistente_bivio",
+      "target": "docs_partner_assistente_modello"
+    },
+    {
+      "relation": "shares_data_with",
+      "confidence": "EXTRACTED",
+      "confidence_score": 1.0,
+      "source_file": "docs/partner-assistente.md",
+      "source_location": "line 98",
+      "weight": 1.0,
+      "action": "abilita o ferma",
+      "source": "docs_partner_assistente_modalita",
+      "target": "docs_partner_assistente_scheduler"
+    },
+    {
+      "relation": "shares_data_with",
+      "confidence": "EXTRACTED",
+      "confidence_score": 1.0,
+      "source_file": "docs/partner-assistente.md",
+      "source_location": "line 440",
+      "weight": 1.0,
+      "action": "aggiunge PDF ammesso",
+      "source": "docs_partner_assistente_allegato",
+      "target": "docs_partner_assistente_composizione"
+    },
+    {
+      "relation": "shares_data_with",
+      "confidence": "EXTRACTED",
+      "confidence_score": 1.0,
+      "source_file": "docs/partner-assistente.md",
+      "source_location": "line 41",
+      "weight": 1.0,
+      "action": "al terzo tentativo",
+      "source": "docs_partner_assistente_tentativi",
+      "target": "docs_partner_assistente_serve_tommi"
+    },
+    {
+      "relation": "shares_data_with",
+      "confidence": "EXTRACTED",
+      "confidence_score": 1.0,
+      "source_file": "docs/partner-assistente.md",
+      "source_location": "line 28",
+      "weight": 1.0,
+      "action": "alimenta",
+      "source": "docs_partner_assistente_ricerca",
+      "target": "docs_partner_assistente_estrazione"
+    },
+    {
+      "relation": "shares_data_with",
+      "confidence": "EXTRACTED",
+      "confidence_score": 1.0,
+      "source_file": "docs/partner-assistente.md",
+      "source_location": "line 34",
+      "weight": 1.0,
+      "action": "ammette",
+      "source": "docs_partner_assistente_idoneita",
+      "target": "docs_partner_assistente_coda"
+    },
+    {
+      "relation": "shares_data_with",
+      "confidence": "EXTRACTED",
+      "confidence_score": 1.0,
+      "source_file": "docs/partner-assistente.md",
+      "source_location": "line 32",
+      "weight": 1.0,
+      "action": "approva",
+      "source": "docs_partner_assistente_seconda_lettura",
+      "target": "docs_partner_assistente_pronta"
+    },
+    {
+      "relation": "shares_data_with",
+      "confidence": "EXTRACTED",
+      "confidence_score": 1.0,
+      "source_file": "docs/partner-assistente.md",
+      "source_location": "line 267",
+      "weight": 1.0,
+      "action": "bozza scaduta o manuale obsoleta",
+      "source": "docs_partner_assistente_validita",
+      "target": "docs_partner_assistente_serve_tommi"
+    },
+    {
+      "relation": "shares_data_with",
+      "confidence": "EXTRACTED",
+      "confidence_score": 1.0,
+      "source_file": "docs/partner-assistente.md",
+      "source_location": "line 28",
+      "weight": 1.0,
+      "action": "campi classificati",
+      "source": "docs_partner_assistente_estrazione",
+      "target": "docs_partner_assistente_scelta"
+    },
+    {
+      "relation": "shares_data_with",
+      "confidence": "EXTRACTED",
+      "confidence_score": 1.0,
+      "source_file": "docs/partner-assistente.md",
+      "source_location": "line 190",
+      "weight": 1.0,
+      "action": "casella vuota",
+      "source": "docs_partner_assistente_imap_storia",
+      "target": "docs_partner_assistente_composizione"
+    },
+    {
+      "relation": "shares_data_with",
+      "confidence": "EXTRACTED",
+      "confidence_score": 1.0,
+      "source_file": "docs/partner-assistente.md",
+      "source_location": "line 188",
+      "weight": 1.0,
+      "action": "conferma abilita Invio",
+      "source": "docs_partner_assistente_prova",
+      "target": "docs_partner_assistente_modalita"
+    },
+    {
+      "relation": "shares_data_with",
+      "confidence": "EXTRACTED",
+      "confidence_score": 1.0,
+      "source_file": "docs/partner-assistente.md",
+      "source_location": "line 190",
+      "weight": 1.0,
+      "action": "contesto valido",
+      "source": "docs_partner_assistente_validita",
+      "target": "docs_partner_assistente_imap_storia"
+    },
+    {
+      "relation": "shares_data_with",
+      "confidence": "EXTRACTED",
+      "confidence_score": 1.0,
+      "source_file": "docs/partner-assistente.md",
+      "source_location": "line 30",
+      "weight": 1.0,
+      "action": "controlli superati",
+      "source": "docs_partner_assistente_controlli",
+      "target": "docs_partner_assistente_seconda_lettura"
+    },
+    {
+      "relation": "shares_data_with",
+      "confidence": "EXTRACTED",
+      "confidence_score": 1.0,
+      "source_file": "docs/partner-assistente.md",
+      "source_location": "line 190",
+      "weight": 1.0,
+      "action": "conversazione esistente",
+      "source": "docs_partner_assistente_imap_storia",
+      "target": "docs_partner_assistente_serve_tommi"
+    },
+    {
+      "relation": "shares_data_with",
+      "confidence": "EXTRACTED",
+      "confidence_score": 1.0,
+      "source_file": "docs/partner-assistente.md",
+      "source_location": "line 84",
+      "weight": 1.0,
+      "action": "crea o ordina",
+      "source": "docs_partner_assistente_coda",
+      "target": "docs_partner_assistente_lavoro"
+    },
+    {
+      "relation": "shares_data_with",
+      "confidence": "EXTRACTED",
+      "confidence_score": 1.0,
+      "source_file": "docs/partner-assistente.md",
+      "source_location": "line 82",
+      "weight": 1.0,
+      "action": "definisce policy corrente",
+      "source": "docs_partner_assistente_regole",
+      "target": "docs_partner_assistente_controlli"
+    },
+    {
+      "relation": "shares_data_with",
+      "confidence": "EXTRACTED",
+      "confidence_score": 1.0,
+      "source_file": "docs/partner-assistente.md",
+      "source_location": "line 267",
+      "weight": 1.0,
+      "action": "entra nella coda pronta",
+      "source": "docs_partner_assistente_pronta",
+      "target": "docs_partner_assistente_ordine_invio"
+    },
+    {
+      "relation": "shares_data_with",
+      "confidence": "EXTRACTED",
+      "confidence_score": 1.0,
+      "source_file": "docs/partner-assistente.md",
+      "source_location": "line 28",
+      "weight": 1.0,
+      "action": "fatto o fuso mancanti",
+      "source": "docs_partner_assistente_scelta",
+      "target": "docs_partner_assistente_serve_tommi"
+    },
+    {
+      "relation": "shares_data_with",
+      "confidence": "EXTRACTED",
+      "confidence_score": 1.0,
+      "source_file": "docs/partner-assistente.md",
+      "source_location": "line 200",
+      "weight": 1.0,
+      "action": "fornisce MIME definitivo",
+      "source": "docs_partner_assistente_composizione",
+      "target": "docs_partner_assistente_prepare"
+    },
+    {
+      "relation": "shares_data_with",
+      "confidence": "EXTRACTED",
+      "confidence_score": 1.0,
+      "source_file": "docs/partner-assistente.md",
+      "source_location": "line 398",
+      "weight": 1.0,
+      "action": "fornisce contesto corrente",
+      "source": "docs_partner_assistente_lease",
+      "target": "docs_partner_assistente_bivio"
+    },
+    {
+      "relation": "shares_data_with",
+      "confidence": "EXTRACTED",
+      "confidence_score": 1.0,
+      "source_file": "docs/partner-assistente.md",
+      "source_location": "line 269",
+      "weight": 1.0,
+      "action": "fornisce testo corrente",
+      "source": "docs_partner_assistente_bozze",
+      "target": "docs_partner_assistente_composizione"
+    },
+    {
+      "relation": "shares_data_with",
+      "confidence": "EXTRACTED",
+      "confidence_score": 1.0,
+      "source_file": "docs/partner-assistente.md",
+      "source_location": "line 200",
+      "weight": 1.0,
+      "action": "in_invio autorizzato",
+      "source": "docs_partner_assistente_start",
+      "target": "docs_partner_assistente_smtp"
+    },
+    {
+      "relation": "shares_data_with",
+      "confidence": "EXTRACTED",
+      "confidence_score": 1.0,
+      "source_file": "docs/partner-assistente.md",
+      "source_location": "line 194",
+      "weight": 1.0,
+      "action": "inviato: salva in Sent",
+      "source": "docs_partner_assistente_smtp",
+      "target": "docs_partner_assistente_copia"
+    },
+    {
+      "relation": "shares_data_with",
+      "confidence": "EXTRACTED",
+      "confidence_score": 1.0,
+      "source_file": "docs/partner-assistente.md",
+      "source_location": "line 191",
+      "weight": 1.0,
+      "action": "invio incerto o rifiutato",
+      "source": "docs_partner_assistente_esito",
+      "target": "docs_partner_assistente_incerti"
+    },
+    {
+      "relation": "shares_data_with",
+      "confidence": "EXTRACTED",
+      "confidence_score": 1.0,
+      "source_file": "docs/partner-assistente.md",
+      "source_location": "line 229",
+      "weight": 1.0,
+      "action": "limita momento del destinatario",
+      "source": "docs_partner_assistente_finestre",
+      "target": "docs_partner_assistente_ordine_invio"
+    },
+    {
+      "relation": "shares_data_with",
+      "confidence": "EXTRACTED",
+      "confidence_score": 1.0,
+      "source_file": "docs/partner-assistente.md",
+      "source_location": "line 454",
+      "weight": 1.0,
+      "action": "limita ogni flusso",
+      "source": "docs_partner_assistente_quote",
+      "target": "docs_partner_assistente_ordine_invio"
+    },
+    {
+      "relation": "shares_data_with",
+      "confidence": "EXTRACTED",
+      "confidence_score": 1.0,
+      "source_file": "docs/partner-assistente.md",
+      "source_location": "line 200",
+      "weight": 1.0,
+      "action": "messaggio pronto",
+      "source": "docs_partner_assistente_prepare",
+      "target": "docs_partner_assistente_start"
+    },
+    {
+      "relation": "shares_data_with",
+      "confidence": "EXTRACTED",
+      "confidence_score": 1.0,
+      "source_file": "docs/partner-assistente.md",
+      "source_location": "line 188",
+      "weight": 1.0,
+      "action": "modalità Prova",
+      "source": "docs_partner_assistente_modalita",
+      "target": "docs_partner_assistente_prova"
+    },
+    {
+      "relation": "shares_data_with",
+      "confidence": "EXTRACTED",
+      "confidence_score": 1.0,
+      "source_file": "docs/partner-assistente.md",
+      "source_location": "line 94",
+      "weight": 1.0,
+      "action": "prende un passo",
+      "source": "docs_partner_assistente_lavoro",
+      "target": "docs_partner_assistente_lease"
+    },
+    {
+      "relation": "shares_data_with",
+      "confidence": "EXTRACTED",
+      "confidence_score": 1.0,
+      "source_file": "docs/partner-assistente.md",
+      "source_location": "line 30",
+      "weight": 1.0,
+      "action": "prima bocciatura Altri: unica riscrittura",
+      "source": "docs_partner_assistente_seconda_lettura",
+      "target": "docs_partner_assistente_scrittura"
+    },
+    {
+      "relation": "shares_data_with",
+      "confidence": "EXTRACTED",
+      "confidence_score": 1.0,
+      "source_file": "docs/partner-assistente.md",
+      "source_location": "line 188",
+      "weight": 1.0,
+      "action": "prima email reale riuscita",
+      "source": "docs_partner_assistente_esito",
+      "target": "docs_partner_assistente_post_invio"
+    },
+    {
+      "relation": "shares_data_with",
+      "confidence": "EXTRACTED",
+      "confidence_score": 1.0,
+      "source_file": "docs/partner-assistente.md",
+      "source_location": "line 360",
+      "weight": 1.0,
+      "action": "produce testo fisso",
+      "source": "docs_partner_assistente_modello",
+      "target": "docs_partner_assistente_controlli"
+    },
+    {
+      "relation": "shares_data_with",
+      "confidence": "EXTRACTED",
+      "confidence_score": 1.0,
+      "source_file": "docs/partner-assistente.md",
+      "source_location": "line 183",
+      "weight": 1.0,
+      "action": "promemoria a 7 giorni",
+      "source": "docs_partner_assistente_post_invio",
+      "target": "docs_partner_assistente_seguito_manuale"
+    },
+    {
+      "relation": "shares_data_with",
+      "confidence": "EXTRACTED",
+      "confidence_score": 1.0,
+      "source_file": "docs/partner-assistente.md",
+      "source_location": "line 267",
+      "weight": 1.0,
+      "action": "recapito o regole cambiate",
+      "source": "docs_partner_assistente_validita",
+      "target": "docs_partner_assistente_scrittura"
+    },
+    {
+      "relation": "shares_data_with",
+      "confidence": "EXTRACTED",
+      "confidence_score": 1.0,
+      "source_file": "docs/partner-assistente.md",
+      "source_location": "line 200",
+      "weight": 1.0,
+      "action": "registra esito una volta",
+      "source": "docs_partner_assistente_smtp",
+      "target": "docs_partner_assistente_esito"
+    },
+    {
+      "relation": "shares_data_with",
+      "confidence": "EXTRACTED",
+      "confidence_score": 1.0,
+      "source_file": "docs/partner-assistente.md",
+      "source_location": "line 30",
+      "weight": 1.0,
+      "action": "regole superate",
+      "source": "docs_partner_assistente_regole",
+      "target": "docs_partner_assistente_scrittura"
+    },
+    {
+      "relation": "shares_data_with",
+      "confidence": "EXTRACTED",
+      "confidence_score": 1.0,
+      "source_file": "docs/partner-assistente.md",
+      "source_location": "line 360",
+      "weight": 1.0,
+      "action": "respinge modello Club",
+      "source": "docs_partner_assistente_seconda_lettura",
+      "target": "docs_partner_assistente_serve_tommi"
+    },
+    {
+      "relation": "shares_data_with",
+      "confidence": "EXTRACTED",
+      "confidence_score": 1.0,
+      "source_file": "docs/partner-assistente.md",
+      "source_location": "line 419",
+      "weight": 1.0,
+      "action": "rete Scuderia Ferrari Club esclusa",
+      "source": "docs_partner_assistente_modello",
+      "target": "docs_partner_assistente_serve_tommi"
+    },
+    {
+      "relation": "shares_data_with",
+      "confidence": "EXTRACTED",
+      "confidence_score": 1.0,
+      "source_file": "docs/partner-assistente.md",
+      "source_location": "line 267",
+      "weight": 1.0,
+      "action": "ricerca scaduta",
+      "source": "docs_partner_assistente_validita",
+      "target": "docs_partner_assistente_ricerca"
+    },
+    {
+      "relation": "shares_data_with",
+      "confidence": "EXTRACTED",
+      "confidence_score": 1.0,
+      "source_file": "docs/partner-assistente.md",
+      "source_location": "line 267",
+      "weight": 1.0,
+      "action": "ricontrolla candidato",
+      "source": "docs_partner_assistente_lease_casella",
+      "target": "docs_partner_assistente_validita"
+    },
+    {
+      "relation": "shares_data_with",
+      "confidence": "EXTRACTED",
+      "confidence_score": 1.0,
+      "source_file": "docs/partner-assistente.md",
+      "source_location": "line 500",
+      "weight": 1.0,
+      "action": "riprende con ricerca da rifare",
+      "source": "docs_partner_assistente_attesa",
+      "target": "docs_partner_assistente_ricerca"
+    },
+    {
+      "relation": "shares_data_with",
+      "confidence": "EXTRACTED",
+      "confidence_score": 1.0,
+      "source_file": "docs/partner-assistente.md",
+      "source_location": "line 493",
+      "weight": 1.0,
+      "action": "riprende con ricerca valida",
+      "source": "docs_partner_assistente_attesa",
+      "target": "docs_partner_assistente_estrazione"
+    },
+    {
+      "relation": "shares_data_with",
+      "confidence": "EXTRACTED",
+      "confidence_score": 1.0,
+      "source_file": "docs/partner-assistente.md",
+      "source_location": "line 85",
+      "weight": 1.0,
+      "action": "salva approvazione legata a SHA",
+      "source": "docs_partner_assistente_seconda_lettura",
+      "target": "docs_partner_assistente_note"
+    },
+    {
+      "relation": "shares_data_with",
+      "confidence": "EXTRACTED",
+      "confidence_score": 1.0,
+      "source_file": "docs/partner-assistente.md",
+      "source_location": "line 360",
+      "weight": 1.0,
+      "action": "salva note sostitutive",
+      "source": "docs_partner_assistente_modello",
+      "target": "docs_partner_assistente_note"
+    },
+    {
+      "relation": "shares_data_with",
+      "confidence": "EXTRACTED",
+      "confidence_score": 1.0,
+      "source_file": "docs/partner-assistente.md",
+      "source_location": "line 85",
+      "weight": 1.0,
+      "action": "salva ricerca con fonti",
+      "source": "docs_partner_assistente_ricerca",
+      "target": "docs_partner_assistente_note"
+    },
+    {
+      "relation": "shares_data_with",
+      "confidence": "EXTRACTED",
+      "confidence_score": 1.0,
+      "source_file": "docs/partner-assistente.md",
+      "source_location": "line 85",
+      "weight": 1.0,
+      "action": "salva scelta",
+      "source": "docs_partner_assistente_scelta",
+      "target": "docs_partner_assistente_note"
+    },
+    {
+      "relation": "shares_data_with",
+      "confidence": "EXTRACTED",
+      "confidence_score": 1.0,
+      "source_file": "docs/partner-assistente.md",
+      "source_location": "line 86",
+      "weight": 1.0,
+      "action": "salva testo e contesto",
+      "source": "docs_partner_assistente_scrittura",
+      "target": "docs_partner_assistente_bozze"
+    },
+    {
+      "relation": "shares_data_with",
+      "confidence": "EXTRACTED",
+      "confidence_score": 1.0,
+      "source_file": "docs/partner-assistente.md",
+      "source_location": "line 28",
+      "weight": 1.0,
+      "action": "scrivi adesso",
+      "source": "docs_partner_assistente_scelta",
+      "target": "docs_partner_assistente_scrittura"
+    },
+    {
+      "relation": "shares_data_with",
+      "confidence": "EXTRACTED",
+      "confidence_score": 1.0,
+      "source_file": "docs/partner-assistente.md",
+      "source_location": "line 23",
+      "weight": 1.0,
+      "action": "se invio idle prepara un passo",
+      "source": "docs_partner_assistente_scheduler",
+      "target": "docs_partner_assistente_idoneita"
+    },
+    {
+      "relation": "shares_data_with",
+      "confidence": "EXTRACTED",
+      "confidence_score": 1.0,
+      "source_file": "docs/partner-assistente.md",
+      "source_location": "line 259",
+      "weight": 1.0,
+      "action": "seleziona candidato",
+      "source": "docs_partner_assistente_ordine_invio",
+      "target": "docs_partner_assistente_lease_casella"
+    },
+    {
+      "relation": "shares_data_with",
+      "confidence": "EXTRACTED",
+      "confidence_score": 1.0,
+      "source_file": "docs/partner-assistente.md",
+      "source_location": "line 38",
+      "weight": 1.0,
+      "action": "sospende preparazione",
+      "source": "docs_partner_assistente_credito",
+      "target": "docs_partner_assistente_scheduler"
+    },
+    {
+      "relation": "references",
+      "confidence": "EXTRACTED",
+      "confidence_score": 1.0,
+      "source_file": "docs/partner-assistente.md",
+      "source_location": "line 44",
+      "weight": 1.0,
+      "action": "specifica distingue automazioni future",
+      "implemented": false,
+      "source": "docs_partner_assistente_seguito_manuale",
+      "target": "docs_partner_assistente_futuro"
+    },
+    {
+      "relation": "shares_data_with",
+      "confidence": "EXTRACTED",
+      "confidence_score": 1.0,
+      "source_file": "docs/partner-assistente.md",
+      "source_location": "line 184",
+      "weight": 1.0,
+      "action": "tenta prima invio/copia",
+      "source": "docs_partner_assistente_scheduler",
+      "target": "docs_partner_assistente_lease_casella"
+    },
+    {
+      "relation": "shares_data_with",
+      "confidence": "EXTRACTED",
+      "confidence_score": 1.0,
+      "source_file": "docs/partner-assistente.md",
+      "source_location": "line 29",
+      "weight": 1.0,
+      "action": "ulteriore bocciatura",
+      "source": "docs_partner_assistente_controlli",
+      "target": "docs_partner_assistente_serve_tommi"
+    },
+    {
+      "relation": "shares_data_with",
+      "confidence": "EXTRACTED",
+      "confidence_score": 1.0,
+      "source_file": "docs/partner-assistente.md",
+      "source_location": "line 29",
+      "weight": 1.0,
+      "action": "unica riscrittura nel flusso Altri",
+      "source": "docs_partner_assistente_controlli",
+      "target": "docs_partner_assistente_scrittura"
+    },
+    {
+      "relation": "shares_data_with",
+      "confidence": "EXTRACTED",
+      "confidence_score": 1.0,
+      "source_file": "docs/partner-assistente.md",
+      "source_location": "line 29",
+      "weight": 1.0,
+      "action": "valida testo",
+      "source": "docs_partner_assistente_scrittura",
+      "target": "docs_partner_assistente_controlli"
+    },
+    {
+      "relation": "shares_data_with",
+      "confidence": "EXTRACTED",
+      "confidence_score": 1.0,
+      "source_file": "docs/partner-assistente.md",
+      "source_location": "line 191",
+      "weight": 1.0,
+      "action": "verifica umana",
+      "source": "docs_partner_assistente_incerti",
+      "target": "docs_partner_assistente_serve_tommi"
+    },
+    {
+      "relation": "shares_data_with",
+      "confidence": "EXTRACTED",
+      "confidence_score": 1.0,
+      "source_file": "docs/partner-assistente.md",
+      "source_location": "line 28",
+      "weight": 1.0,
+      "action": "write_on futura",
+      "source": "docs_partner_assistente_scelta",
+      "target": "docs_partner_assistente_attesa"
+    },
+    {
+      "relation": "references",
+      "label": "Abilita il pannello Esito",
+      "confidence": "EXTRACTED",
+      "confidence_score": 1.0,
+      "source_file": "docs/partner.md",
+      "source_location": "L116",
+      "weight": 1.0,
+      "source": "docs_partner_accordo",
+      "target": "docs_partner_lavoro_collegato"
+    },
+    {
+      "relation": "references",
+      "label": "Accede dopo verifica membership",
+      "confidence": "EXTRACTED",
+      "confidence_score": 1.0,
+      "source_file": "docs/partner.md",
+      "source_location": "L3",
+      "weight": 1.0,
+      "source": "docs_partner_privacy",
+      "target": "docs_partner_roadbook"
+    },
+    {
+      "relation": "references",
+      "label": "Aggiorna CONTESTO.md importato",
+      "confidence": "EXTRACTED",
+      "confidence_score": 1.0,
+      "source_file": "docs/partner.md",
+      "source_location": "L197",
+      "weight": 1.0,
+      "source": "docs_partner_import_ricerca",
+      "target": "docs_partner_regole"
+    },
+    {
+      "relation": "references",
+      "label": "Aggiorna gli originali della ricerca",
+      "confidence": "EXTRACTED",
+      "confidence_score": 1.0,
+      "source_file": "docs/partner.md",
+      "source_location": "L197",
+      "weight": 1.0,
+      "source": "docs_partner_import_ricerca",
+      "target": "docs_partner_varianti_storiche"
+    },
+    {
+      "relation": "references",
+      "label": "Apre ?co=N letto dal server",
+      "confidence": "EXTRACTED",
+      "confidence_score": 1.0,
+      "source_file": "docs/partner.md",
+      "source_location": "L28",
+      "weight": 1.0,
+      "source": "docs_partner_roadbook",
+      "target": "docs_partner_dettaglio"
+    },
+    {
+      "relation": "references",
+      "label": "Autorizza i comandi generali del CRM",
+      "confidence": "EXTRACTED",
+      "confidence_score": 1.0,
+      "source_file": "docs/partner.md",
+      "source_location": "L3",
+      "weight": 1.0,
+      "source": "docs_partner_privacy",
+      "target": "docs_partner_comandi"
+    },
+    {
+      "relation": "references",
+      "label": "Blocca anche il dominio se richiesto",
+      "confidence": "EXTRACTED",
+      "confidence_score": 1.0,
+      "source_file": "docs/partner.md",
+      "source_location": "L179",
+      "weight": 1.0,
+      "source": "docs_partner_non_contattare",
+      "target": "docs_partner_privacy"
+    },
+    {
+      "relation": "references",
+      "label": "Cancellazione definitiva elimina valori e impedisce ripristino",
+      "confidence": "EXTRACTED",
+      "confidence_score": 1.0,
+      "source_file": "docs/partner.md",
+      "source_location": "L341",
+      "weight": 1.0,
+      "source": "docs_partner_privacy",
+      "target": "docs_partner_recapiti"
+    },
+    {
+      "relation": "references",
+      "label": "Chiude promemoria collegato",
+      "confidence": "EXTRACTED",
+      "confidence_score": 1.0,
+      "source_file": "docs/partner.md",
+      "source_location": "L46",
+      "weight": 1.0,
+      "source": "docs_partner_registra_risposta",
+      "target": "docs_partner_sollecito"
+    },
+    {
+      "relation": "references",
+      "label": "Chiude promemoria",
+      "confidence": "EXTRACTED",
+      "confidence_score": 1.0,
+      "source_file": "docs/partner.md",
+      "source_location": "L179",
+      "weight": 1.0,
+      "source": "docs_partner_non_contattare",
+      "target": "docs_partner_sollecito"
+    },
+    {
+      "relation": "references",
+      "label": "Collega con partner_id",
+      "confidence": "EXTRACTED",
+      "confidence_score": 1.0,
+      "source_file": "docs/partner.md",
+      "source_location": "L146",
+      "weight": 1.0,
+      "source": "docs_partner_database",
+      "target": "docs_partner_recapiti"
+    },
+    {
+      "relation": "references",
+      "label": "Collega la pagina Dati",
+      "confidence": "EXTRACTED",
+      "confidence_score": 1.0,
+      "source_file": "docs/partner.md",
+      "source_location": "L28",
+      "weight": 1.0,
+      "source": "docs_partner_roadbook",
+      "target": "docs_partner_pagina_dati"
+    },
+    {
+      "relation": "references",
+      "label": "Collega le regole",
+      "confidence": "EXTRACTED",
+      "confidence_score": 1.0,
+      "source_file": "docs/partner.md",
+      "source_location": "L28",
+      "weight": 1.0,
+      "source": "docs_partner_roadbook",
+      "target": "docs_partner_regole"
+    },
+    {
+      "relation": "references",
+      "label": "Collega l’evento",
+      "confidence": "EXTRACTED",
+      "confidence_score": 1.0,
+      "source_file": "docs/partner.md",
+      "source_location": "L396",
+      "weight": 1.0,
+      "source": "docs_partner_lavoro_collegato",
+      "target": "docs_partner_calendario"
+    },
+    {
+      "relation": "references",
+      "label": "Con date rende ammissibile la sincronizzazione",
+      "confidence": "EXTRACTED",
+      "confidence_score": 1.0,
+      "source_file": "docs/partner.md",
+      "source_location": "L116",
+      "weight": 1.0,
+      "source": "docs_partner_accordo",
+      "target": "docs_partner_calendario"
+    },
+    {
+      "relation": "references",
+      "label": "Consente anteprima e import",
+      "confidence": "EXTRACTED",
+      "confidence_score": 1.0,
+      "source_file": "docs/partner.md",
+      "source_location": "L61",
+      "weight": 1.0,
+      "source": "docs_partner_pagina_dati",
+      "target": "docs_partner_file_storici"
+    },
+    {
+      "relation": "references",
+      "label": "Consente assegnazione",
+      "confidence": "EXTRACTED",
+      "confidence_score": 1.0,
+      "source_file": "docs/partner.md",
+      "source_location": "L42",
+      "weight": 1.0,
+      "source": "docs_partner_dettaglio",
+      "target": "docs_partner_responsabile"
+    },
+    {
+      "relation": "references",
+      "label": "Consente blocco contatto o dominio",
+      "confidence": "EXTRACTED",
+      "confidence_score": 1.0,
+      "source_file": "docs/partner.md",
+      "source_location": "L42",
+      "weight": 1.0,
+      "source": "docs_partner_dettaglio",
+      "target": "docs_partner_non_contattare"
+    },
+    {
+      "relation": "references",
+      "label": "Consente cambio stato",
+      "confidence": "EXTRACTED",
+      "confidence_score": 1.0,
+      "source_file": "docs/partner.md",
+      "source_location": "L42",
+      "weight": 1.0,
+      "source": "docs_partner_dettaglio",
+      "target": "docs_partner_stato"
+    },
+    {
+      "relation": "references",
+      "label": "Consente pianificazione",
+      "confidence": "EXTRACTED",
+      "confidence_score": 1.0,
+      "source_file": "docs/partner.md",
+      "source_location": "L42",
+      "weight": 1.0,
+      "source": "docs_partner_dettaglio",
+      "target": "docs_partner_prossima_azione"
+    },
+    {
+      "relation": "references",
+      "label": "Conserva conflitti a tre vie",
+      "confidence": "EXTRACTED",
+      "confidence_score": 1.0,
+      "source_file": "docs/partner.md",
+      "source_location": "L197",
+      "weight": 1.0,
+      "source": "docs_partner_import_ricerca",
+      "target": "docs_partner_differenze"
+    },
+    {
+      "relation": "references",
+      "label": "Conserva conflitti senza sovrascrivere il team",
+      "confidence": "EXTRACTED",
+      "confidence_score": 1.0,
+      "source_file": "docs/partner.md",
+      "source_location": "L315",
+      "weight": 1.0,
+      "source": "docs_partner_file_storici",
+      "target": "docs_partner_differenze"
+    },
+    {
+      "relation": "references",
+      "label": "Conserva research e research_base",
+      "confidence": "EXTRACTED",
+      "confidence_score": 1.0,
+      "source_file": "docs/partner.md",
+      "source_location": "L146",
+      "weight": 1.0,
+      "source": "docs_partner_database",
+      "target": "docs_partner_ricerca"
+    },
+    {
+      "relation": "references",
+      "label": "Crea attività apertura",
+      "confidence": "EXTRACTED",
+      "confidence_score": 1.0,
+      "source_file": "docs/partner.md",
+      "source_location": "L396",
+      "weight": 1.0,
+      "source": "docs_partner_lavoro_collegato",
+      "target": "docs_partner_conto_vendita"
+    },
+    {
+      "relation": "references",
+      "label": "Crea o aggiorna le schede",
+      "confidence": "EXTRACTED",
+      "confidence_score": 1.0,
+      "source_file": "docs/partner.md",
+      "source_location": "L197",
+      "weight": 1.0,
+      "source": "docs_partner_import_ricerca",
+      "target": "docs_partner_database"
+    },
+    {
+      "relation": "references",
+      "label": "Crea o aggiorna recapiti non modificati",
+      "confidence": "EXTRACTED",
+      "confidence_score": 1.0,
+      "source_file": "docs/partner.md",
+      "source_location": "L197",
+      "weight": 1.0,
+      "source": "docs_partner_import_ricerca",
+      "target": "docs_partner_recapiti"
+    },
+    {
+      "relation": "references",
+      "label": "Crea progetto collegato",
+      "confidence": "EXTRACTED",
+      "confidence_score": 1.0,
+      "source_file": "docs/partner.md",
+      "source_location": "L396",
+      "weight": 1.0,
+      "source": "docs_partner_lavoro_collegato",
+      "target": "docs_partner_produzione"
+    },
+    {
+      "relation": "references",
+      "label": "Decide a chi tocca e ultima risposta",
+      "confidence": "EXTRACTED",
+      "confidence_score": 1.0,
+      "source_file": "docs/partner.md",
+      "source_location": "L44",
+      "weight": 1.0,
+      "source": "docs_partner_registro",
+      "target": "docs_partner_roadbook"
+    },
+    {
+      "relation": "references",
+      "label": "Entra negli accordi di tutti i periodi",
+      "confidence": "EXTRACTED",
+      "confidence_score": 1.0,
+      "source_file": "docs/partner.md",
+      "source_location": "L116",
+      "weight": 1.0,
+      "source": "docs_partner_accordo",
+      "target": "docs_partner_da_seguire"
+    },
+    {
+      "relation": "references",
+      "label": "Esclude recapiti e testi dall’audit",
+      "confidence": "EXTRACTED",
+      "confidence_score": 1.0,
+      "source_file": "docs/partner.md",
+      "source_location": "L341",
+      "weight": 1.0,
+      "source": "docs_partner_privacy",
+      "target": "docs_partner_ceo"
+    },
+    {
+      "relation": "references",
+      "label": "Filtra la sezione",
+      "confidence": "EXTRACTED",
+      "confidence_score": 1.0,
+      "source_file": "docs/partner.md",
+      "source_location": "L28",
+      "weight": 1.0,
+      "source": "docs_partner_roadbook",
+      "target": "docs_partner_club"
+    },
+    {
+      "relation": "references",
+      "label": "Filtra la sezione",
+      "confidence": "EXTRACTED",
+      "confidence_score": 1.0,
+      "source_file": "docs/partner.md",
+      "source_location": "L28",
+      "weight": 1.0,
+      "source": "docs_partner_roadbook",
+      "target": "docs_partner_collab"
+    },
+    {
+      "relation": "references",
+      "label": "Filtra la sezione",
+      "confidence": "EXTRACTED",
+      "confidence_score": 1.0,
+      "source_file": "docs/partner.md",
+      "source_location": "L28",
+      "weight": 1.0,
+      "source": "docs_partner_roadbook",
+      "target": "docs_partner_eventi"
+    },
+    {
+      "relation": "references",
+      "label": "Filtra la sezione",
+      "confidence": "EXTRACTED",
+      "confidence_score": 1.0,
+      "source_file": "docs/partner.md",
+      "source_location": "L28",
+      "weight": 1.0,
+      "source": "docs_partner_roadbook",
+      "target": "docs_partner_vendita"
+    },
+    {
+      "relation": "references",
+      "label": "Fornisce contatti da fare secondo giorno di Roma",
+      "confidence": "EXTRACTED",
+      "confidence_score": 1.0,
+      "source_file": "docs/partner.md",
+      "source_location": "L146",
+      "weight": 1.0,
+      "source": "docs_partner_database",
+      "target": "docs_partner_oggi"
+    },
+    {
+      "relation": "references",
+      "label": "Fornisce link puliti",
+      "confidence": "EXTRACTED",
+      "confidence_score": 1.0,
+      "source_file": "docs/partner.md",
+      "source_location": "L147",
+      "weight": 1.0,
+      "source": "docs_partner_recapiti",
+      "target": "docs_partner_roadbook"
+    },
+    {
+      "relation": "references",
+      "label": "Fornisce schede e stato",
+      "confidence": "EXTRACTED",
+      "confidence_score": 1.0,
+      "source_file": "docs/partner.md",
+      "source_location": "L146",
+      "weight": 1.0,
+      "source": "docs_partner_database",
+      "target": "docs_partner_roadbook"
+    },
+    {
+      "relation": "references",
+      "label": "Fornisce solo risposte già registrate",
+      "confidence": "EXTRACTED",
+      "confidence_score": 1.0,
+      "source_file": "docs/partner.md",
+      "source_location": "L44",
+      "weight": 1.0,
+      "source": "docs_partner_registro",
+      "target": "docs_partner_da_seguire"
+    },
+    {
+      "relation": "references",
+      "label": "Generano eventi leggibili",
+      "confidence": "EXTRACTED",
+      "confidence_score": 1.0,
+      "source_file": "docs/partner.md",
+      "source_location": "L168",
+      "weight": 1.0,
+      "source": "docs_partner_comandi",
+      "target": "docs_partner_ceo"
+    },
+    {
+      "relation": "references",
+      "label": "Il laboratorio produce il materiale da importare",
+      "confidence": "EXTRACTED",
+      "confidence_score": 1.0,
+      "source_file": "docs/partner.md",
+      "source_location": "L193",
+      "weight": 1.0,
+      "source": "docs_partner_ricerca",
+      "target": "docs_partner_import_ricerca"
+    },
+    {
+      "relation": "references",
+      "label": "Invia resolve_partner_difference",
+      "confidence": "EXTRACTED",
+      "confidence_score": 1.0,
+      "source_file": "docs/partner.md",
+      "source_location": "L221",
+      "weight": 1.0,
+      "source": "docs_partner_differenze",
+      "target": "docs_partner_comandi"
+    },
+    {
+      "relation": "references",
+      "label": "Invia set_partner_do_not_contact",
+      "confidence": "EXTRACTED",
+      "confidence_score": 1.0,
+      "source_file": "docs/partner.md",
+      "source_location": "L179",
+      "weight": 1.0,
+      "source": "docs_partner_non_contattare",
+      "target": "docs_partner_comandi"
+    },
+    {
+      "relation": "references",
+      "label": "Invia set_partner_state",
+      "confidence": "EXTRACTED",
+      "confidence_score": 1.0,
+      "source_file": "docs/partner.md",
+      "source_location": "L172",
+      "weight": 1.0,
+      "source": "docs_partner_prossima_azione",
+      "target": "docs_partner_comandi"
+    },
+    {
+      "relation": "references",
+      "label": "Invia set_partner_state",
+      "confidence": "EXTRACTED",
+      "confidence_score": 1.0,
+      "source_file": "docs/partner.md",
+      "source_location": "L172",
+      "weight": 1.0,
+      "source": "docs_partner_responsabile",
+      "target": "docs_partner_comandi"
+    },
+    {
+      "relation": "references",
+      "label": "Invia set_partner_state",
+      "confidence": "EXTRACTED",
+      "confidence_score": 1.0,
+      "source_file": "docs/partner.md",
+      "source_location": "L13",
+      "weight": 1.0,
+      "source": "docs_partner_stato",
+      "target": "docs_partner_comandi"
+    },
+    {
+      "relation": "references",
+      "label": "Invio e risposta possono avanzare lo stato",
+      "confidence": "EXTRACTED",
+      "confidence_score": 1.0,
+      "source_file": "docs/partner.md",
+      "source_location": "L44",
+      "weight": 1.0,
+      "source": "docs_partner_registro",
+      "target": "docs_partner_stato"
+    },
+    {
+      "relation": "references",
+      "label": "Invio registrato crea promemoria se applicabile",
+      "confidence": "EXTRACTED",
+      "confidence_score": 1.0,
+      "source_file": "docs/partner.md",
+      "source_location": "L44",
+      "weight": 1.0,
+      "source": "docs_partner_segna_inviato",
+      "target": "docs_partner_sollecito"
+    },
+    {
+      "relation": "references",
+      "label": "Mostra contesto e fonti",
+      "confidence": "EXTRACTED",
+      "confidence_score": 1.0,
+      "source_file": "docs/partner.md",
+      "source_location": "L42",
+      "weight": 1.0,
+      "source": "docs_partner_dettaglio",
+      "target": "docs_partner_ricerca"
+    },
+    {
+      "relation": "references",
+      "label": "Mostra e gestisce i recapiti",
+      "confidence": "EXTRACTED",
+      "confidence_score": 1.0,
+      "source_file": "docs/partner.md",
+      "source_location": "L42",
+      "weight": 1.0,
+      "source": "docs_partner_dettaglio",
+      "target": "docs_partner_recapiti"
+    },
+    {
+      "relation": "references",
+      "label": "Mostra storia e metadati",
+      "confidence": "EXTRACTED",
+      "confidence_score": 1.0,
+      "source_file": "docs/partner.md",
+      "source_location": "L61",
+      "weight": 1.0,
+      "source": "docs_partner_pagina_dati",
+      "target": "docs_partner_import_ricerca"
+    },
+    {
+      "relation": "references",
+      "label": "Mostra storico",
+      "confidence": "EXTRACTED",
+      "confidence_score": 1.0,
+      "source_file": "docs/partner.md",
+      "source_location": "L42",
+      "weight": 1.0,
+      "source": "docs_partner_dettaglio",
+      "target": "docs_partner_registro"
+    },
+    {
+      "relation": "references",
+      "label": "Offre Ha risposto",
+      "confidence": "EXTRACTED",
+      "confidence_score": 1.0,
+      "source_file": "docs/partner.md",
+      "source_location": "L392",
+      "weight": 1.0,
+      "source": "docs_partner_oggi",
+      "target": "docs_partner_registra_risposta"
+    },
+    {
+      "relation": "references",
+      "label": "Offre cinque PDF",
+      "confidence": "EXTRACTED",
+      "confidence_score": 1.0,
+      "source_file": "docs/partner.md",
+      "source_location": "L28",
+      "weight": 1.0,
+      "source": "docs_partner_roadbook",
+      "target": "docs_partner_lookbook"
+    },
+    {
+      "relation": "references",
+      "label": "Offre download dei PDF",
+      "confidence": "EXTRACTED",
+      "confidence_score": 1.0,
+      "source_file": "docs/partner.md",
+      "source_location": "L61",
+      "weight": 1.0,
+      "source": "docs_partner_pagina_dati",
+      "target": "docs_partner_lookbook"
+    },
+    {
+      "relation": "references",
+      "label": "Offre vista operativa",
+      "confidence": "EXTRACTED",
+      "confidence_score": 1.0,
+      "source_file": "docs/partner.md",
+      "source_location": "L28",
+      "weight": 1.0,
+      "source": "docs_partner_roadbook",
+      "target": "docs_partner_da_seguire"
+    },
+    {
+      "relation": "references",
+      "label": "Registra kind inviato senza spedire",
+      "confidence": "EXTRACTED",
+      "confidence_score": 1.0,
+      "source_file": "docs/partner.md",
+      "source_location": "L44",
+      "weight": 1.0,
+      "source": "docs_partner_segna_inviato",
+      "target": "docs_partner_registro"
+    },
+    {
+      "relation": "references",
+      "label": "Registra kind risposta",
+      "confidence": "EXTRACTED",
+      "confidence_score": 1.0,
+      "source_file": "docs/partner.md",
+      "source_location": "L46",
+      "weight": 1.0,
+      "source": "docs_partner_registra_risposta",
+      "target": "docs_partner_registro"
+    },
+    {
+      "relation": "references",
+      "label": "Registra origine file",
+      "confidence": "EXTRACTED",
+      "confidence_score": 1.0,
+      "source_file": "docs/partner.md",
+      "source_location": "L315",
+      "weight": 1.0,
+      "source": "docs_partner_file_storici",
+      "target": "docs_partner_registro"
+    },
+    {
+      "relation": "references",
+      "label": "Registra una sola attività per contatto",
+      "confidence": "EXTRACTED",
+      "confidence_score": 1.0,
+      "source_file": "docs/partner.md",
+      "source_location": "L168",
+      "weight": 1.0,
+      "source": "docs_partner_comandi",
+      "target": "docs_partner_registro"
+    },
+    {
+      "relation": "references",
+      "label": "Rende visibile il compito assegnato",
+      "confidence": "EXTRACTED",
+      "confidence_score": 1.0,
+      "source_file": "docs/partner.md",
+      "source_location": "L394",
+      "weight": 1.0,
+      "source": "docs_partner_sollecito",
+      "target": "docs_partner_oggi"
+    },
+    {
+      "relation": "references",
+      "label": "Restringono la vista; non modificano i dati",
+      "confidence": "EXTRACTED",
+      "confidence_score": 1.0,
+      "source_file": "docs/partner.md",
+      "source_location": "L90",
+      "weight": 1.0,
+      "source": "docs_partner_filtri",
+      "target": "docs_partner_roadbook"
+    },
+    {
+      "relation": "references",
+      "label": "Salva rimuove o cancella tramite RPC",
+      "confidence": "EXTRACTED",
+      "confidence_score": 1.0,
+      "source_file": "docs/partner.md",
+      "source_location": "L147",
+      "weight": 1.0,
+      "source": "docs_partner_recapiti",
+      "target": "docs_partner_comandi"
+    },
+    {
+      "relation": "references",
+      "label": "Scelta chiuso indica accordo reale",
+      "confidence": "EXTRACTED",
+      "confidence_score": 1.0,
+      "source_file": "docs/partner.md",
+      "source_location": "L13",
+      "weight": 1.0,
+      "source": "docs_partner_stato",
+      "target": "docs_partner_accordo"
+    },
+    {
+      "relation": "references",
+      "label": "Scrive con operation_id e versione",
+      "confidence": "EXTRACTED",
+      "confidence_score": 1.0,
+      "source_file": "docs/partner.md",
+      "source_location": "L168",
+      "weight": 1.0,
+      "source": "docs_partner_comandi",
+      "target": "docs_partner_database"
+    },
+    {
+      "relation": "references",
+      "label": "Tommi invia manualmente e registra sollecito inviato",
+      "confidence": "EXTRACTED",
+      "confidence_score": 1.0,
+      "source_file": "docs/partner.md",
+      "source_location": "L394",
+      "weight": 1.0,
+      "source": "docs_partner_sollecito",
+      "target": "docs_partner_segna_inviato"
+    },
+    {
+      "relation": "conceptually_related_to",
+      "confidence": "EXTRACTED",
+      "confidence_score": 1.0,
+      "source_file": "docs/partner-programma-email.md",
+      "source_location": "docs/partner-programma-email.md:21",
+      "weight": 1.0,
+      "source": "docs_partner_programma_email_identita_recapito",
+      "target": "docs_partner_programma_email_obsoleta"
+    },
+    {
+      "relation": "conceptually_related_to",
+      "confidence": "EXTRACTED",
+      "confidence_score": 1.0,
+      "source_file": "docs/partner-programma-email.md",
+      "source_location": "docs/partner-programma-email.md:11",
+      "weight": 1.0,
+      "source": "docs_partner_programma_email_pausa_credito",
+      "target": "docs_partner_programma_email_non_pronti"
+    },
+    {
+      "relation": "conceptually_related_to",
+      "confidence": "EXTRACTED",
+      "confidence_score": 1.0,
+      "source_file": "docs/partner-programma-email.md",
+      "source_location": "docs/partner-programma-email.md:25",
+      "weight": 1.0,
+      "source": "docs_partner_programma_email_policy",
+      "target": "docs_partner_programma_email_revisione"
+    },
+    {
+      "relation": "crea promemoria a sette giorni",
+      "confidence": "EXTRACTED",
+      "confidence_score": 1.0,
+      "source_file": "docs/partner-assistente.md",
+      "source_location": "docs/partner-assistente.md:179",
+      "weight": 1.0,
+      "source": "docs_partner_assistente_post_invio",
+      "target": "docs_partner_sollecito"
+    },
+    {
+      "relation": "entra nel calendario",
+      "confidence": "EXTRACTED",
+      "confidence_score": 1.0,
+      "source_file": "docs/partner-programma-email.md",
+      "source_location": "docs/partner-programma-email.md:7",
+      "weight": 1.0,
+      "source": "docs_partner_assistente_pronta",
+      "target": "docs_partner_programma_email_snapshot"
+    },
+    {
+      "relation": "esclude la bozza sospesa",
+      "confidence": "EXTRACTED",
+      "confidence_score": 1.0,
+      "source_file": "supabase/migrations/20261104001229_partner_programma_email.sql",
+      "source_location": "supabase/migrations/20261104001229_partner_programma_email.sql:37",
+      "weight": 1.0,
+      "source": "docs_partner_programma_email_sospensione",
+      "target": "docs_partner_assistente_ordine_invio"
+    },
+    {
+      "relation": "esclude quando assegnato",
+      "confidence": "EXTRACTED",
+      "confidence_score": 1.0,
+      "source_file": "src/components/partner/partner-details.tsx",
+      "source_location": "src/components/partner/partner-details.tsx:168",
+      "weight": 1.0,
+      "source": "docs_partner_responsabile",
+      "target": "docs_partner_assistente_idoneita"
+    },
+    {
+      "relation": "esclude quando impostata",
+      "confidence": "EXTRACTED",
+      "confidence_score": 1.0,
+      "source_file": "src/components/partner/partner-details.tsx",
+      "source_location": "src/components/partner/partner-details.tsx:168",
+      "weight": 1.0,
+      "source": "docs_partner_prossima_azione",
+      "target": "docs_partner_assistente_idoneita"
+    },
+    {
+      "relation": "fornisce email attiva",
+      "confidence": "EXTRACTED",
+      "confidence_score": 1.0,
+      "source_file": "supabase/migrations/20261028122956_assistente_partner_worker.sql",
+      "source_location": "supabase/migrations/20261028122956_assistente_partner_worker.sql:115",
+      "weight": 1.0,
+      "source": "docs_partner_recapiti",
+      "target": "docs_partner_assistente_idoneita"
+    },
+    {
+      "relation": "fornisce i due PDF Club consentiti",
+      "confidence": "EXTRACTED",
+      "confidence_score": 1.0,
+      "source_file": "src/lib/partner-assistant/test-lookbook-metadata.ts",
+      "source_location": "src/lib/partner-assistant/test-lookbook-metadata.ts:1",
+      "weight": 1.0,
+      "source": "docs_partner_lookbook",
+      "target": "docs_partner_assistente_allegato"
+    },
+    {
+      "relation": "fornisce stato e contesto",
+      "confidence": "EXTRACTED",
+      "confidence_score": 1.0,
+      "source_file": "supabase/migrations/20261028122956_assistente_partner_worker.sql",
+      "source_location": "supabase/migrations/20261028122956_assistente_partner_worker.sql:70",
+      "weight": 1.0,
+      "source": "docs_partner_database",
+      "target": "docs_partner_assistente_idoneita"
+    },
+    {
+      "relation": "il team registra la risposta",
+      "confidence": "EXTRACTED",
+      "confidence_score": 1.0,
+      "source_file": "docs/partner.md",
+      "source_location": "docs/partner.md:46",
+      "weight": 1.0,
+      "source": "docs_partner_assistente_seguito_manuale",
+      "target": "docs_partner_registra_risposta"
+    },
+    {
+      "relation": "il team registra le email successive",
+      "confidence": "EXTRACTED",
+      "confidence_score": 1.0,
+      "source_file": "docs/partner.md",
+      "source_location": "docs/partner.md:44",
+      "weight": 1.0,
+      "source": "docs_partner_assistente_seguito_manuale",
+      "target": "docs_partner_segna_inviato"
+    },
+    {
+      "relation": "impedisce il contatto",
+      "confidence": "EXTRACTED",
+      "confidence_score": 1.0,
+      "source_file": "supabase/migrations/20261028122956_assistente_partner_worker.sql",
+      "source_location": "supabase/migrations/20261028122956_assistente_partner_worker.sql:76",
+      "weight": 1.0,
+      "source": "docs_partner_non_contattare",
+      "target": "docs_partner_assistente_idoneita"
+    },
+    {
+      "relation": "protegge revisione e sospensione",
+      "confidence": "EXTRACTED",
+      "confidence_score": 1.0,
+      "source_file": "docs/partner-programma-email.md",
+      "source_location": "docs/partner-programma-email.md:19",
+      "weight": 1.0,
+      "source": "docs_partner_programma_email_guardia_smtp",
+      "target": "docs_partner_assistente_start"
+    },
+    {
+      "relation": "può essere sospesa dal founder",
+      "confidence": "EXTRACTED",
+      "confidence_score": 1.0,
+      "source_file": "docs/partner-programma-email.md",
+      "source_location": "docs/partner-programma-email.md:15",
+      "weight": 1.0,
+      "source": "docs_partner_assistente_pronta",
+      "target": "docs_partner_programma_email_sospensione"
+    },
+    {
+      "relation": "references",
+      "confidence": "EXTRACTED",
+      "confidence_score": 1.0,
+      "source_file": "docs/partner-programma-email.md",
+      "source_location": "docs/partner-programma-email.md:15",
+      "weight": 1.0,
+      "source": "docs_partner_programma_email_apri_email",
+      "target": "docs_partner_programma_email_sospensione"
+    },
+    {
+      "relation": "references",
+      "confidence": "EXTRACTED",
+      "confidence_score": 1.0,
+      "source_file": "docs/partner-programma-email.md",
+      "source_location": "docs/partner-programma-email.md:15",
+      "weight": 1.0,
+      "source": "docs_partner_programma_email_filtri",
+      "target": "docs_partner_programma_email_apri_email"
+    },
+    {
+      "relation": "references",
+      "confidence": "EXTRACTED",
+      "confidence_score": 1.0,
+      "source_file": "docs/partner-programma-email.md",
+      "source_location": "docs/partner-programma-email.md:21",
+      "weight": 1.0,
+      "source": "docs_partner_programma_email_obsoleta",
+      "target": "docs_partner_programma_email_sospensione"
+    },
+    {
+      "relation": "references",
+      "confidence": "EXTRACTED",
+      "confidence_score": 1.0,
+      "source_file": "docs/partner-programma-email.md",
+      "source_location": "docs/partner-programma-email.md:15",
+      "weight": 1.0,
+      "source": "docs_partner_programma_email_sospensione",
+      "target": "docs_partner_programma_email_annulla"
+    },
+    {
+      "relation": "references",
+      "confidence": "EXTRACTED",
+      "confidence_score": 1.0,
+      "source_file": "docs/partner-programma-email.md",
+      "source_location": "docs/partner-programma-email.md:17",
+      "weight": 1.0,
+      "source": "docs_partner_programma_email_sospensione",
+      "target": "docs_partner_programma_email_revisione"
+    },
+    {
+      "relation": "references",
+      "confidence": "EXTRACTED",
+      "confidence_score": 1.0,
+      "source_file": "docs/partner-programma-email.md",
+      "source_location": "docs/partner-programma-email.md:27",
+      "weight": 1.0,
+      "source": "docs_partner_programma_email_testo_effettivo",
+      "target": "docs_partner_programma_email_sollecito_manual"
+    },
+    {
+      "relation": "registra invio con origine assistente",
+      "confidence": "EXTRACTED",
+      "confidence_score": 1.0,
+      "source_file": "docs/partner-assistente.md",
+      "source_location": "docs/partner-assistente.md:179",
+      "weight": 1.0,
+      "source": "docs_partner_assistente_post_invio",
+      "target": "docs_partner_registro"
+    },
+    {
+      "relation": "salva nuova bozza approvata",
+      "confidence": "EXTRACTED",
+      "confidence_score": 1.0,
+      "source_file": "docs/partner-programma-email.md",
+      "source_location": "docs/partner-programma-email.md:17",
+      "weight": 1.0,
+      "source": "docs_partner_programma_email_revisione",
+      "target": "docs_partner_assistente_pronta"
+    },
+    {
+      "relation": "shares_data_with",
+      "confidence": "EXTRACTED",
+      "confidence_score": 1.0,
+      "source_file": "docs/partner-programma-email.md",
+      "source_location": "docs/partner-programma-email.md:7",
+      "weight": 1.0,
+      "source": "docs_partner_programma_email_calendario",
+      "target": "docs_partner_programma_email_previsione"
+    },
+    {
+      "relation": "shares_data_with",
+      "confidence": "EXTRACTED",
+      "confidence_score": 1.0,
+      "source_file": "docs/partner-programma-email.md",
+      "source_location": "docs/partner-programma-email.md:21",
+      "weight": 1.0,
+      "source": "docs_partner_programma_email_identita_recapito",
+      "target": "docs_partner_programma_email_revisione"
+    },
+    {
+      "relation": "shares_data_with",
+      "confidence": "EXTRACTED",
+      "confidence_score": 1.0,
+      "source_file": "docs/partner-programma-email.md",
+      "source_location": "docs/partner-programma-email.md:9",
+      "weight": 1.0,
+      "source": "docs_partner_programma_email_previsione",
+      "target": "docs_partner_programma_email_filtri"
+    },
+    {
+      "relation": "shares_data_with",
+      "confidence": "EXTRACTED",
+      "confidence_score": 1.0,
+      "source_file": "docs/partner-programma-email.md",
+      "source_location": "docs/partner-programma-email.md:7",
+      "weight": 1.0,
+      "source": "docs_partner_programma_email_quote",
+      "target": "docs_partner_programma_email_previsione"
+    },
+    {
+      "relation": "shares_data_with",
+      "confidence": "EXTRACTED",
+      "confidence_score": 1.0,
+      "source_file": "docs/partner-programma-email.md",
+      "source_location": "docs/partner-programma-email.md:17",
+      "weight": 1.0,
+      "source": "docs_partner_programma_email_revisione",
+      "target": "docs_partner_programma_email_firma"
+    },
+    {
+      "relation": "shares_data_with",
+      "confidence": "EXTRACTED",
+      "confidence_score": 1.0,
+      "source_file": "docs/partner-programma-email.md",
+      "source_location": "docs/partner-programma-email.md:19",
+      "weight": 1.0,
+      "source": "docs_partner_programma_email_revisione",
+      "target": "docs_partner_programma_email_guardia_smtp"
+    },
+    {
+      "relation": "shares_data_with",
+      "confidence": "EXTRACTED",
+      "confidence_score": 1.0,
+      "source_file": "docs/partner-programma-email.md",
+      "source_location": "docs/partner-programma-email.md:11",
+      "weight": 1.0,
+      "source": "docs_partner_programma_email_snapshot",
+      "target": "docs_partner_programma_email_non_pronti"
+    },
+    {
+      "relation": "shares_data_with",
+      "confidence": "EXTRACTED",
+      "confidence_score": 1.0,
+      "source_file": "docs/partner-programma-email.md",
+      "source_location": "docs/partner-programma-email.md:11",
+      "weight": 1.0,
+      "source": "docs_partner_programma_email_snapshot",
+      "target": "docs_partner_programma_email_testo_effettivo"
+    },
+    {
+      "relation": "shares_data_with",
+      "confidence": "EXTRACTED",
+      "confidence_score": 1.0,
+      "source_file": "docs/partner-programma-email.md",
+      "source_location": "docs/partner-programma-email.md:7",
+      "weight": 1.0,
+      "source": "docs_partner_programma_email_snapshot",
+      "target": "docs_partner_programma_email_previsione"
+    },
+    {
+      "relation": "shares_data_with",
+      "confidence": "EXTRACTED",
+      "confidence_score": 1.0,
+      "source_file": "docs/partner-programma-email.md",
+      "source_location": "docs/partner-programma-email.md:19",
+      "weight": 1.0,
+      "source": "docs_partner_programma_email_sospensione",
+      "target": "docs_partner_programma_email_guardia_smtp"
+    }
+  ],
+  "hyperedges": [],
+  "built_at_commit": "7a629ea"
+}

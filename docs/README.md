@@ -62,6 +62,8 @@ Alcuni documenti scritti prima del modello attuale chiedono ancora una sessione 
 
 ## Partner
 
+- [Mappa funzionale Partner](partner-mappa/README.md): grafo interattivo di 93 funzioni e dei passaggi dal database all’invio, con ruoli, tempi e fonti; HTML autonomo della schermata con dati sintetici.
+
 - [Riordino Partner e risposte: progetto](superpowers/specs/2026-11-02-partner-riordino.md) e [piano della prima consegna](superpowers/plans/2026-11-02-partner-riordino-tappa-1.md): quattro sezioni permanenti, fase leggibile, lista di lavoro e risposte già registrate; prima consegna senza lettura della casella o nuovi invii.
 
 - [Partner nel gestionale](partner.md): pagina `/partner` con contatti, periodi, messaggi e stati, sezione Club (Porsche Club fuori dall'Italia, club Ferrari e Mercedes), «Ci siamo» (accordi fatti, unici nel calendario), import della ricerca e dei file «Esporta», lookbook, privacy e lo spegnimento di GitHub Pages.
