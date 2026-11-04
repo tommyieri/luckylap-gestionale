@@ -5,11 +5,29 @@ Analisi del codice `origin/main` al commit `7a629ea`, 4 novembre 2026. Descrive 
 ## Aprire i risultati
 
 - [Grafo interattivo](grafo.html): percorso principale, sei aree, 93 funzioni e 158 collegamenti orientati. Selezionando un nodo si vedono **chi, quando, come, ingresso, uscita e fonti**. «Aree e azioni» consente di cercare qualsiasi funzione; «Chi, quando, come» riassume i ruoli; «Dati e tracciabilità» descrive il contenuto delle schede e delle tabelle collegate.
-- [Schermata HTML](schermata.html): ricostruzione autonoma di Partner e Programma email, con contatti sintetici, filtri, dettagli e revisione locale delle bozze. Assistente, Dati e Regole sono sintesi navigabili. Non è un export del DOM della produzione; i valori e i testi di esempio non rappresentano la coda reale. Le modifiche restano in memoria e si perdono ricaricando.
+- [Schermata HTML](schermata.html): ricostruzione autonoma di Partner e Programma email con quattro contatti sintetici e schede complete: contesto e dati della ricerca, proposte per sezione, recapiti, avvisi, differenze, responsabile, prossima azione e data, stato, esiti, ultima risposta, lavoro dell’assistente, bozza completa e registro. Le azioni dimostrative lavorano in memoria: i dati si azzerano ricaricando. Assistente e Dati restano navigabili; la guida approfondita si apre anche dal collegamento alle Regole. Non è un export del DOM della produzione; i valori e i testi di esempio non rappresentano la coda reale.
+- [Come lavoriamo e regole di scrittura](funzionamento.html): guida autonoma a responsabilità, idoneità, due percorsi di preparazione, scelte delle proposte, scrittura e controlli, prova e invio, errori e seguito manuale. Distingue istruzioni del prompt, vincoli del codice e interventi del founder; comprende esempi didattici con soli dati sintetici.
 - [Dati del grafo](graph.json): formato orientato con `nodes`, `links`, comunità, fonti e campi operativi. `implemented: false` identifica il progetto futuro, distinto dal comportamento attivo.
 - [Rapporto del grafo](GRAPH_REPORT.md): integrità, nodi centrali, collegamenti trasversali, comunità e limiti dell’estrazione.
 
-I due HTML si aprono direttamente nel browser e non richiedono un server o librerie da scaricare. I riferimenti alle fonti su GitHub richiedono rete e accesso al repository. Il link dal grafo alla schermata funziona mantenendo i file nella stessa cartella. Questi documenti non vengono serviti dal gestionale e non cambiano l’interfaccia dell’applicazione.
+I tre HTML si aprono direttamente nel browser e non richiedono un server o librerie da scaricare. I riferimenti alle fonti su GitHub richiedono rete e accesso al repository. Mantieni i file nella stessa cartella per passare dal grafo alle schede e alla guida. Questi documenti non vengono serviti dal gestionale e non cambiano l’interfaccia dell’applicazione.
+
+## Che cosa esplorare nelle quattro schede
+
+Ogni scheda ha dati sufficienti per leggere il contatto e seguire il lavoro senza dover immaginare il contenuto dei blocchi.
+
+| Blocco | Contenuto dimostrativo |
+| --- | --- |
+| Contesto e pianificazione | Identità, sezioni, priorità, mese, date e scadenze; descrizione, motivo, proposta per sezione e pitch. |
+| Lavoro commerciale | Stato, responsabile, prossima azione e data, turno della conversazione e motivo della fase. |
+| Avvisi e differenze | Confronto fra valore del team e valore importato, con risoluzione locale; attenzione e fonti sintetiche. |
+| Assistente | Idoneità o motivi di esclusione, interruttore per contatto, priorità, proposta e motivazione, ricerca o provenienza del modello Club, controlli e testo completo della bozza. |
+| Email | Destinatario sintetico, oggetto, corpo, firma e frase di uscita; allegato indicato; dettaglio nel calendario e revisione locale del founder. |
+| Registro | Invii, solleciti, risposte, chiamate, incontri e note con data, canale e autore; gli invii registrati non spediscono email. |
+| Ricerca e recapiti | Come e quando contattarli, lingua, candidatura, realtà collegate; recapiti attivi, rimossi o cancellati e relative azioni locali. |
+| Modifica, blocchi ed esito | Modulo scheda, «Non contattare» e revoca, ultima risposta ed esito con rimando al lavoro del team nei casi con accordo. |
+
+Gli approfondimenti della ricostruzione che espongono dati conservati nel database ma non montati nell’attuale dettaglio sono indicati separatamente. La demo non aggiunge queste funzioni al gestionale. Gli indirizzi dimostrativi usano il dominio riservato `example.test`; i PDF di produzione e i loro contenuti non sono inclusi.
 
 ## Percorso attuale
 
@@ -39,4 +57,6 @@ La lacuna documentata nel conteggio delle differenze sui vecchi messaggi in Dati
 
 Integrità del grafo: 93 identificatori univoci, estremi presenti per tutti i 158 archi, direzioni conservate, nessun autoanello. Tutti i nodi hanno chi, quando, come, ingresso, uscita e fonti. Estrazione documentale con graphify e controllo incrociato nei sorgenti; nessuna estrazione AST dell’intero repository.
 
-Controlli eseguiti: integrità del grafo, fonti presenti nel repository e sintassi degli script incorporati; apertura senza server dei due HTML; navigazione delle sei aree e ricerca delle funzioni; filtri, dettagli, salvataggio e annullamento della revisione locale di una bozza; blocco della chiusura con testo non salvato; dialogo su telefono. Nessuna richiesta di rete durante l’uso e nessun errore in console. Larghezze verificate: 320, 760 e 1440 pixel, senza fuoriuscite orizzontali della pagina; il grafo dettagliato mantiene lo scorrimento interno e lo zoom. Formattazione con `npm run format` e `npm run format:check`. Non viene aperta una pull request e non viene modificato codice applicativo; build e suite applicative/database non sono richieste per questi file documentali.
+Controlli eseguiti: integrità del grafo, fonti presenti nel repository e sintassi degli script incorporati; apertura senza server dei tre HTML; navigazione delle sei aree e ricerca delle funzioni. Nelle quattro schede sono stati verificati espansione delle sezioni, validazione azione/data, assegnazione e rimozione del responsabile senza perdere lo storico di lavoro, registrazione di una risposta e riapertura del sollecito a sette giorni, collegamenti dell’accordo, modifica scheda, risoluzione differenze, aggiunta/modifica/rimozione/ripristino dei recapiti, blocco/revoca e conseguente indisponibilità della modifica email. Verificati salvataggio e annullamento della revisione locale, numero di revisione e blocco della chiusura con testo non salvato.
+
+Nella guida sono stati verificati ricerca, indice, approfondimenti, simulatore alla soglia di 31/32 giorni e proposta per un evento non raggiungibile. Le quattro email didattiche hanno rispettivamente 212, 128, 131 e 130 parole con il criterio del prodotto, e al massimo una domanda. I riferimenti puntano a file e righe esistenti. Nessuna richiesta di rete durante l’uso e nessun errore in console. Larghezze verificate: 320, 760 e 1440 pixel, senza fuoriuscite orizzontali della pagina; il grafo dettagliato mantiene lo scorrimento interno e lo zoom. Formattazione con `npm run format` e `npm run format:check`. Non viene aperta una pull request e non viene modificato codice applicativo; build e suite applicative/database non sono richieste per questi file documentali.

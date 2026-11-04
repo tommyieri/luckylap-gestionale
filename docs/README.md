@@ -62,7 +62,8 @@ Alcuni documenti scritti prima del modello attuale chiedono ancora una sessione 
 
 ## Partner
 
-- [Mappa funzionale Partner](partner-mappa/README.md): grafo interattivo di 93 funzioni e dei passaggi dal database all’invio, con ruoli, tempi e fonti; HTML autonomo della schermata con dati sintetici.
+- [Mappa funzionale Partner](partner-mappa/README.md): grafo interattivo di 93 funzioni e dei passaggi dal database all’invio, con ruoli, tempi e fonti; HTML della schermata con quattro schede complete e dati sintetici.
+- [Come lavoriamo e regole di scrittura Partner](partner-mappa/funzionamento.html): guida HTML autonoma a team, assistente, preparazione, invio e seguito manuale, con regole effettive, eccezioni ed esempi di email.
 
 - [Riordino Partner e risposte: progetto](superpowers/specs/2026-11-02-partner-riordino.md) e [piano della prima consegna](superpowers/plans/2026-11-02-partner-riordino-tappa-1.md): quattro sezioni permanenti, fase leggibile, lista di lavoro e risposte già registrate; prima consegna senza lettura della casella o nuovi invii.
 

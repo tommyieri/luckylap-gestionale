@@ -1,0 +1,3207 @@
+<!doctype html>
+<html lang="it">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta
+      name="description"
+      content="Guida completa al lavoro dell’assistente Partner: persone, dati, ricerca, regole di scrittura, revisione e invio delle prime email."
+    />
+    <title>Partner · Come lavora l’assistente e come scrive</title>
+    <style>
+      :root {
+        color-scheme: light;
+        --paper: #f7f7f3;
+        --white: #fff;
+        --ink: #252820;
+        --muted: #64695e;
+        --line: #d9ddd2;
+        --orange: #a6411c;
+        --soft: #fff0e5;
+        --green: #2e604b;
+        --green-soft: #eaf3ec;
+        --blue: #2c567b;
+        --blue-soft: #eaf1f8;
+        --amber: #775411;
+        --amber-soft: #fbf4df;
+        font-family: Arial, Helvetica, sans-serif;
+      }
+      * {
+        box-sizing: border-box;
+      }
+      html {
+        scroll-behavior: smooth;
+        scroll-padding-top: 25px;
+      }
+      body {
+        margin: 0;
+        color: var(--ink);
+        background: var(--paper);
+        font-size: 16px;
+        line-height: 1.65;
+      }
+      a {
+        color: var(--orange);
+        text-underline-offset: 3px;
+        overflow-wrap: anywhere;
+      }
+      button,
+      input,
+      select {
+        font: inherit;
+        color: inherit;
+      }
+      button,
+      a,
+      input,
+      select,
+      summary {
+        touch-action: manipulation;
+      }
+      button {
+        border: 1px solid var(--line);
+        border-radius: 7px;
+        padding: 8px 13px;
+        background: var(--white);
+        cursor: pointer;
+      }
+      button:hover {
+        background: #f1f2eb;
+      }
+      button:focus-visible,
+      a:focus-visible,
+      input:focus-visible,
+      select:focus-visible,
+      summary:focus-visible {
+        outline: 3px solid #b65d30;
+        outline-offset: 4px;
+      }
+      input[type="search"],
+      input[type="number"],
+      select {
+        background: var(--white);
+        border: 1px solid #a9b19f;
+        padding: 10px 12px;
+        border-radius: 6px;
+        min-width: 0;
+        max-width: 100%;
+      }
+      input[type="checkbox"] {
+        width: 18px;
+        height: 18px;
+        accent-color: var(--green);
+      }
+      h1,
+      h2,
+      h3,
+      h4,
+      p,
+      ul,
+      ol,
+      figure {
+        margin: 0;
+      }
+      h1 {
+        font-size: clamp(30px, 4vw, 49px);
+        line-height: 1.12;
+        font-weight: 600;
+        letter-spacing: -1.8px;
+        max-width: 900px;
+      }
+      h2 {
+        font-size: 28px;
+        line-height: 1.2;
+        letter-spacing: -0.7px;
+        font-weight: 600;
+      }
+      h3 {
+        font-size: 20px;
+        line-height: 1.3;
+        font-weight: 600;
+      }
+      h4 {
+        font-size: 17px;
+        line-height: 1.35;
+      }
+      p + p {
+        margin-top: 12px;
+      }
+      ul,
+      ol {
+        padding-left: 23px;
+      }
+      li + li {
+        margin-top: 8px;
+      }
+      strong {
+        font-weight: 600;
+      }
+      code {
+        font-family: ui-monospace, SFMono-Regular, Consolas, monospace;
+        font-size: 0.86em;
+        overflow-wrap: anywhere;
+      }
+      pre {
+        white-space: pre-wrap;
+        overflow-wrap: anywhere;
+        font: inherit;
+        margin: 0;
+      }
+      [hidden] {
+        display: none !important;
+      }
+      .skip {
+        position: absolute;
+        left: 12px;
+        top: -80px;
+        padding: 10px 15px;
+        background: var(--white);
+        z-index: 10;
+      }
+      .skip:focus {
+        top: 12px;
+      }
+      .masthead {
+        background: var(--white);
+        border-bottom: 1px solid var(--line);
+        padding: 30px max(24px, 4vw);
+      }
+      .eyebrow {
+        display: block;
+        font-size: 12px;
+        color: var(--orange);
+        text-transform: uppercase;
+        letter-spacing: 2px;
+        margin-bottom: 13px;
+      }
+      .intro {
+        max-width: 910px;
+        margin-top: 18px;
+        font-size: 18px;
+      }
+      .headlinks {
+        display: flex;
+        flex-wrap: wrap;
+        align-items: center;
+        gap: 12px 23px;
+        margin-top: 22px;
+      }
+      .metadata {
+        margin-top: 20px;
+        color: var(--muted);
+        font-size: 13px;
+        max-width: 960px;
+      }
+      .layout {
+        display: grid;
+        grid-template-columns: 255px minmax(0, 1040px);
+        gap: 38px;
+        max-width: 1450px;
+        padding: 30px 30px 70px;
+        margin: auto;
+        align-items: start;
+      }
+      .sidebar {
+        position: sticky;
+        top: 20px;
+      }
+      .sidebar-title {
+        font-size: 13px;
+        color: var(--muted);
+        text-transform: uppercase;
+        letter-spacing: 1px;
+        margin-bottom: 12px;
+      }
+      .search-label {
+        display: block;
+        font-size: 14px;
+        font-weight: 600;
+        margin-bottom: 5px;
+      }
+      .sidebar input[type="search"] {
+        width: 100%;
+      }
+      .search-meta {
+        color: var(--muted);
+        font-size: 12px;
+        margin-top: 7px;
+      }
+      nav[aria-label="Indice"] {
+        margin-top: 19px;
+      }
+      nav[aria-label="Indice"] ol {
+        padding: 0;
+        list-style: none;
+      }
+      nav[aria-label="Indice"] li {
+        margin: 0;
+      }
+      nav[aria-label="Indice"] a {
+        display: block;
+        color: var(--ink);
+        text-decoration: none;
+        padding: 7px 0;
+        font-size: 14px;
+        line-height: 1.35;
+      }
+      nav[aria-label="Indice"] a:hover {
+        color: var(--orange);
+        text-decoration: underline;
+      }
+      .side-actions {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 8px;
+        margin-top: 20px;
+      }
+      .side-actions button {
+        font-size: 12px;
+        padding: 7px 10px;
+      }
+      main {
+        min-width: 0;
+      }
+      .section {
+        border-bottom: 1px solid var(--line);
+        padding: 31px 0 35px;
+      }
+      .section:first-child {
+        padding-top: 0;
+      }
+      .section:last-child {
+        border-bottom: 0;
+      }
+      .section-head {
+        display: flex;
+        gap: 12px;
+        align-items: baseline;
+        margin-bottom: 18px;
+      }
+      .section-number {
+        color: var(--orange);
+        font-size: 13px;
+        font-weight: 600;
+        min-width: 23px;
+      }
+      .section > p,
+      .section > ul,
+      .section > ol,
+      .section > .table-wrap,
+      .section > details,
+      .section > .compare,
+      .section > .callout,
+      .section > .flow,
+      .section > .rules-grid,
+      .section > .simulator,
+      .section > .subsection {
+        margin-top: 17px;
+      }
+      .section-head + p {
+        margin-top: 0;
+      }
+      .subsection h3 {
+        margin-bottom: 11px;
+      }
+      .subsection + .subsection {
+        margin-top: 27px;
+      }
+      .muted {
+        color: var(--muted);
+      }
+      .small {
+        font-size: 13px;
+      }
+      .callout {
+        background: var(--white);
+        border-left: 3px solid var(--orange);
+        padding: 16px 19px;
+      }
+      .callout.info {
+        background: var(--blue-soft);
+        border-color: var(--blue);
+      }
+      .callout.ok {
+        background: var(--green-soft);
+        border-color: var(--green);
+      }
+      .callout.warning {
+        background: var(--amber-soft);
+        border-color: var(--amber);
+      }
+      .callout h3 {
+        font-size: 17px;
+        margin-bottom: 7px;
+      }
+      .tag {
+        display: inline-block;
+        vertical-align: baseline;
+        padding: 2px 7px;
+        border-radius: 4px;
+        font-size: 11px;
+        font-weight: 600;
+        line-height: 1.7;
+        background: #e9ece2;
+        color: #3b4530;
+      }
+      .tag.code {
+        background: var(--green-soft);
+        color: var(--green);
+      }
+      .tag.prompt {
+        background: var(--blue-soft);
+        color: var(--blue);
+      }
+      .tag.human {
+        background: var(--soft);
+        color: var(--orange);
+      }
+      .tag.future {
+        background: #eee9f3;
+        color: #684580;
+      }
+      .tag + .tag {
+        margin-left: 4px;
+      }
+      .key {
+        display: flex;
+        gap: 7px 13px;
+        flex-wrap: wrap;
+        margin-top: 15px;
+        font-size: 12px;
+      }
+      .table-wrap {
+        max-width: 100%;
+        overflow-x: auto;
+      }
+      table {
+        width: 100%;
+        border-collapse: collapse;
+        font-size: 14px;
+        line-height: 1.5;
+        text-align: left;
+      }
+      caption {
+        text-align: left;
+        font-weight: 600;
+        padding-bottom: 10px;
+      }
+      th,
+      td {
+        vertical-align: top;
+        padding: 12px 11px;
+        border-bottom: 1px solid var(--line);
+        overflow-wrap: anywhere;
+      }
+      th {
+        color: var(--muted);
+        font-size: 12px;
+        text-transform: uppercase;
+        letter-spacing: 0.4px;
+        font-weight: 600;
+      }
+      th:first-child,
+      td:first-child {
+        padding-left: 0;
+      }
+      th:last-child,
+      td:last-child {
+        padding-right: 0;
+      }
+      td ul {
+        padding-left: 17px;
+      }
+      .table-wrap td p + p {
+        margin-top: 7px;
+      }
+      details {
+        background: var(--white);
+        border: 1px solid var(--line);
+        border-radius: 7px;
+      }
+      details > summary {
+        padding: 13px 17px;
+        cursor: pointer;
+        font-weight: 600;
+        line-height: 1.45;
+      }
+      details[open] > summary {
+        border-bottom: 1px solid var(--line);
+      }
+      .detail-body {
+        padding: 17px 20px 20px;
+      }
+      .detail-body > * + * {
+        margin-top: 14px;
+      }
+      .compare {
+        display: grid;
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+        gap: 20px;
+      }
+      .compare > article {
+        background: var(--white);
+        border-top: 3px solid var(--green);
+        padding: 19px 20px 22px;
+      }
+      .compare > article:last-child {
+        border-top-color: var(--blue);
+      }
+      .compare h3 {
+        margin-top: 8px;
+        margin-bottom: 12px;
+      }
+      .compare p,
+      .compare li {
+        font-size: 14px;
+      }
+      .compare ol {
+        margin-top: 14px;
+      }
+      .compare .foot {
+        margin-top: 17px;
+        padding-top: 13px;
+        border-top: 1px solid var(--line);
+      }
+      .flow {
+        list-style: none;
+        padding: 0;
+        counter-reset: steps;
+      }
+      .flow > li {
+        display: grid;
+        grid-template-columns: 32px 1fr;
+        gap: 12px;
+        margin: 0;
+        padding: 0 0 22px;
+      }
+      .flow > li::before {
+        counter-increment: steps;
+        content: counter(steps);
+        width: 29px;
+        height: 29px;
+        display: grid;
+        place-items: center;
+        border-radius: 50%;
+        background: var(--ink);
+        color: var(--white);
+        font-size: 12px;
+      }
+      .flow h3 {
+        font-size: 17px;
+        margin-bottom: 6px;
+      }
+      .flow p {
+        font-size: 14px;
+      }
+      .io {
+        margin-top: 7px;
+        color: var(--muted);
+        font-size: 13px;
+      }
+      .io strong {
+        color: var(--ink);
+      }
+      .rules-grid {
+        display: grid;
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+        gap: 18px;
+      }
+      .rule {
+        padding-bottom: 16px;
+        border-bottom: 1px solid var(--line);
+      }
+      .rule h3 {
+        font-size: 17px;
+        margin: 8px 0;
+      }
+      .rule p {
+        font-size: 14px;
+      }
+      .source {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 6px 16px;
+        margin-top: 15px;
+        font-size: 12px;
+        color: var(--muted);
+      }
+      .source a {
+        color: var(--muted);
+      }
+      .simulator {
+        background: var(--white);
+        padding: 20px;
+        border: 1px solid var(--line);
+        border-radius: 7px;
+      }
+      .sim-fields {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 15px;
+        margin-top: 14px;
+      }
+      .sim-fields label {
+        display: flex;
+        flex-direction: column;
+        gap: 5px;
+        font-size: 13px;
+      }
+      .sim-fields .check {
+        flex-direction: row;
+        align-items: center;
+        gap: 9px;
+        grid-column: 1/-1;
+      }
+      .sim-result {
+        margin-top: 17px;
+        padding-top: 14px;
+        border-top: 1px solid var(--line);
+      }
+      .sim-result strong {
+        display: block;
+        margin-bottom: 5px;
+      }
+      .mail-example > summary {
+        font-size: 17px;
+      }
+      .mail-context {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 15px;
+        font-size: 13px;
+        margin-bottom: 17px;
+      }
+      .mail-context dt {
+        color: var(--muted);
+        font-size: 11px;
+        text-transform: uppercase;
+        letter-spacing: 0.6px;
+      }
+      .mail-context dd {
+        margin: 2px 0 0;
+      }
+      .mail-subject {
+        border-top: 1px solid var(--line);
+        padding-top: 17px;
+        margin-bottom: 17px;
+        font-size: 15px;
+        font-weight: 600;
+      }
+      .mail-body,
+      .mail-system {
+        font-family: Georgia, "Times New Roman", serif;
+        font-size: 17px;
+        line-height: 1.65;
+      }
+      .mail-system {
+        margin-top: 20px;
+        padding-top: 15px;
+        border-top: 1px dashed var(--line);
+      }
+      .mail-count {
+        font-family: Arial, Helvetica, sans-serif;
+        color: var(--green);
+        font-size: 12px;
+        margin: 18px 0 0;
+      }
+      .mail-reason {
+        margin-top: 16px;
+        font-size: 13px;
+        color: var(--muted);
+      }
+      .mail-sender-note {
+        font-size: 12px;
+        color: var(--muted);
+        margin-top: 7px;
+      }
+      .source-list {
+        padding-left: 21px;
+      }
+      .source-list li {
+        font-size: 13px;
+      }
+      .no-results {
+        padding: 30px 0;
+      }
+      footer {
+        border-top: 1px solid var(--line);
+        padding: 22px 4vw;
+        color: var(--muted);
+        font-size: 12px;
+      }
+      @media (max-width: 1050px) {
+        .layout {
+          grid-template-columns: 220px minmax(0, 1fr);
+          gap: 25px;
+          padding: 25px 22px 55px;
+        }
+        .compare,
+        .rules-grid {
+          grid-template-columns: 1fr;
+        }
+      }
+      @media (max-width: 760px) {
+        .layout {
+          display: block;
+          padding: 22px 20px 45px;
+        }
+        .sidebar {
+          position: static;
+          margin-bottom: 30px;
+          padding-bottom: 24px;
+          border-bottom: 1px solid var(--line);
+        }
+        nav[aria-label="Indice"] ol {
+          columns: 2;
+          column-gap: 20px;
+        }
+        nav[aria-label="Indice"] li {
+          break-inside: avoid;
+        }
+        .masthead {
+          padding: 25px 20px;
+        }
+        h1 {
+          letter-spacing: -1px;
+        }
+        h2 {
+          font-size: 25px;
+        }
+        .intro {
+          font-size: 16px;
+        }
+        .mail-context {
+          grid-template-columns: 1fr;
+        }
+      }
+      @media (max-width: 440px) {
+        nav[aria-label="Indice"] ol {
+          columns: 1;
+        }
+        .sim-fields {
+          grid-template-columns: 1fr;
+        }
+        .section-head {
+          gap: 7px;
+        }
+        .section-number {
+          min-width: 20px;
+        }
+        .detail-body {
+          padding: 15px;
+        }
+        .compare > article {
+          padding: 17px;
+        }
+        .simulator {
+          padding: 16px;
+        }
+        .mail-body,
+        .mail-system {
+          font-size: 16px;
+        }
+        th,
+        td {
+          padding: 10px 8px;
+        }
+      }
+      @media (prefers-reduced-motion: reduce) {
+        html {
+          scroll-behavior: auto;
+        }
+      }
+      @media print {
+        body {
+          background: white;
+          font-size: 11pt;
+        }
+        .masthead {
+          padding: 0 0 22px;
+        }
+        .layout {
+          display: block;
+          max-width: none;
+          padding: 20px 0;
+        }
+        .sidebar,
+        .headlinks,
+        button,
+        .simulator,
+        .no-results {
+          display: none !important;
+        }
+        .section[hidden] {
+          display: block !important;
+        }
+        .section {
+          padding: 20px 0;
+          break-inside: auto;
+        }
+        details {
+          border: 0;
+        }
+        details > summary {
+          padding: 10px 0;
+        }
+        .detail-body {
+          padding: 10px 0;
+        }
+        .table-wrap {
+          overflow: visible;
+        }
+        .compare {
+          display: block;
+        }
+        .compare > article {
+          margin: 15px 0;
+        }
+        a {
+          color: inherit;
+        }
+        .mail-example {
+          break-before: page;
+        }
+        .mail-body,
+        .mail-system {
+          font-size: 12pt;
+        }
+        .source a {
+          font-size: 9pt;
+        }
+        footer {
+          padding: 15px 0;
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <a class="skip" href="#contenuto">Vai alla guida</a>
+    <header class="masthead">
+      <span class="eyebrow">LuckyLap / Partner / Guida operativa</span>
+      <h1>Come lavora l’assistente.<br />Come vengono scritte le email.</h1>
+      <p class="intro">
+        Dal contatto completo alla prima email inviata: compiti delle persone, decisioni del codice,
+        lavoro di Claude e regole editoriali. Qui trovi il procedimento intero, le eccezioni e
+        quattro esempi di messaggio.
+      </p>
+      <div class="headlinks">
+        <a href="grafo.html">Apri il grafo dei dati e delle azioni</a>
+        <a href="schermata.html">Apri la schermata Partner dimostrativa</a>
+        <button type="button" id="print">Stampa / salva PDF</button>
+      </div>
+      <p class="metadata">
+        Ricostruzione dal codice del 4 novembre 2026, commit <code>7a629ea</code>. Documento
+        autonomo: funziona senza connessione e senza interrogare il database. Modalità effettiva,
+        credito, versione delle regole nel database, stato della casella e destinatari reali non
+        sono verificati in tempo reale. I collegamenti alle fonti aprono il codice su GitHub e
+        richiedono una connessione.
+      </p>
+    </header>
+    <div class="layout">
+      <aside class="sidebar" aria-label="Navigazione della guida">
+        <p class="sidebar-title">La guida completa</p>
+        <label class="search-label" for="search">Cerca un argomento</label>
+        <input
+          id="search"
+          type="search"
+          placeholder="Es. sollecito, firma, Club…"
+          autocomplete="off"
+        />
+        <p class="search-meta" id="search-status" aria-live="polite">
+          Tutte le 15 sezioni visibili
+        </p>
+        <nav aria-label="Indice">
+          <ol>
+            <li><a href="#confini">01 · Che cosa è automatico</a></li>
+            <li><a href="#ruoli">02 · Chi fa cosa</a></li>
+            <li><a href="#dati">03 · Dati, idoneità e coda</a></li>
+            <li><a href="#percorsi">04 · I due percorsi</a></li>
+            <li><a href="#ricerca">05 · Ricerca, fonti e validità</a></li>
+            <li><a href="#proposte">06 · Proposta e tempi di produzione</a></li>
+            <li><a href="#gerarchia">07 · Quali regole valgono</a></li>
+            <li><a href="#scrittura">08 · Come si scrive</a></li>
+            <li><a href="#validatore">09 · Vincoli effettivi del codice</a></li>
+            <li><a href="#eccezioni">10 · Eccezioni Club e founder</a></li>
+            <li><a href="#revisione">11 · Revisione e modifiche</a></li>
+            <li><a href="#invio">12 · Quando e come si invia</a></li>
+            <li><a href="#esiti">13 · Errori e lavoro dopo l’email</a></li>
+            <li><a href="#esempi">14 · Quattro email complete</a></li>
+            <li><a href="#fonti">15 · Fonti e verifica</a></li>
+          </ol>
+        </nav>
+        <div class="side-actions">
+          <button type="button" id="expand">Apri approfondimenti</button
+          ><button type="button" id="collapse">Chiudi approfondimenti</button
+          ><button type="button" id="reset">Azzera ricerca</button>
+        </div>
+      </aside>
+      <main id="contenuto">
+        <p class="no-results" id="no-results" hidden>
+          Nessuna sezione contiene questa ricerca. Prova una parola più breve oppure azzera la
+          ricerca.
+        </p>
+
+        <section class="section" id="confini" aria-labelledby="title-confini">
+          <div class="section-head">
+            <span class="section-number">01</span>
+            <h2 id="title-confini">Che cosa è automatico oggi</h2>
+          </div>
+          <p>
+            <strong>L’assistente prepara, controlla e invia le prime email.</strong> Dopo una prima
+            email riuscita il lavoro automatico di quel contatto arriva a <code>inviata</code>. La
+            conversazione prosegue con il team: leggere le risposte, decidere cosa rispondere,
+            negoziare e mandare il sollecito sono attività umane nell’implementazione esaminata.
+          </p>
+          <div class="table-wrap">
+            <table>
+              <caption>
+                Il perimetro reale, distinto dal progetto futuro
+              </caption>
+              <thead>
+                <tr>
+                  <th>Funzione</th>
+                  <th>Oggi</th>
+                  <th>Che cosa significa</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr>
+                  <td>Prima email</td>
+                  <td><span class="tag code">Automatica</span></td>
+                  <td>
+                    Preparazione e invio con controlli. Club e altri contatti seguono due percorsi
+                    diversi.
+                  </td>
+                </tr>
+                <tr>
+                  <td>Risposte ricevute</td>
+                  <td><span class="tag human">Team</span></td>
+                  <td>
+                    Si leggono nella casella di posta e si registrano nel gestionale. La vista
+                    «Risposte» mostra soltanto quelle già registrate.
+                  </td>
+                </tr>
+                <tr>
+                  <td>Sollecito dopo 7 giorni</td>
+                  <td><span class="tag human">Team</span></td>
+                  <td>
+                    Il sistema crea un promemoria. Il messaggio lo scrive e lo manda una persona,
+                    poi registra l’invio.
+                  </td>
+                </tr>
+                <tr>
+                  <td>IMAP</td>
+                  <td><span class="tag code">Uso limitato</span></td>
+                  <td>
+                    Controlla le conversazioni degli ultimi 365 giorni e salva la copia in «Posta
+                    inviata». Non alimenta automaticamente la vista Risposte.
+                  </td>
+                </tr>
+                <tr>
+                  <td>Risposta suggerita, smistamento inbox, riepilogo serale</td>
+                  <td><span class="tag future">Progetto futuro</span></td>
+                  <td>Descritti nella consegna 2b; non sono passi attivi del worker attuale.</td>
+                </tr>
+                <tr>
+                  <td>Sequenza automatica a 7, 17, 45 e 90 giorni</td>
+                  <td><span class="tag future">Progetto futuro</span></td>
+                  <td>
+                    Compare nelle regole iniziali e nella specifica. La sua presenza in un testo non
+                    equivale a un’automazione implementata.
+                  </td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+          <div class="callout warning">
+            <h3>Registrare non significa inviare</h3>
+            <p>
+              «Segna inviato» e «Segna sollecito inviato» annotano nel Registro ciò che una persona
+              ha già fatto. Non attivano SMTP. Analogamente, scegliere «Risposto» dalla tendina
+              cambia lo stato commerciale; per registrare una risposta e chiudere il promemoria si
+              usa «Registra una risposta» oppure «Ha risposto» in Oggi.
+            </p>
+          </div>
+          <div class="source">
+            <span>Fonti:</span
+            ><a data-ref="docs/partner-assistente.md:44">Perimetro della consegna</a
+            ><a data-ref="docs/partner-assistente.md:66">Risposte registrate</a
+            ><a data-ref="docs/partner.md:44">Azioni del Registro</a>
+          </div>
+        </section>
+
+        <section class="section" id="ruoli" aria-labelledby="title-ruoli">
+          <div class="section-head">
+            <span class="section-number">02</span>
+            <h2 id="title-ruoli">Chi fa cosa</h2>
+          </div>
+          <p>
+            La gestione commerciale Partner è condivisa da tutti i membri attivi, Luca compreso.
+            Alcuni comandi che governano l’invio e la revisione editoriale sono riservati al
+            founder.
+          </p>
+          <div class="table-wrap">
+            <table>
+              <thead>
+                <tr>
+                  <th>Chi</th>
+                  <th>Azioni</th>
+                  <th>Quando interviene</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr>
+                  <td><strong>Team</strong></td>
+                  <td>
+                    Aggiunge e corregge schede e recapiti; assegna un responsabile; imposta la
+                    prossima azione; cambia lo stato; registra invii, risposte, chiamate, incontri e
+                    note; blocca un contatto; ferma o riattiva l’assistente sul contatto.
+                  </td>
+                  <td>
+                    Durante il lavoro commerciale. Prendere in carico un contatto può renderlo non
+                    idoneo alla prima email automatica.
+                  </td>
+                </tr>
+                <tr>
+                  <td><strong>Team, nella pagina Assistente</strong></td>
+                  <td>
+                    Sceglie «Spento» o «Prepara»; salva una nuova versione delle regole; ridà
+                    all’assistente un contatto recuperabile.
+                  </td>
+                  <td>
+                    Per la preparazione e il controllo. Non può ridare automaticamente un invio
+                    incerto o una conversazione esistente.
+                  </td>
+                </tr>
+                <tr>
+                  <td><strong>Tommi / founder</strong></td>
+                  <td>
+                    Sceglie «Prova» e «Invio»; avvia e conferma la prova; imposta il limite
+                    giornaliero; assegna precedenza con «Manda per primo»; riprende gli invii dopo
+                    un fermo; sospende e modifica una bozza dal Programma email.
+                  </td>
+                  <td>
+                    Prima dell’avvio reale, per le eccezioni e per l’approvazione editoriale umana.
+                  </td>
+                </tr>
+                <tr>
+                  <td><strong>Database e codice</strong></td>
+                  <td>
+                    Selezionano contatti e recapiti, ordinano le code, decidono proposta e
+                    calendario, applicano limiti e versioni, compongono il modello Club e la firma,
+                    verificano il contesto e registrano gli esiti.
+                  </td>
+                  <td>A ogni presa del lavoro, conclusione del passo e tentativo d’invio.</td>
+                </tr>
+                <tr>
+                  <td><strong>Claude</strong></td>
+                  <td>
+                    Per gli altri contatti: ricerca, estrazione dei campi, scrittura e seconda
+                    lettura. Per i Club del modello: soltanto seconda lettura dedicata.
+                  </td>
+                  <td>Quando il worker prende quel passo e la preparazione non è in pausa.</td>
+                </tr>
+                <tr>
+                  <td><strong>Worker, SMTP e IMAP</strong></td>
+                  <td>
+                    Il worker coordina; SMTP trasmette una sola email; IMAP verifica la storia della
+                    conversazione e copia i byte del messaggio nella posta inviata.
+                  </td>
+                  <td>Quando modalità, prova, finestra, quota e controlli lo consentono.</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+          <p class="small muted">
+            Il profilo «Assistente» è l’autore tecnico registrato per note, bozze ed eventi
+            automatici. Il referente delle attività manuali dopo l’invio arriva dalla configurazione
+            <code>handoff_to</code>, normalmente Tommi: il valore attuale del database non è letto
+            da questo documento.
+          </p>
+          <div class="source">
+            <span>Fonti:</span
+            ><a data-ref="src/components/partner/partner-assistant-view.tsx:38"
+              >Permessi dell’interfaccia</a
+            ><a data-ref="docs/partner.md:3">Gestione condivisa</a
+            ><a data-ref="docs/partner-assistente.md:94">Autore delle operazioni automatiche</a>
+          </div>
+        </section>
+
+        <section class="section" id="dati" aria-labelledby="title-dati">
+          <div class="section-head">
+            <span class="section-number">03</span>
+            <h2 id="title-dati">Dati, idoneità e coda</h2>
+          </div>
+          <p>
+            Il punto di partenza è la scheda nel database, con dati importati e modifiche del team.
+            Il completamento della scheda non equivale da solo all’autorizzazione a scrivere:
+            l’assistente rivaluta l’idoneità.
+          </p>
+          <div class="subsection">
+            <h3>Che cosa usa di ciascun contatto</h3>
+            <ul>
+              <li>
+                <strong>Identità e classificazione:</strong> identificativo e CO, nome, città,
+                paese, tipo, sezioni Vendita / Eventi / Collab / Club, priorità, mese pianificato.
+              </li>
+              <li>
+                <strong>Calendario:</strong> inizio e fine evento, scadenza di candidatura e, quando
+                presenti, prossima azione e relativa data.
+              </li>
+              <li>
+                <strong>Gestione commerciale:</strong> stato, responsabile, blocco «Non contattare»,
+                rimozione dalla ricerca, attività già registrate.
+              </li>
+              <li>
+                <strong>Recapiti:</strong> email attiva, eventuale verifica e ordinamento; sito e
+                altre fonti utili alla ricerca. Si usa il valore pulito del recapito, non un testo
+                libero.
+              </li>
+              <li>
+                <strong>Contesto automatico:</strong> interruttore assistente, priorità d’invio,
+                job, note di ricerca/scelta/controllo, bozza corrente, versioni, impronte e messaggi
+                già preparati o inviati.
+              </li>
+            </ul>
+          </div>
+          <details open>
+            <summary>Le condizioni per entrare nella preparazione</summary>
+            <div class="detail-body">
+              <ol>
+                <li>Stato commerciale <strong>Da contattare</strong>.</li>
+                <li>Nessun responsabile e nessuna prossima azione impostati.</li>
+                <li>Contatto non rimosso dalla ricerca e non in «Non contattare».</li>
+                <li>Interruttore assistente assente oppure attivo.</li>
+                <li>Almeno un’email attiva con valore utilizzabile.</li>
+                <li>
+                  Nessuna attività del team o di un vecchio file importato tra invio, risposta,
+                  chiamata, incontro, nota, cambio stato, responsabile, prossima azione o approccio.
+                  Il semplice aggiungere un recapito non conta come attività commerciale già
+                  avviata.
+                </li>
+              </ol>
+              <p>
+                La verifica si ripete: se un collega prende in carico la scheda o cambia il contesto
+                mentre il passo lavora, quel risultato non può avanzare come se nulla fosse
+                cambiato.
+              </p>
+            </div>
+          </details>
+          <div class="table-wrap">
+            <table>
+              <thead>
+                <tr>
+                  <th>Dato persistito</th>
+                  <th>Dove</th>
+                  <th>Come passa al passo successivo</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr>
+                  <td>Scheda e recapiti</td>
+                  <td><code>partners</code>, <code>partner_contacts</code>, attività e blocchi</td>
+                  <td>
+                    Il database restituisce un contesto coerente; la bozza conserva riferimenti e
+                    versioni.
+                  </td>
+                </tr>
+                <tr>
+                  <td>Lavoro del contatto</td>
+                  <td><code>partner_assistant_jobs</code></td>
+                  <td>
+                    Un job per contatto conserva stato, passo, lease, tentativi, riscritture e
+                    puntatori correnti.
+                  </td>
+                </tr>
+                <tr>
+                  <td>Ricerca, scelta e controllo</td>
+                  <td><code>partner_assistant_notes</code></td>
+                  <td>
+                    Storico append-only. La ricerca dell’assistente non sovrascrive
+                    <code>partners.research</code> dell’import.
+                  </td>
+                </tr>
+                <tr>
+                  <td>Bozza</td>
+                  <td><code>partner_assistant_drafts</code></td>
+                  <td>
+                    Oggetto, corpo, firma, lingua, recapito, versione scheda/regole, ricerca usata e
+                    SHA-256.
+                  </td>
+                </tr>
+                <tr>
+                  <td>Email definitiva</td>
+                  <td><code>partner_assistant_messages</code></td>
+                  <td>
+                    Destinatario, testo, Message-ID, MIME immutabile, allegato previsto e stato
+                    dell’invio.
+                  </td>
+                </tr>
+                <tr>
+                  <td>Configurazione e controllo</td>
+                  <td>Tabelle <code>private</code>: config, runs, events, receipts, mail state</td>
+                  <td>
+                    Modalità, pause, credito stimato, esiti, idempotenza e lease. Segreti e valori
+                    delle variabili non vengono esposti nella guida.
+                  </td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+          <p>
+            <strong>Ordine della preparazione:</strong> prima la precedenza d’invio assegnata da
+            Tommi, poi il mese pianificato entro due mesi da oggi, la priorità alta/media/bassa, il
+            mese e il CO. Per la bozza si preferisce l’email verificata, poi l’ordinamento e il
+            recapito più vecchio. Un indirizzo nuovo trovato sul web resta una proposta da
+            verificare: non sostituisce automaticamente il recapito.
+          </p>
+          <div class="source">
+            <span>Fonti:</span
+            ><a data-ref="supabase/migrations/20261028122956_assistente_partner_worker.sql:70"
+              >Idoneità</a
+            ><a data-ref="supabase/migrations/20261028122956_assistente_partner_worker.sql:113"
+              >Scelta dell’email</a
+            ><a data-ref="supabase/migrations/20261030114722_assistente_partner_invio.sql:295"
+              >Ordine della preparazione</a
+            ><a data-ref="docs/partner-assistente.md:80">Tabelle e storico</a>
+          </div>
+        </section>
+
+        <section class="section" id="percorsi" aria-labelledby="title-percorsi">
+          <div class="section-head">
+            <span class="section-number">04</span>
+            <h2 id="title-percorsi">I due percorsi di lavoro</h2>
+          </div>
+          <div class="compare">
+            <article>
+              <span class="tag code">Club modello</span>
+              <h3>Il codice compone. Claude rilegge.</h3>
+              <p>
+                Vale per un contatto nella sezione <strong>Club che non è anche in Eventi</strong>.
+                Modello corrente nel codice: versione 3.
+              </p>
+              <ol>
+                <li>Legge nome, paese, città, tipo e lingua della ricerca importata.</li>
+                <li>
+                  Ricava lingua, registro, fuso e marca; toglie dal nome l’ultima parentesi con
+                  eventuali note.
+                </li>
+                <li>
+                  Compone oggetto, corpo e firma dal testo fisso approvato; salva insieme nota
+                  sostitutiva, scelta e bozza.
+                </li>
+                <li>Applica i controlli del codice per il modello.</li>
+                <li>
+                  Claude fa la seconda lettura dedicata a lingua, nome, grammatica e limiti
+                  previsti.
+                </li>
+                <li>
+                  Se approvata, la bozza diventa pronta. Se bocciata, passa a Tommi: ricomporre
+                  identico testo non risolverebbe il problema.
+                </li>
+              </ol>
+              <p class="foot">
+                <strong>Non fa una ricerca web personalizzata.</strong> La nota sostitutiva
+                documenta il modello; non è prova di notizie recenti. La rete Scuderia Ferrari Club
+                è esclusa e passa a Tommi.
+              </p>
+            </article>
+            <article>
+              <span class="tag prompt">Altri contatti</span>
+              <h3>Ricerca, sceglie il codice, scrive Claude.</h3>
+              <p>Vale per <strong>Vendita, Eventi, Collab e Club che sono anche Eventi</strong>.</p>
+              <ol>
+                <li>Claude ricerca sul web e salva testo e fonti.</li>
+                <li>
+                  Claude estrae campi fissi: tipo, lingua, registro, fatto, destinatario suggerito,
+                  fuso, evento e momento per scrivere.
+                </li>
+                <li>
+                  Il codice decide la proposta da un elenco chiuso e sceglie scrivi / attendi /
+                  Serve Tommi.
+                </li>
+                <li>
+                  Claude scrive solo oggetto e corpo; firma e impronta vengono aggiunte dal codice.
+                </li>
+                <li>
+                  Il codice controlla il testo. Se passa, Claude fa la seconda lettura con le regole
+                  davanti.
+                </li>
+                <li>
+                  Approvazione → pronta. È disponibile una sola riscrittura; un’ulteriore bocciatura
+                  porta a Tommi.
+                </li>
+              </ol>
+              <p class="foot">
+                <strong>La seconda lettura approva o elenca problemi.</strong> Non invia e non
+                modifica direttamente la bozza; una correzione produce una nuova bozza.
+              </p>
+            </article>
+          </div>
+          <div class="callout info">
+            <h3>Un passo non è un’intera lavorazione</h3>
+            <p>
+              Ogni tick prende un solo passo di un solo contatto. Lo stato resta nel database fra i
+              giri. Il budget del passo di preparazione è 270 secondi; la route ha durata massima
+              300 secondi. Una presa esclusiva e i checkpoint impediscono di far avanzare due
+              lavorazioni dello stesso contesto.
+            </p>
+          </div>
+          <div class="source">
+            <span>Fonti:</span
+            ><a data-ref="src/lib/partner-assistant/template.ts:595">Bivio Club / Eventi</a
+            ><a data-ref="src/lib/partner-assistant/worker.ts:171">Quattro passi</a
+            ><a data-ref="src/lib/partner-assistant/worker.ts:450">Composizione del modello</a
+            ><a data-ref="supabase/migrations/20261101012650_assistente_partner_modello.sql:208"
+              >Modello bocciato</a
+            >
+          </div>
+        </section>
+
+        <section class="section" id="ricerca" aria-labelledby="title-ricerca">
+          <div class="section-head">
+            <span class="section-number">05</span>
+            <h2 id="title-ricerca">Ricerca, fonti e validità</h2>
+          </div>
+          <p>
+            Nel percorso completo la ricerca parte dalla scheda e dalla ricerca importata, trattate
+            come dati che possono essere vecchi. Pagine web e contenuti trovati sono dati da
+            esaminare, non istruzioni da eseguire.
+          </p>
+          <div class="subsection">
+            <h3>Che cosa deve cercare Claude</h3>
+            <ol>
+              <li>Sito, social, notizie recenti, città e paese dell’organizzazione.</li>
+              <li>Prossimo evento e date effettivamente confermate.</li>
+              <li>Persona giusta e titolo, anche accademico se presente.</li>
+              <li>
+                Email pubblicata dall’organizzazione stessa sul sito o su pagine ufficiali, con URL
+                della fonte; niente indirizzi da aggregatori di contatti.
+              </li>
+              <li>Un fatto specifico, vero e recente da citare, con data e URL.</li>
+              <li>
+                Tipo di destinatario e appartenenza a una comunità Porsche; per gli eventi,
+                raggiungibilità in Italia o in un paese confinante.
+              </li>
+              <li>Momento per scrivere: adesso o da un giorno futuro, con motivo.</li>
+              <li>Fonti con URL. Quello che non trova deve restare dichiarato come mancante.</li>
+            </ol>
+          </div>
+          <p>
+            L’estrazione usa solo quanto è scritto nella ricerca. Campo assente → stringa vuota.
+            Data nota soltanto a mese o anno → data vuota, non giorno inventato. Tipo, lingua e
+            registro appartengono a elenchi chiusi; date e fusi vengono anche validati dal codice.
+          </p>
+          <div class="table-wrap">
+            <table>
+              <caption>
+                Due soglie diverse: 14 giorni e 21 giorni
+              </caption>
+              <thead>
+                <tr>
+                  <th>Situazione</th>
+                  <th>Condizioni</th>
+                  <th>Che cosa succede</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr>
+                  <td>Ripresa dopo una data di attesa</td>
+                  <td>
+                    Ricerca di <strong>meno di 14 giorni</strong>; scheda non cambiata dopo la
+                    ricerca; fatto e fuso presenti nella scelta precedente; evento non ancora
+                    iniziato, oppure nessun evento nominato.
+                  </td>
+                  <td>
+                    Riutilizza la ricerca e riparte dall’estrazione. La scelta viene comunque
+                    rifatta con la data di oggi.
+                  </td>
+                </tr>
+                <tr>
+                  <td>Ripresa senza tutti quei requisiti</td>
+                  <td>
+                    Una sola condizione mancante basta. Anche un evento nominato senza data esatta
+                    non consente il riuso.
+                  </td>
+                  <td>
+                    Nuova ricerca. Il lavoro può attendere in coda, quindi la verifica avviene alla
+                    presa effettiva.
+                  </td>
+                </tr>
+                <tr>
+                  <td>Prima email reale</td>
+                  <td>Ricerca di <strong>meno di 21 giorni</strong>.</td>
+                  <td>
+                    Può proseguire ai controlli. Da 21 giorni in poi torna alla ricerca; una
+                    revisione editoriale non ringiovanisce quella data.
+                  </td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+          <p>
+            Se la ricerca è di un giorno precedente, estrazione, scrittura e revisione ricevono
+            anche quel giorno. «Domani», «quest’anno» o una data senza anno si interpretano rispetto
+            alla ricerca: non si afferma che un evento è avvenuto soltanto perché nel frattempo il
+            calendario è avanzato.
+          </p>
+          <div class="callout warning">
+            <h3>Il fatto e il fuso non si riempiono per convenienza</h3>
+            <p>
+              Nel percorso completo si può attendere una data anche se mancano. Quando arriva il
+              momento di scrivere, un fatto vuoto oppure un fuso vuoto portano a «Serve Tommi». La
+              scelta tecnica verifica la presenza dei campi; verità, qualità e adeguatezza della
+              fonte richiedono ricerca e revisione, non sono dimostrate da una regex.
+            </p>
+          </div>
+          <div class="source">
+            <span>Fonti:</span
+            ><a data-ref="src/lib/partner-assistant/prompts.ts:242">Richiesta di ricerca</a
+            ><a data-ref="src/lib/partner-assistant/prompts.ts:274">Campi estratti</a
+            ><a data-ref="src/lib/partner-assistant/choice.ts:118">Mancanze e attesa</a
+            ><a data-ref="supabase/migrations/20261104001229_partner_programma_email.sql:793"
+              >Riuso sotto 14 giorni</a
+            ><a data-ref="supabase/migrations/20261104001229_partner_programma_email.sql:477"
+              >Scadenza per l’invio</a
+            >
+          </div>
+        </section>
+
+        <section class="section" id="proposte" aria-labelledby="title-proposte">
+          <div class="section-head">
+            <span class="section-number">06</span>
+            <h2 id="title-proposte">Proposta e tempi di produzione</h2>
+          </div>
+          <p>
+            Claude classifica il contatto; <strong>il codice sceglie la proposta</strong>. Il testo
+            deve spiegare quella proposta e il valore concreto per chi la riceve, senza aggiungerne
+            altre.
+          </p>
+          <div class="table-wrap">
+            <table>
+              <thead>
+                <tr>
+                  <th>Tipo</th>
+                  <th>Proposta</th>
+                  <th>Valore da spiegare</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr>
+                  <td>Club</td>
+                  <td><code>merch_cobranding</code> · Magliette dedicate / co-firmate.</td>
+                  <td>
+                    Un capo per i soci e le occasioni del club, con progetto seguito dal marchio.
+                  </td>
+                </tr>
+                <tr>
+                  <td>Brand o media</td>
+                  <td>
+                    <code>collab_capsule</code> · Capsule in edizione limitata disegnata insieme.
+                  </td>
+                  <td>Un prodotto coerente con il loro progetto editoriale, shop o community.</td>
+                </tr>
+                <tr>
+                  <td>Evento raggiungibile</td>
+                  <td>
+                    <code>stand_evento</code> · Stand dedicato, curato e coerente con l’evento.
+                  </td>
+                  <td>
+                    Un’offerta in più per i visitatori. Raggiungibile significa Italia o paese
+                    confinante, secondo la classificazione estratta.
+                  </td>
+                </tr>
+                <tr>
+                  <td>Evento lontano</td>
+                  <td><code>merch_cobranding</code> · Collaborazione a distanza.</td>
+                  <td>Un capo dedicato all’evento, senza promettere una presenza fisica.</td>
+                </tr>
+                <tr>
+                  <td>Negozio</td>
+                  <td><code>vendita_negozio</code> · Valutare la vendita delle magliette.</td>
+                  <td>
+                    Un prodotto per i clienti appassionati di auto, con distribuzione selezionata.
+                  </td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+          <div class="subsection">
+            <h3>La soglia esatta per le magliette di un evento</h3>
+            <p>
+              Il riferimento tecnico è <strong>oltre 31 giorni</strong> da oggi, non una stima
+              libera del mese. Il mese di produzione è un vincolo interno; non va trasformato in una
+              promessa di consegna nell’email.
+            </p>
+            <div class="table-wrap">
+              <table>
+                <thead>
+                  <tr>
+                    <th>Evento</th>
+                    <th>Data</th>
+                    <th>Indicazione al testo</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  <tr>
+                    <td>Raggiungibile / stand</td>
+                    <td>Più di 31 giorni</td>
+                    <td>Può aggiungere la maglietta co-firmata come parte della proposta stand.</td>
+                  </tr>
+                  <tr>
+                    <td>Raggiungibile / stand</td>
+                    <td>31 giorni o meno, oppure data esatta assente</td>
+                    <td>Non proporre la maglietta co-firmata.</td>
+                  </tr>
+                  <tr>
+                    <td>Lontano / co-branding</td>
+                    <td>Più di 31 giorni, oppure data esatta assente</td>
+                    <td>Può proporre la maglietta co-firmata.</td>
+                  </tr>
+                  <tr>
+                    <td>Lontano / co-branding</td>
+                    <td>31 giorni o meno</td>
+                    <td>La propone per la prossima edizione.</td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+          </div>
+          <div class="simulator">
+            <h3>Prova la scelta, senza toccare i dati</h3>
+            <p class="small muted">
+              Simulazione locale della mappa di proposta e della soglia di produzione. Non valuta
+              idoneità, ricerca o autorizzazione all’invio.
+            </p>
+            <div class="sim-fields">
+              <label
+                >Tipo di contatto<select id="sim-kind">
+                  <option value="club">Club</option>
+                  <option value="brand">Brand</option>
+                  <option value="media">Media</option>
+                  <option value="evento" selected>Evento</option>
+                  <option value="negozio">Negozio</option>
+                </select></label
+              ><label
+                >Giorni all’inizio dell’evento<input
+                  id="sim-days"
+                  type="number"
+                  min="0"
+                  max="3650"
+                  value="21" /></label
+              ><label class="check"
+                ><input id="sim-reachable" type="checkbox" checked />Evento in Italia o in un paese
+                confinante</label
+              ><label class="check"
+                ><input id="sim-known" type="checkbox" checked />Data esatta conosciuta</label
+              >
+            </div>
+            <div class="sim-result" aria-live="polite">
+              <strong id="sim-proposal"></strong>
+              <p id="sim-merch" class="small"></p>
+            </div>
+          </div>
+          <div class="source">
+            <span>Fonti:</span
+            ><a data-ref="src/lib/partner-assistant/choice.ts:75">Mappa delle proposte</a
+            ><a data-ref="src/lib/partner-assistant/choice.ts:95">Soglia dei 31 giorni</a
+            ><a data-ref="src/lib/partner-assistant/prompts.ts:200"
+              >Proposta inviata a scrittore e revisore</a
+            >
+          </div>
+        </section>
+
+        <section class="section" id="gerarchia" aria-labelledby="title-gerarchia">
+          <div class="section-head">
+            <span class="section-number">07</span>
+            <h2 id="title-gerarchia">Quali regole valgono davvero</h2>
+          </div>
+          <p>
+            «Regole» indica più fonti diverse. Per capire un’email bisogna separare il testo
+            caricato dal database, le indicazioni aggiunte dal codice, il modello Club e i controlli
+            tecnici.
+          </p>
+          <div class="table-wrap">
+            <table>
+              <thead>
+                <tr>
+                  <th>Fonte</th>
+                  <th>Dove si trova</th>
+                  <th>Effetto</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr>
+                  <td><strong>Contesto della ricerca importata</strong></td>
+                  <td>
+                    <code>/partner/regole</code>, contenuto <code>CONTESTO.md</code> dell’ultimo
+                    import.
+                  </td>
+                  <td>
+                    È il materiale importato. La pagina rimanda alla pagina Assistente per le sue
+                    regole: non sono lo stesso archivio.
+                  </td>
+                </tr>
+                <tr>
+                  <td><strong>Regole versionate dell’assistente</strong></td>
+                  <td>
+                    <code>/partner/assistente</code>, tabella <code>partner_assistant_rules</code>.
+                  </td>
+                  <td>
+                    Il worker legge la versione corrente dal database e la passa nel system prompt.
+                    Il team può salvarne una nuova versione, con autore, data e storico.
+                  </td>
+                </tr>
+                <tr>
+                  <td><strong>Indicazione corrente sullo stile</strong></td>
+                  <td><code>EMAIL_STYLE</code> in <code>prompts.ts</code>.</td>
+                  <td>
+                    Si aggiunge alle regole del database in tutte le fasi. Prevale sui vecchi esempi
+                    che richiedevano domanda, recapito telefonico, chiamata o appuntamento.
+                  </td>
+                </tr>
+                <tr>
+                  <td><strong>Testo fisso Club v3</strong></td>
+                  <td>
+                    <code>template.ts</code> e revisione dedicata <code>templateReviewCall</code>.
+                  </td>
+                  <td>
+                    Ha eccezioni esplicite rispetto alla struttura generica. Non viene riscritto
+                    liberamente da Claude.
+                  </td>
+                </tr>
+                <tr>
+                  <td><strong>Validatore tecnico</strong></td>
+                  <td><code>checks.ts</code>, parser, RPC e guardie d’invio.</td>
+                  <td>
+                    Applica controlli deterministici sul contenuto automatico, forma e coerenza del
+                    contesto. Non è una verifica universale della qualità linguistica o della verità
+                    dei fatti.
+                  </td>
+                </tr>
+                <tr>
+                  <td><strong>Revisione del founder</strong></td>
+                  <td><code>/partner/email</code>, approvazione <code>founder_edit</code>.</td>
+                  <td>
+                    Nuova bozza approvata dall’essere umano, senza seconda lettura Claude. Rimangono
+                    controlli tecnici e di contesto; il salvataggio non richiama il validatore
+                    stilistico delle bozze AI.
+                  </td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+          <div class="callout info">
+            <h3>Che cosa sappiamo del testo delle regole</h3>
+            <p>
+              Il repository contiene il testo iniziale inserito dalla migrazione. Il team può averlo
+              aggiornato nel database: qui non viene eseguita una lettura live. Le regole descritte
+              come <span class="tag code">Codice</span> o
+              <span class="tag prompt">Prompt corrente</span> sono verificabili nel commit indicato;
+              quelle del testo iniziale sono indicate come <span class="tag">Base versionata</span>,
+              da confrontare con la versione visibile nell’app.
+            </p>
+          </div>
+          <p>
+            Le vecchie regole comprendevano richieste di telefono e una sequenza di solleciti;
+            l’indicazione corrente elimina la richiesta di contatto a voce dalle nuove email. La
+            sequenza di solleciti non diventa attiva solo perché resta nel testo iniziale.
+          </p>
+          <div class="source">
+            <span>Fonti:</span
+            ><a data-ref="src/components/partner/partner-rules.tsx:8">Contesto importato</a
+            ><a data-ref="src/components/partner/partner-assistant-view.tsx:1167"
+              >Regole versionate nell’app</a
+            ><a data-ref="src/lib/partner-assistant/prompts.ts:23">Priorità dello stile</a
+            ><a data-ref="supabase/migrations/20261104001229_partner_programma_email.sql:193"
+              >Approvazione founder_edit</a
+            >
+          </div>
+        </section>
+
+        <section class="section" id="scrittura" aria-labelledby="title-scrittura">
+          <div class="section-head">
+            <span class="section-number">08</span>
+            <h2 id="title-scrittura">Come si scrive una prima email</h2>
+          </div>
+          <p>
+            Lo stile corrente presenta
+            <strong>LuckyLap, prodotti, proposta e valore per il destinatario</strong>. Usa fatti
+            verificati, un tono cordiale e concreto, evitando formule vuote e promesse inventate. La
+            proposta è quella indicata dal sistema.
+          </p>
+          <div class="key">
+            <span><span class="tag prompt">Prompt corrente</span> istruzione a Claude</span
+            ><span
+              ><span class="tag">Base versionata</span> testo iniziale, modificabile nel DB</span
+            ><span><span class="tag code">Codice</span> controllo deterministico</span>
+          </div>
+          <div class="subsection">
+            <h3>La costruzione del messaggio nel percorso completo</h3>
+            <ol>
+              <li>
+                <strong>Oggetto breve con il nome del destinatario.</strong> Una sola riga. Non
+                usare titoli generici che potrebbero andare bene a chiunque.
+              </li>
+              <li>
+                <strong>Saluto appropriato.</strong> Nome della persona se trovato e confermato;
+                altrimenti saluto neutro. Titolo accademico in Austria, quando noto.
+              </li>
+              <li>
+                <strong>Un aggancio specifico dalla ricerca.</strong> Un fatto recente con fonte,
+                espresso con naturalezza. Evitare complimenti vuoti o un risultato che la ricerca
+                non dimostra.
+              </li>
+              <li>
+                <strong>Presentazione del marchio e dei prodotti.</strong> Chi siamo, che cosa
+                facciamo, come sono le magliette e il legame con la passione automobilistica; pochi
+                fatti pertinenti e verificati.
+              </li>
+              <li>
+                <strong>La proposta concreta.</strong> Co-branding, capsule, stand o vendita, come
+                deciso dal codice. Va compresa senza dover prima fare una chiamata.
+              </li>
+              <li>
+                <strong>Il valore per chi legge.</strong> Una frase chiara: che cosa aggiunge per
+                soci, visitatori, pubblico o clienti. Niente margini o guadagni promessi.
+              </li>
+              <li>
+                <strong>Chiusura cordiale.</strong> Una domanda sulla proposta è facoltativa. Può
+                finire con una frase dichiarativa; non chiedere un telefono, una chiamata, un
+                appuntamento o di «sentirsi».
+              </li>
+              <li>
+                <strong>Firma e frase di uscita.</strong> Le aggiunge il sistema fuori dal corpo
+                modificabile.
+              </li>
+            </ol>
+            <p class="small muted">
+              La struttura di dettaglio deriva dalle regole iniziali; la nuova indicazione sullo
+              stile ne aggiorna richieste di contatto e domanda finale. Non impone in codice una
+              frase identica o un ordine rigido dei paragrafi. Il modello Club segue il proprio
+              testo fisso.
+            </p>
+          </div>
+          <div class="table-wrap">
+            <table>
+              <caption>
+                Lingua e forma di cortesia
+              </caption>
+              <thead>
+                <tr>
+                  <th>Lingua</th>
+                  <th>Percorso completo</th>
+                  <th>Modello Club</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr>
+                  <td>Italiano</td>
+                  <td>Voi all’organizzazione; Lei alla persona.</td>
+                  <td>Voi.</td>
+                </tr>
+                <tr>
+                  <td>Inglese</td>
+                  <td>You; le regole iniziali richiedono inglese britannico e «T-shirt».</td>
+                  <td>You.</td>
+                </tr>
+                <tr>
+                  <td>Tedesco</td>
+                  <td>Sie; in Svizzera senza ß.</td>
+                  <td>Sie; sostituzione ß → ss per Svizzera e Liechtenstein.</td>
+                </tr>
+                <tr>
+                  <td>Francese</td>
+                  <td>Vous.</td>
+                  <td>Vous.</td>
+                </tr>
+                <tr>
+                  <td>Spagnolo</td>
+                  <td>Usted.</td>
+                  <td>Usted.</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+          <p>
+            Per gli altri contatti Claude ricava la lingua dalla ricerca. Il modello Club usa prima
+            l’etichetta linguistica della ricerca importata, poi il paese; una lingua non supportata
+            diventa inglese. Il fuso del modello deriva dal paese e, per paesi con più fusi, dalle
+            informazioni di area nella scheda, con le regole di ripiego del codice.
+          </p>
+          <div class="rules-grid">
+            <article class="rule">
+              <span class="tag prompt">Prompt corrente</span>
+              <h3>Nessuna richiesta di chiamata</h3>
+              <p>
+                Niente richiesta di recapito telefonico, appuntamento o conversazione a voce.
+                Evitare «parliamone», «sentiamoci» e inviti equivalenti in tutte le lingue. La firma
+                può continuare a contenere il telefono aziendale configurato.
+              </p>
+            </article>
+            <article class="rule">
+              <span class="tag prompt">Prompt corrente</span><span class="tag code">Codice</span>
+              <h3>La domanda è facoltativa</h3>
+              <p>
+                Zero o una domanda nel corpo. L’assenza di una domanda o di una richiesta del
+                recapito non è una mancanza da segnalare nella revisione corrente.
+              </p>
+            </article>
+            <article class="rule">
+              <span class="tag">Base versionata</span>
+              <h3>Fatti, senza invenzioni</h3>
+              <p>
+                Scegliere soltanto dati confermati dal marchio e dalla ricerca. Nessun nome di
+                cliente, negozio, quantità, articolo, follower o data aggiunto per rendere il testo
+                convincente. Nei Club il riferimento alle collaborazioni con Porsche Club in Italia
+                resta generico, senza singoli nomi o quantità.
+              </p>
+            </article>
+            <article class="rule">
+              <span class="tag">Base versionata</span><span class="tag prompt">Revisione Club</span>
+              <h3>Niente promesse commerciali arbitrarie</h3>
+              <p>
+                Non inventare prezzi, sconti, margini, commissioni, quantitativi minimi o date di
+                consegna. Non presentare il marchio come partner ufficiale di una casa
+                automobilistica.
+              </p>
+            </article>
+            <article class="rule">
+              <span class="tag">Base versionata</span>
+              <h3>Proposta unica e riconoscibile</h3>
+              <p>
+                Non mescolare più offerte. La maglietta co-firmata aggiunta allo stand è ammessa
+                solo quando la riga del sistema la consente; fa parte di quella proposta. Nel
+                percorso generico evitare specifiche di design su misura, omaggi e materiale
+                promesso da mandare.
+              </p>
+            </article>
+            <article class="rule">
+              <span class="tag">Base versionata</span>
+              <h3>Prodotto e modelli</h3>
+              <p>
+                Le regole iniziali parlano di disegno interno, ricamo in Italia e cotone biologico:
+                non convertirli nella formula «Made in Italy». Con comunità Porsche si nominano solo
+                964 e GT3 RS; nel Club modello Ferrari usa F40 e 512 TR, Mercedes 300 SL.
+              </p>
+            </article>
+          </div>
+          <details>
+            <summary>Firma e frase di uscita: parti aggiunte dal sistema</summary>
+            <div class="detail-body">
+              <p>
+                Claude scrive il corpo dal saluto alla formula di chiusura e non vede il telefono
+                della firma. Il codice aggiunge una firma di quattro righe: nome del mittente
+                configurato nel codice, ruolo nella lingua, telefono server e home LuckyLap con
+                riferimento Instagram. Nel modello Club il nome comprende anche il cognome;
+                nell’altro percorso usa la forma breve.
+              </p>
+              <p>
+                La sequenza finale è
+                <strong>corpo → riga vuota → firma → riga vuota → frase di uscita</strong>. La firma
+                entra nell’impronta della bozza; la frase di uscita è aggiunta al messaggio, non
+                conta nelle parole del corpo e non fa parte dell’impronta della bozza approvata.
+              </p>
+              <div class="table-wrap">
+                <table>
+                  <thead>
+                    <tr>
+                      <th>Lingua / registro</th>
+                      <th>Frase aggiunta</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    <tr>
+                      <td>Italiano, voi</td>
+                      <td>
+                        Se non è il momento, o preferite non ricevere altre email, scrivetemelo
+                        pure: non vi ricontatterò.
+                      </td>
+                    </tr>
+                    <tr>
+                      <td>Italiano, lei</td>
+                      <td>
+                        Se non è il momento, o preferisce non ricevere altre email, me lo scriva
+                        pure: non la ricontatterò.
+                      </td>
+                    </tr>
+                    <tr>
+                      <td>Inglese</td>
+                      <td>
+                        If the timing isn't right, or you'd rather not hear from me again, just let
+                        me know and I won't write again.
+                      </td>
+                    </tr>
+                    <tr>
+                      <td>Tedesco</td>
+                      <td>
+                        Falls es gerade nicht passt oder Sie keine weiteren E-Mails wünschen,
+                        schreiben Sie mir einfach, dann melde ich mich nicht mehr.
+                      </td>
+                    </tr>
+                    <tr>
+                      <td>Francese</td>
+                      <td>
+                        Si ce n'est pas le bon moment, ou si vous préférez ne plus recevoir
+                        d'e-mails de ma part, dites-le-moi simplement : je ne vous écrirai plus.
+                      </td>
+                    </tr>
+                    <tr>
+                      <td>Spagnolo</td>
+                      <td>
+                        Si no es el momento, o prefiere no recibir más correos, dígamelo sin
+                        problema: no volveré a escribirle.
+                      </td>
+                    </tr>
+                  </tbody>
+                </table>
+              </div>
+              <p>
+                La promessa di non ricontattare va gestita dal team quando arriva una risposta: oggi
+                la lettura automatica delle parole di stop non è implementata. Il team può mettere
+                la scheda in «Non contattare».
+              </p>
+            </div>
+          </details>
+          <div class="source">
+            <span>Fonti:</span
+            ><a data-ref="src/lib/partner-assistant/prompts.ts:25">Stile corrente</a
+            ><a data-ref="src/lib/partner-assistant/prompts.ts:295">Lingua e registro</a
+            ><a data-ref="src/lib/partner-assistant/template.ts:282">Lingua del modello</a
+            ><a data-ref="supabase/migrations/20261028122704_assistente_partner.sql:475"
+              >Struttura iniziale</a
+            ><a data-ref="src/lib/partner-assistant/mail-compose.ts:19">Frasi di uscita</a
+            ><a data-ref="src/lib/partner-assistant/checks.ts:33">Firma separata</a>
+          </div>
+        </section>
+
+        <section class="section" id="validatore" aria-labelledby="title-validatore">
+          <div class="section-head">
+            <span class="section-number">09</span>
+            <h2 id="title-validatore">I vincoli effettivi del codice</h2>
+          </div>
+          <p>
+            Questi controlli sono deterministici sulle
+            <strong>bozze prodotte dal percorso automatico</strong>. Un «approvato» di Claude non
+            annulla un errore del validatore. La revisione editoriale del founder è un percorso
+            separato, descritto nella sezione successiva.
+          </p>
+          <div class="table-wrap">
+            <table>
+              <thead>
+                <tr>
+                  <th>Controllo</th>
+                  <th>Che cosa verifica davvero</th>
+                  <th>Precisazione</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr>
+                  <td><code>lunghezza</code></td>
+                  <td>
+                    Altri: <strong>110–160 parole</strong>. Club modello:
+                    <strong>180–260 parole</strong>, estremi inclusi.
+                  </td>
+                  <td>
+                    Il conteggio toglie prima e ultima riga del corpo già ripulito; poi conta gruppi
+                    senza spazi con almeno una lettera o cifra. Firma e opt-out sono separati.
+                  </td>
+                </tr>
+                <tr>
+                  <td><code>domande</code></td>
+                  <td>Non più di un carattere <code>?</code> nel corpo controllato.</td>
+                  <td>
+                    Non richiede una domanda e non determina se una frase, senza punto
+                    interrogativo, chieda comunque una chiamata.
+                  </td>
+                </tr>
+                <tr>
+                  <td><code>esclamativo</code>, <code>emoji</code></td>
+                  <td>
+                    Blocca <code>!</code>, <code>¡</code> e caratteri della classe
+                    Extended_Pictographic in oggetto e corpo.
+                  </td>
+                  <td>
+                    È un controllo di caratteri; non misura da solo enfasi, tono o superlativi.
+                  </td>
+                </tr>
+                <tr>
+                  <td><code>segnaposto</code></td>
+                  <td>
+                    Parentesi quadre con contenuto, apertura <code>{{</code>, first name / last name
+                    / Nachname / Vorname, XXX e TODO esatti.
+                  </td>
+                  <td>
+                    Il saluto va già compilato. La parola spagnola «todo» minuscola non è il
+                    segnaposto TODO.
+                  </td>
+                </tr>
+                <tr>
+                  <td><code>link</code></td>
+                  <td>
+                    I link riconosciuti devono essere la sola home LuckyLap, senza percorsi interni.
+                  </td>
+                  <td>
+                    Il prompt chiede <code>https://luckylap.com</code>, al più una volta nel corpo.
+                    La regex accetta anche varianti home con www / slash finale e non conta le
+                    ripetizioni: il divieto editoriale è più stretto.
+                  </td>
+                </tr>
+                <tr>
+                  <td><code>telefono</code></td>
+                  <td>
+                    Blocca nel corpo sequenze telefoniche riconosciute: almeno otto cifre, con
+                    eventuale + e spazi.
+                  </td>
+                  <td>
+                    Il telefono viene dal server e resta nella firma. Il controllo non cerca
+                    semanticamente tutte le richieste di recapito.
+                  </td>
+                </tr>
+                <tr>
+                  <td><code>firma</code></td>
+                  <td>
+                    Confronta esattamente la firma con quella attesa per lingua, telefono e
+                    percorso.
+                  </td>
+                  <td>
+                    Il modello Club usa una firma diversa dalla forma breve dell’altro percorso.
+                  </td>
+                </tr>
+                <tr>
+                  <td><code>modello_porsche</code></td>
+                  <td>
+                    Per comunità Porsche intercetta modelli vietati elencati nel codice e
+                    numeri/modelli diversi dai due ammessi.
+                  </td>
+                  <td>
+                    Esclude le occorrenze esatte del nome della scheda e dell’evento: un modello nel
+                    nome proprio non diventa un’offerta di prodotto.
+                  </td>
+                </tr>
+                <tr>
+                  <td><code>oggetto</code></td>
+                  <td>
+                    Oggetto senza ritorni a capo o tab. Il parser richiede anche testo non vuoto,
+                    massimo 300 caratteri e corpo massimo 8.000 caratteri.
+                  </td>
+                  <td>
+                    Il nome del destinatario nell’oggetto e la qualità del titolo restano richieste
+                    editoriali.
+                  </td>
+                </tr>
+                <tr>
+                  <td><code>regole_superate</code></td>
+                  <td>Versione delle regole della bozza uguale a quella corrente.</td>
+                  <td>
+                    Impronta, versione scheda, recapito attivo, età della ricerca e hold editoriale
+                    sono verificati anche nel database lungo l’invio.
+                  </td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+          <details open>
+            <summary>Parole e forme che il validatore blocca esplicitamente</summary>
+            <div class="detail-body">
+              <p>
+                La ricerca avviene su oggetto e corpo, senza distinzione di maiuscole dove previsto.
+                Molte forme sono intercettate anche dentro parole composte.
+              </p>
+              <ul>
+                <li>
+                  <strong>Conto vendita:</strong> conto vendita, consignment, sale-or-return / sale
+                  or return, Kommission, dépôt-vente / depot-vente, en depósito.
+                </li>
+                <li>
+                  <strong>Origine:</strong> Made in Italy, anche dentro espressioni più lunghe.
+                </li>
+                <li>
+                  <strong>Identità:</strong> «Tommi» come parola intera, con la maiuscola esatta.
+                </li>
+                <li><strong>Valute:</strong> simboli €, $, £ e codici EUR / USD come parole.</li>
+                <li>
+                  <strong>Sconti:</strong> sconto / sconti, discount, Rabatt, descuento, remise
+                  nelle forme riconosciute.
+                </li>
+                <li>
+                  <strong>Campioni:</strong> campione / campioni, sample / samples, échantillon /
+                  échantillons.
+                </li>
+                <li>
+                  <strong>Età:</strong> le forme specifiche «22 anni / years / Jahre / ans / años»,
+                  «tutti di 22», «we’re all 22» e «twenty-two».
+                </li>
+              </ul>
+              <p>
+                Il principio editoriale vieta qualsiasi età, prezzi, margini e promesse arbitrarie.
+                Il codice non comprende ogni equivalente in ogni lingua e non vieta genericamente
+                tutti i numeri:
+                <strong
+                  >non trovare una regex vietata non significa rispettare tutte le regole</strong
+                >.
+              </p>
+            </div>
+          </details>
+          <div class="callout info">
+            <h3>La qualità richiede anche la seconda lettura</h3>
+            <p>
+              Fatti veri, valore della proposta, lingua naturale, registro corretto, rispetto del
+              momento e assenza di false partnership non sono interamente verificabili con questi
+              controlli. Sono compiti della ricerca, del prompt e della revisione. Neppure la
+              seconda lettura costituisce una prova assoluta della verità della fonte.
+            </p>
+          </div>
+          <div class="source">
+            <span>Fonti:</span
+            ><a data-ref="src/lib/partner-assistant/checks.ts:56">Conteggio delle parole</a
+            ><a data-ref="src/lib/partner-assistant/checks.ts:77">Elenco delle regex vietate</a
+            ><a data-ref="src/lib/partner-assistant/checks.ts:141">Controlli completi</a
+            ><a data-ref="src/lib/partner-assistant/worker.ts:124">Vincoli del parser</a
+            ><a data-ref="src/lib/partner-assistant/prompts.ts:312">Istruzioni di correzione</a>
+          </div>
+        </section>
+
+        <section class="section" id="eccezioni" aria-labelledby="title-eccezioni">
+          <div class="section-head">
+            <span class="section-number">10</span>
+            <h2 id="title-eccezioni">Due eccezioni da conoscere</h2>
+          </div>
+          <div class="subsection">
+            <h3>Il Club modello v3 è un testo già approvato</h3>
+            <p>
+              Non si applica la struttura generica come se fosse una bozza personalizzata appena
+              scritta. La revisione dedicata esclude espressamente il complimento e fatto dalla
+              ricerca, il nome della persona nel saluto, la lunghezza generica, la richiesta di
+              recapito e la regola generica sui lookbook. Il codice continua a imporre la propria
+              lunghezza <strong>180–260</strong> e gli altri controlli previsti per il modello.
+            </p>
+            <ul>
+              <li>
+                Il testo fisso può parlare di personalizzazione dell’auto, colore e posizione del
+                logo; può dire «regalo per i soci» e «quantità e condizioni le definiamo insieme».
+                Queste frasi appartengono al modello approvato, mentre la bozza generica ha
+                restrizioni diverse. «Regalo per i soci» non è la promessa di magliette gratis da
+                LuckyLap.
+              </li>
+              <li>
+                Riferimento generico alle collaborazioni con Porsche Club in Italia, anche scrivendo
+                a Ferrari o Mercedes; niente nomi dei singoli club o quantità di commesse
+                precedenti.
+              </li>
+              <li>
+                Il modello nomina le grafiche della marca: Porsche 964 / GT3 RS; Ferrari F40 / 512
+                TR; Mercedes 300 SL. Senza marca usa una formulazione generica.
+              </li>
+              <li>
+                Claude controlla inserimento del nome e concordanze, lingua, grammatica, fatti
+                autorizzati e limiti permanenti. Una bocciatura porta a Tommi; non avvia una
+                riscrittura creativa del modello.
+              </li>
+              <li>
+                Dal 4 novembre, soltanto per i Club modello v3 previsti dal database, viene aggiunto
+                un PDF verificato: Porsche Clubs oppure Clubs. Un Club che è anche Evento resta nel
+                percorso completo e senza questo allegato automatico.
+              </li>
+            </ul>
+          </div>
+          <div class="subsection">
+            <h3>La revisione founder_edit è approvazione umana</h3>
+            <p>
+              Tommi può sospendere una bozza pronta, cambiare oggetto e corpo e salvare una nuova
+              revisione. Il salvataggio crea una nota di controllo approvata con
+              <code>approval_source = founder_edit</code>, conserva firma, lingua, ricerca e
+              collegamenti, aggiorna il puntatore e chiude la sospensione nella stessa transazione.
+            </p>
+            <div class="table-wrap">
+              <table>
+                <thead>
+                  <tr>
+                    <th>Resta richiesto</th>
+                    <th>Non viene ripetuto dal salvataggio</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  <tr>
+                    <td>
+                      Oggetto e corpo non vuoti; massimo 300 e 8.000 caratteri; oggetto senza
+                      ritorni a capo; dati testuali ammessi; founder autorizzato; versione dell’hold
+                      e della bozza; scheda, recapito e regole coerenti; ricerca ancora valida.
+                    </td>
+                    <td>
+                      Nuova ricerca Claude, scrittura Claude, seconda lettura Claude e passaggio al
+                      validatore stilistico TypeScript delle bozze AI.
+                    </td>
+                  </tr>
+                  <tr>
+                    <td>
+                      Prima dell’invio: bozza corrente, impronte, contatto idoneo, controlli
+                      temporali, casella e tutti i cancelli d’invio ancora validi.
+                    </td>
+                    <td>
+                      Una promessa di annullamento quando SMTP è già partito. In quel momento la
+                      modifica viene rifiutata.
+                    </td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+            <p>
+              <strong
+                >Non è corretto dire che tutte le email salvate dal founder passano nuovamente i
+                limiti 110–160 / 180–260 o le regex di stile.</strong
+              >
+              La responsabilità editoriale della revisione è umana; il sistema protegge il contesto
+              e la tracciabilità. Una revisione umana diventata obsoleta torna a Tommi e non viene
+              sovrascritta automaticamente da Claude.
+            </p>
+            <p>
+              <code>founder_edit</code> non è <code>founder_editorial</code>: quest’ultima etichetta
+              documenta la revisione storica del testo Club alla versione 3, collegata al controllo
+              precedente di Claude. La scheda la descrive come email già controllata con modifica
+              del testo approvata da Tommi; non dichiara che Claude abbia riletto la modifica.
+            </p>
+          </div>
+          <div class="source">
+            <span>Fonti:</span
+            ><a data-ref="src/lib/partner-assistant/template.ts:124">Testo Club effettivo</a
+            ><a data-ref="src/lib/partner-assistant/prompts.ts:391"
+              >Eccezioni della revisione Club</a
+            ><a data-ref="supabase/migrations/20261104001229_partner_programma_email.sql:151"
+              >Salvataggio umano</a
+            ><a data-ref="src/lib/partner/email-edit.ts:48">Validazione tecnica del comando</a
+            ><a
+              data-ref="supabase/migrations/20261102124853_assistente_partner_club_generici.sql:118"
+              >Revisione storica founder_editorial</a
+            ><a
+              data-ref="supabase/migrations/20261103122914_assistente_partner_prova_allegati.sql:31"
+              >PDF dei Club v3</a
+            >
+          </div>
+        </section>
+
+        <section class="section" id="revisione" aria-labelledby="title-revisione">
+          <div class="section-head">
+            <span class="section-number">11</span>
+            <h2 id="title-revisione">Revisione, versioni e modifiche</h2>
+          </div>
+          <ol class="flow">
+            <li>
+              <div>
+                <h3>Una bozza automatica viene controllata</h3>
+                <p>
+                  Il codice verifica forma e limiti; Claude rilegge con regole, scelta, ricerca e
+                  data. La revisione produce approvazione o problemi; l’approvazione è collegata
+                  all’impronta della bozza. «Approvato» con problemi elencati viene trattato come
+                  non approvato.
+                </p>
+                <div class="io">
+                  <strong>Esito:</strong> pronta, unica riscrittura oppure Serve Tommi.
+                </div>
+              </div>
+            </li>
+            <li>
+              <div>
+                <h3>Se le regole cambiano, il contesto viene riallineato</h3>
+                <p>
+                  Una nuova versione delle regole nel database rimette in scrittura le bozze pronte
+                  o al controllo che devono essere aggiornate, salvo messaggi reali già in invio,
+                  inviati o incerti. Bozze umane o sospese passano invece alla revisione di Tommi.
+                </p>
+                <div class="io">
+                  <strong>Esito:</strong> storico conservato; nuovo lavoro sul contesto corrente.
+                </div>
+              </div>
+            </li>
+            <li>
+              <div>
+                <h3>Un aggiornamento del solo stile del prompt non riscrive la coda</h3>
+                <p>
+                  L’indicazione corrente su presentazione e assenza di richiesta di telefono vale
+                  per le nuove chiamate. Non modifica da sola le regole salvate né tutte le bozze
+                  già pronte. Tommi può leggerle nel Programma email e salvarne la versione
+                  desiderata.
+                </p>
+                <div class="io">
+                  <strong>Esito:</strong> nuove bozze col nuovo stile; bozze precedenti valutabili
+                  singolarmente.
+                </div>
+              </div>
+            </li>
+            <li>
+              <div>
+                <h3>Tommi apre «Sospendi e modifica»</h3>
+                <p>
+                  La sospensione è persistente, per quella sola bozza: rimane anche chiudendo il
+                  browser. La coda degli altri contatti continua. Una prova pendente che usa la
+                  bozza impedisce di modificarla; un invio reale già in corso o incerto impedisce la
+                  modifica.
+                </p>
+                <div class="io">
+                  <strong>Ingresso:</strong> bozza pronta corrente, versione e impronta attese.
+                </div>
+              </div>
+            </li>
+            <li>
+              <div>
+                <h3>Salva una revisione oppure annulla la modifica</h3>
+                <p>
+                  Salvare produce una nuova bozza append-only e approvazione founder_edit. Annullare
+                  riprende il testo precedente soltanto se il contesto è ancora valido. Gli
+                  eventuali messaggi vecchi soltanto preparati vengono scartati.
+                </p>
+                <div class="io">
+                  <strong>Esito:</strong> nuovo puntatore e hold chiuso, oppure Serve Tommi se il
+                  contesto è diventato obsoleto.
+                </div>
+              </div>
+            </li>
+            <li>
+              <div>
+                <h3>Il worker rilegge il puntatore prima di inviare</h3>
+                <p>
+                  Presa del lavoro, preparazione MIME e ultimo controllo rispettano sospensione e
+                  bozza corrente. Un esito tardivo della verifica di una bozza vecchia non può
+                  spostare una revisione successiva.
+                </p>
+                <div class="io">
+                  <strong>Esito:</strong> può partire soltanto il testo corrente ancora valido.
+                </div>
+              </div>
+            </li>
+          </ol>
+          <details>
+            <summary>Che cosa invalida il lavoro precedente</summary>
+            <div class="detail-body">
+              <ul>
+                <li>
+                  Regole, versione scheda o recapito cambiati; nella revisione umana si verifica
+                  anche versione e impronta dell’indirizzo.
+                </li>
+                <li>Ricerca scaduta o date dell’evento / del corpo non più coerenti.</li>
+                <li>
+                  Responsabile, prossima azione, blocco o interruttore che rendono il contatto non
+                  idoneo.
+                </li>
+                <li>
+                  Modello Club cambiato mentre è al controllo: il worker ricompone dal testo
+                  corrente senza pagare una lettura del testo vecchio. Il cambio del codice del
+                  modello non aggiorna genericamente tutte le bozze già pronte.
+                </li>
+                <li>
+                  Cancellazione definitiva dei dati: elimina contenuti e sospensioni collegati,
+                  senza consentire a un vecchio token di ricreare il testo.
+                </li>
+              </ul>
+              <p>
+                Una nuova revisione non cambia la data della ricerca originale. Un’email già partita
+                mantiene il suo testo effettivo nello storico degli invii, non il testo corrente di
+                una bozza successiva.
+              </p>
+            </div>
+          </details>
+          <p>
+            «Rileggi l’email salvata» nel Programma email ricarica il contenuto: non chiama Claude e
+            non rifà la ricerca. «Ridai all’assistente», nella sezione «Da vedere» della pagina
+            Assistente, riavvia invece il lavoro dalla ricerca soltanto se il contatto è ancora
+            idoneo; non supera una sospensione editoriale e non riattiva automaticamente invii
+            incerti o conversazioni esistenti.
+          </p>
+          <div class="source">
+            <span>Fonti:</span
+            ><a data-ref="src/lib/partner-assistant/worker.ts:139"
+              >Lettura coerente della revisione</a
+            ><a data-ref="src/lib/partner-assistant/worker.ts:413">Regole e modello superati</a
+            ><a data-ref="supabase/migrations/20261104001229_partner_programma_email.sql:678"
+              >Nuove regole nel DB</a
+            ><a data-ref="docs/partner-programma-email.md:15">Sospensione e modifica</a
+            ><a data-ref="supabase/migrations/20261104001229_partner_programma_email.sql:71"
+              >Quando la modifica è rifiutata</a
+            >
+          </div>
+        </section>
+
+        <section class="section" id="invio" aria-labelledby="title-invio">
+          <div class="section-head">
+            <span class="section-number">12</span>
+            <h2 id="title-invio">Quando e come si invia</h2>
+          </div>
+          <p>
+            Una bozza pronta non è un appuntamento SMTP prenotato. Serve modalità Invio, prova
+            confermata e un candidato che superi tutti i controlli del momento.
+          </p>
+          <div class="table-wrap">
+            <table>
+              <caption>
+                Modalità e prova
+              </caption>
+              <thead>
+                <tr>
+                  <th>Modalità</th>
+                  <th>Che cosa fa</th>
+                  <th>Condizione</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr>
+                  <td>Spento</td>
+                  <td>Ferma preparazione e nuovi invii.</td>
+                  <td>Non può ritirare un messaggio già avviato a SMTP.</td>
+                </tr>
+                <tr>
+                  <td>Prepara</td>
+                  <td>Lavora alle bozze senza inviarle ai contatti.</td>
+                  <td>Configurazione valida e preparazione non in pausa.</td>
+                </tr>
+                <tr>
+                  <td>Prova</td>
+                  <td>
+                    Manda alle sole caselle di prova configurate; la preparazione può continuare.
+                  </td>
+                  <td>
+                    Founder; massimo 15 email di prova al giorno, intervallo 4–11 minuti, senza
+                    attendere la finestra del destinatario reale.
+                  </td>
+                </tr>
+                <tr>
+                  <td>Invio</td>
+                  <td>
+                    Manda prime email reali; se non c’è invio eseguibile può continuare la
+                    preparazione.
+                  </td>
+                  <td>
+                    Founder e prova confermata. La conferma richiede la prova pertinente e un invio
+                    di prova recente; una volta confermata resta valida anche tornando a Prepara.
+                  </td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+          <p>
+            La prova non cambia stato della scheda, registro o solleciti. Il controllo nella casella
+            riguarda comunque l’indirizzo reale, come verifica. L’opzione «Prova Club con lookbook
+            allegato» richiede una bozza Porsche e una degli altri Club, entrambe modello v3 valide:
+            non avvia un test parziale se una manca. Ogni bozza viene inviata agli indirizzi di test
+            configurati.
+          </p>
+          <div class="subsection">
+            <h3>Quote, fusi e calendario</h3>
+            <div class="table-wrap">
+              <table>
+                <thead>
+                  <tr>
+                    <th>Regola</th>
+                    <th>Comportamento</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  <tr>
+                    <td>Prime email reali, prima settimana</td>
+                    <td>
+                      Massimo 5 al giorno nei primi 7 giorni di calendario dal primo invio vero,
+                      contando il giorno di Roma.
+                    </td>
+                  </tr>
+                  <tr>
+                    <td>Dopo la prima settimana</td>
+                    <td>
+                      <code>daily_first_limit</code> del database, da 1 a 15; predefinito nel codice
+                      di migrazione: 10. Il valore live non è verificato qui.
+                    </td>
+                  </tr>
+                  <tr>
+                    <td>Due flussi</td>
+                    <td>
+                      Metà Club e metà Altri; posto dispari agli Altri. Con limite 5: 2 Club + 3
+                      Altri. Con limite 10: 5 + 5.
+                    </td>
+                  </tr>
+                  <tr>
+                    <td>Posti riservati</td>
+                    <td>
+                      Se l’altro flusso ha bozze pronte mantiene la sua quota anche se oggi è fuori
+                      finestra. Se non ha bozze pronte, l’altro può usare i posti.
+                    </td>
+                  </tr>
+                  <tr>
+                    <td>Finestra reale</td>
+                    <td>
+                      Lunedì–venerdì, 09:30 incluse–11:00 escluse nel fuso del destinatario. La
+                      finestra deve essere ancora aperta 90 secondi dopo l’avvio.
+                    </td>
+                  </tr>
+                  <tr>
+                    <td>Intervallo</td>
+                    <td>Da 4 a 11 minuti casuali fra invii, di prova o reali.</td>
+                  </tr>
+                  <tr>
+                    <td>Feste e pausa natalizia</td>
+                    <td>
+                      Feste del paese secondo calendario conosciuto; pausa dal 21 dicembre al 7
+                      gennaio. Paese non riconosciuto: nessuna festa nota e segnalazione
+                      dell’evento.
+                    </td>
+                  </tr>
+                  <tr>
+                    <td>Copertura del calendario</td>
+                    <td>
+                      Fino al 31 gennaio 2027. Oltre quella data la finestra resta chiusa finché una
+                      migrazione aggiorna la copertura.
+                    </td>
+                  </tr>
+                  <tr>
+                    <td>Età della ricerca</td>
+                    <td>Meno di 21 giorni. L’editing del founder non azzera questa età.</td>
+                  </tr>
+                  <tr>
+                    <td>Precedenza</td>
+                    <td>
+                      Manda per primo, evento più vicino, ricerca più vecchia, priorità scheda e CO,
+                      entro quota e finestra.
+                    </td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+          </div>
+          <div class="callout info">
+            <h3>Il calendario del Programma email è una previsione</h3>
+            <p>
+              Usa snapshot coerente del database, finestre effettive e quota complessiva prima dei
+              filtri visivi. Nascondere una sezione non libera posti. Per prevedere il passo casuale
+              assume otto minuti: orari futuri sono stime aggiornabili. Contatti senza testo pronto
+              restano «Da preparare», «In attesa» o «Da rivedere», senza inventare un’email. La
+              pausa per credito ferma nuove bozze, ma le email già pronte possono continuare a
+              partire.
+            </p>
+          </div>
+          <div class="subsection">
+            <h3>La sequenza esatta fino a SMTP e alla copia</h3>
+            <ol class="flow">
+              <li>
+                <div>
+                  <h3>Prende la lease della casella</h3>
+                  <p>
+                    Una sola email alla volta. Lease di 300 secondi; il passo d’invio ha un budget
+                    di 120 secondi. Valuta fermi, attese, intervallo, quota e candidato.
+                  </p>
+                </div>
+              </li>
+              <li>
+                <div>
+                  <h3>Riconferma date e contesto</h3>
+                  <p>
+                    Contatto ancora idoneo, bozza corrente approvata e non sospesa,
+                    regole/recapito/scheda coerenti, ricerca valida, evento non iniziato. Il codice
+                    ricontrolla anche le date future nominate nel corpo e la proposta collegata ai
+                    tempi di produzione.
+                  </p>
+                </div>
+              </li>
+              <li>
+                <div>
+                  <h3>Apre IMAP e controlla la conversazione</h3>
+                  <p>
+                    Recupera eventuali copie arretrate in Posta inviata; cerca corrispondenza con
+                    l’indirizzo reale negli ultimi 365 giorni. Trovata → passaggio umano. Esito
+                    incerto → attesa, senza procedere come se la casella fosse vuota.
+                  </p>
+                </div>
+              </li>
+              <li>
+                <div>
+                  <h3>Compone e salva il messaggio definitivo</h3>
+                  <p>
+                    Un destinatario, niente Cc/Bcc, testo semplice con firma e frase di uscita.
+                    Eventuale PDF solo per Club modello v3 secondo scelta del database; file noto
+                    verificato dal repository. Salva Message-ID e byte MIME immutabili con
+                    <code>prepare</code>.
+                  </p>
+                </div>
+              </li>
+              <li>
+                <div>
+                  <h3>Ultimo controllo e singolo invio SMTP</h3>
+                  <p>
+                    <code>start</code> rilegge guardie, puntatore e sospensione: soltanto
+                    <code>in_invio</code> autorizza una chiamata SMTP. Un’esito incerto non genera
+                    un secondo tentativo automatico.
+                  </p>
+                </div>
+              </li>
+              <li>
+                <div>
+                  <h3>Registra l’esito e copia gli stessi byte</h3>
+                  <p>
+                    <code>finish</code> registra cosa è successo; dopo un invio riuscito IMAP cerca
+                    il Message-ID e salva la copia se manca. Una copia da recuperare non richiede un
+                    altro SMTP.
+                  </p>
+                </div>
+              </li>
+            </ol>
+          </div>
+          <p class="small muted">
+            Dal 4 novembre il PDF dei Club viene verificato per firma PDF, dimensione e SHA-256; un
+            file mancante o diverso ferma il giro. Il MIME con allegato ha limite 4 MiB, quello
+            senza allegato 65.536 byte. L’accettazione SMTP dimostra l’esito del server, non la
+            posizione inbox/spam nella casella destinataria.
+          </p>
+          <div class="source">
+            <span>Fonti:</span><a data-ref="docs/partner-assistente.md:230">Finestre e limiti</a
+            ><a data-ref="supabase/migrations/20261030114722_assistente_partner_invio.sql:1020"
+              >Limite prima settimana</a
+            ><a data-ref="supabase/migrations/20261101102208_assistente_partner_due_lavori.sql:32"
+              >Quote dei due flussi</a
+            ><a data-ref="src/lib/partner-assistant/send.ts:113">Sequenza d’invio</a
+            ><a data-ref="src/lib/partner-assistant/send.ts:335">Controllo dei 365 giorni</a
+            ><a data-ref="src/lib/partner-assistant/send.ts:423">Ultima guardia SMTP</a
+            ><a data-ref="docs/partner-programma-email.md:5">Previsioni del programma</a>
+          </div>
+        </section>
+
+        <section class="section" id="esiti" aria-labelledby="title-esiti">
+          <div class="section-head">
+            <span class="section-number">13</span>
+            <h2 id="title-esiti">Errori e lavoro dopo l’email</h2>
+          </div>
+          <div class="table-wrap">
+            <table>
+              <thead>
+                <tr>
+                  <th>Evento</th>
+                  <th>Reazione automatica</th>
+                  <th>Che cosa fa la persona</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr>
+                  <td>Credito Claude esaurito</td>
+                  <td>
+                    Pausa delle nuove preparazioni, senza consumare un tentativo per l’errore di
+                    credito. Bozze pronte continuano nel percorso d’invio.
+                  </td>
+                  <td>
+                    Controlla il credito e riprende la preparazione dopo ricarica. Il credito
+                    mostrato dall’app è una stima dei consumi registrati.
+                  </td>
+                </tr>
+                <tr>
+                  <td>Errore chiave / permessi / configurazione Claude</td>
+                  <td>Pausa per errore Claude.</td>
+                  <td>
+                    Corregge la configurazione e riprende. I valori dei segreti non si mostrano in
+                    pagina.
+                  </td>
+                </tr>
+                <tr>
+                  <td>Claude sovraccarico o rete temporanea</td>
+                  <td>
+                    Attesa globale di dieci minuti. Se la chiamata aveva già consumato, il tentativo
+                    può essere conteggiato.
+                  </td>
+                  <td>Verifica soltanto se il blocco persiste o richiede intervento.</td>
+                </tr>
+                <tr>
+                  <td>Risposta rotta, troncata o timer scaduto</td>
+                  <td>Un tentativo consumato; al terzo Serve Tommi.</td>
+                  <td>Legge motivo e contesto nella scheda / pagina Assistente.</td>
+                </tr>
+                <tr>
+                  <td>Conversazione esistente negli ultimi 365 giorni</td>
+                  <td>Non manda una nuova prima email; passa a Tommi.</td>
+                  <td>
+                    Riprende la relazione già presente. «Ridai all’assistente» non è disponibile per
+                    questa causa.
+                  </td>
+                </tr>
+                <tr>
+                  <td>Invio SMTP incerto o perdita del processo durante invio</td>
+                  <td>
+                    Conserva l’incertezza; mai nuovo SMTP automatico per quell’invio. Conta nella
+                    quota come messaggio potenzialmente partito.
+                  </td>
+                  <td>
+                    Verifica la casella e l’esito; non presume che il messaggio non sia partito.
+                  </td>
+                </tr>
+                <tr>
+                  <td>Password SMTP / IMAP rifiutata</td>
+                  <td>Ferma la casella.</td>
+                  <td>
+                    Founder controlla gli accessi e usa la ripresa quando il problema è risolto.
+                  </td>
+                </tr>
+                <tr>
+                  <td>Tre errori temporanei del giorno</td>
+                  <td>Niente altri invii fino al giorno dopo.</td>
+                  <td>Controlla l’eventuale ripetersi del problema.</td>
+                </tr>
+                <tr>
+                  <td>Due rifiuti definitivi o un rifiuto spam</td>
+                  <td>Fermo fino a «Riprendi l’invio» del founder.</td>
+                  <td>Verifica destinatari, esiti e motivo prima della ripresa.</td>
+                </tr>
+                <tr>
+                  <td>Copia IMAP non confermata dopo successo SMTP</td>
+                  <td>Conserva copia da recuperare e cerca il Message-ID nei giri successivi.</td>
+                  <td>Non reinvia il messaggio solo perché la copia non è ancora visibile.</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+          <div class="subsection">
+            <h3>Dopo un invio reale riuscito</h3>
+            <ol>
+              <li>
+                La scheda passa da <code>da_contattare</code> a <code>contattato</code>, mostrato
+                come «Scritto».
+              </li>
+              <li>
+                Il Registro riceve un’attività «Inviato via email», primo messaggio, origine
+                «assistente».
+              </li>
+              <li>Il job diventa <code>inviata</code>: terminale per questa consegna.</li>
+              <li>Nasce il task «Sollecito» a sette giorni, assegnato al referente configurato.</li>
+              <li>
+                Il team legge eventuali risposte nella casella. «Registra una risposta» o «Ha
+                risposto» chiude il sollecito collegato.
+              </li>
+              <li>
+                Se serve il sollecito, una persona lo prepara e lo manda dalla posta, poi usa «Segna
+                sollecito inviato». Non parte una sequenza automatica a 17, 45 o 90 giorni.
+              </li>
+              <li>
+                La relazione può proseguire in «Risposto», «Primi contatti avviati», «Accordo fatto»
+                o «Non interessato». Solo gli eventi con accordo partecipano alla sincronizzazione
+                delle date nel calendario del team, con le protezioni per modifiche e vendite
+                collegate.
+              </li>
+            </ol>
+          </div>
+          <div class="source">
+            <span>Fonti:</span><a data-ref="docs/partner-assistente.md:36">Errori di preparazione</a
+            ><a data-ref="supabase/migrations/20261030114722_assistente_partner_invio.sql:1051"
+              >Fermi della casella</a
+            ><a data-ref="supabase/migrations/20261030114722_assistente_partner_invio.sql:1637"
+              >Esito e aggiornamento scheda</a
+            ><a data-ref="src/lib/partner-assistant/send.ts:478">Copia in Posta inviata</a
+            ><a data-ref="docs/partner.md:59">Sollecito manuale</a
+            ><a data-ref="docs/partner.md:116">Accordo e calendario</a>
+          </div>
+        </section>
+
+        <section class="section" id="esempi" aria-labelledby="title-esempi">
+          <div class="section-head">
+            <span class="section-number">14</span>
+            <h2 id="title-esempi">Quattro email complete, a scopo didattico</h2>
+          </div>
+          <p>
+            I contatti, i recapiti, il mittente «Persona Demo» e i fatti riferiti ai destinatari
+            sono <strong>interamente inventati</strong>. I messaggi illustrano proposta e struttura;
+            non sono bozze del database, non sono stati approvati da Claude e non sono pronti per un
+            invio reale. Le descrizioni del prodotto riprendono il contesto del marchio nel codice,
+            senza verificare nuove affermazioni commerciali.
+          </p>
+          <div class="callout warning">
+            <h3>Come leggere il conteggio e la firma</h3>
+            <p>
+              Il conteggio locale usa lo stesso criterio di <code>partnerAssistantBodyWords</code>:
+              esclude la prima riga di saluto e l’ultima di chiusura. Firma e frase di uscita sono
+              separate. La firma dimostrativa sostituisce l’identità e il telefono reali:
+              <strong>non viene dichiarata conforme al controllo di firma del prodotto</strong>. Il
+              testo dell’esempio Club mostra la struttura v3 con un club e un mittente sintetici.
+            </p>
+          </div>
+
+          <details class="mail-example" open data-example="club" data-min="180" data-max="260">
+            <summary>A · Club modello v3 · Porsche · italiano</summary>
+            <div class="detail-body">
+              <dl class="mail-context">
+                <div>
+                  <dt>Destinatario sintetico</dt>
+                  <dd>Club Riva Demo · segreteria@club-riva-demo.example.test</dd>
+                </div>
+                <div>
+                  <dt>Percorso e proposta</dt>
+                  <dd>Club senza Eventi · testo fisso v3 · co-branding.</dd>
+                </div>
+                <div>
+                  <dt>Ricerca</dt>
+                  <dd>
+                    Nessun fatto di attualità inventato nel modello; dati sintetici della scheda.
+                  </dd>
+                </div>
+                <div>
+                  <dt>Allegato previsto nello scenario</dt>
+                  <dd>Porsche Clubs, dal 4 novembre, se bozza v3 e contesto risultano validi.</dd>
+                </div>
+              </dl>
+              <p class="mail-subject">Oggetto: Magliette dedicate ai soci del Club Riva Demo</p>
+              <pre class="mail-body">
+Buongiorno,
+
+sono Persona Demo, fondatore di LuckyLap, un brand italiano che trasforma la passione per le automobili in un capo da indossare ogni giorno: t-shirt in cotone biologico, con un design essenziale e la silhouette dell’auto ricamata sul petto. Qualcosa di discreto e riconoscibile, che racconta la passione anche lontano da un raduno o da un circuito.
+
+Abbiamo già avviato alcune collaborazioni con Porsche Club in Italia, realizzando magliette dedicate ai soci con il logo del club ricamato sulla manica. Vorremmo ora estendere il progetto ad altri club in Europa e nel resto del mondo, e ci farebbe piacere farlo con il Club Riva Demo.
+
+Possiamo sviluppare insieme una versione esclusiva: l’auto da rappresentare, il colore della maglietta e del ricamo, la posizione del vostro logo. Le grafiche le disegno personalmente: abbiamo già quelle della 964 e della GT3 RS, ma possiamo crearne per qualsiasi auto vogliate. Ci appoggiamo a un ricamificio che ha già lavorato per i Porsche Club e seguiamo il progetto dalla grafica al confezionamento, con modelli da uomo e da donna.
+
+Può essere un regalo per i soci, un ricordo di un anniversario o di un raduno, oppure una piccola collezione del club. Quantità e condizioni le definiamo insieme.
+
+Vi interesserebbe ricevere una prima proposta dedicata ai vostri soci?
+
+Grazie per l’attenzione e un saluto,</pre>
+              <pre class="mail-system">
+Persona Demo
+Fondatore, LuckyLap
++390000000000
+https://luckylap.com | Instagram @lucky.lap
+
+Se non è il momento, o preferite non ricevere altre email, scrivetemelo pure: non vi ricontatterò.</pre>
+              <p class="mail-count" aria-live="polite"></p>
+              <p class="mail-reason">
+                Che cosa mostra: testo fisso senza complimento di ricerca, prodotti e valore per i
+                soci, grafica Porsche limitata a 964 e GT3 RS, una domanda e nessuna richiesta di
+                chiamata. Personalizzazione e regalo per i soci sono eccezioni del modello
+                approvato, non regole per il percorso generico.
+              </p>
+            </div>
+          </details>
+
+          <details class="mail-example" data-example="evento" data-min="110" data-max="160">
+            <summary>B · Evento raggiungibile fra 21 giorni · solo stand</summary>
+            <div class="detail-body">
+              <dl class="mail-context">
+                <div>
+                  <dt>Destinatario sintetico</dt>
+                  <dd>Raduno Orizzonte Demo · organizzazione@orizzonte-demo.example.test</dd>
+                </div>
+                <div>
+                  <dt>Percorso e proposta</dt>
+                  <dd>Evento in Italia · stand_evento · nessuna maglietta dell’evento.</dd>
+                </div>
+                <div>
+                  <dt>Fatto simulato della ricerca</dt>
+                  <dd>
+                    Il programma descrive percorsi guidati dedicati alle auto storiche; fonte
+                    ufficiale soltanto ipotetica.
+                  </dd>
+                </div>
+                <div>
+                  <dt>Allegato</dt>
+                  <dd>Nessuno. Non è un Club del modello v3.</dd>
+                </div>
+              </dl>
+              <p class="mail-subject">Oggetto: LuckyLap al Raduno Orizzonte Demo</p>
+              <pre class="mail-body">
+Buongiorno,
+
+ho letto il programma del Raduno Orizzonte Demo e ho apprezzato lo spazio dedicato ai percorsi guidati per le auto storiche: è un modo concreto per far incontrare persone con la stessa passione.
+
+Sono Persona Demo di LuckyLap, un piccolo brand milanese di magliette car culture. Disegniamo le nostre grafiche automobilistiche e le facciamo ricamare in Italia su cotone biologico, con uno stile essenziale da indossare anche nella vita quotidiana.
+
+Vorremmo partecipare con uno stand dedicato, curato nei dettagli e coerente con il carattere del raduno. Per i visitatori sarebbe un’occasione per scoprire un prodotto legato alle auto che amano, in un contesto pensato per loro.
+
+Sul sito https://luckylap.com trovate il progetto. Ci farebbe piacere portarlo alla vostra manifestazione con la stessa attenzione che riserviamo alle nostre magliette.
+
+Grazie per l’attenzione e un saluto,</pre>
+              <pre class="mail-system">
+Persona Demo
+Fondatore, LuckyLap
++390000000000
+https://luckylap.com | Instagram @lucky.lap
+
+Se non è il momento, o preferite non ricevere altre email, scrivetemelo pure: non vi ricontatterò.</pre>
+              <p class="mail-count" aria-live="polite"></p>
+              <p class="mail-reason">
+                Che cosa mostra: fatto specifico simulato, presentazione del prodotto, proposta
+                stand e vantaggio per i visitatori. Ventuno giorni non superano la soglia di 31,
+                quindi non si propone una maglietta co-firmata dell’evento. Chiusura senza domanda.
+              </p>
+            </div>
+          </details>
+
+          <details class="mail-example" data-example="negozio" data-min="110" data-max="160">
+            <summary>C · Negozio · proposta di vendita · inglese</summary>
+            <div class="detail-body">
+              <dl class="mail-context">
+                <div>
+                  <dt>Destinatario sintetico</dt>
+                  <dd>Corner Motore Demo · shop@corner-motore-demo.example.test</dd>
+                </div>
+                <div>
+                  <dt>Percorso e proposta</dt>
+                  <dd>Vendita · negozio · vendita_negozio.</dd>
+                </div>
+                <div>
+                  <dt>Fatto simulato della ricerca</dt>
+                  <dd>
+                    Il sito ipotetico presenta una selezione di libri dedicata ai viaggi
+                    automobilistici.
+                  </dd>
+                </div>
+                <div>
+                  <dt>Registro e allegato</dt>
+                  <dd>English / you · nessun PDF automatico.</dd>
+                </div>
+              </dl>
+              <p class="mail-subject">Subject: LuckyLap T-shirts for Corner Motore Demo</p>
+              <pre class="mail-body">
+Hello,
+
+I enjoyed the selection of books about motoring journeys presented by Corner Motore Demo. It gives your shop a clear point of view and offers enthusiasts something to explore beyond the cars themselves.
+
+I am Persona Demo from LuckyLap, a small Milanese brand inspired by car culture. We draw our own automotive designs and have them embroidered in Italy on organic cotton T-shirts, with an understated style suited to everyday wear.
+
+We would like to propose our T-shirts for your shop. They could offer your customers another way to express their interest in cars, alongside the objects and stories you already select with care.
+
+You can see the project at https://luckylap.com. We would be pleased to bring this approach to your selection, with a product that speaks naturally to your community.
+
+Thank you for your time and kind regards,</pre>
+              <pre class="mail-system">
+Persona Demo
+Founder, LuckyLap
++390000000000
+https://luckylap.com | Instagram @lucky.lap
+
+If the timing isn’t right, or you’d rather not hear from me again, just let me know and I won’t write again.</pre>
+              <p class="mail-count" aria-live="polite"></p>
+              <p class="mail-reason">
+                Che cosa mostra: proposta di vendita, senza conto vendita, prezzi, percentuali o
+                condizioni inventate. Il prodotto viene collegato alla selezione del negozio.
+                Nessuna richiesta di telefono o appuntamento.
+              </p>
+            </div>
+          </details>
+
+          <details class="mail-example" data-example="media" data-min="110" data-max="160">
+            <summary>D · Media · capsule disegnata insieme · italiano</summary>
+            <div class="detail-body">
+              <dl class="mail-context">
+                <div>
+                  <dt>Destinatario sintetico</dt>
+                  <dd>Rivista Traccia Demo · redazione@traccia-demo.example.test</dd>
+                </div>
+                <div>
+                  <dt>Percorso e proposta</dt>
+                  <dd>Collab · media · collab_capsule.</dd>
+                </div>
+                <div>
+                  <dt>Fatto simulato della ricerca</dt>
+                  <dd>Un servizio fotografico ipotetico racconta le officine di quartiere.</dd>
+                </div>
+                <div>
+                  <dt>Allegato</dt>
+                  <dd>Nessuno; non viene promesso materiale da inviare.</dd>
+                </div>
+              </dl>
+              <p class="mail-subject">Oggetto: Una capsule LuckyLap con Rivista Traccia Demo</p>
+              <pre class="mail-body">
+Buongiorno,
+
+ho apprezzato il vostro servizio fotografico sulle officine di quartiere: raccontare i gesti quotidiani di chi lavora sulle auto dà alla passione un volto vicino alle persone.
+
+Sono Persona Demo di LuckyLap, un piccolo brand milanese di magliette car culture. Disegniamo noi le grafiche e le facciamo ricamare in Italia su cotone biologico, con un’estetica essenziale che accompagna la passione anche lontano dai raduni.
+
+Ci piacerebbe sviluppare con Rivista Traccia Demo una capsule in edizione limitata disegnata insieme. Potrebbe diventare un prodotto coerente con il vostro racconto, da proporre alla community come un modo diverso di portarne con sé lo spirito.
+
+Trovate il nostro progetto su https://luckylap.com. L’idea è costruire qualcosa che abbia un legame riconoscibile con il vostro punto di vista e con le persone a cui vi rivolgete.
+
+Grazie per l’attenzione e un saluto,</pre>
+              <pre class="mail-system">
+Persona Demo
+Fondatore, LuckyLap
++390000000000
+https://luckylap.com | Instagram @lucky.lap
+
+Se non è il momento, o preferite non ricevere altre email, scrivetemelo pure: non vi ricontatterò.</pre>
+              <p class="mail-count" aria-live="polite"></p>
+              <p class="mail-reason">
+                Che cosa mostra: proposta unica di capsule, vantaggio per il pubblico e connessione
+                al fatto simulato. Non definisce specifiche di design, quantità, prezzi o consegna.
+                Nessuna domanda obbligatoria.
+              </p>
+            </div>
+          </details>
+        </section>
+
+        <section class="section" id="fonti" aria-labelledby="title-fonti">
+          <div class="section-head">
+            <span class="section-number">15</span>
+            <h2 id="title-fonti">Fonti e verifica</h2>
+          </div>
+          <p>
+            La guida ricostruisce il comportamento del commit <code>7a629ea</code>. Tutti i
+            collegamenti al codice sono fissati a quella revisione, così una modifica futura del
+            branch principale non cambia la fonte di questa spiegazione. Il testo delle regole
+            attualmente salvato nel database resta da leggere nell’app.
+          </p>
+          <ol class="source-list">
+            <li>
+              <a data-ref="src/lib/partner-assistant/prompts.ts:23"
+                >prompts.ts · priorità dello stile, ricerca, estrazione, scrittura e revisione.</a
+              >
+            </li>
+            <li>
+              <a data-ref="src/lib/partner-assistant/checks.ts:56"
+                >checks.ts · conteggio parole, parole vietate e controlli effettivi.</a
+              >
+            </li>
+            <li>
+              <a data-ref="src/lib/partner-assistant/choice.ts:75"
+                >choice.ts · proposta, soglia di produzione e decisione di attesa.</a
+              >
+            </li>
+            <li>
+              <a data-ref="src/lib/partner-assistant/template.ts:124"
+                >template.ts · modello Club v3, firme, lingua, marca e fuso.</a
+              >
+            </li>
+            <li>
+              <a data-ref="src/lib/partner-assistant/worker.ts:171"
+                >worker.ts · passi della preparazione e priorità dell’invio nel tick.</a
+              >
+            </li>
+            <li>
+              <a data-ref="src/lib/partner-assistant/send.ts:113"
+                >send.ts · IMAP, MIME, prepare, start, SMTP, finish e copia.</a
+              >
+            </li>
+            <li>
+              <a data-ref="src/lib/partner-assistant/send-recheck.ts:261"
+                >send-recheck.ts · date e bozza scaduta all’invio.</a
+              >
+            </li>
+            <li>
+              <a data-ref="src/lib/partner-assistant/mail-compose.ts:19"
+                >mail-compose.ts · frasi di uscita e composizione finale.</a
+              >
+            </li>
+            <li>
+              <a data-ref="src/components/partner/partner-assistant-view.tsx:38"
+                >partner-assistant-view.tsx · ruoli e pagina di controllo.</a
+              >
+            </li>
+            <li>
+              <a data-ref="src/components/partner/partner-rules.tsx:8"
+                >partner-rules.tsx · distinzione tra contesto importato e regole dell’assistente.</a
+              >
+            </li>
+            <li>
+              <a data-ref="supabase/migrations/20261028122704_assistente_partner.sql:442"
+                >Migrazione iniziale · testo di base versionato, con parti successivamente
+                aggiornate.</a
+              >
+            </li>
+            <li>
+              <a data-ref="supabase/migrations/20261028122956_assistente_partner_worker.sql:70"
+                >Migrazione worker · idoneità e recapito del contatto.</a
+              >
+            </li>
+            <li>
+              <a data-ref="supabase/migrations/20261030114722_assistente_partner_invio.sql:1020"
+                >Migrazione invio · limiti, esiti, stati e aggiornamento della scheda.</a
+              >
+            </li>
+            <li>
+              <a data-ref="supabase/migrations/20261101102208_assistente_partner_due_lavori.sql:32"
+                >Migrazione due lavori · quota Club e Altri.</a
+              >
+            </li>
+            <li>
+              <a
+                data-ref="supabase/migrations/20261103122914_assistente_partner_prova_allegati.sql:31"
+                >Migrazione PDF · Club modello v3 dal 4 novembre.</a
+              >
+            </li>
+            <li>
+              <a data-ref="supabase/migrations/20261104001229_partner_programma_email.sql:151"
+                >Migrazione Programma email · sospensione e revisione umana.</a
+              >
+            </li>
+            <li>
+              <a data-ref="docs/partner-assistente.md:438"
+                >Documentazione aggiornata · PDF Club, quote e ricerca riutilizzabile.</a
+              >
+            </li>
+            <li>
+              <a data-ref="docs/partner-programma-email.md:1"
+                >Documentazione Programma email · calendario, stime e modifica del testo.</a
+              >
+            </li>
+            <li>
+              <a data-ref="docs/partner.md:1"
+                >Documentazione Partner · Registro, risposte e lavoro commerciale.</a
+              >
+            </li>
+          </ol>
+          <div class="callout">
+            <h3>Come verificare un caso concreto nell’app</h3>
+            <p>
+              Apri la scheda del contatto e controlla interruttore, stato, responsabile, recapito e
+              prossima azione. Leggi ricerca, scelta, bozza e motivo del lavoro. Nella pagina
+              Assistente verifica modalità, pausa, prova, casella e regole correnti. Nel Programma
+              email confronta il testo previsto con quello effettivamente inviato; una data futura
+              resta una stima.
+            </p>
+          </div>
+          <p class="small muted">
+            Nessuna operazione di questo documento scrive nel gestionale, cambia modalità, contatta
+            Claude o manda email. Ricerca, approfondimenti e simulazione sono interazioni locali;
+            solo i collegamenti alle fonti o alle altre due pagine aprono una navigazione.
+          </p>
+        </section>
+      </main>
+    </div>
+    <footer>
+      Partner · Guida di funzionamento e scrittura · 4 novembre 2026 ·
+      <a href="grafo.html">Grafo</a> · <a href="schermata.html">Schermata dimostrativa</a>
+    </footer>
+    <script>
+      (() => {
+        const revision = "7a629ea";
+        const root = "https://github.com/tommyieri/luckylap-gestionale/blob/" + revision + "/";
+        document.querySelectorAll("[data-ref]").forEach((link) => {
+          const value = link.dataset.ref;
+          const position = value.lastIndexOf(":");
+          const path = value.slice(0, position);
+          const line = value.slice(position + 1);
+          link.href = root + path.split("/").map(encodeURIComponent).join("/") + "#L" + line;
+          link.target = "_blank";
+          link.rel = "noopener noreferrer";
+          link.setAttribute(
+            "aria-label",
+            link.textContent.trim() + " · " + path + ", riga " + line,
+          );
+        });
+        const sections = [...document.querySelectorAll("main .section")];
+        const search = document.getElementById("search");
+        const status = document.getElementById("search-status");
+        const normalize = (value) => value.normalize("NFD").replace(/\p{M}/gu, "").toLowerCase();
+        const searchable = new Map(
+          sections.map((section) => [section, normalize(section.textContent)]),
+        );
+        function filter() {
+          const terms = normalize(search.value.trim()).split(/\s+/).filter(Boolean);
+          let visible = 0;
+          sections.forEach((section) => {
+            const match = terms.every((term) => searchable.get(section).includes(term));
+            section.hidden = !match;
+            const navLink = document.querySelector(
+              'nav[aria-label="Indice"] a[href="#' + section.id + '"]',
+            );
+            if (navLink) navLink.parentElement.hidden = !match;
+            if (match) {
+              visible++;
+              if (terms.length)
+                section.querySelectorAll("details").forEach((detail) => (detail.open = true));
+            }
+          });
+          document.getElementById("no-results").hidden = visible !== 0;
+          status.textContent = terms.length
+            ? visible + " sezioni su " + sections.length + " contengono la ricerca"
+            : "Tutte le " + sections.length + " sezioni visibili";
+        }
+        search.addEventListener("input", filter);
+        document.getElementById("reset").addEventListener("click", () => {
+          search.value = "";
+          filter();
+          search.focus();
+        });
+        document
+          .getElementById("expand")
+          .addEventListener("click", () =>
+            document.querySelectorAll("main details").forEach((detail) => (detail.open = true)),
+          );
+        document
+          .getElementById("collapse")
+          .addEventListener("click", () =>
+            document.querySelectorAll("main details").forEach((detail) => (detail.open = false)),
+          );
+        let beforePrint = [];
+        window.addEventListener("beforeprint", () => {
+          beforePrint = [...document.querySelectorAll("details")].map((detail) => [
+            detail,
+            detail.open,
+          ]);
+          beforePrint.forEach(([detail]) => (detail.open = true));
+        });
+        window.addEventListener("afterprint", () =>
+          beforePrint.forEach(([detail, open]) => (detail.open = open)),
+        );
+        document.getElementById("print").addEventListener("click", () => window.print());
+        const kind = document.getElementById("sim-kind");
+        const days = document.getElementById("sim-days");
+        const reachable = document.getElementById("sim-reachable");
+        const known = document.getElementById("sim-known");
+        function simulate() {
+          const event = kind.value === "evento";
+          days.disabled = !event || !known.checked;
+          reachable.disabled = !event;
+          known.disabled = !event;
+          const distance = Number(days.value);
+          const valid =
+            !event ||
+            !known.checked ||
+            (Number.isInteger(distance) && distance >= 0 && distance <= 3650);
+          const proposal =
+            kind.value === "club"
+              ? "merch_cobranding · Magliette dedicate / co-firmate"
+              : kind.value === "negozio"
+                ? "vendita_negozio · Vendita delle magliette"
+                : event
+                  ? reachable.checked
+                    ? "stand_evento · Stand dedicato"
+                    : "merch_cobranding · Collaborazione a distanza"
+                  : "collab_capsule · Capsule disegnata insieme";
+          document.getElementById("sim-proposal").textContent = valid
+            ? proposal
+            : "Inserisci un numero intero da 0 a 3650 giorni.";
+          const merch = !event
+            ? "Nessuna riga aggiuntiva relativa ai tempi dell’evento."
+            : reachable.checked
+              ? known.checked && distance > 31
+                ? "Maglietta co-firmata: puoi proporla, come parte della proposta stand."
+                : "Maglietta co-firmata: non proporla."
+              : !known.checked || distance > 31
+                ? "Maglietta co-firmata: puoi proporla."
+                : "Maglietta co-firmata: per la prossima edizione.";
+          document.getElementById("sim-merch").textContent = valid
+            ? merch
+            : "Questa simulazione non sceglie una data e non autorizza alcun invio.";
+        }
+        [kind, days, reachable, known].forEach((element) =>
+          element.addEventListener("input", simulate),
+        );
+        simulate();
+        document.querySelectorAll(".mail-example").forEach((example) => {
+          const body = example.querySelector(".mail-body").textContent;
+          const words = body
+            .trim()
+            .split(/\r?\n/u)
+            .slice(1, -1)
+            .join("\n")
+            .split(/\s+/u)
+            .filter((word) => /[\p{L}\p{N}]/u.test(word)).length;
+          const minimum = Number(example.dataset.min);
+          const maximum = Number(example.dataset.max);
+          const questions = (body.match(/\?/gu) || []).length;
+          const within = words >= minimum && words <= maximum;
+          example.querySelector(".mail-count").textContent =
+            words +
+            " parole conteggiate · intervallo " +
+            minimum +
+            "–" +
+            maximum +
+            " · " +
+            questions +
+            (questions === 1 ? " domanda" : " domande") +
+            " · " +
+            (within ? "lunghezza nell’intervallo" : "lunghezza da correggere") +
+            ". Firma dimostrativa, non verificata dal validatore del prodotto.";
+        });
+      })();
+    </script>
+  </body>
+</html>
