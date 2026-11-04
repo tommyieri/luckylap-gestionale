@@ -38,7 +38,7 @@ const command = (kind: string, payload: Record<string, unknown>, extra = {}) =>
  */
 const teamSql = () => {
   const migrations = join(__dirname, "../../../supabase/migrations");
-  return [
+  const sql = [
     "_partner_module.sql",
     "_assistente_partner.sql",
     "_assistente_partner_invio.sql",
@@ -54,6 +54,22 @@ const teamSql = () => {
       ),
     )
     .join("\n");
+  // Nel programma email cambia anche «Ridà all'assistente», un comando della scheda.
+  const program = readFileSync(
+    join(
+      migrations,
+      readdirSync(migrations).find((n) => n.endsWith("_partner_programma_email.sql"))!,
+    ),
+    "utf8",
+  );
+  return (
+    sql +
+    "\n" +
+    program.slice(
+      program.indexOf("create or replace function private.set_partner_assistant_contact"),
+      program.indexOf("create function public.read_partner_email_program"),
+    )
+  );
 };
 
 const VALID: Record<string, Record<string, unknown>> = {
@@ -794,7 +810,7 @@ describe("esiti dei comandi", () => {
   it("ogni codice d'errore delle migrazioni dei comandi ha il suo messaggio", () => {
     const sql = teamSql();
     const raised = new Set(
-      [...sql.matchAll(/raise exception '([a-z_]+)' using errcode = '([0-9A-Z]{5})'/g)]
+      [...sql.matchAll(/raise exception '([a-z_]+)' using errcode\s*=\s*'([0-9A-Z]{5})'/g)]
         .filter(
           (match) =>
             !match[1].includes("research") &&

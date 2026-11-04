@@ -17,7 +17,7 @@ import {
 } from "./prompts";
 import type { PartnerAssistantChoice, PartnerAssistantContext } from "./types";
 
-// Le regole v1 vere, dalla migrazione: il system deve essere questo testo, byte per byte.
+// Le regole v1 vere restano il prefisso del system; lo stile corrente aggiorna le clausole obsolete.
 const migration = readFileSync(
   new URL("../../../supabase/migrations/20261028122704_assistente_partner.sql", import.meta.url),
   "utf8",
@@ -144,8 +144,33 @@ describe("tutte le chiamate", () => {
     expect(rulesV1.startsWith("# Regole dell'assistente Partner, versione 1")).toBe(true);
   });
 
-  it("il system è solo il testo delle regole", () => {
-    for (const call of allCalls(evCtx)) expect(call.system).toBe(ctx.rules.body);
+  it("tutte le fasi condividono regole e stile, senza modificare il testo delle regole", () => {
+    const rules = { ...evCtx.rules, body: "Regole sintetiche da conservare." };
+    const context = { ...evCtx, rules };
+    const systems = [...allCalls(context), templateReviewCall(context)].map((call) => call.system);
+    expect(new Set(systems).size).toBe(1);
+    expect(systems[0]?.startsWith(`${rules.body}\n\n`)).toBe(true);
+    expect(rules.body).toBe("Regole sintetiche da conservare.");
+  });
+
+  it("scrittura e revisione aggiornano le vecchie richieste di telefonare o ottenere un recapito", () => {
+    for (const call of [writeCall(ctx, ctx.today), reviewCall(ctx), templateReviewCall(ctx)]) {
+      const style = call.system.slice(ctx.rules.body.length);
+      expect(style).toContain("prevale sulle clausole e sugli esempi precedenti");
+      expect(style).toContain("Presenta LuckyLap e i suoi prodotti");
+      expect(style).toContain("fatti verificati");
+      expect(style).toContain("valore concreto per il destinatario");
+      expect(style).toContain(
+        "Non chiedere un recapito telefonico, una chiamata o un appuntamento",
+      );
+      expect(style).toContain("«parliamone»");
+      expect(style).toContain("inviti a contattarci");
+      expect(style).toContain("Una domanda sulla proposta è facoltativa");
+      expect(style).toContain("chiusura dichiarativa");
+      expect(style).toContain(
+        "non segnalare come mancanze l'assenza di una domanda o del recapito",
+      );
+    }
   });
 
   it("data e contatto stanno nel messaggio", () => {
@@ -460,7 +485,7 @@ describe("writeCall", () => {
         "La bozza precedente non è passata. Correggi questi problemi:",
         "- il corpo deve stare tra 110 e 160 parole, senza saluto iniziale e formula di chiusura",
         "- c'è una parola dell'elenco Mai, anche dentro un'altra parola",
-        "- serve esattamente un punto interrogativo nel corpo",
+        "- nel corpo è ammesso al massimo un punto interrogativo; una domanda non è obbligatoria",
         "- l'oggetto deve stare su una riga",
         "- La domanda è doppia",
       ]),
@@ -565,8 +590,8 @@ describe("templateReviewCall", () => {
   const call = templateReviewCall(ctx);
   const text = userText(call);
 
-  it("stesso system delle regole, effort medium, 8000 token, approved e problems", () => {
-    expect(call.system).toBe(ctx.rules.body);
+  it("stesso system di scrittura e revisione, effort medium, 8000 token, approved e problems", () => {
+    expect(call.system).toBe(writeCall(ctx, ctx.today).system);
     expect(call.effort).toBe("medium");
     expect(call.maxTokens).toBe(8000);
     expect(call.tools).toBeUndefined();

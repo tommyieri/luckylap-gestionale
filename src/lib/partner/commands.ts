@@ -950,6 +950,11 @@ export const PARTNER_ERROR_MESSAGES: Record<string, { sqlstate: string; message:
     message:
       "Per la prova con allegato servono due bozze Club pronte e approvate: una Porsche e una di un altro club.",
   },
+  partner_email_edit_active: {
+    sqlstate: "55000",
+    message:
+      "Questa email ha una modifica aperta nel calendario: salvala o annullala prima di ridarla all'assistente.",
+  },
 };
 
 /**

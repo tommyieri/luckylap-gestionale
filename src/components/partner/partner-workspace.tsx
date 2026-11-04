@@ -59,6 +59,7 @@ import { PartnerPendingRecovery } from "./partner-command";
 import { PartnerProvider, usePartnerContext } from "./partner-context";
 import { PartnerRow } from "./partner-row";
 import { partnerWorkView } from "../../lib/partner/work";
+import { PARTNER_EMAIL_PATH } from "../../lib/partner/email-edit";
 import styles from "./partner.module.css";
 
 export const UNSAVED_MESSAGE = "Hai modifiche non salvate. Salvale o annullale.";
@@ -362,6 +363,12 @@ function WorkspaceBody({
       <header className={styles.heading}>
         <h1>Partner</h1>
         <p className={styles.totals}>{totalsLine(sections)}</p>
+        <Link
+          href={`${PARTNER_EMAIL_PATH}?sezione=${view.sezione}`}
+          className="button button-secondary"
+        >
+          Calendario email
+        </Link>
       </header>
       {preview && (
         <p className={styles.previewNotice} role="note">

@@ -959,6 +959,11 @@ describe("etichette in italiano", () => {
       // Consegna 2a: gli eventi con step «invio» (comandi del founder e RPC del worker).
       invio: [
         "prova_avviata",
+        "modifica_iniziata",
+        "modifica_salvata",
+        "modifica_annullata",
+        "modifica_in_corso",
+        "bozza_manuale_da_rivedere",
         "prova_casella_vuota",
         "prova_casella_trovata",
         "prova_casella_incerta",

@@ -226,13 +226,15 @@ describe("segnaposto", () => {
 });
 
 describe("punteggiatura e simboli", () => {
-  it("domande, esclamativi ed emoji", () => {
-    expect(fails(twoQuestions)).toEqual(["domande"]);
+  it("esclamativi ed emoji", () => {
     expect(fails(withBody("¡Hola!"))).toEqual(["esclamativo"]);
     expect(fails(withBody("🏁"))).toEqual(["emoji"]);
   });
-  it("nessuna domanda", () =>
-    expect(fails({ ...valid, body: valid.body.replace("?", ".") })).toEqual(["domande"]));
+  it("consente una chiusura dichiarativa senza domande", () =>
+    expect(fails({ ...valid, body: valid.body.replace("?", ".") })).toEqual([]));
+  it("consente ancora una sola domanda nelle bozze già preparate", () =>
+    expect(fails(valid)).toEqual([]));
+  it("rifiuta due domande", () => expect(fails(twoQuestions)).toEqual(["domande"]));
   it("¿ non conta come domanda", () =>
     expect(fails({ ...valid, body: valid.body.replace(/^(.*\?)$/mu, "¿$1") })).toEqual([]));
   it("esclamativo ed emoji nell'oggetto", () => {
