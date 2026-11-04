@@ -366,6 +366,12 @@ function WorkspaceBody({
         <Link
           href={`${PARTNER_EMAIL_PATH}?sezione=${view.sezione}`}
           className="button button-secondary"
+          onClick={(event) => {
+            if (hasDirty()) {
+              event.preventDefault();
+              setGuard(UNSAVED_MESSAGE);
+            }
+          }}
         >
           Calendario email
         </Link>

@@ -12,6 +12,8 @@ create table private.partner_email_edit_holds (
   partner_version bigint not null,
   rules_version integer not null,
   contact_id uuid not null references public.partner_contacts(id) on delete cascade,
+  contact_version bigint not null,
+  address_sha256 text not null check(address_sha256 ~ '^[0-9a-f]{64}$'),
   research_note_id uuid not null references public.partner_assistant_notes(id) on delete cascade,
   choice_note_id uuid references public.partner_assistant_notes(id) on delete cascade,
   version bigint not null default 1,
@@ -25,6 +27,10 @@ create unique index partner_email_edit_holds_active_job on private.partner_email
 create index partner_email_edit_holds_draft on private.partner_email_edit_holds(draft_id);
 alter table private.partner_email_edit_holds enable row level security;
 revoke all on private.partner_email_edit_holds from public, anon, authenticated, service_role;
+
+-- Snapshot opaca della bozza reclamata con la lease: nessun indirizzo. Nessuna FK,
+-- per non introdurre lock casella dopo partner durante la cancellazione di un recapito.
+alter table private.partner_assistant_mail_state add column candidate_draft_id uuid;
 
 create function private.partner_email_draft_held(p_draft_id uuid) returns boolean
 language sql stable security invoker set search_path = '' as $$
@@ -55,7 +61,9 @@ language sql stable security invoker set search_path = '' as $$
    and exists(select 1 from public.partner_assistant_notes r where r.partner_id=p.id and r.kind='controllo'
     and r.content->>'approval_source'='founder_edit' and r.content->>'sha256'=d.sha256
     and r.content->'approved'='true'::jsonb and r.created_at>=d.created_at
-    and r.content->>'choice_note_id'=j.choice_note_id::text))
+    and r.content->>'choice_note_id'=j.choice_note_id::text
+    and r.content->'contact_version'=to_jsonb(k.version)
+    and r.content->>'address_sha256'=private.partner_assistant_address_sha256(private.partner_assistant_address(k.link_value))))
 $$;
 
 -- Guardia pura condivisa da dettaglio e apertura editor. Una lease SMTP scaduta non
@@ -127,9 +135,10 @@ begin
     end if;
   else
     insert into private.partner_email_edit_holds(job_id,partner_id,draft_id,sha256,partner_version,rules_version,
-        contact_id,research_note_id,choice_note_id,created_by)
-      select j.id,j.partner_id,d.id,d.sha256,p.version,d.rules_version,d.contact_id,d.research_note_id,j.choice_note_id,a
-        from public.partners p where p.id=j.partner_id returning * into h;
+        contact_id,contact_version,address_sha256,research_note_id,choice_note_id,created_by)
+      select j.id,j.partner_id,d.id,d.sha256,p.version,d.rules_version,d.contact_id,k.version,
+          private.partner_assistant_address_sha256(private.partner_assistant_address(k.link_value)),d.research_note_id,j.choice_note_id,a
+        from public.partners p join public.partner_contacts k on k.id=d.contact_id where p.id=j.partner_id returning * into h;
     update public.partner_assistant_messages set send_status='scartato',outcome='modifica_in_corso',updated_at=now()
       where draft_id=d.id and send_status='pronto';
     insert into private.partner_assistant_events(partner_id,step,outcome) values(j.partner_id,'controllo','modifica_iniziata');
@@ -168,7 +177,9 @@ begin
    or d.sha256 is distinct from v_sha or h.partner_version is distinct from (select version from public.partners where id=v_partner)
    or h.rules_version is distinct from (select max(version) from public.partner_assistant_rules)
    or h.choice_note_id is distinct from j.choice_note_id or h.research_note_id is distinct from d.research_note_id
-   or h.contact_id is distinct from d.contact_id then raise exception 'partner_changed' using errcode='40001'; end if;
+   or h.contact_id is distinct from d.contact_id
+   or h.contact_version is distinct from (select version from public.partner_contacts where id=h.contact_id)
+   or h.address_sha256 is distinct from (select private.partner_assistant_address_sha256(private.partner_assistant_address(link_value)) from public.partner_contacts where id=h.contact_id) then raise exception 'partner_changed' using errcode='40001'; end if;
  if private.partner_email_edit_reason(j.id) is not null then
    raise exception 'partner_email_not_editable' using errcode='55000'; end if;
  select id into v_review from public.partner_assistant_notes where partner_id=v_partner and kind='controllo'
@@ -181,7 +192,8 @@ begin
  returning id into v_new;
  insert into public.partner_assistant_notes(partner_id,kind,content,rules_version,model,operation_id,created_by)
  values(v_partner,'controllo',jsonb_build_object('approved',true,'problems','[]'::jsonb,'sha256',v_new_sha,
-   'approval_source','founder_edit','previous_draft_id',d.id,'previous_review_id',v_review,'choice_note_id',j.choice_note_id),d.rules_version,null,p_operation_id,a);
+   'approval_source','founder_edit','previous_draft_id',d.id,'previous_review_id',v_review,'choice_note_id',j.choice_note_id,
+   'contact_version',h.contact_version,'address_sha256',h.address_sha256),d.rules_version,null,p_operation_id,a);
  update public.partner_assistant_messages set send_status='scartato',outcome='modifica_in_corso',updated_at=now()
    where draft_id=d.id and send_status='pronto';
  update public.partner_assistant_jobs set draft_id=v_new,updated_at=now() where id=j.id;
@@ -218,7 +230,9 @@ begin
    and h.rules_version=(select max(version) from public.partner_assistant_rules)
    and h.choice_note_id is not distinct from j.choice_note_id
    and h.research_note_id is not distinct from (select research_note_id from public.partner_assistant_drafts where id=j.draft_id)
-   and h.contact_id is not distinct from (select contact_id from public.partner_assistant_drafts where id=j.draft_id) then 'pronta' else 'serve_tommaso' end;
+   and h.contact_id is not distinct from (select contact_id from public.partner_assistant_drafts where id=j.draft_id)
+   and h.contact_version is not distinct from (select version from public.partner_contacts where id=h.contact_id)
+   and h.address_sha256 is not distinct from (select private.partner_assistant_address_sha256(private.partner_assistant_address(link_value)) from public.partner_contacts where id=h.contact_id) then 'pronta' else 'serve_tommaso' end;
  if v_resume='serve_tommaso' then
    update public.partner_assistant_jobs set status='serve_tommaso',reason='bozza_manuale_da_rivedere',updated_at=now() where id=j.id;
  end if;
@@ -628,6 +642,13 @@ begin
       select * into j from public.partner_assistant_jobs where id = p_job_id for update;
     end if;
   end if;
+  -- Una risposta tardiva della casella o del ricontrollo appartiene alla bozza reclamata,
+  -- non a una revisione umana successiva. Vale anche per worker precedenti al nuovo editor.
+  if p_job_id is not null and (j.draft_id is distinct from
+      (select candidate_draft_id from private.partner_assistant_mail_state where singleton)
+    or j.draft_id is null or private.partner_email_draft_held(j.draft_id)) then
+    return jsonb_build_object('status','lease_persa');
+  end if;
   if j.status = 'pronta' and c.mode = 'invio' and p_reason = 'conversazione_esistente' then
     perform private.partner_assistant_send_move(j.partner_id, j.draft_id, 'conversazione_esistente');
     return jsonb_build_object('status', 'done');
@@ -1006,6 +1027,7 @@ begin
   end if;
   -- Una lease nuova, anche per le sole copie: record_partner_assistant_append la controlla.
   update private.partner_assistant_mail_state set lease_token = gen_random_uuid(),
+      candidate_draft_id = case when v_candidate is not null then v_draft end,
       lease_expires_at = clock_timestamp() + make_interval(secs => p_lease_seconds)
     where singleton
     returning lease_token into v_token;
@@ -1047,6 +1069,34 @@ begin
   end if;
   result := jsonb_build_object('id', v_id, 'partner_id', v_partner, 'version', v_version, 'replayed', false);
   return private.partner_assistant_finish(p_operation_id, 'set_partner_assistant_contact', v_actor, p_payload, result);
+end
+$$;
+
+create or replace function private.release_partner_assistant_send(p_lease_token uuid, p_payload jsonb) returns jsonb
+language plpgsql security definer set search_path = '' as $$
+declare
+  v_keys text[] := array['schema_version', 'outcome', 'smtp_login', 'imap_login'];
+  v_outcome text; v_smtp text; v_imap text; v_now timestamptz;
+begin
+  perform private.partner_assistant_service_required();
+  perform private.partner_assistant_as_actor();
+  perform private.partner_payload(p_payload, v_keys, v_keys);
+  v_outcome := private.partner_text(p_payload, 'outcome', 80);
+  v_smtp := private.partner_text(p_payload, 'smtp_login', 80);
+  v_imap := private.partner_text(p_payload, 'imap_login', 80);
+  perform private.partner_check(p_lease_token is not null and v_outcome ~ '^[a-z][a-z0-9_]{0,79}$'
+    and (v_smtp is null or v_smtp ~ '^[a-z][a-z0-9_]{0,79}$') and (v_imap is null or v_imap ~ '^[a-z][a-z0-9_]{0,79}$'));
+  if not private.partner_assistant_mail_guard(p_lease_token, true) then
+    return jsonb_build_object('status', 'lease_persa');
+  end if;
+  v_now := private.partner_assistant_now();
+  update private.partner_assistant_mail_state set lease_token = null, lease_expires_at = null, candidate_draft_id = null, last_outcome = v_outcome,
+      smtp_login_at = case when v_smtp is null then smtp_login_at else v_now end,
+      smtp_login_code = coalesce(v_smtp, smtp_login_code),
+      imap_login_at = case when v_imap is null then imap_login_at else v_now end,
+      imap_login_code = coalesce(v_imap, imap_login_code)
+    where singleton;
+  return jsonb_build_object('status', 'done');
 end
 $$;
 

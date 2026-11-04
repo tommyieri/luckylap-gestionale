@@ -68,6 +68,22 @@ const reasonLabel = (reason: string | null | undefined) =>
   reason && Object.hasOwn(PARTNER_ASSISTANT_REASON_LABELS, reason)
     ? partnerAssistantReasonLabel(reason)
     : null;
+const needsReview = (row: ForecastRow) =>
+  row.state === "da_rivedere" ||
+  row.state === "sospesa" ||
+  (row.state === "non_prevista" && row.status !== "inviata") ||
+  (row.status === "pronta" && !row.plannedAt);
+const recipientDay = (at: string, timezone: string) => {
+  try {
+    return new Intl.DateTimeFormat("it-IT", {
+      timeZone: timezone,
+      day: "numeric",
+      month: "long",
+    }).format(new Date(at));
+  } catch {
+    return "Data locale da verificare";
+  }
+};
 
 /** I filtri non ricalcolano la coda: la previsione arriva già calcolata sull'intera capacità. */
 export function PartnerEmailProgramView({
@@ -85,6 +101,11 @@ export function PartnerEmailProgramView({
 }) {
   const router = useRouter();
   const today = romeDay(new Date(snapshot.generatedAt));
+  const confirmedToday = snapshot.sent.filter(
+    (row) =>
+      row.mode === "invio" && row.status === "inviato" && romeDay(new Date(row.at)) === today,
+  );
+  const usedToday = snapshot.todaySent.club + snapshot.todaySent.altri;
   const [section, setSection] = useState<PartnerSection | "tutti">(initialSection);
   const [flow, setFlow] = useState<"tutti" | "club" | "altri">("tutti");
   const [period, setPeriod] = useState<Period>("oggi");
@@ -123,12 +144,7 @@ export function PartnerEmailProgramView({
     .filter(matches)
     .filter((row) => {
       if (view === "da_preparare") return row.state === "da_preparare" || row.state === "attesa";
-      if (view === "da_rivedere")
-        return (
-          row.state === "da_rivedere" ||
-          row.state === "sospesa" ||
-          (row.status === "pronta" && !row.plannedAt)
-        );
+      if (view === "da_rivedere") return needsReview(row);
       if (view !== "programma" || !row.plannedAt) return false;
       const day = romeDay(new Date(row.plannedAt));
       return day >= from && day <= end;
@@ -148,12 +164,7 @@ export function PartnerEmailProgramView({
     da_preparare:
       forecast.items.filter((row) => ["da_preparare", "attesa"].includes(row.state)).length +
       snapshot.unprepared.length,
-    da_rivedere: forecast.items.filter(
-      (row) =>
-        row.state === "da_rivedere" ||
-        row.state === "sospesa" ||
-        (row.status === "pronta" && !row.plannedAt),
-    ).length,
+    da_rivedere: forecast.items.filter(needsReview).length,
     inviate: snapshot.sent.filter((row) => row.mode === "invio").length,
   };
   const grouped = useMemo(() => {
@@ -270,10 +281,16 @@ export function PartnerEmailProgramView({
       )}
       <div className={styles.summary}>
         <p>
-          <strong>{snapshot.todaySent.club + snapshot.todaySent.altri} email inviate oggi</strong>
+          <strong>{confirmedToday.length} email inviate oggi</strong>
           <span>
-            {snapshot.todaySent.club} Club · {snapshot.todaySent.altri} altri contatti
+            {confirmedToday.filter((row) => row.flow === "club").length} Club ·{" "}
+            {confirmedToday.filter((row) => row.flow === "altri").length} altri contatti
           </span>
+          {usedToday !== confirmedToday.length && (
+            <span>
+              Posti occupati nella quota: {usedToday}, inclusi gli invii in corso o da verificare.
+            </span>
+          )}
         </p>
         <p>
           <strong>
@@ -288,13 +305,15 @@ export function PartnerEmailProgramView({
         </p>
         <p>
           <strong>
-            {snapshot.config.mode === "invio"
-              ? "Invii attivi"
-              : snapshot.config.mode === "prova"
-                ? "Solo prove"
-                : snapshot.config.mode === "spento"
-                  ? "Assistente spento"
-                  : "Preparazione"}
+            {snapshot.mail.stopReason !== null
+              ? "Invii fermi"
+              : snapshot.config.mode === "invio"
+                ? "Invii attivi"
+                : snapshot.config.mode === "prova"
+                  ? "Solo prove"
+                  : snapshot.config.mode === "spento"
+                    ? "Assistente spento"
+                    : "Preparazione"}
           </strong>
           <span>
             {snapshot.config.pausedReason === "credito"
@@ -303,6 +322,12 @@ export function PartnerEmailProgramView({
           </span>
         </p>
       </div>
+      {snapshot.mail.stopReason !== null && (
+        <p className={styles.notice}>
+          Gli invii della casella sono fermi.{" "}
+          <Link href="/partner/assistente">Controlla lo stato dell'assistente</Link>.
+        </p>
+      )}
       <p className={styles.explain}>
         {forecast.assumption} I filtri mostrano una parte del programma e mantengono la quota
         complessiva.
@@ -455,7 +480,7 @@ export function PartnerEmailProgramView({
                     ? view === "da_preparare"
                       ? "Testi da preparare"
                       : "Email da rivedere"
-                    : longDay(day, today)}
+                    : `${longDay(day, today)} · Roma`}
                 </h2>
                 {total && (
                   <p>
@@ -492,6 +517,10 @@ export function PartnerEmailProgramView({
                         <strong>
                           Circa {localTime(row.plannedAt, row.timezone ?? "Europe/Rome")} locale
                         </strong>
+                        <small>
+                          {recipientDay(row.plannedAt, row.timezone ?? "Europe/Rome")} ·{" "}
+                          {row.timezone ?? "Europe/Rome"}
+                        </small>
                         <small>{localTime(row.plannedAt)} a Roma</small>
                       </>
                     ) : row.writeOn ? (

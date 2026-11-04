@@ -155,6 +155,38 @@ beforeEach(() => {
 afterEach(() => vi.unstubAllGlobals());
 
 describe("calendario email", () => {
+  it("mantiene visibile in revisione anche una riga non pronta diventata non idonea", async () => {
+    const snapshot = partnerEmailProgramFixture(today);
+    snapshot.items[3].eligible = false;
+    const props = { snapshot, forecast: forecastPartnerEmails(snapshot) };
+    await click(button(render(props), "Da rivedere"));
+    const tree = render(props);
+    expect(words(tree)).toContain("Club Esempio 4");
+    expect(words(tree)).toContain("non è attualmente idoneo");
+  });
+  it("distingue gli invii confermati dai posti occupati nella quota", () => {
+    const snapshot = partnerEmailProgramFixture(today);
+    snapshot.todaySent.club = 1;
+    const tree = render({ snapshot, forecast: forecastPartnerEmails(snapshot) });
+    expect(words(tree)).toContain("0 email inviate oggi");
+    expect(words(tree)).toContain("Posti occupati nella quota: 1");
+  });
+  it("rende visibile il fermo della casella anche in modalità invio", () => {
+    const snapshot = partnerEmailProgramFixture(today);
+    snapshot.mail.stopReason = "casella";
+    const tree = render({ snapshot, forecast: forecastPartnerEmails(snapshot) });
+    expect(words(tree)).toContain("Invii fermi");
+    expect(words(tree)).not.toContain("Invii attivi");
+  });
+  it("mostra anche giorno locale e fuso quando differiscono dal giorno di Roma", () => {
+    const snapshot = partnerEmailProgramFixture(today);
+    snapshot.items[0].timezone = "Pacific/Auckland";
+    const forecast = forecastPartnerEmails(snapshot);
+    forecast.items[0].plannedAt = `${today}T20:30:00Z`;
+    const tree = render({ snapshot, forecast });
+    expect(words(tree)).toContain("5 novembre · Pacific/Auckland");
+    expect(words(tree)).toContain("4 novembre · Roma");
+  });
   it("mostra anche chi è in coda senza un lavoro o un testo ancora preparato", async () => {
     await click(button(render(), "Da preparare"));
     const tree = render();

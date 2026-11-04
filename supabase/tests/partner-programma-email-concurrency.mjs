@@ -1,4 +1,4 @@
-// test-db: postgres minimo 26
+// test-db: postgres minimo 32
 // Programma email: hold, prepare, start e CAS su PostgreSQL17 reale con connessioni distinte.
 // Si osserva il blocco in pg_stat_activity; begin prima dello SMTP lo impedisce,
 // start prima di begin rende il testo non più modificabile. Due save producono una revisione;
@@ -563,10 +563,54 @@ try {
     ),
     0,
   );
+  // Una claim vecchia resta correlata ad A anche quando l'editor conferma B.
+  await readyFirst(7005);
+  await onlyQueue(7005);
+  const c5 = await asService(a, () => claim(a));
+  const r5 = await draftFor(7005);
+  await beginTeam(a);
+  const h6 = await openEdit(a, r5);
+  await beginService(b);
+  const skipHeld = capture(
+    scalar(b, "select public.skip_partner_assistant_send($1,$2,'bozza_scaduta') value", [
+      c5.lease_token,
+      r5.job_id,
+    ]),
+  );
+  await waitBlocked(pids.b, pids.a);
+  await a.query("commit");
+  eq((await success(skipHeld)).status, "lease_persa");
+  await b.query("commit");
+  await beginTeam(a);
+  const revision5 = await saveEdit(a, r5, h6);
+  await beginService(b);
+  const skipOld = capture(
+    scalar(b, "select public.skip_partner_assistant_send($1,$2,'bozza_scaduta') value", [
+      c5.lease_token,
+      r5.job_id,
+    ]),
+  );
+  await waitBlocked(pids.b, pids.a);
+  await a.query("commit");
+  eq((await success(skipOld)).status, "lease_persa");
+  await b.query("commit");
+  eq(
+    await scalar(owner, "select draft_id value from public.partner_assistant_jobs where id=$1", [
+      r5.job_id,
+    ]),
+    revision5.draftId,
+  );
+  eq(
+    await scalar(owner, "select status value from public.partner_assistant_jobs where id=$1", [
+      r5.job_id,
+    ]),
+    "pronta",
+  );
+  await releaseSend();
   const program = await team(a, () =>
     scalar(a, "select public.read_partner_email_program(date '2026-11-10',14) value"),
   );
-  eq(program.counts, { total: 4, returned: 4, unpreparedTotal: 0, unpreparedReturned: 0 });
+  eq(program.counts, { total: 5, returned: 5, unpreparedTotal: 0, unpreparedReturned: 0 });
   eq(JSON.stringify(program).includes('"raw":'), false);
   console.log(
     `PASS ${checks} Programma email concurrent checks; PostgreSQL 17 reale, Auth/dati sintetici.`,

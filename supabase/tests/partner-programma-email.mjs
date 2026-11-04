@@ -1,4 +1,4 @@
-// test-db: pglite minimo 176
+// test-db: pglite minimo 222
 // Programma email: snapshot completo e finestre Roma/DST, dettagli senza MIME, hold persistenti,
 // revisione append-only e protezione del testo manuale. Permessi, CAS, ricevute, erase e limiti.
 // Auth e dati sintetici, nessuna rete o chiamata a Claude.
@@ -651,6 +651,176 @@ try {
     );
     await release();
   }
+  // Cambiare l'indirizzo della STESSA riga non cambia partner.version né contact_id.
+  const replaceSameContact = async (r) => {
+    const k = await one(
+      `select k.id,k.version,p.version as partner_version from public.partner_assistant_drafts d
+      join public.partner_contacts k on k.id=d.contact_id join public.partners p on p.id=d.partner_id where d.id=$1`,
+      [r.draft],
+    );
+    const changed = await team("save_partner_contact", {
+      contact_id: k.id,
+      partner_id: r.partner,
+      expected_version: k.version,
+      kind: "email",
+      value: `updated-${r.co}@same-id.example.test`,
+    });
+    eq(changed.id, k.id);
+    eq(changed.version, k.version + 1);
+    eq(
+      await value("select version as v from public.partners where id=$1", [r.partner]),
+      k.partner_version,
+    );
+    return k;
+  };
+  const same = await ready(true),
+    sameHold = await beginEdit(same);
+  const frozen = await one(
+    "select contact_version,address_sha256 from private.partner_email_edit_holds where id=$1",
+    [sameHold.holdId],
+  );
+  eq(frozen.contact_version, 1);
+  eq(frozen.address_sha256, sha(`club-${same.co}@club.example.test`));
+  await replaceSameContact(same);
+  await rejects(() => saveEdit(same, sameHold), "40001");
+  eq((await cancelEdit(same, sameHold)).resumeState, "serve_tommaso");
+  for (const phase of ["claim", "prepare", "start"]) {
+    const r = await ready(true),
+      h = await beginEdit(r),
+      editOp = randomUUID(),
+      approved = await saveEdit(r, h, {}, editOp);
+    const note = await one(
+      "select content from public.partner_assistant_notes where operation_id=$1",
+      [editOp],
+    );
+    eq(note.content.contact_version, 1);
+    eq(note.content.address_sha256, sha(`club-${r.co}@club.example.test`));
+    await db.query(
+      `insert into public.partner_assistant_contacts(partner_id,active,updated_by)
+      select partner_id,partner_id=$1,$2 from public.partner_assistant_jobs where status='pronta'
+      on conflict(partner_id) do update set active=excluded.active`,
+      [r.partner, founder],
+    );
+    await release();
+    let picked, preparedSame;
+    if (phase !== "claim") picked = await claim(0);
+    if (phase === "start")
+      preparedSame = await prepare(picked.candidate, picked.lease_token, {
+        to_address: picked.candidate.address,
+      });
+    await replaceSameContact(r);
+    eq(
+      (await saveEdit(r, h, {}, editOp)).replayed,
+      true,
+      "Il replay non approva di nuovo il destinatario mutato",
+    );
+    if (phase === "claim") eq((await claim(0)).candidate ?? null, null);
+    else if (phase === "prepare")
+      eq(
+        (
+          await prepare(picked.candidate, picked.lease_token, {
+            to_address: picked.candidate.address,
+          })
+        ).reason,
+        "bozza_manuale_da_rivedere",
+      );
+    else
+      eq(
+        (
+          await worker("start_partner_assistant_send", [
+            picked.lease_token,
+            preparedSame.message_row_id,
+          ])
+        ).reason,
+        "bozza_manuale_da_rivedere",
+      );
+    eq(
+      await value("select status as v from public.partner_assistant_jobs where id=$1", [r.job]),
+      "serve_tommaso",
+    );
+    eq(
+      await value("select draft_id as v from public.partner_assistant_jobs where id=$1", [r.job]),
+      approved.draftId,
+    );
+    await release();
+  }
+  // Lo skip tardivo appartiene alla bozza della lease, non a quella salvata dopo la claim.
+  const skipped = await ready(true);
+  await db.query(
+    `insert into public.partner_assistant_contacts(partner_id,active,updated_by)
+    select partner_id,partner_id=$1,$2 from public.partner_assistant_jobs where status='pronta'
+    on conflict(partner_id) do update set active=excluded.active`,
+    [skipped.partner, founder],
+  );
+  await release();
+  const claimedOld = await claim(0);
+  eq(claimedOld.candidate.draft.draft_id, skipped.draft);
+  const skippedHold = await beginEdit(skipped);
+  eq(
+    (
+      await worker("skip_partner_assistant_send", [
+        claimedOld.lease_token,
+        skipped.job,
+        "bozza_scaduta",
+      ])
+    ).status,
+    "lease_persa",
+  );
+  eq(
+    await value("select status as v from public.partner_assistant_jobs where id=$1", [skipped.job]),
+    "pronta",
+  );
+  const skippedSaved = await saveEdit(skipped, skippedHold);
+  eq(
+    (
+      await worker("skip_partner_assistant_send", [
+        claimedOld.lease_token,
+        skipped.job,
+        "bozza_scaduta",
+      ])
+    ).status,
+    "lease_persa",
+  );
+  eq(
+    await value("select draft_id as v from public.partner_assistant_jobs where id=$1", [
+      skipped.job,
+    ]),
+    skippedSaved.draftId,
+  );
+  eq(
+    await value("select status as v from public.partner_assistant_jobs where id=$1", [skipped.job]),
+    "pronta",
+  );
+  await db.exec("update private.partner_assistant_mail_state set candidate_draft_id=null");
+  eq(
+    (
+      await worker("skip_partner_assistant_send", [
+        claimedOld.lease_token,
+        skipped.job,
+        "bozza_scaduta",
+      ])
+    ).status,
+    "lease_persa",
+  );
+  eq(
+    (await worker("skip_partner_assistant_send", [claimedOld.lease_token, null, "casella_incerta"]))
+      .status,
+    "done",
+  );
+  ok(
+    await value("select backoff_until is not null as v from private.partner_assistant_mail_state"),
+  );
+  eq(
+    (
+      await worker("release_partner_assistant_send", [
+        claimedOld.lease_token,
+        { schema_version: 1, outcome: "test", smtp_login: null, imap_login: null },
+      ])
+    ).status,
+    "done",
+  );
+  eq(await value("select candidate_draft_id as v from private.partner_assistant_mail_state"), null);
+  await release();
   const heldRules = await ready(false, { sections: ["collab"] }),
     heldRulesHold = await beginEdit(heldRules);
   const heldRulesOriginal = heldRules.draft;

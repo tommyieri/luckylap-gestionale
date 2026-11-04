@@ -16,9 +16,9 @@ Tommi apre un'email e sceglie «Sospendi e modifica». Il database prende una so
 
 «Salva il testo da inviare» crea una revisione append-only con approvazione umana, conserva la ricerca originale e la sua scadenza, aggiorna il puntatore del lavoro e toglie la sospensione nella stessa transazione. La firma e la frase di uscita restano separate dal corpo modificabile. Nessuna ricerca o seconda lettura di Claude è richiesta da una modifica del founder.
 
-La presa del lavoro, la preparazione del MIME e l'ultimo controllo prima di SMTP rispettano la sospensione e il puntatore corrente. Un messaggio vecchio soltanto preparato viene scartato. Quando SMTP è già stato avviato, il comando di modifica viene rifiutato: non è possibile promettere l'annullamento di un messaggio che potrebbe essere già partito. Le prove ancora pendenti bloccano la modifica delle bozze che utilizzano.
+La presa del lavoro, la preparazione del MIME e l'ultimo controllo prima di SMTP rispettano la sospensione e il puntatore corrente. Anche un esito tardivo della casella o della verifica delle date resta legato alla bozza reclamata e non sposta una revisione successiva. Un messaggio vecchio soltanto preparato viene scartato. Quando SMTP è già stato avviato, il comando di modifica viene rifiutato: non è possibile promettere l'annullamento di un messaggio che potrebbe essere già partito. Le prove ancora pendenti bloccano la modifica delle bozze che utilizzano.
 
-Una revisione umana che diventa obsoleta torna alla revisione di Tommi e non viene sovrascritta automaticamente dal modello. La cancellazione definitiva del contatto elimina anche le sospensioni collegate e non consente a un vecchio token di ricreare il testo.
+Ogni revisione umana conserva anche la versione del recapito e l'impronta dell'indirizzo: aggiornare l'email sullo stesso recapito richiede una nuova revisione. Una revisione umana che diventa obsoleta torna alla revisione di Tommi e non viene sovrascritta automaticamente dal modello. La cancellazione definitiva del contatto elimina anche le sospensioni collegate e non consente a un vecchio token di ricreare il testo.
 
 ## Tono delle prossime email
 
