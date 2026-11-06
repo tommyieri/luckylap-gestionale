@@ -356,7 +356,7 @@ export async function runPartnerAssistantSendStep(
       // 8. Il messaggio composto, poi prepare.
       phase = "composizione";
       const { draft } = chosen;
-      const optOut = partnerAssistantOptOutLine(draft.language, chosen.register);
+      const optOut = partnerAssistantOptOutLine();
       const text = partnerAssistantMessageText({
         body: draft.body,
         signature: draft.signature,

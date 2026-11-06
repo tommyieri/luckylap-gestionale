@@ -120,7 +120,7 @@ describe("loadPartnerEmailDetail", () => {
       p_kind: "draft",
       p_id: id(1),
     });
-    expect(result).toEqual({ ...detail(), optOut: partnerAssistantOptOutLine("it", "voi") });
+    expect(result).toEqual({ ...detail(), optOut: partnerAssistantOptOutLine() });
   });
 
   it("mostra il corpo inviato intero senza aggiungere una seconda firma o frase di uscita", async () => {
@@ -145,7 +145,7 @@ describe("loadPartnerEmailDetail", () => {
     const result = await loadPartnerEmailDetail(db.client, "job", id(2));
     expect(result.id).toBe(id(2));
     expect(result.draftId).toBe(id(1));
-    expect(result.optOut).toBe(partnerAssistantOptOutLine("it", "voi"));
+    expect(result.optOut).toBe(partnerAssistantOptOutLine());
   });
 
   it("un lavoro senza bozza non ha una frase di uscita inventata", async () => {

@@ -3,26 +3,15 @@ import { createHash } from "node:crypto";
 import {
   composePartnerAssistantLookbookTestMessage,
   composePartnerAssistantMessage,
-  PARTNER_ASSISTANT_OPT_OUT_LINES,
   partnerAssistantMessageId,
   partnerAssistantMessageText,
   partnerAssistantOptOutLine,
   type PartnerAssistantOutgoing,
 } from "./mail-compose";
 import { PARTNER_ASSISTANT_TEST_MIME_MAX_BYTES } from "./test-lookbook-metadata";
-import type { PartnerAssistantLanguage, PartnerAssistantRegister } from "./types";
 
-// Appendice A del piano, copiata così com'è: è il riferimento byte per byte.
-const APPENDIX_A = {
-  it_voi:
-    "Se non è il momento, o preferite non ricevere altre email, scrivetemelo pure: non vi ricontatterò.",
-  it_lei:
-    "Se non è il momento, o preferisce non ricevere altre email, me lo scriva pure: non la ricontatterò.",
-  en: "If the timing isn't right, or you'd rather not hear from me again, just let me know and I won't write again.",
-  de: "Falls es gerade nicht passt oder Sie keine weiteren E-Mails wünschen, schreiben Sie mir einfach, dann melde ich mich nicht mehr.",
-  fr: "Si ce n'est pas le bon moment, ou si vous préférez ne plus recevoir d'e-mails de ma part, dites-le-moi simplement : je ne vous écrirai plus.",
-  es: "Si no es el momento, o prefiere no recibir más correos, dígamelo sin problema: no volveré a escribirle.",
-} as const;
+const REQUIRED_OPT_OUT =
+  "Si ce n'est pas le bon moment, ou si vous préférez ne plus recevoir d'e-mails de ma part, dites-le-moi simplement : je ne vous écrirai plus.";
 
 // Solo dati sintetici.
 const first: PartnerAssistantOutgoing = {
@@ -33,7 +22,7 @@ const first: PartnerAssistantOutgoing = {
   text: partnerAssistantMessageText({
     body: "Buongiorno,\nvi scrivo per LuckyLap: un'idea per l'Österreich-Treffen del Club Sintetico 951, con una riga abbastanza lunga da essere spezzata dal quoted-printable.",
     signature: "Tommaso\nLuckyLap\n+39 000 000 0000",
-    optOut: APPENDIX_A.it_voi,
+    optOut: partnerAssistantOptOutLine(),
   }),
   date: new Date("2026-10-29T08:40:00Z"),
 };
@@ -58,30 +47,12 @@ function decodeBody(raw: string): string {
   return body.replace(/\r\n$/, "").replace(/\r\n/g, "\n");
 }
 
-describe("frasi di uscita", () => {
-  it("le sei frasi di uscita, byte per byte", () =>
-    expect(PARTNER_ASSISTANT_OPT_OUT_LINES).toEqual(APPENDIX_A));
-  it("non si possono cambiare in esecuzione", () =>
-    expect(Object.isFrozen(PARTNER_ASSISTANT_OPT_OUT_LINES)).toBe(true));
-  it.each([
-    ["it", "voi", "it_voi"],
-    ["it", "lei", "it_lei"],
-    ["it", "you", "it_voi"],
-    ["it", "sie", "it_voi"],
-    ["en", "you", "en"],
-    ["en", "lei", "en"],
-    ["de", "sie", "de"],
-    ["de", "you", "de"],
-    ["fr", "vous", "fr"],
-    ["es", "usted", "es"],
-  ] as const)("%s/%s → %s", (l, r, k) =>
-    expect(
-      partnerAssistantOptOutLine(l as PartnerAssistantLanguage, r as PartnerAssistantRegister),
-    ).toBe(APPENDIX_A[k]),
-  );
-  it("frasi senza ? né !, senza link né cifre né @", () => {
-    for (const l of Object.values(PARTNER_ASSISTANT_OPT_OUT_LINES))
-      expect(l).toMatch(/^[^\r\n<>@0-9?!]{20,240}$/);
+describe("frase di uscita", () => {
+  it("usa la frase richiesta, byte per byte", () =>
+    expect(partnerAssistantOptOutLine()).toBe(REQUIRED_OPT_OUT));
+  it("rientra nei vincoli del messaggio", () => {
+    expect(partnerAssistantOptOutLine()).toMatch(/^[^\r\n<>@0-9?!]{20,240}$/);
+    expect(partnerAssistantOptOutLine()).not.toMatch(/http/i);
   });
 });
 
@@ -128,8 +99,10 @@ describe("composizione MIME", () => {
       subject: "Club Sintetico 951 e LuckyLap: un'idea per l'Österreich-Treffen",
     });
     expect(raw).toMatch(/^Subject: =\?UTF-8\?/m);
-    expect(decodeBody(raw)).toBe(first.text);
-    expect(decodeBody(raw).endsWith(APPENDIX_A.it_voi)).toBe(true);
+    const decoded = decodeBody(raw);
+    expect(decoded).toBe(first.text);
+    expect(decoded.endsWith(REQUIRED_OPT_OUT)).toBe(true);
+    expect(decoded.split(REQUIRED_OPT_OUT)).toHaveLength(2);
   });
   it("un a capo nell'oggetto non diventa un'intestazione", async () => {
     const raw = await composePartnerAssistantMessage({

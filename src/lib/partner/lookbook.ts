@@ -61,8 +61,8 @@ export const PARTNER_LOOKBOOK_BYTES: Record<PartnerLookbookCode, number> = {
   negozi: 3051669,
   eventi: 2903389,
   collab: 2051682,
-  porsche_club: 2592305,
-  club: 2444810,
+  porsche_club: 2590257,
+  club: 2442753,
 };
 
 /** «2,9 MB». */

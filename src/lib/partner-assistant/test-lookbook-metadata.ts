@@ -8,13 +8,13 @@ export type PartnerAssistantTestLookbook = {
 export const PARTNER_ASSISTANT_TEST_LOOKBOOKS = Object.freeze({
   porsche_club: Object.freeze({
     code: "porsche_club" as const,
-    bytes: 2592305,
-    sha256: "541ddb3b20f7daa46ef428c64ae5618996711409d1819e5dfd37e8cec8831f77",
+    bytes: 2590257,
+    sha256: "3af4b265bb2c10f3442ad4a0ec8b9059b66a2a5033d11c886de79a412fa14e10",
   }),
   club: Object.freeze({
     code: "club" as const,
-    bytes: 2444810,
-    sha256: "923cf52ae33ba5dfc8e9271d1157a64719a925a14750ee96a0bd0eeb686942b1",
+    bytes: 2442753,
+    sha256: "e9e926aa0bb3bb8c4b374eeb72becd6054bcce225d677f671d28f657a4650a36",
   }),
 });
 

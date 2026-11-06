@@ -185,7 +185,7 @@ L'email che l'assistente manda è la «Bozza dell'email» del blocco «Assistent
 - **Un'email alla volta.** Il lock della casella è una lease nel database (300 secondi). Il passo d'invio ha 120 secondi: controllo dei 12 mesi, composizione, SMTP, copia in «Posta inviata».
 - **Prova e invio.** Tommi sceglie «Prova», preme «Manda la prova» e, se le email sono arrivate in posta in arrivo, «La prova è arrivata in posta in arrivo». Senza la prova confermata «Invio» si rifiuta.
 - **Dopo una prima email vera:** la scheda passa a «Contattato»; il registro ha una riga «Inviato» via email con l'origine `assistente` («29 ott · dall'assistente · Inviato via email»); il lavoro diventa «Email inviata» (`inviata`, terminale nella 2a); nasce «Sollecito · <nome>» a 7 giorni, assegnato a Tommi (`handoff_to` della configurazione), come dopo «Segna inviato». Il sollecito lo manda Tommi; l'assistente non manda solleciti.
-- **Testo.** Il testo approvato, la firma e la frase di uscita della lingua, aggiunta dal sistema. Testo semplice, un solo destinatario.
+- **Testo.** Il testo approvato, la firma e una frase di uscita in francese, uguale per tutte le prime email e aggiunta dal sistema. Testo semplice, un solo destinatario.
 - **Controlli prima di ogni invio:** l'impronta del testo approvato, le regole in vigore, il recapito, l'età della ricerca, le date (ricontrollo all'invio) e la posta degli ultimi 12 mesi con quell'indirizzo.
 - **Fermi automatici** con la casella che rifiuta la password, con le email rifiutate e con gli errori temporanei ripetuti.
 - **Variabili e accessi** nella pagina dell'assistente, senza mai i valori.
@@ -268,16 +268,9 @@ Prima di scegliere il candidato, il claim pulisce le righe che lo precedono: ric
 
 ### Il messaggio e la frase di uscita
 
-Il corpo è il testo della bozza, una riga vuota, la firma, una riga vuota e la frase di uscita della lingua e del registro della scelta. La frase la aggiunge il sistema: non conta nelle parole del corpo e non entra nell'impronta della bozza approvata. I testi stanno solo in `src/lib/partner-assistant/mail-compose.ts`: Luca li può ritoccare con una pull request, senza migrazione.
+Il sistema compone il messaggio con il corpo approvato, una riga vuota, la firma, una riga vuota e la stessa frase di uscita in francese per ogni lingua e registro. La frase vive in `src/lib/partner-assistant/opt-out.ts` e resta separata dal conteggio delle parole e dall'impronta della bozza.
 
-| Lingua | Frase di uscita |
-| --- | --- |
-| Italiano, voi | Se non è il momento, o preferite non ricevere altre email, scrivetemelo pure: non vi ricontatterò. |
-| Italiano, lei | Se non è il momento, o preferisce non ricevere altre email, me lo scriva pure: non la ricontatterò. |
-| Inglese | If the timing isn't right, or you'd rather not hear from me again, just let me know and I won't write again. |
-| Tedesco | Falls es gerade nicht passt oder Sie keine weiteren E-Mails wünschen, schreiben Sie mir einfach, dann melde ich mich nicht mehr. |
-| Francese | Si ce n'est pas le bon moment, ou si vous préférez ne plus recevoir d'e-mails de ma part, dites-le-moi simplement : je ne vous écrirai plus. |
-| Spagnolo | Si no es el momento, o prefiere no recibir más correos, dígamelo sin problema: no volveré a escribirle. |
+> Si ce n'est pas le bon moment, ou si vous préférez ne plus recevoir d'e-mails de ma part, dites-le-moi simplement : je ne vous écrirai plus.
 
 Il messaggio: `From: "Tommaso | LuckyLap" <casella>` (il nome da `PARTNER_MAIL_FROM_NAME`, se c'è), un solo destinatario e mai Cc o Bcc, solo testo semplice, niente allegati, immagini, tracciamento o `X-Mailer`, `Message-ID` del codice (`<uuid@dominio della casella>`). Il messaggio si compone una volta sola: gli stessi byte vanno a SMTP e alla copia in «Posta inviata». La SQL controlla che il testo sia quello approvato, più firma e frase: se non lo è, l'email non parte e il contatto passa a Tommi (`impronta`).
 

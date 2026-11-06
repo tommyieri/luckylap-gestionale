@@ -1,3 +1,4 @@
+import { partnerAssistantOptOutLine } from "../partner-assistant/opt-out";
 import { addDays } from "./dates";
 import { parsePartnerEmailProgram } from "./email-program";
 import type { PartnerEmailDetail, PartnerEmailReadKind } from "./email-edit";
@@ -6,8 +7,7 @@ const id = (n: number) => `71000000-0000-4000-8000-${String(n).padStart(12, "0")
 const signature = "Autore esempio\nFondatore, LuckyLap\n+39 000 000 0000\nhttps://luckylap.com";
 const body =
   "Buongiorno,\n\nLuckyLap unisce la passione per le automobili a t-shirt in cotone biologico, con la silhouette dell'auto ricamata sul petto. Un dettaglio essenziale, pensato per accompagnare la passione anche lontano da un raduno.\n\nPer i soci possiamo sviluppare una maglietta dedicata, scegliendo insieme grafica, colori e posizione del logo del club.\n\nUn cordiale saluto,";
-const optOut =
-  "Se non è il momento, o preferite non ricevere altre email, scrivetemelo pure: non vi ricontatterò.";
+const optOut = partnerAssistantOptOutLine();
 
 /** Anteprima locale: solo contatti e indirizzi inventati, nessuna lettura della produzione. */
 export function partnerEmailProgramFixture(today: string) {
