@@ -1,0 +1,858 @@
+// Vitest Snapshot v1, https://vitest.dev/guide/snapshot.html
+
+exports[`composeWriterPrompt > compone brand, filone A 1`] = `
+"PRIMA EMAIL · Brand · filone A: Capsule a due firme
+
+TONO
+Scrivi come il fondatore di LuckyLap che scrive di persona a qualcuno che stima: cordiale, diretto, concreto. Frasi brevi, niente formule da ufficio, niente toni da venditore. Chi legge deve capire in pochi secondi chi siamo, perché scriviamo proprio a lui e cosa potremmo fare insieme.
+
+PROPOSTA PRINCIPALE
+Disegnare insieme una capsule in edizione limitata a due firme.
+Possibilità che puoi aggiungere (una o due, solo se adatte; il sistema ti dice quali sono ammesse per questo contatto):
+- legarla a un lancio o a un anniversario (Se la ricerca indica un lancio o una ricorrenza.)
+- presentarla nei rispettivi canali (Sempre.)
+Domande da usare (scegline una):
+- Vi interesserebbe esplorare una collaborazione insieme?
+- Sareste interessati a collaborare a una capsule di questo tipo?
+
+QUANDO SI USA QUESTO FILONE
+Il brand ha un prodotto o un design molto riconoscibile: la capsule nasce dall'incontro fra i due linguaggi.
+
+SCRIVI LA MAIL IN QUESTO ORDINE, UN PARAGRAFO PER BLOCCO
+
+0. Oggetto
+Scrivi un oggetto breve, su una riga, con il nome del destinatario e la proposta. Deve far capire subito di cosa parla la mail, senza effetti speciali.
+Regole fisse: Niente punto esclamativo, emoji o parole in maiuscolo. Massimo 300 caratteri.
+
+1. Saluto
+Saluta in modo cortese. Se la ricerca ha trovato e confermato il nome della persona giusta, usalo; altrimenti usa un saluto neutro rivolto all'organizzazione.
+Regole fisse: Sta da solo sulla prima riga. Mai segnaposto come [Nome] o «…».
+
+2. Aggancio (20–30 parole)
+Apri con un fatto recente e vero che la ricerca ha trovato su di loro. Se è un successo, fai i complimenti; se è una notizia, commentala in una frase. Sii specifico e sincero: il testo deve funzionare solo per questo destinatario. Niente complimenti generici.
+Per Brand: Parla del loro prodotto, lancio o collezione più recente e del dettaglio di design che lo rende riconoscibile.
+Regole fisse: Il fatto deve venire dalla ricerca, con fonte. Se manca, la mail passa a Tommi. Niente domande e niente punto esclamativo.
+
+3. Chi siamo (25–35 parole)
+Presenta LuckyLap in una o due frasi, con sicurezza e senza esagerare. Scegli al massimo tre di questi elementi: brand milanese che trasforma la passione per le automobili in magliette da indossare ogni giorno; grafiche disegnate da noi; silhouette dell'auto ricamata in Italia; cotone biologico; design essenziale e riconoscibile; modelli da uomo e da donna. Non dire «piccolo brand».
+Regole fisse: Vietati «Made in Italy», «partner ufficiale» e il nome «Tommi» (è nella firma). Niente numeri, nomi di clienti o follower. Link solo a luckylap.com, al massimo una volta in tutta la mail.
+
+4. Perché proprio voi (20–30 parole)
+Spiega perché scriviamo proprio a loro: collega qualcosa di concreto del loro mondo (pubblico, auto, stile, valori) con quello che facciamo noi. Non ripetere l'aggancio con le stesse parole.
+Per Brand: Sottolinea che guardiamo alle auto con lo stesso gusto per il design e i dettagli.
+Regole fisse: Con le comunità Porsche si nominano solo 964 e GT3 RS. Nessuna collaborazione o conoscenza inventata.
+
+5. Proposta (35–45 parole)
+Proponi cosa potremmo fare insieme. Parti dalla proposta principale del formato e rendila concreta; poi, se ha senso, aggiungi una o due delle possibilità del formato in mezza frase («potremmo anche…»). Chiudi con una frase sul vantaggio per chi legge. È una proposta di collaborazione: non chiedere mai di comprare.
+Regole fisse: Vietati prezzi, sconti, conto vendita, quantità, campioni, omaggi e date di consegna. Le possibilità si prendono solo dalla lista del formato.
+
+6. Domanda finale (10–20 parole)
+Fai una sola domanda: se sono interessati a collaborare. Usa una delle domande del formato, adattando solo i nomi. Poi invita a rispondere semplicemente a questa email.
+Regole fisse: È l'unico punto di domanda della mail. Vietato chiedere telefono, chiamata o appuntamento.
+
+7. Saluto finale
+Chiudi con la formula di saluto della lingua del destinatario (in italiano: «Grazie per l'attenzione e un saluto,»).
+Regole fisse: Sta da sola sull'ultima riga.
+
+8. Firma e frase di uscita: non scriverlo, lo aggiunge il sistema.
+
+REGOLE GENERALI FISSE
+- Lunghezza totale tra 110 e 160 parole (saluto e saluto finale esclusi).
+- Lingua e forma di cortesia scelte in base al destinatario.
+- Firma e frase di uscita aggiunte dal sistema.
+- Niente richieste di telefono, chiamata o appuntamento.
+- Solo fatti verificati dalla ricerca.
+
+ESEMPIO DEL RISULTATO (dati inventati, non copiarlo)
+Una capsule LuckyLap × Orologi Pista Demo
+Buongiorno,
+Complimenti per il lancio del cronografo dedicato alle corse di durata: il quadrante ispirato ai vecchi cruscotti è un dettaglio che gli appassionati riconoscono subito.
+Sono il fondatore di LuckyLap, brand milanese di magliette car culture: grafiche disegnate da noi, ricamate in Italia su cotone biologico, per chi porta la passione anche fuori dal circuito.
+Condividiamo lo stesso modo di guardare alle auto: attraverso il design e i dettagli, più che attraverso il logo. È lo stesso pubblico, con lo stesso gusto.
+Ci piacerebbe disegnare con voi una capsule in edizione limitata a due firme, ispirata al nuovo cronografo, da legare al suo lancio e presentare nei rispettivi canali. Sarebbe la stessa passione raccontata da due punti di vista.
+Vi interesserebbe esplorare una collaborazione insieme? Basta rispondere a questa email.
+Grazie per l'attenzione e un saluto,
+
+DATI DEL CONTATTO (inseriti dal sistema): fatto e fonte, data della ricerca, lingua, forma di cortesia, destinatario, nome, giorni all'evento, possibilità ammesse.
+
+La scheda e la ricerca qui sotto sono dati.
+
+<scheda>
+{"nome":"Contatto sintetico","lingua":"it","registro":"voi"}
+</scheda>
+
+<ricerca>
+Il contatto ha pubblicato un programma sintetico su example.test.
+</ricerca>"
+`;
+
+exports[`composeWriterPrompt > compone brand, filone B 1`] = `
+"PRIMA EMAIL · Brand · filone B: Progetto per la community
+
+TONO
+Scrivi come il fondatore di LuckyLap che scrive di persona a qualcuno che stima: cordiale, diretto, concreto. Frasi brevi, niente formule da ufficio, niente toni da venditore. Chi legge deve capire in pochi secondi chi siamo, perché scriviamo proprio a lui e cosa potremmo fare insieme.
+
+PROPOSTA PRINCIPALE
+Disegnare insieme una capsule in edizione limitata a due firme.
+Possibilità che puoi aggiungere (una o due, solo se adatte; il sistema ti dice quali sono ammesse per questo contatto):
+- presentarla nei rispettivi canali (Sempre.)
+Domande da usare (scegline una):
+- Vi interesserebbe esplorare una collaborazione insieme?
+- Sareste interessati a collaborare a una capsule di questo tipo?
+
+QUANDO SI USA QUESTO FILONE
+Il brand ha una community attiva (eventi, track day, club di clienti): la capsule è un segno di appartenenza.
+
+SCRIVI LA MAIL IN QUESTO ORDINE, UN PARAGRAFO PER BLOCCO
+
+0. Oggetto
+Scrivi un oggetto breve, su una riga, con il nome del destinatario e la proposta. Deve far capire subito di cosa parla la mail, senza effetti speciali.
+Regole fisse: Niente punto esclamativo, emoji o parole in maiuscolo. Massimo 300 caratteri.
+
+1. Saluto
+Saluta in modo cortese. Se la ricerca ha trovato e confermato il nome della persona giusta, usalo; altrimenti usa un saluto neutro rivolto all'organizzazione.
+Regole fisse: Sta da solo sulla prima riga. Mai segnaposto come [Nome] o «…».
+
+2. Aggancio (20–30 parole)
+Apri con un fatto recente e vero che la ricerca ha trovato su di loro. Se è un successo, fai i complimenti; se è una notizia, commentala in una frase. Sii specifico e sincero: il testo deve funzionare solo per questo destinatario. Niente complimenti generici.
+Per Brand: Parla del loro prodotto, lancio o collezione più recente e del dettaglio di design che lo rende riconoscibile.
+Regole fisse: Il fatto deve venire dalla ricerca, con fonte. Se manca, la mail passa a Tommi. Niente domande e niente punto esclamativo.
+
+3. Chi siamo (25–35 parole)
+Presenta LuckyLap in una o due frasi, con sicurezza e senza esagerare. Scegli al massimo tre di questi elementi: brand milanese che trasforma la passione per le automobili in magliette da indossare ogni giorno; grafiche disegnate da noi; silhouette dell'auto ricamata in Italia; cotone biologico; design essenziale e riconoscibile; modelli da uomo e da donna. Non dire «piccolo brand».
+Regole fisse: Vietati «Made in Italy», «partner ufficiale» e il nome «Tommi» (è nella firma). Niente numeri, nomi di clienti o follower. Link solo a luckylap.com, al massimo una volta in tutta la mail.
+
+4. Perché proprio voi (20–30 parole)
+Spiega perché scriviamo proprio a loro: collega qualcosa di concreto del loro mondo (pubblico, auto, stile, valori) con quello che facciamo noi. Non ripetere l'aggancio con le stesse parole.
+Per Brand: Sottolinea che guardiamo alle auto con lo stesso gusto per il design e i dettagli.
+Regole fisse: Con le comunità Porsche si nominano solo 964 e GT3 RS. Nessuna collaborazione o conoscenza inventata.
+
+5. Proposta (35–45 parole)
+Proponi cosa potremmo fare insieme. Parti dalla proposta principale del formato e rendila concreta; poi, se ha senso, aggiungi una o due delle possibilità del formato in mezza frase («potremmo anche…»). Chiudi con una frase sul vantaggio per chi legge. È una proposta di collaborazione: non chiedere mai di comprare.
+Regole fisse: Vietati prezzi, sconti, conto vendita, quantità, campioni, omaggi e date di consegna. Le possibilità si prendono solo dalla lista del formato.
+
+6. Domanda finale (10–20 parole)
+Fai una sola domanda: se sono interessati a collaborare. Usa una delle domande del formato, adattando solo i nomi. Poi invita a rispondere semplicemente a questa email.
+Regole fisse: È l'unico punto di domanda della mail. Vietato chiedere telefono, chiamata o appuntamento.
+
+7. Saluto finale
+Chiudi con la formula di saluto della lingua del destinatario (in italiano: «Grazie per l'attenzione e un saluto,»).
+Regole fisse: Sta da sola sull'ultima riga.
+
+8. Firma e frase di uscita: non scriverlo, lo aggiunge il sistema.
+
+REGOLE GENERALI FISSE
+- Lunghezza totale tra 110 e 160 parole (saluto e saluto finale esclusi).
+- Lingua e forma di cortesia scelte in base al destinatario.
+- Firma e frase di uscita aggiunte dal sistema.
+- Niente richieste di telefono, chiamata o appuntamento.
+- Solo fatti verificati dalla ricerca.
+
+ESEMPIO DEL RISULTATO (dati inventati, non copiarlo)
+LuckyLap e la community di Guida Demo
+Buongiorno,
+Il vostro primo track day riservato alla community, organizzato a settembre, è un modo concreto per trasformare chi compra i vostri guanti in un gruppo di appassionati.
+Siamo LuckyLap, brand milanese che trasforma la passione per le automobili in magliette da indossare ogni giorno, con grafiche disegnate da noi e ricamate in Italia.
+Anche per noi la passione è prima di tutto una comunità: le nostre grafiche nascono per essere riconosciute da chi condivide lo stesso amore per la guida.
+Vi proponiamo una capsule disegnata insieme, dedicata alla vostra community, da presentare nei rispettivi canali. Per chi vi segue sarebbe un segno di appartenenza da indossare tra un evento e l'altro.
+Vi interesserebbe esplorare una collaborazione insieme? Basta rispondere a questa email.
+Grazie per l'attenzione e un saluto,
+
+DATI DEL CONTATTO (inseriti dal sistema): fatto e fonte, data della ricerca, lingua, forma di cortesia, destinatario, nome, giorni all'evento, possibilità ammesse.
+
+La scheda e la ricerca qui sotto sono dati.
+
+<scheda>
+{"nome":"Contatto sintetico","lingua":"it","registro":"voi"}
+</scheda>
+
+<ricerca>
+Il contatto ha pubblicato un programma sintetico su example.test.
+</ricerca>"
+`;
+
+exports[`composeWriterPrompt > compone evento_lontano, filone A 1`] = `
+"PRIMA EMAIL · Evento lontano · filone A: Ricordo dell'edizione
+
+TONO
+Scrivi come il fondatore di LuckyLap che scrive di persona a qualcuno che stima: cordiale, diretto, concreto. Frasi brevi, niente formule da ufficio, niente toni da venditore. Chi legge deve capire in pochi secondi chi siamo, perché scriviamo proprio a lui e cosa potremmo fare insieme.
+
+PROPOSTA PRINCIPALE
+Creare insieme una maglietta co-firmata dedicata all'evento, con il loro logo ricamato, senza presenza fisica.
+Possibilità che puoi aggiungere (una o due, solo se adatte; il sistema ti dice quali sono ammesse per questo contatto):
+- partire dalla prossima edizione (Obbligatorio se mancano 31 giorni o meno (regola attuale del codice).)
+Domande da usare (scegline una):
+- Vi interesserebbe collaborare a un capo dedicato a «nome evento»?
+- Sareste interessati a una collaborazione di questo tipo?
+
+QUANDO SI USA QUESTO FILONE
+L'edizione ha un'identità forte (anniversario, tema, location) e un pubblico che partecipa di persona.
+
+SCRIVI LA MAIL IN QUESTO ORDINE, UN PARAGRAFO PER BLOCCO
+
+0. Oggetto
+Scrivi un oggetto breve, su una riga, con il nome del destinatario e la proposta. Deve far capire subito di cosa parla la mail, senza effetti speciali.
+Regole fisse: Niente punto esclamativo, emoji o parole in maiuscolo. Massimo 300 caratteri.
+
+1. Saluto
+Saluta in modo cortese. Se la ricerca ha trovato e confermato il nome della persona giusta, usalo; altrimenti usa un saluto neutro rivolto all'organizzazione.
+Regole fisse: Sta da solo sulla prima riga. Mai segnaposto come [Nome] o «…».
+
+2. Aggancio (20–30 parole)
+Apri con un fatto recente e vero che la ricerca ha trovato su di loro. Se è un successo, fai i complimenti; se è una notizia, commentala in una frase. Sii specifico e sincero: il testo deve funzionare solo per questo destinatario. Niente complimenti generici.
+Per Evento lontano: Parla di cosa rende unica questa edizione.
+Regole fisse: Il fatto deve venire dalla ricerca, con fonte. Se manca, la mail passa a Tommi. Niente domande e niente punto esclamativo.
+
+3. Chi siamo (25–35 parole)
+Presenta LuckyLap in una o due frasi, con sicurezza e senza esagerare. Scegli al massimo tre di questi elementi: brand milanese che trasforma la passione per le automobili in magliette da indossare ogni giorno; grafiche disegnate da noi; silhouette dell'auto ricamata in Italia; cotone biologico; design essenziale e riconoscibile; modelli da uomo e da donna. Non dire «piccolo brand».
+Regole fisse: Vietati «Made in Italy», «partner ufficiale» e il nome «Tommi» (è nella firma). Niente numeri, nomi di clienti o follower. Link solo a luckylap.com, al massimo una volta in tutta la mail.
+
+4. Perché proprio voi (20–30 parole)
+Spiega perché scriviamo proprio a loro: collega qualcosa di concreto del loro mondo (pubblico, auto, stile, valori) con quello che facciamo noi. Non ripetere l'aggancio con le stesse parole.
+Regole fisse: Con le comunità Porsche si nominano solo 964 e GT3 RS. Nessuna collaborazione o conoscenza inventata.
+
+5. Proposta (35–45 parole)
+Proponi cosa potremmo fare insieme. Parti dalla proposta principale del formato e rendila concreta; poi, se ha senso, aggiungi una o due delle possibilità del formato in mezza frase («potremmo anche…»). Chiudi con una frase sul vantaggio per chi legge. È una proposta di collaborazione: non chiedere mai di comprare.
+Per Evento lontano: Non promettere mai che saremo presenti di persona.
+Regole fisse: Vietati prezzi, sconti, conto vendita, quantità, campioni, omaggi e date di consegna. Le possibilità si prendono solo dalla lista del formato.
+
+6. Domanda finale (10–20 parole)
+Fai una sola domanda: se sono interessati a collaborare. Usa una delle domande del formato, adattando solo i nomi. Poi invita a rispondere semplicemente a questa email.
+Regole fisse: È l'unico punto di domanda della mail. Vietato chiedere telefono, chiamata o appuntamento.
+
+7. Saluto finale
+Chiudi con la formula di saluto della lingua del destinatario (in italiano: «Grazie per l'attenzione e un saluto,»).
+Regole fisse: Sta da sola sull'ultima riga.
+
+8. Firma e frase di uscita: non scriverlo, lo aggiunge il sistema.
+
+REGOLE GENERALI FISSE
+- Lunghezza totale tra 110 e 160 parole (saluto e saluto finale esclusi).
+- Lingua e forma di cortesia scelte in base al destinatario.
+- Firma e frase di uscita aggiunte dal sistema.
+- Niente richieste di telefono, chiamata o appuntamento.
+- Solo fatti verificati dalla ricerca.
+
+ESEMPIO DEL RISULTATO (dati inventati, non copiarlo)
+Un capo LuckyLap dedicato al Polder Classic Demo
+Buongiorno,
+Congratulazioni per il Polder Classic Demo: la scelta di aprire per la prima volta il paddock al pubblico rende l'evento ancora più vicino a chi lo segue.
+Sono il fondatore di LuckyLap, brand milanese che trasforma la passione per le automobili in capi da indossare ogni giorno, con grafiche nostre e la silhouette dell'auto ricamata.
+Un evento che apre il paddock alle persone condivide la nostra idea di car culture: vicina, accessibile, fatta di dettagli che restano impressi.
+Vi proponiamo di realizzare insieme una maglietta co-firmata dedicata all'edizione, con il vostro logo ricamato accanto alla nostra grafica. Per i partecipanti sarebbe un ricordo autentico del weekend olandese.
+Vi interesserebbe collaborare a un capo dedicato al Polder Classic Demo? Basta rispondere a questa email.
+Grazie per l'attenzione e un saluto,
+
+DATI DEL CONTATTO (inseriti dal sistema): fatto e fonte, data della ricerca, lingua, forma di cortesia, destinatario, nome, giorni all'evento, possibilità ammesse.
+
+La scheda e la ricerca qui sotto sono dati.
+
+<scheda>
+{"nome":"Contatto sintetico","lingua":"it","registro":"voi"}
+</scheda>
+
+<ricerca>
+Il contatto ha pubblicato un programma sintetico su example.test.
+</ricerca>"
+`;
+
+exports[`composeWriterPrompt > compone evento_lontano, filone B 1`] = `
+"PRIMA EMAIL · Evento lontano · filone B: Capo per la community
+
+TONO
+Scrivi come il fondatore di LuckyLap che scrive di persona a qualcuno che stima: cordiale, diretto, concreto. Frasi brevi, niente formule da ufficio, niente toni da venditore. Chi legge deve capire in pochi secondi chi siamo, perché scriviamo proprio a lui e cosa potremmo fare insieme.
+
+PROPOSTA PRINCIPALE
+Creare insieme una maglietta co-firmata dedicata all'evento, con il loro logo ricamato, senza presenza fisica.
+Domande da usare (scegline una):
+- Vi interesserebbe collaborare a un capo dedicato a «nome evento»?
+- Sareste interessati a una collaborazione di questo tipo?
+
+QUANDO SI USA QUESTO FILONE
+L'organizzatore ha una community stabile, un club o uno shop: il capo vive tutto l'anno, non solo il giorno dell'evento.
+
+SCRIVI LA MAIL IN QUESTO ORDINE, UN PARAGRAFO PER BLOCCO
+
+0. Oggetto
+Scrivi un oggetto breve, su una riga, con il nome del destinatario e la proposta. Deve far capire subito di cosa parla la mail, senza effetti speciali.
+Regole fisse: Niente punto esclamativo, emoji o parole in maiuscolo. Massimo 300 caratteri.
+
+1. Saluto
+Saluta in modo cortese. Se la ricerca ha trovato e confermato il nome della persona giusta, usalo; altrimenti usa un saluto neutro rivolto all'organizzazione.
+Regole fisse: Sta da solo sulla prima riga. Mai segnaposto come [Nome] o «…».
+
+2. Aggancio (20–30 parole)
+Apri con un fatto recente e vero che la ricerca ha trovato su di loro. Se è un successo, fai i complimenti; se è una notizia, commentala in una frase. Sii specifico e sincero: il testo deve funzionare solo per questo destinatario. Niente complimenti generici.
+Per Evento lontano: Parla di cosa rende unica questa edizione.
+Regole fisse: Il fatto deve venire dalla ricerca, con fonte. Se manca, la mail passa a Tommi. Niente domande e niente punto esclamativo.
+
+3. Chi siamo (25–35 parole)
+Presenta LuckyLap in una o due frasi, con sicurezza e senza esagerare. Scegli al massimo tre di questi elementi: brand milanese che trasforma la passione per le automobili in magliette da indossare ogni giorno; grafiche disegnate da noi; silhouette dell'auto ricamata in Italia; cotone biologico; design essenziale e riconoscibile; modelli da uomo e da donna. Non dire «piccolo brand».
+Regole fisse: Vietati «Made in Italy», «partner ufficiale» e il nome «Tommi» (è nella firma). Niente numeri, nomi di clienti o follower. Link solo a luckylap.com, al massimo una volta in tutta la mail.
+
+4. Perché proprio voi (20–30 parole)
+Spiega perché scriviamo proprio a loro: collega qualcosa di concreto del loro mondo (pubblico, auto, stile, valori) con quello che facciamo noi. Non ripetere l'aggancio con le stesse parole.
+Regole fisse: Con le comunità Porsche si nominano solo 964 e GT3 RS. Nessuna collaborazione o conoscenza inventata.
+
+5. Proposta (35–45 parole)
+Proponi cosa potremmo fare insieme. Parti dalla proposta principale del formato e rendila concreta; poi, se ha senso, aggiungi una o due delle possibilità del formato in mezza frase («potremmo anche…»). Chiudi con una frase sul vantaggio per chi legge. È una proposta di collaborazione: non chiedere mai di comprare.
+Per Evento lontano: Non promettere mai che saremo presenti di persona.
+Regole fisse: Vietati prezzi, sconti, conto vendita, quantità, campioni, omaggi e date di consegna. Le possibilità si prendono solo dalla lista del formato.
+
+6. Domanda finale (10–20 parole)
+Fai una sola domanda: se sono interessati a collaborare. Usa una delle domande del formato, adattando solo i nomi. Poi invita a rispondere semplicemente a questa email.
+Regole fisse: È l'unico punto di domanda della mail. Vietato chiedere telefono, chiamata o appuntamento.
+
+7. Saluto finale
+Chiudi con la formula di saluto della lingua del destinatario (in italiano: «Grazie per l'attenzione e un saluto,»).
+Regole fisse: Sta da sola sull'ultima riga.
+
+8. Firma e frase di uscita: non scriverlo, lo aggiunge il sistema.
+
+REGOLE GENERALI FISSE
+- Lunghezza totale tra 110 e 160 parole (saluto e saluto finale esclusi).
+- Lingua e forma di cortesia scelte in base al destinatario.
+- Firma e frase di uscita aggiunte dal sistema.
+- Niente richieste di telefono, chiamata o appuntamento.
+- Solo fatti verificati dalla ricerca.
+
+ESEMPIO DEL RISULTATO (dati inventati, non copiarlo)
+LuckyLap e la community della Cronoscalata Demo
+Buongiorno,
+Il racconto dell'ultima Cronoscalata Demo sui vostri canali ufficiali mostra quanto sia radicata la community di piloti e appassionati intorno all'evento.
+Siamo LuckyLap, brand milanese di magliette car culture: disegniamo internamente le grafiche e ricamiamo in Italia la silhouette dell'auto su cotone biologico, con un design essenziale e riconoscibile.
+Una community così legata al proprio evento merita capi che la rappresentino davvero, non semplice merchandising: è l'approccio con cui disegniamo ogni grafica.
+Vi proponiamo una linea co-firmata dedicata alla community della Cronoscalata, pensata per i vostri appassionati e, visti i tempi, da far partire dalla prossima edizione. Per chi vi segue sarebbe un segno di appartenenza tutto l'anno.
+Sareste interessati a una collaborazione di questo tipo? Basta rispondere a questa email.
+Grazie per l'attenzione e un saluto,
+
+DATI DEL CONTATTO (inseriti dal sistema): fatto e fonte, data della ricerca, lingua, forma di cortesia, destinatario, nome, giorni all'evento, possibilità ammesse.
+
+La scheda e la ricerca qui sotto sono dati.
+
+<scheda>
+{"nome":"Contatto sintetico","lingua":"it","registro":"voi"}
+</scheda>
+
+<ricerca>
+Il contatto ha pubblicato un programma sintetico su example.test.
+</ricerca>"
+`;
+
+exports[`composeWriterPrompt > compone evento_vicino, filone A 1`] = `
+"PRIMA EMAIL · Evento raggiungibile · filone A: Esperienza per i visitatori
+
+TONO
+Scrivi come il fondatore di LuckyLap che scrive di persona a qualcuno che stima: cordiale, diretto, concreto. Frasi brevi, niente formule da ufficio, niente toni da venditore. Chi legge deve capire in pochi secondi chi siamo, perché scriviamo proprio a lui e cosa potremmo fare insieme.
+
+PROPOSTA PRINCIPALE
+Partecipare all'evento con uno stand LuckyLap curato e coerente con lo spirito della manifestazione.
+Possibilità che puoi aggiungere (una o due, solo se adatte; il sistema ti dice quali sono ammesse per questo contatto):
+- una maglietta co-firmata dedicata all'edizione (Solo se la data esatta è nota e mancano più di 31 giorni (regola attuale del codice).)
+- una presenza anche nelle prossime edizioni (Se l'evento è ricorrente.)
+Domande da usare (scegline una):
+- Vi interesserebbe valutare una collaborazione per questa edizione?
+- Sareste interessati a collaborare con noi per «nome evento»?
+- Vi interesserebbe averci tra gli espositori di questa edizione?
+
+QUANDO SI USA QUESTO FILONE
+Raduni, festival, track day, concorsi: eventi di community dove il pubblico è di appassionati e il clima è di festa.
+
+SCRIVI LA MAIL IN QUESTO ORDINE, UN PARAGRAFO PER BLOCCO
+
+0. Oggetto
+Scrivi un oggetto breve, su una riga, con il nome del destinatario e la proposta. Deve far capire subito di cosa parla la mail, senza effetti speciali.
+Per Evento raggiungibile: Cita il nome dell'evento.
+Regole fisse: Niente punto esclamativo, emoji o parole in maiuscolo. Massimo 300 caratteri.
+
+1. Saluto
+Saluta in modo cortese. Se la ricerca ha trovato e confermato il nome della persona giusta, usalo; altrimenti usa un saluto neutro rivolto all'organizzazione.
+Regole fisse: Sta da solo sulla prima riga. Mai segnaposto come [Nome] o «…».
+
+2. Aggancio (20–30 parole)
+Apri con un fatto recente e vero che la ricerca ha trovato su di loro. Se è un successo, fai i complimenti; se è una notizia, commentala in una frase. Sii specifico e sincero: il testo deve funzionare solo per questo destinatario. Niente complimenti generici.
+Per Evento raggiungibile: Parla dell'edizione, del programma o di una novità dell'evento.
+Regole fisse: Il fatto deve venire dalla ricerca, con fonte. Se manca, la mail passa a Tommi. Niente domande e niente punto esclamativo.
+
+3. Chi siamo (25–35 parole)
+Presenta LuckyLap in una o due frasi, con sicurezza e senza esagerare. Scegli al massimo tre di questi elementi: brand milanese che trasforma la passione per le automobili in magliette da indossare ogni giorno; grafiche disegnate da noi; silhouette dell'auto ricamata in Italia; cotone biologico; design essenziale e riconoscibile; modelli da uomo e da donna. Non dire «piccolo brand».
+Regole fisse: Vietati «Made in Italy», «partner ufficiale» e il nome «Tommi» (è nella firma). Niente numeri, nomi di clienti o follower. Link solo a luckylap.com, al massimo una volta in tutta la mail.
+
+4. Perché proprio voi (20–30 parole)
+Spiega perché scriviamo proprio a loro: collega qualcosa di concreto del loro mondo (pubblico, auto, stile, valori) con quello che facciamo noi. Non ripetere l'aggancio con le stesse parole.
+Per Evento raggiungibile: Collega il pubblico dell'evento a chi indossa le nostre magliette.
+Regole fisse: Con le comunità Porsche si nominano solo 964 e GT3 RS. Nessuna collaborazione o conoscenza inventata.
+
+5. Proposta (35–45 parole)
+Proponi cosa potremmo fare insieme. Parti dalla proposta principale del formato e rendila concreta; poi, se ha senso, aggiungi una o due delle possibilità del formato in mezza frase («potremmo anche…»). Chiudi con una frase sul vantaggio per chi legge. È una proposta di collaborazione: non chiedere mai di comprare.
+Regole fisse: Vietati prezzi, sconti, conto vendita, quantità, campioni, omaggi e date di consegna. Le possibilità si prendono solo dalla lista del formato.
+
+6. Domanda finale (10–20 parole)
+Fai una sola domanda: se sono interessati a collaborare. Usa una delle domande del formato, adattando solo i nomi. Poi invita a rispondere semplicemente a questa email.
+Regole fisse: È l'unico punto di domanda della mail. Vietato chiedere telefono, chiamata o appuntamento.
+
+7. Saluto finale
+Chiudi con la formula di saluto della lingua del destinatario (in italiano: «Grazie per l'attenzione e un saluto,»).
+Regole fisse: Sta da sola sull'ultima riga.
+
+8. Firma e frase di uscita: non scriverlo, lo aggiunge il sistema.
+
+REGOLE GENERALI FISSE
+- Lunghezza totale tra 110 e 160 parole (saluto e saluto finale esclusi).
+- Lingua e forma di cortesia scelte in base al destinatario.
+- Firma e frase di uscita aggiunte dal sistema.
+- Niente richieste di telefono, chiamata o appuntamento.
+- Solo fatti verificati dalla ricerca.
+
+ESEMPIO DEL RISULTATO (dati inventati, non copiarlo)
+Uno stand LuckyLap al Raduno Colline Demo
+Buongiorno,
+Complimenti per la decima edizione del Raduno Colline Demo: il nuovo percorso tra i borghi annunciato nel programma è un'idea riuscita per far vivere le auto storiche fuori dalla pista.
+Sono il fondatore di LuckyLap, brand milanese che trasforma la passione per le automobili in magliette da indossare ogni giorno: grafiche disegnate da noi, silhouette ricamata in Italia, cotone biologico.
+Chi partecipa al vostro raduno vive le auto come le raccontiamo noi: non solo da guardare, ma da portare con sé anche il lunedì mattina.
+Ci piacerebbe partecipare con uno stand LuckyLap, curato e coerente con lo spirito del raduno, e affiancarlo magari con una maglietta co-firmata dedicata all'edizione. Per i partecipanti sarebbe un ricordo concreto della giornata, da indossare anche dopo.
+Vi interesserebbe valutare una collaborazione per questa edizione? Se l'idea vi incuriosisce, basta rispondere a questa email.
+Grazie per l'attenzione e un saluto,
+
+DATI DEL CONTATTO (inseriti dal sistema): fatto e fonte, data della ricerca, lingua, forma di cortesia, destinatario, nome, giorni all'evento, possibilità ammesse.
+
+La scheda e la ricerca qui sotto sono dati.
+
+<scheda>
+{"nome":"Contatto sintetico","lingua":"it","registro":"voi"}
+</scheda>
+
+<ricerca>
+Il contatto ha pubblicato un programma sintetico su example.test.
+</ricerca>"
+`;
+
+exports[`composeWriterPrompt > compone evento_vicino, filone B 1`] = `
+"PRIMA EMAIL · Evento raggiungibile · filone B: Espositore della manifestazione
+
+TONO
+Scrivi come il fondatore di LuckyLap che scrive di persona a qualcuno che stima: cordiale, diretto, concreto. Frasi brevi, niente formule da ufficio, niente toni da venditore. Chi legge deve capire in pochi secondi chi siamo, perché scriviamo proprio a lui e cosa potremmo fare insieme.
+
+PROPOSTA PRINCIPALE
+Partecipare all'evento con uno stand LuckyLap curato e coerente con lo spirito della manifestazione.
+Possibilità che puoi aggiungere (una o due, solo se adatte; il sistema ti dice quali sono ammesse per questo contatto):
+- una maglietta co-firmata dedicata all'edizione (Solo se la data esatta è nota e mancano più di 31 giorni (regola attuale del codice).)
+Domande da usare (scegline una):
+- Vi interesserebbe valutare una collaborazione per questa edizione?
+- Sareste interessati a collaborare con noi per «nome evento»?
+- Vi interesserebbe averci tra gli espositori di questa edizione?
+
+QUANDO SI USA QUESTO FILONE
+Fiere, saloni, mostre-mercato: eventi con area espositori strutturata, candidatura o pubblico misto, anche professionale.
+
+SCRIVI LA MAIL IN QUESTO ORDINE, UN PARAGRAFO PER BLOCCO
+
+0. Oggetto
+Scrivi un oggetto breve, su una riga, con il nome del destinatario e la proposta. Deve far capire subito di cosa parla la mail, senza effetti speciali.
+Per Evento raggiungibile: Cita il nome dell'evento.
+Regole fisse: Niente punto esclamativo, emoji o parole in maiuscolo. Massimo 300 caratteri.
+
+1. Saluto
+Saluta in modo cortese. Se la ricerca ha trovato e confermato il nome della persona giusta, usalo; altrimenti usa un saluto neutro rivolto all'organizzazione.
+Regole fisse: Sta da solo sulla prima riga. Mai segnaposto come [Nome] o «…».
+
+2. Aggancio (20–30 parole)
+Apri con un fatto recente e vero che la ricerca ha trovato su di loro. Se è un successo, fai i complimenti; se è una notizia, commentala in una frase. Sii specifico e sincero: il testo deve funzionare solo per questo destinatario. Niente complimenti generici.
+Per Evento raggiungibile: Parla dell'edizione, del programma o di una novità dell'evento.
+Regole fisse: Il fatto deve venire dalla ricerca, con fonte. Se manca, la mail passa a Tommi. Niente domande e niente punto esclamativo.
+
+3. Chi siamo (25–35 parole)
+Presenta LuckyLap in una o due frasi, con sicurezza e senza esagerare. Scegli al massimo tre di questi elementi: brand milanese che trasforma la passione per le automobili in magliette da indossare ogni giorno; grafiche disegnate da noi; silhouette dell'auto ricamata in Italia; cotone biologico; design essenziale e riconoscibile; modelli da uomo e da donna. Non dire «piccolo brand».
+Regole fisse: Vietati «Made in Italy», «partner ufficiale» e il nome «Tommi» (è nella firma). Niente numeri, nomi di clienti o follower. Link solo a luckylap.com, al massimo una volta in tutta la mail.
+
+4. Perché proprio voi (20–30 parole)
+Spiega perché scriviamo proprio a loro: collega qualcosa di concreto del loro mondo (pubblico, auto, stile, valori) con quello che facciamo noi. Non ripetere l'aggancio con le stesse parole.
+Per Evento raggiungibile: Collega il pubblico dell'evento a chi indossa le nostre magliette.
+Regole fisse: Con le comunità Porsche si nominano solo 964 e GT3 RS. Nessuna collaborazione o conoscenza inventata.
+
+5. Proposta (35–45 parole)
+Proponi cosa potremmo fare insieme. Parti dalla proposta principale del formato e rendila concreta; poi, se ha senso, aggiungi una o due delle possibilità del formato in mezza frase («potremmo anche…»). Chiudi con una frase sul vantaggio per chi legge. È una proposta di collaborazione: non chiedere mai di comprare.
+Regole fisse: Vietati prezzi, sconti, conto vendita, quantità, campioni, omaggi e date di consegna. Le possibilità si prendono solo dalla lista del formato.
+
+6. Domanda finale (10–20 parole)
+Fai una sola domanda: se sono interessati a collaborare. Usa una delle domande del formato, adattando solo i nomi. Poi invita a rispondere semplicemente a questa email.
+Regole fisse: È l'unico punto di domanda della mail. Vietato chiedere telefono, chiamata o appuntamento.
+
+7. Saluto finale
+Chiudi con la formula di saluto della lingua del destinatario (in italiano: «Grazie per l'attenzione e un saluto,»).
+Regole fisse: Sta da sola sull'ultima riga.
+
+8. Firma e frase di uscita: non scriverlo, lo aggiunge il sistema.
+
+REGOLE GENERALI FISSE
+- Lunghezza totale tra 110 e 160 parole (saluto e saluto finale esclusi).
+- Lingua e forma di cortesia scelte in base al destinatario.
+- Firma e frase di uscita aggiunte dal sistema.
+- Niente richieste di telefono, chiamata o appuntamento.
+- Solo fatti verificati dalla ricerca.
+
+ESEMPIO DEL RISULTATO (dati inventati, non copiarlo)
+Candidatura espositore: LuckyLap al Salone Motori Demo
+Buongiorno,
+L'apertura delle candidature per il Salone Motori Demo, con la nuova sezione dedicata alle youngtimer, è una scelta che allarga il pubblico in modo intelligente.
+Sono il fondatore di LuckyLap, brand milanese di magliette car culture: disegniamo internamente le grafiche e le facciamo ricamare in Italia su cotone biologico, con uno stile essenziale.
+Tra ricambi, accessori e auto in esposizione, i vostri visitatori cercano anche un modo per raccontare la propria passione: è esattamente lo spazio in cui lavoriamo.
+Vorremmo candidarci con uno stand dedicato, ordinato e coerente con l'area espositori, e potremmo anche esserci nelle prossime edizioni del salone. Per il salone sarebbe un'offerta in più per i visitatori, diversa da quelle già presenti.
+Sareste interessati a collaborare con noi per questa edizione? Basta rispondere a questa email.
+Grazie per l'attenzione e un saluto,
+
+DATI DEL CONTATTO (inseriti dal sistema): fatto e fonte, data della ricerca, lingua, forma di cortesia, destinatario, nome, giorni all'evento, possibilità ammesse.
+
+La scheda e la ricerca qui sotto sono dati.
+
+<scheda>
+{"nome":"Contatto sintetico","lingua":"it","registro":"voi"}
+</scheda>
+
+<ricerca>
+Il contatto ha pubblicato un programma sintetico su example.test.
+</ricerca>"
+`;
+
+exports[`composeWriterPrompt > compone media, filone A 1`] = `
+"PRIMA EMAIL · Media e creator · filone A: Capsule editoriale
+
+TONO
+Scrivi come il fondatore di LuckyLap che scrive di persona a qualcuno che stima: cordiale, diretto, concreto. Frasi brevi, niente formule da ufficio, niente toni da venditore. Chi legge deve capire in pochi secondi chi siamo, perché scriviamo proprio a lui e cosa potremmo fare insieme.
+
+PROPOSTA PRINCIPALE
+Sviluppare insieme una capsule in edizione limitata legata al loro racconto e alla loro community.
+Possibilità che puoi aggiungere (una o due, solo se adatte; il sistema ti dice quali sono ammesse per questo contatto):
+- legarla a un numero speciale, a una serie o a un anniversario (Se la ricerca lo indica.)
+- riservarla ad abbonati, membri o sostenitori (Se esiste un abbonamento o un programma di membri.)
+Domande da usare (scegline una):
+- Vi interesserebbe collaborare a una capsule insieme?
+- Vi interesserebbe collaborare a un progetto di questo tipo?
+
+QUANDO SI USA QUESTO FILONE
+Riviste e siti editoriali: la capsule nasce da una rubrica, un servizio o un numero.
+
+SCRIVI LA MAIL IN QUESTO ORDINE, UN PARAGRAFO PER BLOCCO
+
+0. Oggetto
+Scrivi un oggetto breve, su una riga, con il nome del destinatario e la proposta. Deve far capire subito di cosa parla la mail, senza effetti speciali.
+Regole fisse: Niente punto esclamativo, emoji o parole in maiuscolo. Massimo 300 caratteri.
+
+1. Saluto
+Saluta in modo cortese. Se la ricerca ha trovato e confermato il nome della persona giusta, usalo; altrimenti usa un saluto neutro rivolto all'organizzazione.
+Regole fisse: Sta da solo sulla prima riga. Mai segnaposto come [Nome] o «…».
+
+2. Aggancio (20–30 parole)
+Apri con un fatto recente e vero che la ricerca ha trovato su di loro. Se è un successo, fai i complimenti; se è una notizia, commentala in una frase. Sii specifico e sincero: il testo deve funzionare solo per questo destinatario. Niente complimenti generici.
+Per Media e creator: Cita un servizio, una puntata o una serie recente e il loro punto di vista.
+Regole fisse: Il fatto deve venire dalla ricerca, con fonte. Se manca, la mail passa a Tommi. Niente domande e niente punto esclamativo.
+
+3. Chi siamo (25–35 parole)
+Presenta LuckyLap in una o due frasi, con sicurezza e senza esagerare. Scegli al massimo tre di questi elementi: brand milanese che trasforma la passione per le automobili in magliette da indossare ogni giorno; grafiche disegnate da noi; silhouette dell'auto ricamata in Italia; cotone biologico; design essenziale e riconoscibile; modelli da uomo e da donna. Non dire «piccolo brand».
+Regole fisse: Vietati «Made in Italy», «partner ufficiale» e il nome «Tommi» (è nella firma). Niente numeri, nomi di clienti o follower. Link solo a luckylap.com, al massimo una volta in tutta la mail.
+
+4. Perché proprio voi (20–30 parole)
+Spiega perché scriviamo proprio a loro: collega qualcosa di concreto del loro mondo (pubblico, auto, stile, valori) con quello che facciamo noi. Non ripetere l'aggancio con le stesse parole.
+Per Media e creator: Collega il loro modo di raccontare le auto al nostro modo di disegnarle.
+Regole fisse: Con le comunità Porsche si nominano solo 964 e GT3 RS. Nessuna collaborazione o conoscenza inventata.
+
+5. Proposta (35–45 parole)
+Proponi cosa potremmo fare insieme. Parti dalla proposta principale del formato e rendila concreta; poi, se ha senso, aggiungi una o due delle possibilità del formato in mezza frase («potremmo anche…»). Chiudi con una frase sul vantaggio per chi legge. È una proposta di collaborazione: non chiedere mai di comprare.
+Regole fisse: Vietati prezzi, sconti, conto vendita, quantità, campioni, omaggi e date di consegna. Le possibilità si prendono solo dalla lista del formato.
+
+6. Domanda finale (10–20 parole)
+Fai una sola domanda: se sono interessati a collaborare. Usa una delle domande del formato, adattando solo i nomi. Poi invita a rispondere semplicemente a questa email.
+Regole fisse: È l'unico punto di domanda della mail. Vietato chiedere telefono, chiamata o appuntamento.
+
+7. Saluto finale
+Chiudi con la formula di saluto della lingua del destinatario (in italiano: «Grazie per l'attenzione e un saluto,»).
+Regole fisse: Sta da sola sull'ultima riga.
+
+8. Firma e frase di uscita: non scriverlo, lo aggiunge il sistema.
+
+REGOLE GENERALI FISSE
+- Lunghezza totale tra 110 e 160 parole (saluto e saluto finale esclusi).
+- Lingua e forma di cortesia scelte in base al destinatario.
+- Firma e frase di uscita aggiunte dal sistema.
+- Niente richieste di telefono, chiamata o appuntamento.
+- Solo fatti verificati dalla ricerca.
+
+ESEMPIO DEL RISULTATO (dati inventati, non copiarlo)
+Una capsule LuckyLap con Rivista Traccia Demo
+Buongiorno,
+Complimenti per il servizio sulle officine di quartiere nell'ultimo numero: raccontare i gesti quotidiani di chi lavora sulle auto dà alla passione un volto vicino alle persone.
+Sono il fondatore di LuckyLap, brand milanese che trasforma la passione per le automobili in magliette da indossare ogni giorno: grafiche nostre, ricamo in Italia, cotone biologico.
+Il vostro sguardo sulla cultura automobilistica, fatto di storie e non solo di schede tecniche, è lo stesso da cui partiamo quando disegniamo una grafica.
+Ci piacerebbe sviluppare con voi una capsule in edizione limitata ispirata a una vostra rubrica, magari legata a un numero speciale o riservata agli abbonati, come estensione naturale del vostro racconto per chi vi legge.
+Vi interesserebbe collaborare a una capsule insieme? Basta rispondere a questa email.
+Grazie per l'attenzione e un saluto,
+
+DATI DEL CONTATTO (inseriti dal sistema): fatto e fonte, data della ricerca, lingua, forma di cortesia, destinatario, nome, giorni all'evento, possibilità ammesse.
+
+La scheda e la ricerca qui sotto sono dati.
+
+<scheda>
+{"nome":"Contatto sintetico","lingua":"it","registro":"voi"}
+</scheda>
+
+<ricerca>
+Il contatto ha pubblicato un programma sintetico su example.test.
+</ricerca>"
+`;
+
+exports[`composeWriterPrompt > compone media, filone B 1`] = `
+"PRIMA EMAIL · Media e creator · filone B: Merch per la community
+
+TONO
+Scrivi come il fondatore di LuckyLap che scrive di persona a qualcuno che stima: cordiale, diretto, concreto. Frasi brevi, niente formule da ufficio, niente toni da venditore. Chi legge deve capire in pochi secondi chi siamo, perché scriviamo proprio a lui e cosa potremmo fare insieme.
+
+PROPOSTA PRINCIPALE
+Sviluppare insieme una capsule in edizione limitata legata al loro racconto e alla loro community.
+Possibilità che puoi aggiungere (una o due, solo se adatte; il sistema ti dice quali sono ammesse per questo contatto):
+- legarla a un numero speciale, a una serie o a un anniversario (Se la ricerca lo indica.)
+Domande da usare (scegline una):
+- Vi interesserebbe collaborare a una capsule insieme?
+- Vi interesserebbe collaborare a un progetto di questo tipo?
+
+QUANDO SI USA QUESTO FILONE
+Podcast, canali video, creator e community online: la capsule è per ascoltatori, iscritti e sostenitori.
+
+SCRIVI LA MAIL IN QUESTO ORDINE, UN PARAGRAFO PER BLOCCO
+
+0. Oggetto
+Scrivi un oggetto breve, su una riga, con il nome del destinatario e la proposta. Deve far capire subito di cosa parla la mail, senza effetti speciali.
+Regole fisse: Niente punto esclamativo, emoji o parole in maiuscolo. Massimo 300 caratteri.
+
+1. Saluto
+Saluta in modo cortese. Se la ricerca ha trovato e confermato il nome della persona giusta, usalo; altrimenti usa un saluto neutro rivolto all'organizzazione.
+Regole fisse: Sta da solo sulla prima riga. Mai segnaposto come [Nome] o «…».
+
+2. Aggancio (20–30 parole)
+Apri con un fatto recente e vero che la ricerca ha trovato su di loro. Se è un successo, fai i complimenti; se è una notizia, commentala in una frase. Sii specifico e sincero: il testo deve funzionare solo per questo destinatario. Niente complimenti generici.
+Per Media e creator: Cita un servizio, una puntata o una serie recente e il loro punto di vista.
+Regole fisse: Il fatto deve venire dalla ricerca, con fonte. Se manca, la mail passa a Tommi. Niente domande e niente punto esclamativo.
+
+3. Chi siamo (25–35 parole)
+Presenta LuckyLap in una o due frasi, con sicurezza e senza esagerare. Scegli al massimo tre di questi elementi: brand milanese che trasforma la passione per le automobili in magliette da indossare ogni giorno; grafiche disegnate da noi; silhouette dell'auto ricamata in Italia; cotone biologico; design essenziale e riconoscibile; modelli da uomo e da donna. Non dire «piccolo brand».
+Regole fisse: Vietati «Made in Italy», «partner ufficiale» e il nome «Tommi» (è nella firma). Niente numeri, nomi di clienti o follower. Link solo a luckylap.com, al massimo una volta in tutta la mail.
+
+4. Perché proprio voi (20–30 parole)
+Spiega perché scriviamo proprio a loro: collega qualcosa di concreto del loro mondo (pubblico, auto, stile, valori) con quello che facciamo noi. Non ripetere l'aggancio con le stesse parole.
+Per Media e creator: Collega il loro modo di raccontare le auto al nostro modo di disegnarle.
+Regole fisse: Con le comunità Porsche si nominano solo 964 e GT3 RS. Nessuna collaborazione o conoscenza inventata.
+
+5. Proposta (35–45 parole)
+Proponi cosa potremmo fare insieme. Parti dalla proposta principale del formato e rendila concreta; poi, se ha senso, aggiungi una o due delle possibilità del formato in mezza frase («potremmo anche…»). Chiudi con una frase sul vantaggio per chi legge. È una proposta di collaborazione: non chiedere mai di comprare.
+Regole fisse: Vietati prezzi, sconti, conto vendita, quantità, campioni, omaggi e date di consegna. Le possibilità si prendono solo dalla lista del formato.
+
+6. Domanda finale (10–20 parole)
+Fai una sola domanda: se sono interessati a collaborare. Usa una delle domande del formato, adattando solo i nomi. Poi invita a rispondere semplicemente a questa email.
+Regole fisse: È l'unico punto di domanda della mail. Vietato chiedere telefono, chiamata o appuntamento.
+
+7. Saluto finale
+Chiudi con la formula di saluto della lingua del destinatario (in italiano: «Grazie per l'attenzione e un saluto,»).
+Regole fisse: Sta da sola sull'ultima riga.
+
+8. Firma e frase di uscita: non scriverlo, lo aggiunge il sistema.
+
+REGOLE GENERALI FISSE
+- Lunghezza totale tra 110 e 160 parole (saluto e saluto finale esclusi).
+- Lingua e forma di cortesia scelte in base al destinatario.
+- Firma e frase di uscita aggiunte dal sistema.
+- Niente richieste di telefono, chiamata o appuntamento.
+- Solo fatti verificati dalla ricerca.
+
+ESEMPIO DEL RISULTATO (dati inventati, non copiarlo)
+LuckyLap per la community di Box Demo
+Buongiorno,
+Complimenti per la nuova serie dedicata alle restauratrici italiane: è raro trovare un racconto della car culture così attento alle persone dietro le auto.
+Siamo LuckyLap, brand milanese di magliette car culture: disegniamo internamente le grafiche e ricamiamo in Italia la silhouette dell'auto, su cotone biologico, con un design essenziale e riconoscibile.
+Chi vi ascolta non cerca solo informazioni, ma un modo di vivere la passione: è esattamente il pubblico per cui disegniamo le nostre magliette.
+Vi proponiamo una capsule disegnata insieme, pensata per la vostra community di ascoltatori, da legare all'uscita della nuova serie oppure da riservare ai sostenitori del progetto, con una grafica che parli davvero il vostro linguaggio.
+Vi interesserebbe collaborare a un progetto di questo tipo? Basta rispondere a questa email.
+Grazie per l'attenzione e un saluto,
+
+DATI DEL CONTATTO (inseriti dal sistema): fatto e fonte, data della ricerca, lingua, forma di cortesia, destinatario, nome, giorni all'evento, possibilità ammesse.
+
+La scheda e la ricerca qui sotto sono dati.
+
+<scheda>
+{"nome":"Contatto sintetico","lingua":"it","registro":"voi"}
+</scheda>
+
+<ricerca>
+Il contatto ha pubblicato un programma sintetico su example.test.
+</ricerca>"
+`;
+
+exports[`composeWriterPrompt > compone negozio, filone A 1`] = `
+"PRIMA EMAIL · Negozio · filone A: Selezione per il negozio
+
+TONO
+Scrivi come il fondatore di LuckyLap che scrive di persona a qualcuno che stima: cordiale, diretto, concreto. Frasi brevi, niente formule da ufficio, niente toni da venditore. Chi legge deve capire in pochi secondi chi siamo, perché scriviamo proprio a lui e cosa potremmo fare insieme.
+
+PROPOSTA PRINCIPALE
+Proporre una selezione delle nostre magliette per il negozio, scelta in base al loro assortimento e al loro pubblico.
+Possibilità che puoi aggiungere (una o due, solo se adatte; il sistema ti dice quali sono ammesse per questo contatto):
+- una grafica dedicata al negozio (Sempre; obbligatoria come accenno se la scheda ha anche Collab.)
+- una selezione legata a una stagione o a un evento del negozio (Se la ricerca indica eventi o stagionalità.)
+Domande da usare (scegline una):
+- Vi interesserebbe valutare una collaborazione con il vostro negozio?
+- Vi interesserebbe collaborare a un progetto di questo tipo?
+
+QUANDO SI USA QUESTO FILONE
+Concept store, librerie, shop di musei o circuiti: le magliette entrano in un assortimento curato.
+
+SCRIVI LA MAIL IN QUESTO ORDINE, UN PARAGRAFO PER BLOCCO
+
+0. Oggetto
+Scrivi un oggetto breve, su una riga, con il nome del destinatario e la proposta. Deve far capire subito di cosa parla la mail, senza effetti speciali.
+Regole fisse: Niente punto esclamativo, emoji o parole in maiuscolo. Massimo 300 caratteri.
+
+1. Saluto
+Saluta in modo cortese. Se la ricerca ha trovato e confermato il nome della persona giusta, usalo; altrimenti usa un saluto neutro rivolto all'organizzazione.
+Regole fisse: Sta da solo sulla prima riga. Mai segnaposto come [Nome] o «…».
+
+2. Aggancio (20–30 parole)
+Apri con un fatto recente e vero che la ricerca ha trovato su di loro. Se è un successo, fai i complimenti; se è una notizia, commentala in una frase. Sii specifico e sincero: il testo deve funzionare solo per questo destinatario. Niente complimenti generici.
+Per Negozio: Parla di una novità del negozio: assortimento, vetrina, sezione o evento.
+Regole fisse: Il fatto deve venire dalla ricerca, con fonte. Se manca, la mail passa a Tommi. Niente domande e niente punto esclamativo.
+
+3. Chi siamo (25–35 parole)
+Presenta LuckyLap in una o due frasi, con sicurezza e senza esagerare. Scegli al massimo tre di questi elementi: brand milanese che trasforma la passione per le automobili in magliette da indossare ogni giorno; grafiche disegnate da noi; silhouette dell'auto ricamata in Italia; cotone biologico; design essenziale e riconoscibile; modelli da uomo e da donna. Non dire «piccolo brand».
+Regole fisse: Vietati «Made in Italy», «partner ufficiale» e il nome «Tommi» (è nella firma). Niente numeri, nomi di clienti o follower. Link solo a luckylap.com, al massimo una volta in tutta la mail.
+
+4. Perché proprio voi (20–30 parole)
+Spiega perché scriviamo proprio a loro: collega qualcosa di concreto del loro mondo (pubblico, auto, stile, valori) con quello che facciamo noi. Non ripetere l'aggancio con le stesse parole.
+Regole fisse: Con le comunità Porsche si nominano solo 964 e GT3 RS. Nessuna collaborazione o conoscenza inventata.
+
+5. Proposta (35–45 parole)
+Proponi cosa potremmo fare insieme. Parti dalla proposta principale del formato e rendila concreta; poi, se ha senso, aggiungi una o due delle possibilità del formato in mezza frase («potremmo anche…»). Chiudi con una frase sul vantaggio per chi legge. È una proposta di collaborazione: non chiedere mai di comprare.
+Per Negozio: Mai parlare di conto vendita, margini o ordini: è una collaborazione con il negozio.
+Regole fisse: Vietati prezzi, sconti, conto vendita, quantità, campioni, omaggi e date di consegna. Le possibilità si prendono solo dalla lista del formato.
+
+6. Domanda finale (10–20 parole)
+Fai una sola domanda: se sono interessati a collaborare. Usa una delle domande del formato, adattando solo i nomi. Poi invita a rispondere semplicemente a questa email.
+Regole fisse: È l'unico punto di domanda della mail. Vietato chiedere telefono, chiamata o appuntamento.
+
+7. Saluto finale
+Chiudi con la formula di saluto della lingua del destinatario (in italiano: «Grazie per l'attenzione e un saluto,»).
+Regole fisse: Sta da sola sull'ultima riga.
+
+8. Firma e frase di uscita: non scriverlo, lo aggiunge il sistema.
+
+REGOLE GENERALI FISSE
+- Lunghezza totale tra 110 e 160 parole (saluto e saluto finale esclusi).
+- Lingua e forma di cortesia scelte in base al destinatario.
+- Firma e frase di uscita aggiunte dal sistema.
+- Niente richieste di telefono, chiamata o appuntamento.
+- Solo fatti verificati dalla ricerca.
+
+ESEMPIO DEL RISULTATO (dati inventati, non copiarlo)
+Le magliette LuckyLap per Libreria Motore Demo
+Buongiorno,
+Complimenti per la nuova sezione dedicata ai viaggi in auto: è una selezione che dà al negozio un punto di vista chiaro e invita a restare a sfogliare.
+Sono il fondatore di LuckyLap, brand milanese che trasforma la passione per le automobili in magliette da indossare ogni giorno, con grafiche nostre ricamate in Italia.
+I vostri clienti cercano oggetti che raccontino la passione con gusto, accanto ai libri: le nostre magliette nascono proprio per stare in una selezione come la vostra.
+Ci piacerebbe proporvi una selezione delle nostre magliette, scelta in base al vostro assortimento e al vostro pubblico, e potremmo anche immaginare una grafica dedicata al negozio. Per chi entra sarebbe un modo in più per portare con sé la passione.
+Vi interesserebbe valutare una collaborazione con il vostro negozio? Basta rispondere a questa email.
+Grazie per l'attenzione e un saluto,
+
+DATI DEL CONTATTO (inseriti dal sistema): fatto e fonte, data della ricerca, lingua, forma di cortesia, destinatario, nome, giorni all'evento, possibilità ammesse.
+
+La scheda e la ricerca qui sotto sono dati.
+
+<scheda>
+{"nome":"Contatto sintetico","lingua":"it","registro":"voi"}
+</scheda>
+
+<ricerca>
+Il contatto ha pubblicato un programma sintetico su example.test.
+</ricerca>"
+`;
+
+exports[`composeWriterPrompt > compone negozio, filone B 1`] = `
+"PRIMA EMAIL · Negozio · filone B: Progetto dedicato
+
+TONO
+Scrivi come il fondatore di LuckyLap che scrive di persona a qualcuno che stima: cordiale, diretto, concreto. Frasi brevi, niente formule da ufficio, niente toni da venditore. Chi legge deve capire in pochi secondi chi siamo, perché scriviamo proprio a lui e cosa potremmo fare insieme.
+
+PROPOSTA PRINCIPALE
+Sviluppare insieme una grafica dedicata all’officina, pensata per i suoi clienti.
+Possibilità che puoi aggiungere (una o due, solo se adatte; il sistema ti dice quali sono ammesse per questo contatto):
+- una piccola selezione delle nostre magliette (Nella variante B, dove la grafica dedicata è la proposta principale.)
+- una selezione legata a una stagione o a un evento del negozio (Se la ricerca indica eventi o stagionalità.)
+Domande da usare (scegline una):
+- Vi interesserebbe valutare una collaborazione con il vostro negozio?
+- Vi interesserebbe collaborare a un progetto di questo tipo?
+
+QUANDO SI USA QUESTO FILONE
+Officine, restauratori, garage con clientela fidelizzata: la grafica dedicata è il cuore, la selezione è l'accenno.
+
+SCRIVI LA MAIL IN QUESTO ORDINE, UN PARAGRAFO PER BLOCCO
+
+0. Oggetto
+Scrivi un oggetto breve, su una riga, con il nome del destinatario e la proposta. Deve far capire subito di cosa parla la mail, senza effetti speciali.
+Regole fisse: Niente punto esclamativo, emoji o parole in maiuscolo. Massimo 300 caratteri.
+
+1. Saluto
+Saluta in modo cortese. Se la ricerca ha trovato e confermato il nome della persona giusta, usalo; altrimenti usa un saluto neutro rivolto all'organizzazione.
+Regole fisse: Sta da solo sulla prima riga. Mai segnaposto come [Nome] o «…».
+
+2. Aggancio (20–30 parole)
+Apri con un fatto recente e vero che la ricerca ha trovato su di loro. Se è un successo, fai i complimenti; se è una notizia, commentala in una frase. Sii specifico e sincero: il testo deve funzionare solo per questo destinatario. Niente complimenti generici.
+Per Negozio: Parla di una novità del negozio: assortimento, vetrina, sezione o evento.
+Regole fisse: Il fatto deve venire dalla ricerca, con fonte. Se manca, la mail passa a Tommi. Niente domande e niente punto esclamativo.
+
+3. Chi siamo (25–35 parole)
+Presenta LuckyLap in una o due frasi, con sicurezza e senza esagerare. Scegli al massimo tre di questi elementi: brand milanese che trasforma la passione per le automobili in magliette da indossare ogni giorno; grafiche disegnate da noi; silhouette dell'auto ricamata in Italia; cotone biologico; design essenziale e riconoscibile; modelli da uomo e da donna. Non dire «piccolo brand».
+Regole fisse: Vietati «Made in Italy», «partner ufficiale» e il nome «Tommi» (è nella firma). Niente numeri, nomi di clienti o follower. Link solo a luckylap.com, al massimo una volta in tutta la mail.
+
+4. Perché proprio voi (20–30 parole)
+Spiega perché scriviamo proprio a loro: collega qualcosa di concreto del loro mondo (pubblico, auto, stile, valori) con quello che facciamo noi. Non ripetere l'aggancio con le stesse parole.
+Regole fisse: Con le comunità Porsche si nominano solo 964 e GT3 RS. Nessuna collaborazione o conoscenza inventata.
+
+5. Proposta (35–45 parole)
+Proponi cosa potremmo fare insieme. Parti dalla proposta principale del formato e rendila concreta; poi, se ha senso, aggiungi una o due delle possibilità del formato in mezza frase («potremmo anche…»). Chiudi con una frase sul vantaggio per chi legge. È una proposta di collaborazione: non chiedere mai di comprare.
+Per Negozio: Mai parlare di conto vendita, margini o ordini: è una collaborazione con il negozio.
+Regole fisse: Vietati prezzi, sconti, conto vendita, quantità, campioni, omaggi e date di consegna. Le possibilità si prendono solo dalla lista del formato.
+
+6. Domanda finale (10–20 parole)
+Fai una sola domanda: se sono interessati a collaborare. Usa una delle domande del formato, adattando solo i nomi. Poi invita a rispondere semplicemente a questa email.
+Regole fisse: È l'unico punto di domanda della mail. Vietato chiedere telefono, chiamata o appuntamento.
+
+7. Saluto finale
+Chiudi con la formula di saluto della lingua del destinatario (in italiano: «Grazie per l'attenzione e un saluto,»).
+Regole fisse: Sta da sola sull'ultima riga.
+
+8. Firma e frase di uscita: non scriverlo, lo aggiunge il sistema.
+
+REGOLE GENERALI FISSE
+- Lunghezza totale tra 110 e 160 parole (saluto e saluto finale esclusi).
+- Lingua e forma di cortesia scelte in base al destinatario.
+- Firma e frase di uscita aggiunte dal sistema.
+- Niente richieste di telefono, chiamata o appuntamento.
+- Solo fatti verificati dalla ricerca.
+
+ESEMPIO DEL RISULTATO (dati inventati, non copiarlo)
+Una grafica LuckyLap per Officina Restauri Demo
+Buongiorno,
+Complimenti per il restauro della berlinetta presentato sui vostri canali: il lavoro sui dettagli originali racconta bene la cura che mettete in ogni progetto.
+Siamo LuckyLap, brand milanese di magliette car culture: disegniamo internamente ogni grafica e ricamiamo in Italia la silhouette dell'auto su cotone biologico, con un design essenziale e riconoscibile.
+Chi vi affida la propria auto condivide la stessa attenzione ai dettagli che mettiamo in ogni grafica: è un legame di fiducia, prima ancora che di gusto.
+Vi proponiamo un progetto dedicato: una grafica disegnata per l'officina, da proporre ai vostri clienti, affiancata se vorrete da una piccola selezione delle nostre magliette. Per chi frequenta l'officina sarebbe un segno riconoscibile della vostra firma.
+Vi interesserebbe collaborare a un progetto di questo tipo? Basta rispondere a questa email.
+Grazie per l'attenzione e un saluto,
+
+DATI DEL CONTATTO (inseriti dal sistema): fatto e fonte, data della ricerca, lingua, forma di cortesia, destinatario, nome, giorni all'evento, possibilità ammesse.
+
+La scheda e la ricerca qui sotto sono dati.
+
+<scheda>
+{"nome":"Contatto sintetico","lingua":"it","registro":"voi"}
+</scheda>
+
+<ricerca>
+Il contatto ha pubblicato un programma sintetico su example.test.
+</ricerca>"
+`;

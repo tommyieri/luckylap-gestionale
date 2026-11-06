@@ -27,11 +27,12 @@ const config = {
 };
 const names = [
   "claim_partner_assistant_step",
-  "context_partner_assistant_step",
+  "context_partner_assistant_email_format_step",
   "checkpoint_partner_assistant_step",
   "record_partner_assistant_call",
   "complete_partner_assistant_research",
   "complete_partner_assistant_choice",
+  "reselect_partner_assistant_email_choice",
   "complete_partner_assistant_draft",
   "complete_partner_assistant_review",
   "complete_partner_assistant_template",

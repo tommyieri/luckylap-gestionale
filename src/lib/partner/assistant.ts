@@ -11,6 +11,10 @@
 //   20261030114722_assistente_partner_invio) con le stesse chiavi in camelCase, e nella scheda la
 //   precedenza d'invio e le ultime prime email dell'assistente, senza indirizzi né testi.
 import type {
+  PartnerEmailFormatId,
+  PartnerEmailTrack,
+} from "../partner-assistant/email-config-prompt";
+import type {
   PartnerAssistantJobStatus,
   PartnerAssistantLanguage,
   PartnerAssistantRequest,
@@ -197,6 +201,7 @@ export const PARTNER_ASSISTANT_EVENT_LABELS = {
   riscrittura: "Riscrive la bozza",
   controlli_falliti: "Controlli non superati dopo la riscrittura: passa a Tommi",
   contesto_cambiato: "Email del contatto cambiate: riscrive la bozza",
+  scelta_superata: "Rifà la scelta prima della bozza",
   pronta: "Bozza pronta per Tommi",
   regole_superate: "Regole cambiate: riscrive la bozza",
   seconda_lettura: "Problemi anche nella bozza riscritta: passa a Tommi",
@@ -688,6 +693,14 @@ export function partnerAssistantLoginLine(at: string | null, code: string | null
 // Blocco della scheda: public.partner_assistant_*
 // ---------------------------------------------------------------------------
 
+export const PARTNER_ASSISTANT_FORMAT_LABELS = {
+  evento_vicino: "Evento raggiungibile",
+  evento_lontano: "Evento lontano",
+  brand: "Brand",
+  media: "Media e creator",
+  negozio: "Negozio",
+} satisfies Record<PartnerEmailFormatId, string>;
+
 /**
  * Il blocco «Assistente» della scheda. Senza righe (né lavoro né interruttore) è vuoto: attivo,
  * `switchVersion`, `job`, `research`, `choice` e `draft` a `null`. Lo «stato non leggibile» non è
@@ -727,6 +740,14 @@ export type PartnerAssistantContactView = {
     reasonIt: string;
     language: PartnerAssistantLanguage;
     proposedEmail: string;
+    /** La scelta del formato e del filone, presente nelle note generiche nuove. */
+    formatDecision?: {
+      format: PartnerEmailFormatId;
+      track: PartnerEmailTrack;
+      reason: string;
+      discrepancy: string;
+      usedPossibilities: string[];
+    };
   } | null;
   /** La bozza com'è salvata, firma compresa; il destinatario viene dal recapito. */
   draft: {
@@ -766,12 +787,41 @@ export type PartnerAssistantContactRows = PartnerAssistantRows & {
 const present = (value: unknown) => value !== null && value !== undefined;
 
 /** Dalla nota «scelta»: la proposta deve essere dell'elenco chiuso, la lingua una delle cinque. */
-const choiceOf = (content: Record<string, unknown>, what: string) => ({
-  request: oneOf(PARTNER_ASSISTANT_REQUESTS, content.request, what),
-  reasonIt: text(content.reason_it, 0, 2000, what),
-  language: oneOf(LANGUAGES, content.language, what),
-  proposedEmail: text(content.recipient_email, 0, 2000, what),
-});
+function choiceOf(
+  content: Record<string, unknown>,
+  what: string,
+): NonNullable<PartnerAssistantContactView["choice"]> {
+  const choice = {
+    request: oneOf(PARTNER_ASSISTANT_REQUESTS, content.request, what),
+    reasonIt: text(content.reason_it, 0, 2000, what),
+    language: oneOf(LANGUAGES, content.language, what),
+    proposedEmail: text(content.recipient_email, 0, 2000, what),
+  };
+  const { formato, filone, motivo_filone, discordanza, possibilita_usate } = content;
+  // I dettagli aggiuntivi possono mancare: la scelta già salvata resta leggibile.
+  if (
+    typeof formato !== "string" ||
+    !Object.hasOwn(PARTNER_ASSISTANT_FORMAT_LABELS, formato) ||
+    (filone !== "A" && filone !== "B") ||
+    typeof motivo_filone !== "string" ||
+    !motivo_filone.trim()
+  )
+    return choice;
+  return {
+    ...choice,
+    formatDecision: {
+      format: formato as PartnerEmailFormatId,
+      track: filone,
+      reason: motivo_filone,
+      discrepancy: typeof discordanza === "string" ? discordanza.trim() : "",
+      usedPossibilities: Array.isArray(possibilita_usate)
+        ? possibilita_usate.filter(
+            (item): item is string => typeof item === "string" && !!item.trim(),
+          )
+        : [],
+    },
+  };
+}
 
 export function partnerAssistantContactFrom(
   rows: PartnerAssistantContactRows,

@@ -1,6 +1,7 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 vi.mock("server-only", () => ({}));
 import Anthropic, { APIError } from "@anthropic-ai/sdk";
+import emailConfigSeed from "../../../data/partner-email-config-v1.json";
 import { partnerAssistantDraftSha256, partnerAssistantSignature } from "./checks";
 import { classifyClaudeError, type ClaudeCall, type ClaudeResult } from "./claude";
 import { partnerAssistantConfig } from "./config";
@@ -9,6 +10,7 @@ import {
   partnerAssistantCostUsd,
   type PartnerAssistantUsage,
 } from "./cost";
+import { partnerEmailConfigSchema } from "./email-config";
 import { extractCall, researchCall, reviewCall, writeCall } from "./prompts";
 import { composePartnerAssistantTemplate } from "./template";
 import type { PartnerAssistantSendStore } from "./send-store";
@@ -257,6 +259,11 @@ function setup(step: PartnerAssistantStep = "ricerca", current: PartnerAssistant
   const mocks = {
     claim: vi.fn().mockResolvedValue({ ok: true, value: { status: "claimed", job } }),
     context: vi.fn().mockResolvedValue({ ok: true, value: { status: "ok", context: current } }),
+    loadEmailConfig: vi.fn().mockResolvedValue({ ok: true, value: null }),
+    reselectEmailChoice: vi.fn().mockResolvedValue({
+      ...done,
+      value: { ...done.value, step: "estrazione" },
+    }),
     checkpoint: vi.fn().mockResolvedValue({ ok: true, value: { status: "ok" } }),
     recordCall: vi.fn().mockResolvedValue({ ok: true, value: { status: "ok", replayed: false } }),
     completeResearch: vi.fn().mockResolvedValue(done),
@@ -1297,7 +1304,7 @@ describe("un passo dell'assistente Partner", () => {
     expect(state.fail).not.toHaveBeenCalled();
   });
 
-  it("scrittura e controllo usano la data del contesto", async () => {
+  it("scrittura e controllo usano la stessa versione e le possibilità ammesse il giorno di preparazione", async () => {
     const event: PartnerAssistantChoice = {
       ...club,
       contactKind: "evento",
@@ -1308,25 +1315,281 @@ describe("un passo dell'assistente Partner", () => {
       eventReachable: true,
       request: "stand_evento",
     };
-    // Al 1° settembre mancano più di 31 giorni: la riga dice di proporre la maglietta.
     const current = {
       ...context,
-      today: "2026-09-01",
+      today: "2026-10-03",
+      research: { ...context.research!, createdAt: "2026-10-02T14:00:00Z" },
       choice: { noteId: id(7), content: { ...event, decision: { kind: "scrivi" as const } } },
     };
+    const emailConfig = {
+      version: 1,
+      config: partnerEmailConfigSchema.parse(emailConfigSeed),
+      note: null,
+      created_at: "2026-10-01T00:00:00Z",
+      created_by: null,
+    };
     const writer = setup("scrittura", current);
+    writer.loadEmailConfig.mockResolvedValue({ ok: true, value: emailConfig });
     writer.call.mockResolvedValue(json({ subject: "Fiera Sintetica e LuckyLap", body: cleanBody }));
     await run(writer);
     const written = writer.call.mock.calls[0]![0];
-    expect(written).toEqual(writeCall(current, "2026-09-01"));
-    expect(JSON.stringify(written)).toContain("Maglietta co-firmata: puoi proporla");
-    const reviewer = setup("controllo", current);
-    reviewer.call.mockResolvedValue(json({ approved: true, problems: [] }));
-    await run(reviewer);
-    expect(reviewer.call.mock.calls[0]![0]).toEqual(reviewCall(current));
-    expect(JSON.stringify(reviewer.call.mock.calls[0]![0])).toContain(
-      "Maglietta co-firmata: puoi proporla",
+    expect(writer.loadEmailConfig).toHaveBeenCalledWith(undefined, expect.any(AbortSignal));
+    expect(written.messages[0].content).toContain(
+      "- una maglietta co-firmata dedicata all'edizione",
     );
+    expect(written.system).toContain("È obbligatoria esattamente una domanda");
+    expect(written.system).toContain("Le possibilità sono facoltative");
+    expect(written.system).toContain("Il nome di Tommaso e il link alla home sono facoltativi.");
+    expect(writer.completeDraft.mock.calls[0]![1].draft).toMatchObject({
+      configVersion: 1,
+      configDay: current.today,
+      rulesVersion: 1,
+    });
+
+    const reviewed = {
+      ...current,
+      today: "2026-10-17",
+      draft: { ...savedDraft, configVersion: 1, configDay: current.today },
+    };
+    const reviewer = setup("controllo", reviewed);
+    reviewer.loadEmailConfig.mockResolvedValue({ ok: true, value: emailConfig });
+    reviewer.call.mockResolvedValue(
+      json({ approved: false, problems: ["Domanda finale: manca."] }),
+    );
+    await run(reviewer);
+    expect(reviewer.loadEmailConfig).toHaveBeenCalledWith(1, expect.any(AbortSignal));
+    const reviewPrompt = reviewer.call.mock.calls[0]![0];
+    expect(reviewPrompt.system).toEqual(written.system);
+    expect(reviewPrompt.messages[0].content).toContain(
+      "- una maglietta co-firmata dedicata all'edizione",
+    );
+    expect(reviewPrompt.messages[0].content).toContain("Controlla ciascun blocco");
+    expect(reviewer.completeReview.mock.calls[0]![1].problems).toEqual(["Domanda finale: manca."]);
+
+    const rewrite = setup("scrittura", {
+      ...reviewed,
+      lastReview: { approved: false, problems: ["Domanda finale: manca."] },
+    });
+    rewrite.loadEmailConfig.mockResolvedValue({ ok: true, value: emailConfig });
+    rewrite.call.mockResolvedValue(
+      json({ subject: "Fiera Sintetica e LuckyLap", body: cleanBody }),
+    );
+    await run(rewrite);
+    expect(rewrite.loadEmailConfig).toHaveBeenCalledWith(1, expect.any(AbortSignal));
+    const rewritePrompt = rewrite.call.mock.calls[0]![0].messages[0].content;
+    expect(rewritePrompt).toContain("Domanda finale: manca.");
+    expect(rewritePrompt).toContain("Riscrivi l'intera bozza applicando la configurazione");
+    expect(rewritePrompt).not.toContain("- una maglietta co-firmata dedicata all'edizione");
+    expect(rewrite.completeDraft.mock.calls[0]![1].draft).toMatchObject({
+      configVersion: 1,
+      configDay: reviewed.today,
+    });
+  });
+
+  it("in estrazione conserva l'evidenza delle possibilità e dà precedenza alla sezione Eventi", async () => {
+    const excerpt = "La fiera conferma di organizzare una nuova edizione ogni anno.";
+    const current: PartnerAssistantContext = {
+      ...context,
+      partner: { ...context.partner, sections: ["club", "eventi"] },
+      research: { ...context.research!, text: excerpt },
+    };
+    const state = setup("estrazione", current);
+    state.loadEmailConfig.mockResolvedValue({
+      ok: true,
+      value: { config: partnerEmailConfigSchema.parse(emailConfigSeed) },
+    });
+    state.call.mockResolvedValue(
+      json({
+        ...extracted,
+        contact_kind: "negozio",
+        track_choice: {
+          track: "B",
+          subtype: "fiera_salone",
+          reason: "La fiera ha un'area espositori.",
+        },
+        possibility_evidence: [{ candidate_id: "evento_vicino:2", excerpt }],
+      }),
+    );
+    await run(state);
+    expect(state.call).toHaveBeenCalledOnce();
+    const prompt = state.call.mock.calls[0]![0];
+    expect(prompt.messages[0].content).toContain("Se l'evento è ricorrente.");
+    expect(prompt.messages[0].content).toContain("Sottotipi: fiera_salone, mostra_mercato");
+    expect(prompt.messages[0].content).toContain('"eventi"');
+    expect(prompt.messages[0].content).not.toContain("un capo per staff e volontari");
+    expect(state.completeChoice.mock.calls[0]![1]).toMatchObject({
+      choice: { contactKind: "evento", request: "stand_evento" },
+      decision: { kind: "scrivi" },
+      emailSelection: {
+        format: "evento_vicino",
+        track: "B",
+        reason: "La fiera ha un'area espositori.",
+        subtype: "fiera_salone",
+        configVersion: 1,
+        extractedKind: "negozio",
+        discordance: expect.stringContaining("Prevale la sezione Eventi"),
+      },
+      possibilityEvidence: [
+        { format: "evento_vicino", conditionHash: expect.stringMatching(/^[0-9a-f]{64}$/u) },
+      ],
+    });
+  });
+
+  const shopForWriting: PartnerAssistantContext = {
+    ...context,
+    partner: { ...context.partner, sections: ["vendita", "collab"] },
+    choice: {
+      noteId: id(7),
+      content: {
+        ...club,
+        contactKind: "negozio",
+        request: "vendita_negozio",
+        decision: { kind: "scrivi" },
+      },
+      emailSelection: {
+        format: "negozio",
+        track: "B",
+        reason: "L'officina si occupa di restauri.",
+        subtype: "officina_restauro",
+        configVersion: 1,
+        usedPossibilities: [],
+      },
+    },
+    draft: null,
+  };
+  const versionForWriting = (version: number) => ({
+    ok: true,
+    value: {
+      config: partnerEmailConfigSchema.parse({
+        ...emailConfigSeed,
+        meta: { ...emailConfigSeed.meta, versione: version },
+      }),
+    },
+  });
+
+  it("se manca il fatto passa a Tommaso anche senza filone e rende leggibile la discordanza", async () => {
+    const state = setup("estrazione", shopForWriting);
+    state.loadEmailConfig.mockResolvedValue(versionForWriting(1));
+    state.call.mockResolvedValue(
+      json({
+        ...extracted,
+        fact_text: "",
+        fact_date: "",
+        fact_source: "",
+        possibility_evidence: [],
+        track_choice: null,
+      }),
+    );
+    await run(state);
+    expect(state.completeChoice.mock.calls[0]![1]).toMatchObject({
+      choice: {
+        contactKind: "negozio",
+        reasonIt: expect.stringContaining("Prevale la sezione Vendita"),
+      },
+      decision: { kind: "blocca", reason: "fatto_mancante" },
+    });
+    expect(state.completeChoice.mock.calls[0]![1]).not.toHaveProperty("emailSelection");
+    expect(state.fail).not.toHaveBeenCalled();
+  });
+
+  it("scrive il filone Negozio B e registra la possibilità dichiarata nella bozza", async () => {
+    const state = setup("scrittura", shopForWriting);
+    state.loadEmailConfig.mockResolvedValue(versionForWriting(1));
+    state.call.mockResolvedValue(
+      json({ subject: "Progetto per l'officina", body: cleanBody, possibilita_usate: [1] }),
+    );
+    await run(state);
+    const prompt = state.call.mock.calls[0]![0].messages[0].content;
+    expect(prompt).toContain("Negozio · filone B");
+    expect(prompt).toContain("Sviluppare insieme una grafica dedicata all’officina");
+    expect(prompt).toContain("- 1: una piccola selezione delle nostre magliette");
+    expect(prompt).not.toContain("accenna anche alla grafica dedicata");
+    expect(state.completeDraft.mock.calls[0]![1]).toMatchObject({
+      draft: { configVersion: 1 },
+      usedPossibilityIndexes: [1],
+    });
+    const review = setup("controllo", {
+      ...shopForWriting,
+      choice: {
+        ...shopForWriting.choice!,
+        emailSelection: {
+          ...shopForWriting.choice!.emailSelection!,
+          usedPossibilities: ["una piccola selezione delle nostre magliette"],
+        },
+      },
+      draft: { ...savedDraft, configVersion: 1, configDay: shopForWriting.today },
+    });
+    review.loadEmailConfig.mockResolvedValue(versionForWriting(1));
+    review.call.mockResolvedValue(json({ approved: true, problems: [] }));
+    await run(review);
+    const reviewPrompt = review.call.mock.calls[0]![0].messages[0].content;
+    expect(reviewPrompt).toContain("Negozio · filone B");
+    expect(reviewPrompt).toContain(
+      '<possibilita_dichiarate>\n[\n  "una piccola selezione delle nostre magliette"',
+    );
+  });
+
+  it.each([{ indexes: [0] }, { indexes: [1, 1] }])(
+    "rifiuta possibilità dichiarate non ammesse o duplicate ($indexes)",
+    async ({ indexes }) => {
+      const state = setup("scrittura", shopForWriting);
+      state.loadEmailConfig.mockResolvedValue(versionForWriting(1));
+      state.call.mockResolvedValue(
+        json({ subject: "Progetto per l'officina", body: cleanBody, possibilita_usate: indexes }),
+      );
+      await run(state);
+      expect(state.completeDraft).not.toHaveBeenCalled();
+      expect(failedWith(state)).toEqual([[state.lease, "riprova", "risposta_non_valida"]]);
+    },
+  );
+
+  const shopMovedToCollab: PartnerAssistantContext = {
+    ...shopForWriting,
+    partner: { ...shopForWriting.partner, sections: ["collab"] },
+  };
+  it.each([
+    ["salvataggio di una versione", shopForWriting, 2],
+    ["cambio della sezione", shopMovedToCollab, 1],
+  ] as const)(
+    "torna all'estrazione prima della prima bozza dopo %s",
+    async (_, current, version) => {
+      const state = setup("scrittura", current);
+      state.loadEmailConfig.mockResolvedValue(versionForWriting(version));
+      expect(await run(state)).toEqual({ status: "complete", step: "scrittura" });
+      expect(state.reselectEmailChoice).toHaveBeenCalledWith(
+        state.lease,
+        expect.stringMatching(UUID),
+        expect.any(AbortSignal),
+      );
+      expect(state.call).not.toHaveBeenCalled();
+      expect(state.completeDraft).not.toHaveBeenCalled();
+    },
+  );
+
+  it("riscrive con la versione già usata anche se la bozza non è più quella attiva", async () => {
+    const state = setup("scrittura", {
+      ...shopForWriting,
+      choice: { ...shopForWriting.choice!, emailSelectionAlreadyUsed: true },
+    });
+    state.loadEmailConfig.mockResolvedValue(versionForWriting(1));
+    state.call.mockResolvedValue(
+      json({ subject: "Progetto per l'officina", body: cleanBody, possibilita_usate: [] }),
+    );
+    await run(state);
+    expect(state.loadEmailConfig).toHaveBeenCalledWith(1, expect.any(AbortSignal));
+    expect(state.reselectEmailChoice).not.toHaveBeenCalled();
+    expect(state.completeDraft.mock.calls[0]![1].draft.configVersion).toBe(1);
+  });
+
+  it("una versione della bozza non disponibile sospende la revisione", async () => {
+    const state = setup("controllo", {
+      ...context,
+      draft: { ...savedDraft, configVersion: 2 },
+    });
+    expect(await run(state)).toEqual({ status: "uncertain", step: "controllo" });
+    expect(state.loadEmailConfig).toHaveBeenCalledWith(2, expect.any(AbortSignal));
+    expect(state.call).not.toHaveBeenCalled();
+    expect(state.completeReview).not.toHaveBeenCalled();
   });
 
   it("bozza con recapito cambiato: contesto_cambiato, nessun fail", async () => {

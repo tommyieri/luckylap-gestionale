@@ -209,6 +209,34 @@ afterEach(async () => {
 });
 
 describe("PartnerAssistantBlock", () => {
+  it("mostra nella scheda il filone, il motivo e la discordanza quando sono nella nota scelta", () => {
+    const tree = render(2, {
+      assistant: (view) => ({
+        ...view,
+        choice: {
+          ...view.choice!,
+          formatDecision: {
+            format: "evento_lontano",
+            track: "B",
+            reason: "L'evento ha una community che partecipa anche online.",
+            discrepancy: "La sezione Eventi prevale sul tipo negozio della ricerca.",
+            usedPossibilities: ["Una grafica dedicata"],
+          },
+        },
+      }),
+    });
+    expect(words(paragraph(tree, "Formato Evento lontano"))).toBe(
+      "Formato Evento lontano · Filone B. L'evento ha una community che partecipa anche online.",
+    );
+    expect(words(paragraph(tree, "Discordanza tra ricerca e sezione"))).toContain(
+      "La sezione Eventi prevale sul tipo negozio della ricerca.",
+    );
+    expect(words(paragraph(tree, "Possibilità usate"))).toBe(
+      "Possibilità usate dall’assistente. Una grafica dedicata",
+    );
+    expect(words(render(2))).not.toMatch(/Filone|Discordanza|Possibilità usate/);
+  });
+
   it("una sezione «Assistente» della scheda, con il suo titolo h4", () => {
     const tree = render(2);
     const sections = descendants(tree).filter((node) => node.type === "section");

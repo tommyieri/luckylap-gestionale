@@ -1,6 +1,7 @@
 "use client";
 
 import {
+  PARTNER_ASSISTANT_FORMAT_LABELS,
   PARTNER_ASSISTANT_INACTIVE,
   PARTNER_ASSISTANT_REQUEST_LABELS,
   PARTNER_ASSISTANT_STATUS_LABELS,
@@ -184,6 +185,7 @@ export function PartnerAssistantBlock({
   // L'indirizzo trovato dalla ricerca resta una proposta: la bozza va all'email del gestionale.
   const target = draft !== null ? draft.toAddress : assistantAddress(contacts);
   const proposed = choice?.proposedEmail.trim() ?? "";
+  const formatDecision = choice?.formatDecision;
   const showProposed =
     proposed !== "" && proposed.toLowerCase() !== (target ?? "").trim().toLowerCase();
   return (
@@ -203,6 +205,28 @@ export function PartnerAssistantBlock({
           </b>
           {choice.reasonIt.trim() && ` ${choice.reasonIt.trim()}`}
         </p>
+      )}
+      {formatDecision && (
+        <>
+          <p>
+            <b className={styles.ideaLabel}>
+              Formato {PARTNER_ASSISTANT_FORMAT_LABELS[formatDecision.format]} · Filone{" "}
+              {formatDecision.track}.
+            </b>{" "}
+            {formatDecision.reason}
+          </p>
+          {formatDecision.discrepancy && (
+            <p className={styles.noteAmber}>
+              Discordanza tra ricerca e sezione. {formatDecision.discrepancy}
+            </p>
+          )}
+          {formatDecision.usedPossibilities.length > 0 && (
+            <p>
+              <b className={styles.ideaLabel}>Possibilità usate dall’assistente.</b>{" "}
+              {formatDecision.usedPossibilities.join(" · ")}
+            </p>
+          )}
+        </>
       )}
       {draft && (
         <Draft
