@@ -1,7 +1,11 @@
 import "server-only";
 
 import type { SupabaseClient } from "@supabase/supabase-js";
-import { partnerAssistantOptOutLine } from "../partner-assistant/opt-out";
+import { partnerAssistantOptOutLine } from "../partner-assistant/mail-compose";
+import type {
+  PartnerAssistantLanguage,
+  PartnerAssistantRegister,
+} from "../partner-assistant/types";
 import { addDays, isCalendarDay } from "./dates";
 import {
   partnerEmailDetailFrom,
@@ -104,7 +108,10 @@ export async function loadPartnerEmailDetail(
       return unavailable();
     return {
       ...detail,
-      optOut: partnerAssistantOptOutLine(),
+      optOut: partnerAssistantOptOutLine(
+        detail.language as PartnerAssistantLanguage,
+        detail.register as PartnerAssistantRegister,
+      ),
     };
   } catch {
     return unavailable();

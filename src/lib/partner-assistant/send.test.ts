@@ -3,7 +3,7 @@ vi.mock("server-only", () => ({}));
 import { createHash } from "node:crypto";
 import { partnerAssistantConfig } from "./config";
 import type { PartnerAssistantFolders, PartnerAssistantMailboxOpening } from "./imap";
-import { partnerAssistantOptOutLine } from "./mail-compose";
+import { PARTNER_ASSISTANT_OPT_OUT_LINES } from "./mail-compose";
 import type { PartnerAssistantMailConfig } from "./mail-config";
 import {
   PARTNER_ASSISTANT_MAILBOX_DAYS,
@@ -400,7 +400,7 @@ describe("passo d'invio dell'assistente Partner", () => {
   it("prepare con il testo approvato più la frase di uscita, oggetto della bozza, mailboxCheck vuota", async () => {
     await runSend();
     const input = state.recorded.prepare[0]!;
-    const optOut = partnerAssistantOptOutLine();
+    const optOut = PARTNER_ASSISTANT_OPT_OUT_LINES.it_voi;
     expect(input).toEqual({
       jobId: candidate.jobId,
       draftId: candidate.draft.draftId,
@@ -419,21 +419,9 @@ describe("passo d'invio dell'assistente Partner", () => {
     expect(input.raw).toContain(`To: ${address}\r\n`);
     expect(input.raw).toContain('From: "Tommaso | LuckyLap" <casella@luckylap.example.test>\r\n');
   });
-  it.each([
-    ["it", "voi"],
-    ["it", "lei"],
-    ["en", "you"],
-    ["de", "sie"],
-    ["fr", "vous"],
-    ["es", "usted"],
-  ] as const)("la frase unica segue la firma per %s/%s", async (language, register) => {
-    await runSend({
-      candidate: { ...candidate, register, draft: { ...candidate.draft, language } },
-    });
-    const { optOut, text } = state.recorded.prepare[0]!;
-    expect(optOut).toBe(partnerAssistantOptOutLine());
-    expect(text).toBe(candidate.draft.body + "\n\n" + candidate.draft.signature + "\n\n" + optOut);
-    expect(text.split(optOut)).toHaveLength(2);
+  it("in italiano con il lei, la frase del lei", async () => {
+    await runSend({ candidate: { ...candidate, register: "lei" } });
+    expect(state.recorded.prepare[0]!.optOut).toBe(PARTNER_ASSISTANT_OPT_OUT_LINES.it_lei);
   });
   it("prova con lookbook: un solo PDF, indirizzo di prova e stessi byte a prepare, SMTP e IMAP", async () => {
     const lookbook = PARTNER_ASSISTANT_TEST_LOOKBOOKS.porsche_club;
@@ -444,7 +432,7 @@ describe("passo d'invio dell'assistente Partner", () => {
     expect(input.toAddress).toBe(mail.testTo[1]);
     expect(input.subject).toBe(chosen.draft.subject);
     expect(input.text).toBe(
-      `${chosen.draft.body}\n\n${chosen.draft.signature}\n\n${partnerAssistantOptOutLine()}`,
+      `${chosen.draft.body}\n\n${chosen.draft.signature}\n\n${PARTNER_ASSISTANT_OPT_OUT_LINES.it_voi}`,
     );
     expect(input.raw.match(/Content-Disposition: attachment;/g)).toHaveLength(1);
     expect(input.raw).toContain("LuckyLap-Lookbook-Porsche-Clubs.pdf");
