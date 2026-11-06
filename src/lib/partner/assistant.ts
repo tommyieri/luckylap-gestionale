@@ -201,7 +201,7 @@ export const PARTNER_ASSISTANT_EVENT_LABELS = {
   riscrittura: "Riscrive la bozza",
   controlli_falliti: "Controlli non superati dopo la riscrittura: passa a Tommi",
   contesto_cambiato: "Email del contatto cambiate: riscrive la bozza",
-  scelta_superata: "Sezioni o istruzioni aggiornate. Rifà la scelta prima della bozza",
+  scelta_superata: "Rifà la scelta prima della bozza",
   pronta: "Bozza pronta per Tommi",
   regole_superate: "Regole cambiate: riscrive la bozza",
   seconda_lettura: "Problemi anche nella bozza riscritta: passa a Tommi",
