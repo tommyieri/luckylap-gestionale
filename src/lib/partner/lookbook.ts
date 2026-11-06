@@ -58,11 +58,11 @@ export function partnerLookbookHeaders(
  * (la pagina non porta i PDF nella sua traccia). lookbook.test.ts la confronta con i file.
  */
 export const PARTNER_LOOKBOOK_BYTES: Record<PartnerLookbookCode, number> = {
-  negozi: 3051669,
-  eventi: 2903389,
-  collab: 2051682,
-  porsche_club: 2592305,
-  club: 2444810,
+  negozi: 3049397,
+  eventi: 2901073,
+  collab: 2050063,
+  porsche_club: 2590257,
+  club: 2442753,
 };
 
 /** «2,9 MB». */

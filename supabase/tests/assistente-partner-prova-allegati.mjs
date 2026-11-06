@@ -1,4 +1,4 @@
-// test-db: pglite minimo 201
+// test-db: pglite minimo 205
 // Prova ufficiale dei club con lookbook: coppia pronta, metadati immutabili, MIME grande solo in prova,
 // pause preservate, compatibilità delle prove precedenti e recupero delle copie entro 4 MiB.
 // Solo dati sintetici; nessuna rete, nessun PDF reale, nessuna chiamata a Claude.
@@ -716,6 +716,33 @@ try {
     "22023",
   );
   eq(await value("select count(*)::int as v from private.partner_assistant_runs"), 0);
+  await db.exec(migration("_partner_lookbooks_aggiornati.sql"));
+  eq(await value("select private.partner_assistant_test_lookbook('porsche_club') as v"), {
+    code: "porsche_club",
+    bytes: 2590257,
+    sha256: "3af4b265bb2c10f3442ad4a0ec8b9059b66a2a5033d11c886de79a412fa14e10",
+  });
+  eq(await value("select private.partner_assistant_test_lookbook('club') as v"), {
+    code: "club",
+    bytes: 2442753,
+    sha256: "e9e926aa0bb3bb8c4b374eeb72becd6054bcce225d677f671d28f657a4650a36",
+  });
+  eq(
+    await value(
+      "update public.partner_assistant_messages set appended_at=now() where id=$1 returning lookbook as v",
+      [accepted.message_row_id],
+    ),
+    LOOKBOOK.porsche_club,
+    "L'aggiornamento dello storico conserva l'impronta dell'allegato precedente",
+  );
+  ok(
+    (
+      await db.query(
+        "update private.partner_assistant_test_runs set lookbooks=lookbooks where lookbooks <> '{}'::jsonb returning id",
+      )
+    ).rows.length > 0,
+    "La mappa congelata delle prove precedenti resta valida",
+  );
   console.log(`PASS ${checks} controlli`);
 } catch (error) {
   console.error(error.message, error.code, error.where ?? error.stack);

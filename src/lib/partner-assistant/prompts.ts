@@ -41,6 +41,7 @@ const EMAIL_STYLE = [
   "# Indicazione prioritaria sullo stile delle email",
   "Questa indicazione prevale sulle clausole e sugli esempi precedenti che richiedono una domanda, un recapito o una conversazione a voce. Le altre regole restano valide.",
   "Presenta LuckyLap e i suoi prodotti con fatti verificati e spiega la proposta indicata dal sistema e il suo valore concreto per il destinatario.",
+  "Se menzioni collaborazioni già avviate con Porsche Club, riferisciti solo in generale ai Porsche Club in Italia. Non citare il nome dei singoli club coinvolti né il numero di magliette prodotte, anche se compaiono nelle regole o negli esempi precedenti.",
   "Non chiedere un recapito telefonico, una chiamata o un appuntamento; evita «parliamone», inviti a contattarci o a sentirci e formule equivalenti in ogni lingua.",
   "Una domanda sulla proposta è facoltativa: puoi terminare con una chiusura dichiarativa e cordiale. Nel corpo è ammessa al massimo una domanda.",
   "In revisione non segnalare come mancanze l'assenza di una domanda o del recapito e applica questa indicazione anche agli esempi di tono precedenti.",
@@ -145,8 +146,7 @@ const REVIEW_SCHEMA = {
 
 /** Il codice della proposta e la sua riga di testo, con le parole delle regole. */
 const REQUEST_LINES: Record<PartnerAssistantRequest, string> = {
-  merch_cobranding:
-    "magliette co-firmate, con il loro logo ricamato accanto alle nostre auto, come per il Porsche Club Toscana",
+  merch_cobranding: "magliette co-firmate, con il loro logo ricamato accanto alle nostre auto",
   collab_capsule: "una capsule in edizione limitata disegnata insieme",
   stand_evento: "uno stand dedicato, curato nei dettagli e in linea con l'evento",
   vendita_negozio: "chiedere se venderebbero le nostre magliette",

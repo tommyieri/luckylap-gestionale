@@ -404,7 +404,10 @@ describe("writeCall", () => {
       expect(message).toContain("senza nominare i singoli club o le quantità");
       expect(message).not.toContain("Toscana");
     }
-    expect(userText(writeCall(ctx, ctx.today))).toContain("come per il Porsche Club Toscana");
+    for (const call of [writeCall(ctx, ctx.today), reviewCall(ctx)]) {
+      expect(userText(call)).not.toContain("Porsche Club Toscana");
+      expect(call.system).toContain("né il numero di magliette prodotte");
+    }
   });
 
   const call = writeCall(evCtx, "2026-10-27");
