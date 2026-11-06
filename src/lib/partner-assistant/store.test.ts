@@ -173,6 +173,24 @@ const context = {
   lastReview: { approved: false, problems: ["parola_vietata"] },
 };
 const evidence = [{ format: "negozio", conditionHash: "c".repeat(64) }] as const;
+const selectedFormat = {
+  format: "negozio",
+  track: "B",
+  reason: "Motivo sintetico del filone.",
+  configVersion: 2,
+  subtype: "Sottotipo sintetico",
+  extractedKind: "brand",
+  discordance: "Discordanza sintetica rispetto alla scheda.",
+} as const;
+const selectedFormatRow = {
+  formato: selectedFormat.format,
+  filone: selectedFormat.track,
+  motivo_filone: selectedFormat.reason,
+  config_version: selectedFormat.configVersion,
+  sottotipo: selectedFormat.subtype,
+  tipo_estratto: selectedFormat.extractedKind,
+  discordanza: selectedFormat.discordance,
+};
 const evidenceRow = [{ format: "negozio", condition_hash: "c".repeat(64) }];
 const draft: PartnerAssistantDraft = {
   language: "en",
@@ -356,7 +374,7 @@ const cases: Case[] = [
   })),
   {
     label: "contesto completo",
-    name: "context_partner_assistant_email_step",
+    name: "context_partner_assistant_email_format_step",
     run: (s, signal) => s.context(lease, signal),
     args: leaseArgs,
     row: contextRow,
@@ -364,7 +382,7 @@ const cases: Case[] = [
   },
   {
     label: "contesto di una bozza con la sola versione di configurazione",
-    name: "context_partner_assistant_email_step",
+    name: "context_partner_assistant_email_format_step",
     run: (s, signal) => s.context(lease, signal),
     args: leaseArgs,
     row: { ...contextRow, draft: { ...contextRow.draft, config_version: 2 } },
@@ -372,7 +390,7 @@ const cases: Case[] = [
   },
   {
     label: "contesto con evidenze, versione e giorno di composizione",
-    name: "context_partner_assistant_email_step",
+    name: "context_partner_assistant_email_format_step",
     run: (s, signal) => s.context(lease, signal),
     args: leaseArgs,
     row: {
@@ -393,8 +411,44 @@ const cases: Case[] = [
     },
   },
   {
+    label: "contesto con scelta di formato e filone già usata",
+    name: "context_partner_assistant_email_format_step",
+    run: (s, signal) => s.context(lease, signal),
+    args: leaseArgs,
+    row: {
+      ...contextRow,
+      choice: {
+        ...contextRow.choice,
+        email_selection_already_used: true,
+        content: {
+          ...contextRow.choice.content,
+          contact_kind: "negozio",
+          request: "vendita_negozio",
+          ...selectedFormatRow,
+          possibilita_usate: ["Opzione sintetica"],
+        },
+      },
+    },
+    value: {
+      status: "ok",
+      context: {
+        ...context,
+        choice: {
+          ...context.choice,
+          content: {
+            ...context.choice.content,
+            contactKind: "negozio",
+            request: "vendita_negozio",
+          },
+          emailSelection: { ...selectedFormat, usedPossibilities: ["Opzione sintetica"] },
+          emailSelectionAlreadyUsed: true,
+        },
+      },
+    },
+  },
+  {
     label: "contesto senza lease",
-    name: "context_partner_assistant_email_step",
+    name: "context_partner_assistant_email_format_step",
     run: (s, signal) => s.context(lease, signal),
     args: leaseArgs,
     row: { status: "lease_persa" },
@@ -491,6 +545,44 @@ const cases: Case[] = [
     value: doneValue,
   },
   {
+    label: "salvataggio della scelta del formato e del filone",
+    name: "complete_partner_assistant_choice",
+    run: (s, signal) =>
+      s.completeChoice(
+        lease,
+        {
+          choice: { ...choice, contactKind: "negozio", request: "vendita_negozio" },
+          decision: { kind: "attendi", writeOn: "2026-12-01" },
+          model: "m",
+          rulesVersion: 1,
+          emailSelection: selectedFormat,
+        },
+        operationId,
+        signal,
+      ),
+    args: {
+      ...choseArgs,
+      p_payload: {
+        ...choseArgs.p_payload,
+        choice: { ...choiceRow, contact_kind: "negozio", request: "vendita_negozio" },
+        email_selection: selectedFormatRow,
+      },
+    },
+    row: done,
+    value: doneValue,
+  },
+  {
+    label: "riselezione senza ripetere la ricerca valida",
+    name: "reselect_partner_assistant_email_choice",
+    run: (s, signal) => s.reselectEmailChoice(lease, operationId, signal),
+    args: {
+      p_operation_id: operationId,
+      p_payload: { schema_version: 1, job_id: job.jobId, lease_token: job.leaseToken },
+    },
+    row: done,
+    value: doneValue,
+  },
+  {
     label: "bozza generica con la versione e il giorno della configurazione usata",
     name: "complete_partner_assistant_draft",
     run: (s, signal) =>
@@ -500,6 +592,7 @@ const cases: Case[] = [
           draft: { ...draft, configVersion: 2, configDay: context.today },
           checksOk: false,
           failures: ["parola_vietata"],
+          usedPossibilityIndexes: [1],
         },
         operationId,
         signal,
@@ -509,6 +602,7 @@ const cases: Case[] = [
       p_payload: {
         ...wroteArgs.p_payload,
         draft: { ...wroteArgs.p_payload.draft, config_version: 2, config_day: context.today },
+        used_possibility_indexes: [1],
       },
     },
     row: done,
@@ -576,7 +670,12 @@ const keyMutations = (row: unknown): [string, unknown][] =>
     const requiredKeys = Object.keys(fields).filter((key) => {
       const field = [...path, key].join(".");
       if (field === "draft.config_version") return Object.hasOwn(fields, "config_day");
-      return field !== "draft.config_day" && field !== "choice.content.possibility_evidence";
+      return ![
+        "draft.config_day",
+        "choice.content.possibility_evidence",
+        "choice.content.sottotipo",
+        "choice.email_selection_already_used",
+      ].includes(field);
     });
     return [
       [[...path, "+extra"].join("."), extra] as [string, unknown],

@@ -11,6 +11,10 @@ import type { ClaudeCall } from "./claude";
 import { PARTNER_ASSISTANT_CHOICE_KEYS } from "./choice-fields";
 import type { PartnerEmailConfig } from "./email-config";
 import {
+  PARTNER_EMAIL_TRACK_CHOICE_SCHEMA,
+  partnerEmailTrackCandidates,
+} from "./email-config-choice";
+import {
   partnerEmailConditionEvidenceSchema,
   partnerEmailMandatoryShopPossibility,
   type PartnerEmailConditionCandidate,
@@ -290,6 +294,13 @@ function configuredProposal(
       : undefined;
   return [
     ...clubReferences(context),
+    ...(context.choice?.emailSelection &&
+    (format === "evento_vicino" || format === "evento_lontano") &&
+    context.partner.sections.includes("club")
+      ? [
+          "Nel blocco «Perché proprio voi» collega la proposta alla community del club usando un fatto confermato dalla ricerca.",
+        ]
+      : []),
     ...(format === "evento_lontano" && merch === PARTNER_ASSISTANT_EVENT_MERCH.nextEdition
       ? ["Per questo contatto, la proposta di maglietta co-firmata è per la prossima edizione."]
       : []),
@@ -352,8 +363,10 @@ export function researchCall(context: PartnerAssistantContext): ClaudeCall {
 export function extractCall(
   context: PartnerAssistantContext,
   candidates: readonly PartnerEmailConditionCandidate[] = [],
+  selectionConfig?: PartnerEmailConfig,
 ): ClaudeCall {
   const researchDay = olderResearchDay(context, context.today);
+  const tracks = selectionConfig === undefined ? [] : partnerEmailTrackCandidates(selectionConfig);
   return {
     system: systemRules(context),
     messages: userMessage([
@@ -380,6 +393,24 @@ export function extractCall(
       "- event_name, event_starts_on, event_city, event_country: il prossimo evento, se c'è.",
       "- event_reachable: true se l'evento è in Italia o in un paese confinante.",
       "- notes_it: note brevi per Tommi, in italiano.",
+      ...(selectionConfig
+        ? [
+            "",
+            "Riporta in contact_kind il tipo che emerge dalla ricerca, indipendentemente dalla sezione. Riviste, siti editoriali, podcast, creator, canali video e community online sono media.",
+            "Se la scheda ha Eventi, estrai i dati e la raggiungibilità dell'evento anche quando il tipo estratto è diverso. Valuta la raggiungibilità secondo il paese documentato dalla ricerca.",
+            "Scegli il filone (track_choice) per il formato che usa il sistema. L'ordine è Eventi (raggiungibile o lontano), Club senza Eventi (modello fisso), Vendita (Negozio), Collab (Media se il tipo estratto è media, altrimenti Brand). Senza sezioni, usa il tipo estratto.",
+            "Se il formato usa un filone, scegli un sottotipo tra quelli elencati oppure usa una stringa vuota se nessuno è confermato. Un sottotipo presente in un solo filone determina A o B. Se è condiviso o assente, scegli il filone il cui «quando» corrisponde meglio al fatto verificato. In reason descrivi quel fatto o sottotipo in una sola frase in italiano, senza nominare la lettera del filone.",
+            "Per il percorso Club usa null in track_choice. Puoi usare null anche se il contatto deve attendere o mancano il fatto o il fuso e la ricerca non permette di motivare un filone.",
+            dataBlock("sezioni", json(context.partner.sections)),
+            ...tracks.flatMap(({ format, name, tracks: variants }) => [
+              `${name} (${format})`,
+              ...(["A", "B"] as const).map((track) => {
+                const variant = variants[track];
+                return `- ${track} · ${variant.name}: ${variant.quando}\n  Sottotipi: ${variant.sottotipi.join(", ")}`;
+              }),
+            ]),
+          ]
+        : []),
       ...(candidates.length
         ? [
             "",
@@ -395,16 +426,26 @@ export function extractCall(
     ]),
     effort: "low",
     maxTokens: 16000,
-    format: candidates.length
-      ? {
-          ...PARTNER_ASSISTANT_CHOICE_SCHEMA,
-          required: [...PARTNER_ASSISTANT_CHOICE_SCHEMA.required, "possibility_evidence"],
-          properties: {
-            ...PARTNER_ASSISTANT_CHOICE_SCHEMA.properties,
-            possibility_evidence: partnerEmailConditionEvidenceSchema(candidates),
-          },
-        }
-      : PARTNER_ASSISTANT_CHOICE_SCHEMA,
+    format:
+      candidates.length || selectionConfig
+        ? {
+            ...PARTNER_ASSISTANT_CHOICE_SCHEMA,
+            required: [
+              ...PARTNER_ASSISTANT_CHOICE_SCHEMA.required,
+              ...(candidates.length ? ["possibility_evidence"] : []),
+              ...(selectionConfig ? ["track_choice"] : []),
+            ],
+            properties: {
+              ...PARTNER_ASSISTANT_CHOICE_SCHEMA.properties,
+              ...(candidates.length
+                ? { possibility_evidence: partnerEmailConditionEvidenceSchema(candidates) }
+                : {}),
+              ...(selectionConfig
+                ? { track_choice: { anyOf: [PARTNER_EMAIL_TRACK_CHOICE_SCHEMA, { type: "null" }] } }
+                : {}),
+            },
+          }
+        : PARTNER_ASSISTANT_CHOICE_SCHEMA,
   };
 }
 
@@ -438,6 +479,8 @@ export function writeCall(
 ): ClaudeCall {
   const choice = choiceOf(context);
   const review = context.lastReview;
+  const recordsPossibilities =
+    configured !== undefined && context.choice?.emailSelection !== undefined;
   // Una lettura non approvata chiede sempre di riscrivere, anche senza problemi elencati.
   const problems =
     review && !review.approved
@@ -468,13 +511,34 @@ export function writeCall(
             "Riscrivi l'intera bozza applicando la configurazione qui sopra. Correggi i blocchi indicati senza aggiungere fatti o possibilità non ammessi.",
           ]
         : []),
+      ...(recordsPossibilities ? possibilityReport(configured) : []),
       "",
       "Rispondi con l'oggetto (subject) e il corpo (body). Il corpo comincia con il saluto e finisce con la formula di chiusura, senza la firma: la firma, con il numero di Tommaso, la aggiunge il sistema.",
     ]),
     effort: "high",
     maxTokens: 32000,
-    format: DRAFT_SCHEMA,
+    format: recordsPossibilities
+      ? {
+          ...DRAFT_SCHEMA,
+          required: [...DRAFT_SCHEMA.required, "possibilita_usate"],
+          properties: {
+            ...DRAFT_SCHEMA.properties,
+            possibilita_usate: { type: "array", items: { type: "integer" } },
+          },
+        }
+      : DRAFT_SCHEMA,
   };
+}
+
+function possibilityReport(configured: ConfiguredPartnerEmailPrompt): string[] {
+  const format = configured.config.formati.find((entry) => entry.id === configured.format);
+  if (!format || format.id === "club") return [];
+  const indexes = configured.eligiblePossibilityIndexes;
+  return [
+    "",
+    "In possibilita_usate riporta gli indici delle possibilità che hai davvero incluso nel corpo, al massimo due e senza duplicati. Usa [] se non ne hai inclusa nessuna.",
+    ...indexes.map((index) => `- ${index}: ${format.possibilita[index].testo}`),
+  ];
 }
 
 /** Seconda lettura della bozza con le regole: può solo approvare o rimandare con i motivi. */
@@ -495,6 +559,16 @@ export function reviewCall(
             "Controlla ciascun blocco in ordine, confrontandolo con l'istruzione, la nota del formato e le regole fisse. Controlla in particolare la proposta principale, il limite di due possibilità ammesse e l'unica domanda sulla collaborazione.",
             "In problems inizia ogni voce con il nome del blocco seguito da due punti. Usa «Mail» per i problemi che riguardano l'intero testo.",
             ...configuredProposal(context, choice, configured),
+            ...(context.choice?.emailSelection
+              ? [
+                  "",
+                  "Controlla che l'elenco dichiarato corrisponda alle possibilità effettivamente presenti nel blocco Proposta. Se non corrisponde, segnala un problema per il blocco Proposta.",
+                  dataBlock(
+                    "possibilita_dichiarate",
+                    json(context.choice.emailSelection.usedPossibilities),
+                  ),
+                ]
+              : []),
           ]
         : proposalAndData(context, choice, context.today)),
       "",

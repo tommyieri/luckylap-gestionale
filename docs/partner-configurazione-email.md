@@ -18,6 +18,12 @@ Il Passo 2 compone tono, proposta, domande, blocchi ed esempio nello stesso ordi
 
 La presentazione segue il blocco «Chi siamo» di Luca. Per un evento raggiungibile lo stand è la proposta principale e la maglietta co-firmata è facoltativa se la data è nota e mancano più di 31 giorni. L'esempio Evento lontano A propone la maglietta senza descrivere un soggetto grafico. Per Brand, la presentazione della capsule agli eventi resta spenta e l'esempio Brand B indica i rispettivi canali.
 
-Durante questo passo il formato segue il tipo scelto dall'estrazione e le nuove bozze usano il filone A. Il compositore supporta anche il filone B. Il Passo 3 aggiungerà la scelta A/B e la precedenza delle sezioni. Il modello fisso Club v3 usa il suo percorso di scrittura e revisione.
+## Formato e filone
+
+Il formato segue la prima sezione applicabile nell'ordine Eventi, Club, Vendita, Collab. La raggiungibilità distingue i due formati Evento. Collab usa Media quando la ricerca identifica un media e Brand negli altri casi. Se la ricerca indica un tipo diverso da quello della sezione, l'assistente salva e mostra la discordanza nella scheda. Club senza Eventi usa il modello fisso Club v3.
+
+Durante l'estrazione, Claude sceglie il filone A o B e motiva la scelta con un fatto della ricerca. Se un sottotipo appartiene a un solo filone, prevale quel filone. La nota di scelta conserva formato, filone, motivazione e versione della configurazione. Quando salva la bozza, il sistema aggiunge alla cronologia una nuova nota con le possibilità segnalate da Claude e le confronta con la bozza in revisione. Le scelte storiche senza filone conservano il percorso precedente.
+
+Prima della prima bozza, se cambia la versione della configurazione o la sezione richiede un formato diverso, il lavoro rifà la scelta. Riusa la ricerca se è ancora valida secondo le regole dell'assistente. Le bozze che hanno già una versione continuano a usarla per revisione e riscrittura.
 
 Il pulsante proposto «Riscrivi le bozze pronte con la nuova versione» è una funzione facoltativa da discutere a parte. Ogni salvataggio della configurazione produce una versione destinata alle nuove preparazioni. Per ripristinare il testo di una versione precedente si può salvarne il contenuto come nuova versione, conservando la cronologia. Le migrazioni sono additive e la rimozione dello schema richiederebbe una migrazione successiva, dopo aver verificato che nessuna bozza lo referenzi.

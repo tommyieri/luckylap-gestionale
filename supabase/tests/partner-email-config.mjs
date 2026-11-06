@@ -1,5 +1,5 @@
-// test-db: pglite minimo 87
-// Versioni della configurazione email, ruoli, ricevute e collegamento alle bozze.
+// test-db: pglite minimo 135
+// Versioni della configurazione email, ruoli, ricevute, scelte e collegamento alle bozze.
 // Auth e schede sintetiche. Nessuna connessione a Supabase o Claude.
 import assert from "node:assert/strict";
 import { createHash, randomUUID } from "node:crypto";
@@ -80,10 +80,10 @@ async function writingJob(co, sections = ["vendita"]) {
      values ($1,'in_coda','scrittura',$2,$3,clock_timestamp()+interval '5 minutes') returning id as v`,
     [partnerId, researchId, lease],
   );
-  return { partnerId, contactId, lease, jobId };
+  return { partnerId, contactId, lease, jobId, researchId };
 }
 
-function completeDraft(job, extra = {}, operation = randomUUID()) {
+function completeDraft(job, extra = {}, operation = randomUUID(), fields = {}) {
   return as("service_role", undefined, () =>
     value("select public.complete_partner_assistant_draft($1,$2) as v", [
       operation,
@@ -104,18 +104,23 @@ function completeDraft(job, extra = {}, operation = randomUUID()) {
         },
         checks_ok: true,
         failures: [],
+        ...fields,
       },
     ]),
   );
 }
 
-async function readContext(job, legacy = false) {
+async function readContext(job, version = 2) {
   const lease = randomUUID();
   await db.query(
     "update public.partner_assistant_jobs set lease_token=$2,lease_expires_at=clock_timestamp()+interval '5 minutes' where id=$1",
     [job.jobId, lease],
   );
-  const name = legacy ? "context_partner_assistant_step" : "context_partner_assistant_email_step";
+  const name = {
+    1: "context_partner_assistant_step",
+    2: "context_partner_assistant_email_step",
+    3: "context_partner_assistant_email_format_step",
+  }[version];
   return as("service_role", undefined, () =>
     value(`select public.${name}($1,$2) as v`, [job.jobId, lease]),
   );
@@ -245,18 +250,24 @@ try {
     "_partner_email_config_seed.sql",
     "_partner_email_config_draft.sql",
     "_partner_email_config_context.sql",
+    "_partner_email_format_track.sql",
   ]) {
     await migration(suffix);
   }
 
   const table = "public.partner_email_config_versions";
   const rpc = "public.save_partner_email_config(uuid,uuid,integer,jsonb,text)";
-  const contextRpc = "public.context_partner_assistant_email_step(uuid,uuid)";
-  for (const role of ["anon", "authenticated", "service_role"])
-    eq(
-      await value("select has_function_privilege($1,$2,'EXECUTE') as v", [role, contextRpc]),
-      role === "service_role",
-    );
+  for (const serviceRpc of [
+    "public.context_partner_assistant_email_step(uuid,uuid)",
+    "public.context_partner_assistant_email_format_step(uuid,uuid)",
+    "public.reselect_partner_assistant_email_choice(uuid,jsonb)",
+  ]) {
+    for (const role of ["anon", "authenticated", "service_role"])
+      eq(
+        await value("select has_function_privilege($1,$2,'EXECUTE') as v", [role, serviceRpc]),
+        role === "service_role",
+      );
+  }
   const versions = (role, userId) =>
     as(role, userId, async () =>
       (await rows(`select version from ${table} order by version`)).map((r) => r.version),
@@ -374,6 +385,7 @@ try {
       ...draftBefore,
       config_version: null,
       config_day: null,
+      choice_note_id: null,
     },
   );
 
@@ -420,7 +432,7 @@ try {
   eq(configuredContext.draft.config_version, 2);
   eq(configuredContext.draft.config_day, today);
   const { config_version: _version, config_day: _day, ...legacyDraft } = configuredContext.draft;
-  eq((await readContext(configured, true)).draft, legacyDraft);
+  eq((await readContext(configured, 1)).draft, legacyDraft);
 
   const midnight = await writingJob(956);
   const yesterday = await value("select ((now() at time zone 'Europe/Rome')::date - 1)::text as v");
@@ -441,14 +453,14 @@ try {
     extraction.jobId,
   ]);
   const condition = { format: "negozio", condition_hash: "a".repeat(64) };
-  const completeChoice = (evidence, operation = randomUUID()) =>
+  const completeChoice = (job, evidence, operation = randomUUID(), emailSelection) =>
     as("service_role", undefined, () =>
       value("select public.complete_partner_assistant_choice($1,$2) as v", [
         operation,
         {
           schema_version: 1,
-          job_id: extraction.jobId,
-          lease_token: extraction.lease,
+          job_id: job.jobId,
+          lease_token: job.lease,
           choice: {
             contact_kind: "negozio",
             porsche_community: false,
@@ -479,20 +491,207 @@ try {
           model: "modello-sintetico",
           rules_version: 1,
           possibility_evidence: evidence,
+          ...(emailSelection === undefined ? {} : { email_selection: emailSelection }),
         },
       ]),
     );
-  await rejects(() => completeChoice(null), "22023");
-  await rejects(() => completeChoice([{ ...condition, format: "club" }]), "22023");
-  await rejects(() => completeChoice([{ ...condition, condition_hash: "A".repeat(64) }]), "22023");
-  await rejects(() => completeChoice(Array(161).fill(condition)), "22023");
+  await rejects(() => completeChoice(extraction, null), "22023");
+  await rejects(() => completeChoice(extraction, [{ ...condition, format: "club" }]), "22023");
+  await rejects(
+    () => completeChoice(extraction, [{ ...condition, condition_hash: "A".repeat(64) }]),
+    "22023",
+  );
+  await rejects(() => completeChoice(extraction, Array(161).fill(condition)), "22023");
   const extractionOperation = randomUUID();
-  eq((await completeChoice([condition], extractionOperation)).step, "scrittura");
-  eq((await completeChoice([condition], extractionOperation)).replayed, true);
+  eq((await completeChoice(extraction, [condition], extractionOperation)).step, "scrittura");
+  eq((await completeChoice(extraction, [condition], extractionOperation)).replayed, true);
   const extractedChoice = (await readContext(extraction)).choice.content;
   eq(extractedChoice.possibility_evidence, [condition]);
   const { possibility_evidence: _evidence, ...legacyChoice } = extractedChoice;
-  eq((await readContext(extraction, true)).choice.content, legacyChoice);
+  eq((await readContext(extraction, 1)).choice.content, legacyChoice);
+
+  async function leaseAt(job, step) {
+    job.lease = randomUUID();
+    await db.query(
+      `update public.partner_assistant_jobs set step=$3,lease_token=$2,
+       lease_expires_at=clock_timestamp()+interval '5 minutes' where id=$1`,
+      [job.jobId, job.lease, step],
+    );
+  }
+  function reselect(job, operation = randomUUID()) {
+    return as("service_role", undefined, () =>
+      value("select public.reselect_partner_assistant_email_choice($1,$2) as v", [
+        operation,
+        { schema_version: 1, job_id: job.jobId, lease_token: job.lease },
+      ]),
+    );
+  }
+  const activeShopFormat = third.config.formati.find((format) => format.id === "negozio");
+  const selection = {
+    formato: "negozio",
+    filone: "B",
+    motivo_filone: "Motivo del filone sintetico.",
+    sottotipo: activeShopFormat.filoni.B.sottotipi[0],
+    config_version: 3,
+    discordanza: "Discordanza sintetica rispetto alla scheda.",
+    tipo_estratto: "brand",
+  };
+  const selected = await writingJob(958);
+  await leaseAt(selected, "estrazione");
+  await rejects(
+    () => completeChoice(selected, [condition], randomUUID(), { ...selection, formato: "media" }),
+    "22023",
+  );
+  await rejects(
+    () =>
+      completeChoice(selected, [condition], randomUUID(), { ...selection, tipo_estratto: null }),
+    "22023",
+  );
+  eq((await completeChoice(selected, [condition], randomUUID(), selection)).step, "scrittura");
+  const pending = (await readContext(selected, 3)).choice;
+  eq(pending.email_selection_already_used, false);
+  eq(pending.content, { ...extractedChoice, ...selection, possibilita_usate: [] });
+  eq((await readContext(selected, 2)).choice, {
+    note_id: pending.note_id,
+    content: extractedChoice,
+  });
+  eq((await readContext(selected, 1)).choice, {
+    note_id: pending.note_id,
+    content: legacyChoice,
+  });
+  await leaseAt(selected, "scrittura");
+  eq(await completeDraft(selected, { config_version: 3 }), { status: "contesto_cambiato" });
+  eq(await draftVersion(selected), undefined);
+  await leaseAt(selected, "scrittura");
+  const version3 = { config_version: 3, config_day: today };
+  for (const invalid of [[0, 0], [3], [32], [null], [0, 1, 2]])
+    await rejects(
+      () => completeDraft(selected, version3, randomUUID(), { used_possibility_indexes: invalid }),
+      "22023",
+    );
+  await rejects(
+    () =>
+      completeDraft(selected, { config_version: 2 }, randomUUID(), {
+        used_possibility_indexes: [],
+      }),
+    "22023",
+  );
+  const firstDraftOperation = randomUUID();
+  const firstDraftFields = {
+    used_possibility_indexes: [1, 0],
+    checks_ok: false,
+    failures: ["controllo_sintetico"],
+  };
+  eq(
+    (await completeDraft(selected, version3, firstDraftOperation, firstDraftFields)).step,
+    "scrittura",
+  );
+  eq(
+    (await completeDraft(selected, version3, firstDraftOperation, firstDraftFields)).replayed,
+    true,
+  );
+  const firstDraft = await value(
+    "select to_jsonb(d) as v from public.partner_assistant_drafts d where d.operation_id=$1",
+    [firstDraftOperation],
+  );
+  const firstContext = await readContext(selected, 3);
+  eq(firstContext.choice.note_id, firstDraft.choice_note_id);
+  eq(firstContext.choice.email_selection_already_used, true);
+  eq(
+    firstContext.choice.content.possibilita_usate,
+    [1, 0].map((index) => activeShopFormat.possibilita[index].testo),
+  );
+  eq(
+    await value(
+      "select content->'possibilita_usate' as v from public.partner_assistant_notes where id=$1",
+      [pending.note_id],
+    ),
+    [],
+  );
+
+  const config4 = structuredClone(third.config);
+  config4.formati.find((format) => format.id === "negozio").possibilita[2].testo =
+    "Nuova possibilità sintetica.";
+  eq((await saveConfig({ expected: 3, config: config4 })).version, 4);
+  await leaseAt(selected, "scrittura");
+  eq(
+    (await completeDraft(selected, version3, randomUUID(), { used_possibility_indexes: [2] })).step,
+    "controllo",
+  );
+  const rewritten = await readContext(selected, 3);
+  eq(rewritten.draft.config_version, 3);
+  eq(rewritten.choice.email_selection_already_used, true);
+  eq(rewritten.choice.content.possibilita_usate, [activeShopFormat.possibilita[2].testo]);
+  eq(
+    await value("select content as v from public.partner_assistant_notes where id=$1", [
+      firstDraft.choice_note_id,
+    ]),
+    firstContext.choice.content,
+  );
+  await db.query("update public.partner_assistant_jobs set draft_id=null where id=$1", [
+    selected.jobId,
+  ]);
+  eq((await readContext(selected, 3)).choice.email_selection_already_used, true);
+  await leaseAt(selected, "scrittura");
+  eq((await reselect(selected)).step, "scrittura");
+  eq((await readContext(selected, 3)).choice.note_id, rewritten.choice.note_id);
+
+  async function prepareSelection(co, configVersion) {
+    const job = await writingJob(co);
+    await leaseAt(job, "estrazione");
+    eq(
+      (
+        await completeChoice(job, [condition], randomUUID(), {
+          ...selection,
+          config_version: configVersion,
+        })
+      ).step,
+      "scrittura",
+    );
+    await leaseAt(job, "scrittura");
+    return job;
+  }
+  function stateOf(job) {
+    return value(
+      `select jsonb_build_array(step,choice_note_id,draft_id,research_note_id,lease_token,attempts) as v
+       from public.partner_assistant_jobs where id=$1`,
+      [job.jobId],
+    );
+  }
+  const stale = await prepareSelection(959, 3);
+  const reselectOperation = randomUUID();
+  eq((await reselect(stale, reselectOperation)).step, "estrazione");
+  eq((await reselect(stale, reselectOperation)).replayed, true);
+  eq(await stateOf(stale), ["estrazione", null, null, stale.researchId, null, 0]);
+
+  const concurrent = await prepareSelection(960, 3);
+  const obsoleteDraftOperation = randomUUID();
+  eq(
+    (
+      await completeDraft(concurrent, version3, obsoleteDraftOperation, {
+        used_possibility_indexes: [],
+      })
+    ).step,
+    "estrazione",
+  );
+  eq(
+    (
+      await completeDraft(concurrent, version3, obsoleteDraftOperation, {
+        used_possibility_indexes: [],
+      })
+    ).replayed,
+    true,
+  );
+  eq(await stateOf(concurrent), ["estrazione", null, null, concurrent.researchId, null, 0]);
+  eq(await draftVersion(concurrent), undefined);
+
+  const changedSection = await prepareSelection(961, 4);
+  await db.query(
+    "update public.partners set sections=$2,updated_at=clock_timestamp() where id=$1",
+    [changedSection.partnerId, ["vendita", "eventi", "club"]],
+  );
+  eq((await reselect(changedSection)).step, "ricerca");
+  eq(await stateOf(changedSection), ["ricerca", null, null, changedSection.researchId, null, 0]);
 
   console.log(`PASS ${checks} controlli`);
 } catch (error) {

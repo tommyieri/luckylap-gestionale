@@ -580,6 +580,37 @@ describe("blocco dell'assistente nella scheda", () => {
     expect(view.draft?.signature).toBe(partnerAssistantSignature("en", "+39 000 000 0000"));
   });
 
+  it("legge formato e filone dalla nota scelta e mantiene la proposta se i dettagli mancano", () => {
+    const rows = contactRows(2);
+    const note = rows.notes.find((item) => item.kind === "scelta")!;
+    const choice = partnerAssistantContactFrom(rows).choice;
+    const content = {
+      ...(note.content as object),
+      formato: "evento_lontano",
+      filone: "B",
+      motivo_filone: "L'evento ha una community che partecipa anche online.",
+      discordanza: "La sezione Eventi prevale sul tipo negozio della ricerca.",
+      possibilita_usate: ["Una grafica dedicata"],
+      config_version: 1,
+    };
+    note.content = content;
+    expect(partnerAssistantContactFrom(rows).choice).toEqual({
+      ...choice,
+      formatDecision: {
+        format: "evento_lontano",
+        track: "B",
+        reason: content.motivo_filone,
+        discrepancy: content.discordanza,
+        usedPossibilities: content.possibilita_usate,
+      },
+    });
+
+    note.content = { ...content, filone: undefined };
+    expect(partnerAssistantContactFrom(rows).choice).toEqual(choice);
+    note.content = { ...content, formato: "club" };
+    expect(partnerAssistantContactFrom(rows).choice).toEqual(choice);
+  });
+
   it("mostra la provenienza della modifica editoriale solo sulle note del testo per i club", () => {
     const rows = contactRows(2);
     const research = rows.notes.find((note) => note.kind === "ricerca")!;
@@ -925,7 +956,13 @@ describe("etichette in italiano", () => {
     const byStep = {
       ricerca: ["salvata"],
       estrazione: ["scrivi", "attendi", "fatto_mancante", "fuso_mancante"],
-      scrittura: ["controlli_superati", "riscrittura", "controlli_falliti", "contesto_cambiato"],
+      scrittura: [
+        "controlli_superati",
+        "riscrittura",
+        "controlli_falliti",
+        "contesto_cambiato",
+        "scelta_superata",
+      ],
       controllo: [
         "pronta",
         "regole_superate",

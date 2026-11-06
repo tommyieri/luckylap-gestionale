@@ -3,6 +3,7 @@
 // da e verso le chiavi SQL e controlla ogni valore che legge.
 
 import type { PartnerEmailConditionEvidence } from "./email-config-eligibility";
+import type { PartnerEmailFormatId, PartnerEmailTrack } from "./email-config-prompt";
 
 export type PartnerAssistantStep = "ricerca" | "estrazione" | "scrittura" | "controllo";
 /** `inviata`: dopo la prima email vera (consegna 2a); la scrivono solo le RPC d'invio. */
@@ -100,10 +101,22 @@ export type PartnerAssistantResearch = {
   sources: string[];
   createdAt: string;
 };
+export type PartnerAssistantEmailSelection = {
+  format: PartnerEmailFormatId;
+  track: PartnerEmailTrack;
+  reason: string;
+  configVersion: number;
+  subtype?: string;
+  extractedKind?: PartnerAssistantContactKind;
+  discordance?: string;
+  usedPossibilities: string[];
+};
 export type PartnerAssistantChoiceNote = {
   noteId: string;
   content: PartnerAssistantChoice & { decision: PartnerAssistantDecision };
   possibilityEvidence?: PartnerEmailConditionEvidence[];
+  emailSelection?: PartnerAssistantEmailSelection;
+  emailSelectionAlreadyUsed?: boolean;
 };
 /** La bozza salvata, come la rilegge il contesto. */
 export type PartnerAssistantSavedDraft = {

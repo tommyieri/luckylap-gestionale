@@ -1,5 +1,6 @@
 import "server-only";
 import { createClient } from "@supabase/supabase-js";
+import { charCount, hasControlCharacters } from "../partner/model";
 import {
   abortable,
   boundedPhase,
@@ -37,6 +38,7 @@ import type {
   PartnerAssistantDone,
   PartnerAssistantDraft,
   PartnerAssistantEmail,
+  PartnerAssistantEmailSelection,
   PartnerAssistantFailKind,
   PartnerAssistantFailed,
   PartnerAssistantLease,
@@ -56,11 +58,12 @@ import type {
 /** Le RPC del worker (compito 2), senza configure_partner_assistant, che il worker non usa. */
 export const PARTNER_ASSISTANT_RPC_NAMES = [
   "claim_partner_assistant_step",
-  "context_partner_assistant_email_step",
+  "context_partner_assistant_email_format_step",
   "checkpoint_partner_assistant_step",
   "record_partner_assistant_call",
   "complete_partner_assistant_research",
   "complete_partner_assistant_choice",
+  "reselect_partner_assistant_email_choice",
   "complete_partner_assistant_draft",
   "complete_partner_assistant_review",
   "complete_partner_assistant_template",
@@ -340,24 +343,43 @@ function decisionFrom(value: unknown): PartnerAssistantDecision | null {
 }
 
 function choiceNoteFrom(value: unknown): PartnerAssistantChoiceNote | null {
-  const row = exact(value, ["note_id", "content"]);
-  const contentKeys = [...choiceKeys, "decision"];
-  const content =
-    exact(row?.content, contentKeys) ??
-    exact(row?.content, [...contentKeys, "possibility_evidence"]);
+  const row =
+    exact(value, ["note_id", "content"]) ??
+    exact(value, ["note_id", "content", "email_selection_already_used"]);
+  const raw = record(row?.content);
+  if (!raw) return null;
+  const contentKeys: string[] = [...choiceKeys, "decision"];
+  const hasEvidence = Object.hasOwn(raw, "possibility_evidence");
+  const hasSelection = Object.hasOwn(raw, "formato");
+  if (hasEvidence) contentKeys.push("possibility_evidence");
+  if (hasSelection) {
+    contentKeys.push("formato", "filone", "motivo_filone", "config_version", "possibilita_usate");
+    if (Object.hasOwn(raw, "sottotipo")) contentKeys.push("sottotipo");
+    if (Object.hasOwn(raw, "discordanza")) contentKeys.push("discordanza", "tipo_estratto");
+  }
+  const content = exact(raw, contentKeys);
   const choice = content && choiceFrom(content);
   const decision = content && decisionFrom(content.decision);
   if (!row || !uuid(row.note_id) || !content || !choice || !decision) return null;
-  if (!Object.hasOwn(content, "possibility_evidence"))
-    return { noteId: row.note_id, content: { ...choice, decision } };
-  const possibilityEvidence = possibilityEvidenceFrom(content.possibility_evidence);
-  return (
-    possibilityEvidence && {
-      noteId: row.note_id,
-      content: { ...choice, decision },
-      possibilityEvidence,
-    }
-  );
+  const note: PartnerAssistantChoiceNote = {
+    noteId: row.note_id,
+    content: { ...choice, decision },
+  };
+  if (hasEvidence) {
+    const possibilityEvidence = possibilityEvidenceFrom(content.possibility_evidence);
+    if (!possibilityEvidence) return null;
+    note.possibilityEvidence = possibilityEvidence;
+  }
+  if (hasSelection) {
+    const emailSelection = emailSelectionFrom(content, choice.contactKind);
+    if (!emailSelection) return null;
+    note.emailSelection = emailSelection;
+  }
+  if (Object.hasOwn(row, "email_selection_already_used")) {
+    if (!hasSelection || typeof row.email_selection_already_used !== "boolean") return null;
+    note.emailSelectionAlreadyUsed = row.email_selection_already_used;
+  }
+  return note;
 }
 
 const emailFormats = oneOf<PartnerEmailConditionEvidence["format"]>([
@@ -367,6 +389,72 @@ const emailFormats = oneOf<PartnerEmailConditionEvidence["format"]>([
   "media",
   "negozio",
 ]);
+
+const contactKinds = oneOf<PartnerAssistantChoice["contactKind"]>([
+  "club",
+  "brand",
+  "media",
+  "evento",
+  "negozio",
+]);
+
+function selectionText(value: unknown, limit: number): value is string {
+  return (
+    typeof value === "string" &&
+    /\S/u.test(value) &&
+    value.isWellFormed() &&
+    !hasControlCharacters(value) &&
+    charCount(value) <= limit
+  );
+}
+
+function emailSelectionFrom(
+  row: Row,
+  contactKind: PartnerAssistantChoice["contactKind"],
+): PartnerAssistantEmailSelection | null {
+  const {
+    formato,
+    filone,
+    motivo_filone,
+    config_version,
+    sottotipo,
+    discordanza,
+    tipo_estratto,
+    possibilita_usate,
+  } = row;
+  if (
+    !emailFormats(formato) ||
+    (filone !== "A" && filone !== "B") ||
+    !selectionText(motivo_filone, 500) ||
+    !integer(config_version, 1, 2147483647) ||
+    !Array.isArray(possibilita_usate) ||
+    possibilita_usate.length > 2 ||
+    !possibilita_usate.every((option) => selectionText(option, 1000))
+  )
+    return null;
+  const selection: PartnerAssistantEmailSelection = {
+    format: formato,
+    track: filone,
+    reason: motivo_filone,
+    configVersion: config_version,
+    usedPossibilities: possibilita_usate,
+  };
+  if (Object.hasOwn(row, "sottotipo")) {
+    if (!selectionText(sottotipo, 1000)) return null;
+    selection.subtype = sottotipo;
+  }
+  if (Object.hasOwn(row, "discordanza")) {
+    if (
+      !selectionText(discordanza, 1000) ||
+      !contactKinds(tipo_estratto) ||
+      tipo_estratto === contactKind
+    )
+      return null;
+    selection.discordance = discordanza;
+    selection.extractedKind = tipo_estratto;
+  }
+  return selection;
+}
 
 function possibilityEvidenceFrom(value: unknown): PartnerEmailConditionEvidence[] | null {
   if (!Array.isArray(value) || value.length > 160) return null;
@@ -538,6 +626,20 @@ function choiceRow(choice: PartnerAssistantChoice): Row {
   };
 }
 
+function emailSelectionRow(
+  selection: Omit<PartnerAssistantEmailSelection, "usedPossibilities">,
+): Row {
+  return {
+    formato: selection.format,
+    filone: selection.track,
+    motivo_filone: selection.reason,
+    config_version: selection.configVersion,
+    ...(selection.subtype === undefined ? {} : { sottotipo: selection.subtype }),
+    ...(selection.discordance === undefined ? {} : { discordanza: selection.discordance }),
+    ...(selection.extractedKind === undefined ? {} : { tipo_estratto: selection.extractedKind }),
+  };
+}
+
 function decisionRow(decision: PartnerAssistantDecision): Row {
   if (decision.kind === "attendi") return { kind: decision.kind, write_on: decision.writeOn };
   if (decision.kind === "blocca") return { kind: decision.kind, reason: decision.reason };
@@ -598,7 +700,13 @@ export type PartnerAssistantStore = {
       model: string;
       rulesVersion: number;
       possibilityEvidence?: PartnerEmailConditionEvidence[];
+      emailSelection?: Omit<PartnerAssistantEmailSelection, "usedPossibilities">;
     },
+    operationId: string,
+    signal: AbortSignal,
+  ): Promise<StoreResult<PartnerAssistantDone>>;
+  reselectEmailChoice(
+    job: PartnerAssistantLease,
     operationId: string,
     signal: AbortSignal,
   ): Promise<StoreResult<PartnerAssistantDone>>;
@@ -608,6 +716,7 @@ export type PartnerAssistantStore = {
       draft: PartnerAssistantDraft & { configVersion?: number; configDay?: string };
       checksOk: boolean;
       failures: string[];
+      usedPossibilityIndexes?: readonly number[];
     },
     operationId: string,
     signal: AbortSignal,
@@ -718,7 +827,12 @@ export function createPartnerAssistantStore(config: PartnerAssistantConfig): Par
     },
     async context(job, signal) {
       if (!leased(job)) return { ok: false };
-      return rpc("context_partner_assistant_email_step", leaseArgs(job), contextFrom, signal);
+      return rpc(
+        "context_partner_assistant_email_format_step",
+        leaseArgs(job),
+        contextFrom,
+        signal,
+      );
     },
     async loadEmailConfig(version, signal) {
       try {
@@ -775,7 +889,7 @@ export function createPartnerAssistantStore(config: PartnerAssistantConfig): Par
       );
     },
     completeChoice(job, input, operationId, signal) {
-      const { possibilityEvidence } = input;
+      const { possibilityEvidence, emailSelection } = input;
       return complete(
         "complete_partner_assistant_choice",
         job,
@@ -792,10 +906,16 @@ export function createPartnerAssistantStore(config: PartnerAssistantConfig): Par
                   condition_hash: conditionHash,
                 })),
               }),
+          ...(emailSelection === undefined
+            ? {}
+            : { email_selection: emailSelectionRow(emailSelection) }),
         },
         operationId,
         signal,
       );
+    },
+    reselectEmailChoice(job, operationId, signal) {
+      return complete("reselect_partner_assistant_email_choice", job, {}, operationId, signal);
     },
     completeDraft(job, input, operationId, signal) {
       const { configVersion, configDay } = input.draft;
@@ -810,6 +930,9 @@ export function createPartnerAssistantStore(config: PartnerAssistantConfig): Par
           },
           checks_ok: input.checksOk,
           failures: input.failures,
+          ...(input.usedPossibilityIndexes === undefined
+            ? {}
+            : { used_possibility_indexes: input.usedPossibilityIndexes }),
         },
         operationId,
         signal,

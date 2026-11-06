@@ -35,6 +35,7 @@ import {
   type PartnerAssistantUsage,
 } from "./cost";
 import type { PartnerEmailConfig } from "./email-config";
+import { parsePartnerEmailTrackChoice, resolvePartnerEmailChoice } from "./email-config-choice";
 import {
   parsePartnerEmailConditionEvidence,
   partnerEmailConditionCandidates,
@@ -73,6 +74,7 @@ import type {
   PartnerAssistantContext,
   PartnerAssistantDone,
   PartnerAssistantDraft,
+  PartnerAssistantEmailSelection,
   PartnerAssistantFailKind,
   PartnerAssistantLease,
   PartnerAssistantPauseReason,
@@ -176,7 +178,7 @@ type Complete = (
 /** La chiamata a Claude del passo e come concluderlo con la risposta: null se non è valida. */
 type StepPlan = { input: ClaudeCall; conclude: (answer: ClaudeAnswer) => Complete | null };
 
-/** Fino alla risoluzione per sezione, il formato segue la scelta salvata dall'estrazione. */
+/** Le scelte storiche non hanno ancora un formato esplicito. */
 function emailFormatOf(choice: PartnerAssistantChoice | undefined): PartnerEmailFormatId | null {
   switch (choice?.contactKind) {
     case "evento":
@@ -197,10 +199,12 @@ function configuredWriting(
 ): ConfiguredPartnerEmailPrompt | undefined {
   if (config === undefined || (step !== "scrittura" && step !== "controllo")) return;
   const note = required(context.choice, "scelta_mancante");
-  const format = emailFormatOf(note.content);
+  const selection = note.emailSelection;
+  const format = selection?.format ?? emailFormatOf(note.content);
   if (format === null) throw new Error("Formato della bozza configurata non disponibile.");
-  // Il filone esplicito verrà salvato nell'estrazione al Passo 3. Qui vale il filone base.
-  const track: PartnerEmailTrack = "A";
+  if (selection && selection.configVersion !== config.meta.versione)
+    throw new Error("La versione della configurazione non coincide con quella della scelta.");
+  const track: PartnerEmailTrack = selection?.track ?? "A";
   const draft = step === "controllo" ? required(context.draft, "bozza_mancante") : null;
   const writingDay =
     draft === null ? context.today : (draft.configDay ?? romeDay(new Date(draft.createdAt)));
@@ -216,6 +220,32 @@ function configuredWriting(
       evidence: note.possibilityEvidence,
     }),
   };
+}
+
+function requiresEmailReselection(
+  context: PartnerAssistantContext,
+  config: PartnerEmailConfig | undefined,
+): boolean {
+  const note = context.choice;
+  if (!note?.emailSelection || !config) return false;
+  const { format, configVersion, extractedKind } = note.emailSelection;
+  const current = resolvePartnerEmailChoice(context.partner.sections, {
+    ...note.content,
+    contactKind: extractedKind ?? note.content.contactKind,
+  });
+  return configVersion !== config.meta.versione || current.format !== format;
+}
+
+function usedPossibilityIndexes(value: unknown, eligible: readonly number[]): number[] | null {
+  const indexes = workerRecord(value)?.possibilita_usate;
+  if (
+    !Array.isArray(indexes) ||
+    indexes.length > 2 ||
+    new Set(indexes).size !== indexes.length ||
+    !indexes.every((index) => Number.isInteger(index) && eligible.includes(index))
+  )
+    return null;
+  return indexes;
 }
 
 /** Lancia PartnerAssistantMissingError, come i costruttori dei prompt, se manca un dato che il
@@ -251,16 +281,51 @@ function stepPlan(
       const candidates =
         emailConfig === undefined ? [] : partnerEmailConditionCandidates(emailConfig);
       return {
-        input: extractCall(context, candidates),
+        input: extractCall(context, candidates, emailConfig),
         conclude: (answer) => {
           const raw = firstJson(answer.message);
           const row = workerRecord(raw);
-          const { possibility_evidence: evidence, ...choiceFields } = row ?? {};
-          const extracted = parsePartnerAssistantChoice(candidates.length ? choiceFields : raw);
+          const {
+            possibility_evidence: evidence,
+            track_choice: trackChoice,
+            ...choiceFields
+          } = row ?? {};
+          const extracted = parsePartnerAssistantChoice(emailConfig ? choiceFields : raw);
           if (!extracted) return null;
-          // La proposta e la decisione le prende il codice, con la data di Roma del contesto.
-          const choice = { ...extracted, request: partnerAssistantRequest(extracted) };
+          const resolved = emailConfig
+            ? resolvePartnerEmailChoice(context.partner.sections, extracted)
+            : null;
+          let choice = resolved?.choice ?? {
+            ...extracted,
+            request: partnerAssistantRequest(extracted),
+          };
           const decision = partnerAssistantDecision(choice, context.today);
+          let emailSelection: Omit<PartnerAssistantEmailSelection, "usedPossibilities"> | undefined;
+          if (emailConfig && resolved?.format && resolved.format !== "club") {
+            const track = parsePartnerEmailTrackChoice(trackChoice, emailConfig, resolved.format);
+            if (track) {
+              emailSelection = {
+                format: resolved.format,
+                track: track.track,
+                reason: track.reason,
+                configVersion: emailConfig.meta.versione,
+                ...(track.subtype === null ? {} : { subtype: track.subtype }),
+                ...(resolved.discordance
+                  ? { extractedKind: resolved.extractedKind, discordance: resolved.discordance }
+                  : {}),
+              };
+            } else {
+              if (decision.kind === "scrivi") return null;
+              // Una scelta in attesa o bloccata può non avere un fatto per motivare il filone.
+              // La discordanza resta leggibile nella motivazione della nota.
+              if (resolved.discordance) {
+                const reasonIt = Array.from(`${resolved.discordance} ${choice.reasonIt}`)
+                  .slice(0, 2000)
+                  .join("");
+                choice = { ...choice, reasonIt };
+              }
+            }
+          }
           const possibilityEvidence = parsePartnerEmailConditionEvidence(
             evidence,
             candidates,
@@ -275,6 +340,7 @@ function stepPlan(
                 model,
                 rulesVersion,
                 ...(possibilityEvidence.length ? { possibilityEvidence } : {}),
+                ...(emailSelection ? { emailSelection } : {}),
               },
               operationId,
               signal,
@@ -286,13 +352,20 @@ function stepPlan(
       // La revisione riprenderà la data di questa preparazione per la maglietta co-firmata.
       const configured = configuredWriting(step, context, emailConfig);
       const input = writeCall(context, context.today, configured);
-      const choice = required(context.choice, "scelta_mancante").content;
+      const note = required(context.choice, "scelta_mancante");
+      const choice = note.content;
       const email = required(context.email, "email_mancante");
       return {
         input,
         conclude: (answer) => {
-          const written = draftFrom(firstJson(answer.message));
+          const raw = firstJson(answer.message);
+          const written = draftFrom(raw);
           if (!written) return null;
+          const used =
+            configured && note.emailSelection
+              ? usedPossibilityIndexes(raw, configured.eligiblePossibilityIndexes)
+              : undefined;
+          if (used === null) return null;
           // La firma con il numero la aggiunge il codice: il modello non la vede mai.
           const signature = partnerAssistantSignature(choice.language, config.phone);
           const draft = {
@@ -316,7 +389,12 @@ function stepPlan(
           return (operationId, signal) =>
             store.completeDraft(
               lease,
-              { draft, checksOk: checks.ok, failures: checks.ok ? [] : checks.failures },
+              {
+                draft,
+                checksOk: checks.ok,
+                failures: checks.ok ? [] : checks.failures,
+                ...(used === undefined ? {} : { usedPossibilityIndexes: used }),
+              },
               operationId,
               signal,
             );
@@ -519,13 +597,18 @@ export async function runPartnerAssistantStep(
     const usesTemplate = partnerAssistantUsesTemplate(context);
     const genericWrite = job.step === "scrittura" && !usesTemplate && !templateNotes(context);
     const retryDraft = genericWrite && context.lastReview?.approved === false ? draft : null;
+    const usedSelection =
+      genericWrite && context.choice?.emailSelectionAlreadyUsed
+        ? context.choice.emailSelection
+        : undefined;
+    const firstDraft = genericWrite && retryDraft === null && usedSelection === undefined;
     const pinnedVersion =
       job.step === "controllo" && !templateDraftOf(context)
         ? draft?.configVersion
-        : retryDraft?.configVersion;
+        : (retryDraft?.configVersion ?? usedSelection?.configVersion);
     const readCurrentConfig =
       (job.step === "estrazione" && !usesTemplate && !templateNotes(context)) ||
-      (genericWrite && retryDraft === null && emailFormatOf(context.choice?.content) !== null);
+      (firstDraft && emailFormatOf(context.choice?.content) !== null);
     let emailConfig: PartnerEmailConfig | undefined;
     if (pinnedVersion !== undefined || readCurrentConfig) {
       const loaded = await database((signal) => store.loadEmailConfig(pinnedVersion, signal));
@@ -560,6 +643,11 @@ export async function runPartnerAssistantStep(
     // alla ricerca.
     if ((job.step === "estrazione" || job.step === "scrittura") && templateNotes(context))
       return fail("rilascia", "contesto_cambiato");
+
+    if (firstDraft && requiresEmailReselection(context, emailConfig))
+      return complete((operationId, signal) =>
+        store.reselectEmailChoice(lease, operationId, signal),
+      );
 
     let plan: StepPlan;
     try {
