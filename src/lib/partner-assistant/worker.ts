@@ -1,5 +1,6 @@
 import "server-only";
 import { randomUUID, timingSafeEqual } from "node:crypto";
+import { romeDay } from "../partner/dates";
 import { charCount, hasControlCharacters } from "../partner/model";
 import { boundedPhase, workerRecord } from "../shopify/worker-io";
 import {
@@ -33,7 +34,15 @@ import {
   partnerAssistantCostUsd,
   type PartnerAssistantUsage,
 } from "./cost";
+import type { PartnerEmailConfig } from "./email-config";
 import {
+  parsePartnerEmailConditionEvidence,
+  partnerEmailConditionCandidates,
+  partnerEmailEligiblePossibilities,
+} from "./email-config-eligibility";
+import type { PartnerEmailFormatId, PartnerEmailTrack } from "./email-config-prompt";
+import {
+  type ConfiguredPartnerEmailPrompt,
   extractCall,
   firstJson,
   partnerAssistantCutShort,
@@ -60,6 +69,7 @@ import {
   partnerAssistantUsesTemplate,
 } from "./template";
 import type {
+  PartnerAssistantChoice,
   PartnerAssistantContext,
   PartnerAssistantDone,
   PartnerAssistantDraft,
@@ -166,6 +176,48 @@ type Complete = (
 /** La chiamata a Claude del passo e come concluderlo con la risposta: null se non è valida. */
 type StepPlan = { input: ClaudeCall; conclude: (answer: ClaudeAnswer) => Complete | null };
 
+/** Fino alla risoluzione per sezione, il formato segue la scelta salvata dall'estrazione. */
+function emailFormatOf(choice: PartnerAssistantChoice | undefined): PartnerEmailFormatId | null {
+  switch (choice?.contactKind) {
+    case "evento":
+      return choice.request === "stand_evento" ? "evento_vicino" : "evento_lontano";
+    case "brand":
+    case "media":
+    case "negozio":
+      return choice.contactKind;
+    default:
+      return null;
+  }
+}
+
+function configuredWriting(
+  step: PartnerAssistantStep,
+  context: PartnerAssistantContext,
+  config: PartnerEmailConfig | undefined,
+): ConfiguredPartnerEmailPrompt | undefined {
+  if (config === undefined || (step !== "scrittura" && step !== "controllo")) return;
+  const note = required(context.choice, "scelta_mancante");
+  const format = emailFormatOf(note.content);
+  if (format === null) throw new Error("Formato della bozza configurata non disponibile.");
+  // Il filone esplicito verrà salvato nell'estrazione al Passo 3. Qui vale il filone base.
+  const track: PartnerEmailTrack = "A";
+  const draft = step === "controllo" ? required(context.draft, "bozza_mancante") : null;
+  const writingDay =
+    draft === null ? context.today : (draft.configDay ?? romeDay(new Date(draft.createdAt)));
+  return {
+    config,
+    format,
+    track,
+    writingDay,
+    eligiblePossibilityIndexes: partnerEmailEligiblePossibilities(config, format, track, {
+      choice: note.content,
+      today: writingDay,
+      sections: context.partner.sections,
+      evidence: note.possibilityEvidence,
+    }),
+  };
+}
+
 /** Lancia PartnerAssistantMissingError, come i costruttori dei prompt, se manca un dato che il
  * passo usa. */
 function stepPlan(
@@ -174,6 +226,7 @@ function stepPlan(
   lease: PartnerAssistantLease,
   store: PartnerAssistantStore,
   config: PartnerAssistantConfig,
+  emailConfig?: PartnerEmailConfig,
 ): StepPlan {
   const model = PARTNER_ASSISTANT_MODEL;
   const rulesVersion = context.rules.version;
@@ -194,28 +247,45 @@ function stepPlan(
             );
         },
       };
-    case "estrazione":
+    case "estrazione": {
+      const candidates =
+        emailConfig === undefined ? [] : partnerEmailConditionCandidates(emailConfig);
       return {
-        input: extractCall(context),
+        input: extractCall(context, candidates),
         conclude: (answer) => {
-          const extracted = parsePartnerAssistantChoice(firstJson(answer.message));
+          const raw = firstJson(answer.message);
+          const row = workerRecord(raw);
+          const { possibility_evidence: evidence, ...choiceFields } = row ?? {};
+          const extracted = parsePartnerAssistantChoice(candidates.length ? choiceFields : raw);
           if (!extracted) return null;
           // La proposta e la decisione le prende il codice, con la data di Roma del contesto.
           const choice = { ...extracted, request: partnerAssistantRequest(extracted) };
           const decision = partnerAssistantDecision(choice, context.today);
+          const possibilityEvidence = parsePartnerEmailConditionEvidence(
+            evidence,
+            candidates,
+            context.research?.text ?? "",
+          );
           return (operationId, signal) =>
             store.completeChoice(
               lease,
-              { choice, decision, model, rulesVersion },
+              {
+                choice,
+                decision,
+                model,
+                rulesVersion,
+                ...(possibilityEvidence.length ? { possibilityEvidence } : {}),
+              },
               operationId,
               signal,
             );
         },
       };
+    }
     case "scrittura": {
-      // La stessa data della seconda lettura, così scrittore e revisore hanno la stessa riga
-      // sulla maglietta co-firmata.
-      const input = writeCall(context, context.today);
+      // La revisione riprenderà la data di questa preparazione per la maglietta co-firmata.
+      const configured = configuredWriting(step, context, emailConfig);
+      const input = writeCall(context, context.today, configured);
       const choice = required(context.choice, "scelta_mancante").content;
       const email = required(context.email, "email_mancante");
       return {
@@ -233,6 +303,9 @@ function stepPlan(
             rulesVersion,
             partnerVersion: context.partner.version,
             contactId: email.contactId,
+            ...(configured
+              ? { configVersion: configured.config.meta.versione, configDay: configured.writingDay }
+              : {}),
           };
           const checks = checkPartnerAssistantDraft(draft, {
             porscheCommunity: choice.porscheCommunity,
@@ -253,7 +326,9 @@ function stepPlan(
     case "controllo": {
       // Una bozza del testo fisso per i club ha la sua seconda lettura: le regole sul fatto della
       // ricerca e sul nome della persona non valgono per un testo approvato da Tommaso.
-      const input = templateDraftOf(context) ? templateReviewCall(context) : reviewCall(context);
+      const input = templateDraftOf(context)
+        ? templateReviewCall(context)
+        : reviewCall(context, configuredWriting(step, context, emailConfig));
       const draft = required(context.draft, "bozza_mancante");
       return {
         input,
@@ -441,6 +516,24 @@ export async function runPartnerAssistantStep(
         ),
       );
 
+    const usesTemplate = partnerAssistantUsesTemplate(context);
+    const genericWrite = job.step === "scrittura" && !usesTemplate && !templateNotes(context);
+    const retryDraft = genericWrite && context.lastReview?.approved === false ? draft : null;
+    const pinnedVersion =
+      job.step === "controllo" && !templateDraftOf(context)
+        ? draft?.configVersion
+        : retryDraft?.configVersion;
+    const readCurrentConfig =
+      (job.step === "estrazione" && !usesTemplate && !templateNotes(context)) ||
+      (genericWrite && retryDraft === null && emailFormatOf(context.choice?.content) !== null);
+    let emailConfig: PartnerEmailConfig | undefined;
+    if (pinnedVersion !== undefined || readCurrentConfig) {
+      const loaded = await database((signal) => store.loadEmailConfig(pinnedVersion, signal));
+      if (!loaded.ok || (loaded.value === null && job.step !== "estrazione"))
+        return { status: "uncertain", step };
+      emailConfig = loaded.value?.config;
+    }
+
     // Il flag, la pausa, l'attesa, la lease e il contatto si ricontrollano subito prima di Claude.
     // Un contatto che non è più idoneo (per esempio senza email) si rilascia senza tentativi.
     const checkpoint = await database((signal) => store.checkpoint(lease, signal));
@@ -451,7 +544,7 @@ export async function runPartnerAssistantStep(
     // bozza dal testo fisso per i club e il database la salva con la scelta e una nota di ricerca
     // sostitutiva; Claude farà solo la seconda lettura. Vale per ogni ritorno indietro (ricerca
     // scaduta, regole nuove, recapito cambiato): la bozza si ricompone senza costi.
-    if (job.step !== "controllo" && partnerAssistantUsesTemplate(context)) {
+    if (job.step !== "controllo" && usesTemplate) {
       if (partnerAssistantTemplateBlocked(context.partner))
         return fail("blocca", "rete_scuderia_ferrari");
       let template: Complete;
@@ -470,7 +563,7 @@ export async function runPartnerAssistantStep(
 
     let plan: StepPlan;
     try {
-      plan = stepPlan(job.step, context, lease, store, config);
+      plan = stepPlan(job.step, context, lease, store, config, emailConfig);
     } catch (error) {
       // ricerca_mancante, scelta_mancante, bozza_mancante, email_mancante: uno stato incoerente.
       // Ogni altra eccezione è un errore nel codice.

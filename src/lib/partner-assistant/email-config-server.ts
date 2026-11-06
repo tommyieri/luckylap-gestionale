@@ -10,8 +10,8 @@ import { getSupabasePublicConfig } from "../supabase/config";
 import { createSupabaseServerClient } from "../supabase/server";
 import { partnerEmailConfigFixedFieldsMatch, partnerEmailConfigSchema } from "./email-config";
 
-const table = "partner_email_config_versions";
-const columns = "version,config,note,created_by,created_at";
+export const PARTNER_EMAIL_CONFIG_TABLE = "partner_email_config_versions";
+export const PARTNER_EMAIL_CONFIG_COLUMNS = "version,config,note,created_by,created_at";
 const maxVersion = 2_147_483_647;
 const versionNumber = z.number().int().min(1).max(maxVersion);
 const operationId = z.string().refine(isPartnerId);
@@ -63,14 +63,18 @@ function readVersion(row: unknown): PartnerEmailConfigVersion {
 export async function loadPartnerEmailConfigVersion(
   supabase: SupabaseClient,
   version?: number,
+  signal?: AbortSignal,
 ): Promise<PartnerEmailConfigVersion | null> {
   if (version !== undefined && !versionNumber.safeParse(version).success) return unavailable();
-  const query = supabase.from(table).select(columns);
+  const query = supabase.from(PARTNER_EMAIL_CONFIG_TABLE).select(PARTNER_EMAIL_CONFIG_COLUMNS);
   const row =
     version === undefined
       ? query.order("version", { ascending: false }).limit(1)
       : query.eq("version", version);
-  const { data, error } = await row.abortSignal(AbortSignal.timeout(10_000)).maybeSingle();
+  const timeout = AbortSignal.timeout(10_000);
+  const { data, error } = await row
+    .abortSignal(signal ? AbortSignal.any([signal, timeout]) : timeout)
+    .maybeSingle();
   if (error) return unavailable();
   if (data === null) return null;
   const saved = readVersion(data);

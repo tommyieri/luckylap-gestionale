@@ -1,4 +1,4 @@
-// test-db: pglite minimo 63
+// test-db: pglite minimo 87
 // Versioni della configurazione email, ruoli, ricevute e collegamento alle bozze.
 // Auth e schede sintetiche. Nessuna connessione a Supabase o Claude.
 import assert from "node:assert/strict";
@@ -106,6 +106,18 @@ function completeDraft(job, extra = {}, operation = randomUUID()) {
         failures: [],
       },
     ]),
+  );
+}
+
+async function readContext(job, legacy = false) {
+  const lease = randomUUID();
+  await db.query(
+    "update public.partner_assistant_jobs set lease_token=$2,lease_expires_at=clock_timestamp()+interval '5 minutes' where id=$1",
+    [job.jobId, lease],
+  );
+  const name = legacy ? "context_partner_assistant_step" : "context_partner_assistant_email_step";
+  return as("service_role", undefined, () =>
+    value(`select public.${name}($1,$2) as v`, [job.jobId, lease]),
   );
 }
 
@@ -232,12 +244,19 @@ try {
     "_partner_email_config_versions.sql",
     "_partner_email_config_seed.sql",
     "_partner_email_config_draft.sql",
+    "_partner_email_config_context.sql",
   ]) {
     await migration(suffix);
   }
 
   const table = "public.partner_email_config_versions";
   const rpc = "public.save_partner_email_config(uuid,uuid,integer,jsonb,text)";
+  const contextRpc = "public.context_partner_assistant_email_step(uuid,uuid)";
+  for (const role of ["anon", "authenticated", "service_role"])
+    eq(
+      await value("select has_function_privilege($1,$2,'EXECUTE') as v", [role, contextRpc]),
+      role === "service_role",
+    );
   const versions = (role, userId) =>
     as(role, userId, async () =>
       (await rows(`select version from ${table} order by version`)).map((r) => r.version),
@@ -354,6 +373,7 @@ try {
     {
       ...draftBefore,
       config_version: null,
+      config_day: null,
     },
   );
 
@@ -366,6 +386,9 @@ try {
   const legacy = await writingJob(952);
   eq((await completeDraft(legacy)).step, "controllo");
   eq(await draftVersion(legacy), null);
+  const legacyContext = await readContext(legacy);
+  eq(Object.hasOwn(legacyContext.draft, "config_version"), false);
+  eq(Object.hasOwn(legacyContext.draft, "config_day"), false);
   const current = await writingJob(953);
   const draftOperation = randomUUID();
   await rejects(() => completeDraft(current, { config_version: 999 }, draftOperation), "23503");
@@ -378,9 +401,98 @@ try {
     "Una scrittura conserva la propria versione anche se non è più l'ultima",
   );
   eq((await completeDraft(current, { config_version: 2 }, draftOperation)).replayed, true);
+  const versionContext = await readContext(current);
+  eq(versionContext.draft.config_version, 2);
+  eq(Object.hasOwn(versionContext.draft, "config_day"), false);
   const club = await writingJob(954, ["club"]);
   await rejects(() => completeDraft(club, { config_version: 2 }), "22023");
   eq(await draftVersion(club), undefined);
+
+  const configured = await writingJob(955);
+  const today = await value("select ((now() at time zone 'Europe/Rome')::date)::text as v");
+  await rejects(() => completeDraft(configured, { config_day: today }), "22023");
+  await rejects(
+    () => completeDraft(configured, { config_version: 2, config_day: "2026-02-30" }),
+    "22023",
+  );
+  eq((await completeDraft(configured, { config_version: 2, config_day: today })).step, "controllo");
+  const configuredContext = await readContext(configured);
+  eq(configuredContext.draft.config_version, 2);
+  eq(configuredContext.draft.config_day, today);
+  const { config_version: _version, config_day: _day, ...legacyDraft } = configuredContext.draft;
+  eq((await readContext(configured, true)).draft, legacyDraft);
+
+  const midnight = await writingJob(956);
+  const yesterday = await value("select ((now() at time zone 'Europe/Rome')::date - 1)::text as v");
+  eq(await completeDraft(midnight, { config_version: 2, config_day: yesterday }), {
+    status: "contesto_cambiato",
+  });
+  eq(await draftVersion(midnight), undefined);
+  eq(
+    await value(
+      "select jsonb_build_array(lease_token, attempts) as v from public.partner_assistant_jobs where id=$1",
+      [midnight.jobId],
+    ),
+    [null, 0],
+  );
+
+  const extraction = await writingJob(957);
+  await db.query("update public.partner_assistant_jobs set step='estrazione' where id=$1", [
+    extraction.jobId,
+  ]);
+  const condition = { format: "negozio", condition_hash: "a".repeat(64) };
+  const completeChoice = (evidence, operation = randomUUID()) =>
+    as("service_role", undefined, () =>
+      value("select public.complete_partner_assistant_choice($1,$2) as v", [
+        operation,
+        {
+          schema_version: 1,
+          job_id: extraction.jobId,
+          lease_token: extraction.lease,
+          choice: {
+            contact_kind: "negozio",
+            porsche_community: false,
+            reason_it: "Motivo sintetico.",
+            write_now: true,
+            write_on: "",
+            recipient_email: "",
+            recipient_email_source: "",
+            recipient_email_published_by_org: false,
+            person_name: "",
+            person_title: "",
+            language: "it",
+            register: "voi",
+            swiss: false,
+            timezone: "Europe/Rome",
+            fact_text: "Fatto sintetico.",
+            fact_date: "",
+            fact_source: "",
+            event_name: "",
+            event_starts_on: "",
+            event_city: "",
+            event_country: "",
+            event_reachable: false,
+            notes_it: "",
+            request: "vendita_negozio",
+          },
+          decision: { kind: "scrivi" },
+          model: "modello-sintetico",
+          rules_version: 1,
+          possibility_evidence: evidence,
+        },
+      ]),
+    );
+  await rejects(() => completeChoice(null), "22023");
+  await rejects(() => completeChoice([{ ...condition, format: "club" }]), "22023");
+  await rejects(() => completeChoice([{ ...condition, condition_hash: "A".repeat(64) }]), "22023");
+  await rejects(() => completeChoice(Array(161).fill(condition)), "22023");
+  const extractionOperation = randomUUID();
+  eq((await completeChoice([condition], extractionOperation)).step, "scrittura");
+  eq((await completeChoice([condition], extractionOperation)).replayed, true);
+  const extractedChoice = (await readContext(extraction)).choice.content;
+  eq(extractedChoice.possibility_evidence, [condition]);
+  const { possibility_evidence: _evidence, ...legacyChoice } = extractedChoice;
+  eq((await readContext(extraction, true)).choice.content, legacyChoice);
 
   console.log(`PASS ${checks} controlli`);
 } catch (error) {

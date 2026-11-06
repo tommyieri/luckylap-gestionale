@@ -89,9 +89,11 @@ export function partnerAssistantRequest(
 }
 
 // Le regole le citano parola per parola: non cambiarle senza cambiare le regole.
-const MERCH_YES = "Maglietta co-firmata: puoi proporla";
-const MERCH_NO = "Maglietta co-firmata: non proporla";
-const MERCH_NEXT = "Maglietta co-firmata: per la prossima edizione";
+export const PARTNER_ASSISTANT_EVENT_MERCH = {
+  allowed: "Maglietta co-firmata: puoi proporla",
+  disallowed: "Maglietta co-firmata: non proporla",
+  nextEdition: "Maglietta co-firmata: per la prossima edizione",
+} as const;
 /** La produzione dura un mese: «più di un mese» è oltre 31 giorni da oggi. */
 const MONTH_DAYS = 31;
 
@@ -105,9 +107,10 @@ export function partnerAssistantEventMerch(
   if (choice.contactKind !== "evento") return null;
   const moreThanAMonth =
     choice.eventStartsOn !== "" && daysBetween(today, choice.eventStartsOn) > MONTH_DAYS;
-  if (choice.request === "stand_evento") return moreThanAMonth ? MERCH_YES : MERCH_NO;
+  const { allowed, disallowed, nextEdition } = PARTNER_ASSISTANT_EVENT_MERCH;
+  if (choice.request === "stand_evento") return moreThanAMonth ? allowed : disallowed;
   if (choice.request === "merch_cobranding")
-    return moreThanAMonth || choice.eventStartsOn === "" ? MERCH_YES : MERCH_NEXT;
+    return moreThanAMonth || choice.eventStartsOn === "" ? allowed : nextEdition;
   return null;
 }
 

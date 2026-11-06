@@ -2,6 +2,8 @@
 // (supabase/migrations/20261028122956_assistente_partner_worker.sql) in camelCase. Lo store converte
 // da e verso le chiavi SQL e controlla ogni valore che legge.
 
+import type { PartnerEmailConditionEvidence } from "./email-config-eligibility";
+
 export type PartnerAssistantStep = "ricerca" | "estrazione" | "scrittura" | "controllo";
 /** `inviata`: dopo la prima email vera (consegna 2a); la scrivono solo le RPC d'invio. */
 export type PartnerAssistantJobStatus =
@@ -101,6 +103,7 @@ export type PartnerAssistantResearch = {
 export type PartnerAssistantChoiceNote = {
   noteId: string;
   content: PartnerAssistantChoice & { decision: PartnerAssistantDecision };
+  possibilityEvidence?: PartnerEmailConditionEvidence[];
 };
 /** La bozza salvata, come la rilegge il contesto. */
 export type PartnerAssistantSavedDraft = {
@@ -112,6 +115,8 @@ export type PartnerAssistantSavedDraft = {
   sha256: string;
   rulesVersion: number;
   createdAt: string;
+  configVersion?: number;
+  configDay?: string;
 };
 export type PartnerAssistantReview = { approved: boolean; problems: string[] };
 /** Tutto quello che serve al passo, ricostruito dal database. */

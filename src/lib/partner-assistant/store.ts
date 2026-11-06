@@ -2,8 +2,10 @@ import "server-only";
 import { createClient } from "@supabase/supabase-js";
 import {
   abortable,
+  boundedPhase,
   createWorkerRpcFetch,
   safeWorkerReason as safeReason,
+  workerJson,
   workerRecord as record,
   workerUuid as uuid,
 } from "../shopify/worker-io";
@@ -16,6 +18,13 @@ import {
   text,
 } from "./choice-fields";
 import type { PartnerAssistantConfig } from "./config";
+import type { PartnerEmailConditionEvidence } from "./email-config-eligibility";
+import {
+  loadPartnerEmailConfigVersion,
+  PARTNER_EMAIL_CONFIG_COLUMNS,
+  PARTNER_EMAIL_CONFIG_TABLE,
+  type PartnerEmailConfigVersion,
+} from "./email-config-server";
 import type {
   PartnerAssistantCallRecord,
   PartnerAssistantCheckpoint,
@@ -47,7 +56,7 @@ import type {
 /** Le RPC del worker (compito 2), senza configure_partner_assistant, che il worker non usa. */
 export const PARTNER_ASSISTANT_RPC_NAMES = [
   "claim_partner_assistant_step",
-  "context_partner_assistant_step",
+  "context_partner_assistant_email_step",
   "checkpoint_partner_assistant_step",
   "record_partner_assistant_call",
   "complete_partner_assistant_research",
@@ -62,15 +71,18 @@ type PartnerAssistantRpcName = (typeof PARTNER_ASSISTANT_RPC_NAMES)[number];
 // Più larghi di Shopify (64 KiB, 4 secondi): ricerche con fonti, regole e bozze.
 export const PARTNER_ASSISTANT_RPC_TIMEOUT_MS = 10_000;
 export const PARTNER_ASSISTANT_RPC_MAX_BYTES = 1_048_576;
+const CONFIG_READ_PATH = `/rest/v1/${PARTNER_EMAIL_CONFIG_TABLE}`;
+// La tabella limita config a 1 MiB. Nota e metadati della riga hanno un margine separato.
+const CONFIG_RESPONSE_MAX_BYTES = PARTNER_ASSISTANT_RPC_MAX_BYTES + 8_192;
 
 /** Lo stesso trasporto di createShopifyWorkerFetch (createWorkerRpcFetch) con i limiti propri:
  * byte limitati in uscita e in entrata prima del parser di PostgREST, la chiave mai inoltrata
- * in un redirect. In più, una richiesta deve essere testo entro 1 MiB, contato in byte. */
+ * in un redirect. Per la configurazione ammette solo le due letture di una versione. */
 export function createPartnerAssistantFetch(
   config: Pick<PartnerAssistantConfig, "supabaseUrl">,
   fetcher: typeof fetch = fetch,
 ): typeof fetch {
-  return createWorkerRpcFetch(
+  const rpcFetch = createWorkerRpcFetch(
     {
       supabaseUrl: config.supabaseUrl,
       rpcNames: PARTNER_ASSISTANT_RPC_NAMES,
@@ -80,6 +92,59 @@ export function createPartnerAssistantFetch(
     },
     fetcher,
   );
+  const origin = new URL(config.supabaseUrl).origin;
+  return async (input, init) => {
+    const request = input instanceof Request ? input : null;
+    const url = new URL(request?.url ?? String(input));
+    if (url.pathname !== CONFIG_READ_PATH) return rpcFetch(input, init);
+
+    const method = init?.method ?? request?.method ?? "GET";
+    const parentSignal = init?.signal ?? request?.signal;
+    const query = url.searchParams;
+    const version = query.get("version")?.match(/^eq\.([1-9][0-9]{0,9})$/u)?.[1];
+    const latest =
+      query.size === 3 && query.get("order") === "version.desc" && query.get("limit") === "1";
+    const exactVersion = query.size === 2 && version !== undefined && Number(version) <= 2147483647;
+    if (
+      url.origin !== origin ||
+      url.hash ||
+      url.username ||
+      url.password ||
+      method !== "GET" ||
+      !parentSignal ||
+      init?.body != null ||
+      request?.body != null ||
+      query.get("select") !== PARTNER_EMAIL_CONFIG_COLUMNS ||
+      (!latest && !exactVersion)
+    )
+      throw new Error("worker_transport_invalid");
+
+    return boundedPhase(parentSignal, PARTNER_ASSISTANT_RPC_TIMEOUT_MS, async (signal) => {
+      const response = await abortable(
+        fetcher(input, {
+          ...init,
+          method: "GET",
+          signal,
+          redirect: "error",
+          cache: "no-store",
+          credentials: "omit",
+        }),
+        signal,
+      );
+      if (!response.ok) {
+        void response.body?.cancel().catch(() => undefined);
+        return Response.json(
+          { code: "worker_database_unavailable", message: "worker_database_unavailable" },
+          { status: response.status },
+        );
+      }
+      if (response.redirected || response.status !== 200) {
+        void response.body?.cancel().catch(() => undefined);
+        throw new Error("worker_response_invalid");
+      }
+      return Response.json(await workerJson(response, signal, CONFIG_RESPONSE_MAX_BYTES));
+    });
+  };
 }
 
 // ---------------------------------------------------------------------------
@@ -276,16 +341,46 @@ function decisionFrom(value: unknown): PartnerAssistantDecision | null {
 
 function choiceNoteFrom(value: unknown): PartnerAssistantChoiceNote | null {
   const row = exact(value, ["note_id", "content"]);
-  const content = exact(row?.content, [...choiceKeys, "decision"]);
+  const contentKeys = [...choiceKeys, "decision"];
+  const content =
+    exact(row?.content, contentKeys) ??
+    exact(row?.content, [...contentKeys, "possibility_evidence"]);
   const choice = content && choiceFrom(content);
   const decision = content && decisionFrom(content.decision);
-  return row && uuid(row.note_id) && choice && decision
-    ? { noteId: row.note_id, content: { ...choice, decision } }
-    : null;
+  if (!row || !uuid(row.note_id) || !content || !choice || !decision) return null;
+  if (!Object.hasOwn(content, "possibility_evidence"))
+    return { noteId: row.note_id, content: { ...choice, decision } };
+  const possibilityEvidence = possibilityEvidenceFrom(content.possibility_evidence);
+  return (
+    possibilityEvidence && {
+      noteId: row.note_id,
+      content: { ...choice, decision },
+      possibilityEvidence,
+    }
+  );
+}
+
+const emailFormats = oneOf<PartnerEmailConditionEvidence["format"]>([
+  "evento_vicino",
+  "evento_lontano",
+  "brand",
+  "media",
+  "negozio",
+]);
+
+function possibilityEvidenceFrom(value: unknown): PartnerEmailConditionEvidence[] | null {
+  if (!Array.isArray(value) || value.length > 160) return null;
+  const result: PartnerEmailConditionEvidence[] = [];
+  for (const entry of value) {
+    const row = exact(entry, ["format", "condition_hash"]);
+    if (!row || !emailFormats(row.format) || !sha256(row.condition_hash)) return null;
+    result.push({ format: row.format, conditionHash: row.condition_hash });
+  }
+  return result;
 }
 
 function savedDraftFrom(value: unknown): PartnerAssistantSavedDraft | null {
-  const row = exact(value, [
+  const keys = [
     "draft_id",
     "language",
     "subject",
@@ -294,7 +389,15 @@ function savedDraftFrom(value: unknown): PartnerAssistantSavedDraft | null {
     "sha256",
     "rules_version",
     "created_at",
-  ]);
+  ];
+  const row =
+    exact(value, keys) ??
+    exact(value, [...keys, "config_version"]) ??
+    exact(value, [...keys, "config_version", "config_day"]);
+  const rawVersion = row?.config_version;
+  const configVersion = integer(rawVersion, 1, 2147483647) ? rawVersion : undefined;
+  const rawDay = row?.config_day;
+  const configDay = day(rawDay) ? rawDay : undefined;
   if (
     !row ||
     !uuid(row.draft_id) ||
@@ -304,7 +407,9 @@ function savedDraftFrom(value: unknown): PartnerAssistantSavedDraft | null {
     !filled(row.signature) ||
     !sha256(row.sha256) ||
     !integer(row.rules_version, 1, 2147483647) ||
-    !instant(row.created_at)
+    !instant(row.created_at) ||
+    (Object.hasOwn(row, "config_version") && configVersion === undefined) ||
+    (Object.hasOwn(row, "config_day") && configDay === undefined)
   )
     return null;
   return {
@@ -316,6 +421,8 @@ function savedDraftFrom(value: unknown): PartnerAssistantSavedDraft | null {
     sha256: row.sha256,
     rulesVersion: row.rules_version,
     createdAt: row.created_at,
+    ...(configVersion === undefined ? {} : { configVersion }),
+    ...(configDay === undefined ? {} : { configDay }),
   };
 }
 
@@ -464,6 +571,10 @@ export type PartnerAssistantStore = {
     job: PartnerAssistantLease,
     signal: AbortSignal,
   ): Promise<StoreResult<PartnerAssistantContextResult>>;
+  loadEmailConfig(
+    version: number | undefined,
+    signal: AbortSignal,
+  ): Promise<StoreResult<PartnerEmailConfigVersion | null>>;
   checkpoint(
     job: PartnerAssistantLease,
     signal: AbortSignal,
@@ -486,6 +597,7 @@ export type PartnerAssistantStore = {
       decision: PartnerAssistantDecision;
       model: string;
       rulesVersion: number;
+      possibilityEvidence?: PartnerEmailConditionEvidence[];
     },
     operationId: string,
     signal: AbortSignal,
@@ -493,7 +605,7 @@ export type PartnerAssistantStore = {
   completeDraft(
     job: PartnerAssistantLease,
     input: {
-      draft: PartnerAssistantDraft & { configVersion?: number };
+      draft: PartnerAssistantDraft & { configVersion?: number; configDay?: string };
       checksOk: boolean;
       failures: string[];
     },
@@ -606,7 +718,18 @@ export function createPartnerAssistantStore(config: PartnerAssistantConfig): Par
     },
     async context(job, signal) {
       if (!leased(job)) return { ok: false };
-      return rpc("context_partner_assistant_step", leaseArgs(job), contextFrom, signal);
+      return rpc("context_partner_assistant_email_step", leaseArgs(job), contextFrom, signal);
+    },
+    async loadEmailConfig(version, signal) {
+      try {
+        const value = await abortable(
+          loadPartnerEmailConfigVersion(client, version, signal),
+          signal,
+        );
+        return { ok: true, value };
+      } catch {
+        return { ok: false };
+      }
     },
     async checkpoint(job, signal) {
       if (!leased(job)) return { ok: false };
@@ -652,6 +775,7 @@ export function createPartnerAssistantStore(config: PartnerAssistantConfig): Par
       );
     },
     completeChoice(job, input, operationId, signal) {
+      const { possibilityEvidence } = input;
       return complete(
         "complete_partner_assistant_choice",
         job,
@@ -660,13 +784,21 @@ export function createPartnerAssistantStore(config: PartnerAssistantConfig): Par
           decision: decisionRow(input.decision),
           model: input.model,
           rules_version: input.rulesVersion,
+          ...(possibilityEvidence === undefined
+            ? {}
+            : {
+                possibility_evidence: possibilityEvidence.map(({ format, conditionHash }) => ({
+                  format,
+                  condition_hash: conditionHash,
+                })),
+              }),
         },
         operationId,
         signal,
       );
     },
     completeDraft(job, input, operationId, signal) {
-      const { configVersion } = input.draft;
+      const { configVersion, configDay } = input.draft;
       return complete(
         "complete_partner_assistant_draft",
         job,
@@ -674,6 +806,7 @@ export function createPartnerAssistantStore(config: PartnerAssistantConfig): Par
           draft: {
             ...draftRow(input.draft),
             ...(configVersion === undefined ? {} : { config_version: configVersion }),
+            ...(configDay === undefined ? {} : { config_day: configDay }),
           },
           checks_ok: input.checksOk,
           failures: input.failures,

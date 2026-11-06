@@ -2,7 +2,12 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 vi.mock("server-only", () => ({}));
 const mocks = vi.hoisted(() => ({ createClient: vi.fn(), rpc: vi.fn(), abortSignal: vi.fn() }));
 vi.mock("@supabase/supabase-js", () => ({ createClient: mocks.createClient }));
-import { createPartnerAssistantStore, type PartnerAssistantStore } from "./store";
+import seed from "../../../data/partner-email-config-v1.json";
+import {
+  createPartnerAssistantFetch,
+  createPartnerAssistantStore,
+  type PartnerAssistantStore,
+} from "./store";
 import type { PartnerAssistantChoice, PartnerAssistantDraft } from "./types";
 
 // Solo dati sintetici: domini example.test, CO da 951, UUID inventati.
@@ -167,6 +172,8 @@ const context = {
   },
   lastReview: { approved: false, problems: ["parola_vietata"] },
 };
+const evidence = [{ format: "negozio", conditionHash: "c".repeat(64) }] as const;
+const evidenceRow = [{ format: "negozio", condition_hash: "c".repeat(64) }];
 const draft: PartnerAssistantDraft = {
   language: "en",
   subject: "Oggetto sintetico",
@@ -349,15 +356,45 @@ const cases: Case[] = [
   })),
   {
     label: "contesto completo",
-    name: "context_partner_assistant_step",
+    name: "context_partner_assistant_email_step",
     run: (s, signal) => s.context(lease, signal),
     args: leaseArgs,
     row: contextRow,
     value: { status: "ok", context },
   },
   {
+    label: "contesto di una bozza con la sola versione di configurazione",
+    name: "context_partner_assistant_email_step",
+    run: (s, signal) => s.context(lease, signal),
+    args: leaseArgs,
+    row: { ...contextRow, draft: { ...contextRow.draft, config_version: 2 } },
+    value: { status: "ok", context: { ...context, draft: { ...context.draft, configVersion: 2 } } },
+  },
+  {
+    label: "contesto con evidenze, versione e giorno di composizione",
+    name: "context_partner_assistant_email_step",
+    run: (s, signal) => s.context(lease, signal),
+    args: leaseArgs,
+    row: {
+      ...contextRow,
+      choice: {
+        ...contextRow.choice,
+        content: { ...contextRow.choice.content, possibility_evidence: evidenceRow },
+      },
+      draft: { ...contextRow.draft, config_version: 2, config_day: context.today },
+    },
+    value: {
+      status: "ok",
+      context: {
+        ...context,
+        choice: { ...context.choice, possibilityEvidence: evidence },
+        draft: { ...context.draft, configVersion: 2, configDay: context.today },
+      },
+    },
+  },
+  {
     label: "contesto senza lease",
-    name: "context_partner_assistant_step",
+    name: "context_partner_assistant_email_step",
     run: (s, signal) => s.context(lease, signal),
     args: leaseArgs,
     row: { status: "lease_persa" },
@@ -431,12 +468,39 @@ const cases: Case[] = [
     })),
   ]),
   {
-    label: "bozza generica con la versione della configurazione usata",
+    label: "scelta con evidenza per una possibilità",
+    name: "complete_partner_assistant_choice",
+    run: (s, signal) =>
+      s.completeChoice(
+        lease,
+        {
+          choice,
+          decision: { kind: "attendi", writeOn: "2026-12-01" },
+          model: "m",
+          rulesVersion: 1,
+          possibilityEvidence: [...evidence],
+        },
+        operationId,
+        signal,
+      ),
+    args: {
+      ...choseArgs,
+      p_payload: { ...choseArgs.p_payload, possibility_evidence: evidenceRow },
+    },
+    row: done,
+    value: doneValue,
+  },
+  {
+    label: "bozza generica con la versione e il giorno della configurazione usata",
     name: "complete_partner_assistant_draft",
     run: (s, signal) =>
       s.completeDraft(
         lease,
-        { draft: { ...draft, configVersion: 2 }, checksOk: false, failures: ["parola_vietata"] },
+        {
+          draft: { ...draft, configVersion: 2, configDay: context.today },
+          checksOk: false,
+          failures: ["parola_vietata"],
+        },
         operationId,
         signal,
       ),
@@ -444,7 +508,7 @@ const cases: Case[] = [
       ...wroteArgs,
       p_payload: {
         ...wroteArgs.p_payload,
-        draft: { ...wroteArgs.p_payload.draft, config_version: 2 },
+        draft: { ...wroteArgs.p_payload.draft, config_version: 2, config_day: context.today },
       },
     },
     row: done,
@@ -493,7 +557,7 @@ const cases: Case[] = [
 ];
 
 // Per ogni oggetto della riga (tranne la ricerca importata, che ha forma libera): una chiave in
-// più, e poi ciascuna chiave tolta.
+// più, e poi ciascuna chiave obbligatoria tolta.
 type Json = Record<string, unknown>;
 const objectPaths = (value: unknown, path: string[] = []): string[][] =>
   !value ||
@@ -508,9 +572,15 @@ const keyMutations = (row: unknown): [string, unknown][] =>
   objectPaths(row).flatMap((path) => {
     const extra = structuredClone(row);
     objectAt(extra, path).extra = "";
+    const fields = objectAt(row, path);
+    const requiredKeys = Object.keys(fields).filter((key) => {
+      const field = [...path, key].join(".");
+      if (field === "draft.config_version") return Object.hasOwn(fields, "config_day");
+      return field !== "draft.config_day" && field !== "choice.content.possibility_evidence";
+    });
     return [
       [[...path, "+extra"].join("."), extra] as [string, unknown],
-      ...Object.keys(objectAt(row, path)).map((key) => {
+      ...requiredKeys.map((key) => {
         const missing = structuredClone(row);
         delete objectAt(missing, path)[key];
         return [[...path, `-${key}`].join("."), missing] as [string, unknown];
@@ -551,6 +621,54 @@ beforeEach(() => {
 });
 
 describe("store dell'assistente Partner", () => {
+  it.each([undefined, 2])("legge la configurazione corrente o la versione %s", async (version) => {
+    const savedVersion = version ?? 3;
+    const saved = {
+      version: savedVersion,
+      config: { ...seed, meta: { ...seed.meta, versione: savedVersion } },
+      note: null,
+      created_by: id(7),
+      created_at: at,
+    };
+    const query = {
+      select: vi.fn().mockReturnThis(),
+      eq: vi.fn().mockReturnThis(),
+      order: vi.fn().mockReturnThis(),
+      limit: vi.fn().mockReturnThis(),
+      abortSignal: vi.fn().mockReturnThis(),
+      maybeSingle: vi.fn().mockResolvedValue({ data: saved, error: null }),
+    };
+    const from = vi.fn().mockReturnValue(query);
+    mocks.createClient.mockReturnValue({ from });
+    await expect(store().loadEmailConfig(version, signal())).resolves.toEqual({
+      ok: true,
+      value: saved,
+    });
+    expect(from).toHaveBeenCalledExactlyOnceWith("partner_email_config_versions");
+    if (version === undefined) {
+      expect(query.order).toHaveBeenCalledExactlyOnceWith("version", { ascending: false });
+      expect(query.limit).toHaveBeenCalledExactlyOnceWith(1);
+    } else {
+      expect(query.eq).toHaveBeenCalledExactlyOnceWith("version", version);
+    }
+  });
+
+  it("limita il nuovo accesso GET alla sola lettura della configurazione", async () => {
+    const read = new URL("/rest/v1/partner_email_config_versions", config.supabaseUrl);
+    read.searchParams.set("select", "version,config,note,created_by,created_at");
+    read.searchParams.set("version", "eq.2");
+    const fetcher = vi.fn().mockImplementation(() => Promise.resolve(Response.json([])));
+    const transport = createPartnerAssistantFetch(config, fetcher);
+    await expect(transport(read, { signal: signal() })).resolves.toBeInstanceOf(Response);
+    expect(fetcher).toHaveBeenCalledExactlyOnceWith(
+      read,
+      expect.objectContaining({ method: "GET", redirect: "error", cache: "no-store" }),
+    );
+    read.searchParams.set("version", "gte.1");
+    await expect(transport(read, { signal: signal() })).rejects.toThrow("worker_transport_invalid");
+    expect(fetcher).toHaveBeenCalledTimes(1);
+  });
+
   it("usa un client privato con la chiave propria e il trasporto limitato", async () => {
     replying({ status: "idle", reason: "vuota" });
     const aborted = signal();

@@ -27,7 +27,7 @@ const config = {
 };
 const names = [
   "claim_partner_assistant_step",
-  "context_partner_assistant_step",
+  "context_partner_assistant_email_step",
   "checkpoint_partner_assistant_step",
   "record_partner_assistant_call",
   "complete_partner_assistant_research",

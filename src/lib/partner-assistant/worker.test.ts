@@ -1,6 +1,7 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 vi.mock("server-only", () => ({}));
 import Anthropic, { APIError } from "@anthropic-ai/sdk";
+import emailConfigSeed from "../../../data/partner-email-config-v1.json";
 import { partnerAssistantDraftSha256, partnerAssistantSignature } from "./checks";
 import { classifyClaudeError, type ClaudeCall, type ClaudeResult } from "./claude";
 import { partnerAssistantConfig } from "./config";
@@ -9,6 +10,7 @@ import {
   partnerAssistantCostUsd,
   type PartnerAssistantUsage,
 } from "./cost";
+import { partnerEmailConfigSchema } from "./email-config";
 import { extractCall, researchCall, reviewCall, writeCall } from "./prompts";
 import { composePartnerAssistantTemplate } from "./template";
 import type { PartnerAssistantSendStore } from "./send-store";
@@ -257,6 +259,7 @@ function setup(step: PartnerAssistantStep = "ricerca", current: PartnerAssistant
   const mocks = {
     claim: vi.fn().mockResolvedValue({ ok: true, value: { status: "claimed", job } }),
     context: vi.fn().mockResolvedValue({ ok: true, value: { status: "ok", context: current } }),
+    loadEmailConfig: vi.fn().mockResolvedValue({ ok: true, value: null }),
     checkpoint: vi.fn().mockResolvedValue({ ok: true, value: { status: "ok" } }),
     recordCall: vi.fn().mockResolvedValue({ ok: true, value: { status: "ok", replayed: false } }),
     completeResearch: vi.fn().mockResolvedValue(done),
@@ -1297,7 +1300,7 @@ describe("un passo dell'assistente Partner", () => {
     expect(state.fail).not.toHaveBeenCalled();
   });
 
-  it("scrittura e controllo usano la data del contesto", async () => {
+  it("scrittura e controllo usano la stessa versione e le possibilità ammesse il giorno di preparazione", async () => {
     const event: PartnerAssistantChoice = {
       ...club,
       contactKind: "evento",
@@ -1308,25 +1311,111 @@ describe("un passo dell'assistente Partner", () => {
       eventReachable: true,
       request: "stand_evento",
     };
-    // Al 1° settembre mancano più di 31 giorni: la riga dice di proporre la maglietta.
     const current = {
       ...context,
-      today: "2026-09-01",
+      today: "2026-10-03",
+      research: { ...context.research!, createdAt: "2026-10-02T14:00:00Z" },
       choice: { noteId: id(7), content: { ...event, decision: { kind: "scrivi" as const } } },
     };
+    const emailConfig = {
+      version: 1,
+      config: partnerEmailConfigSchema.parse(emailConfigSeed),
+      note: null,
+      created_at: "2026-10-01T00:00:00Z",
+      created_by: null,
+    };
     const writer = setup("scrittura", current);
+    writer.loadEmailConfig.mockResolvedValue({ ok: true, value: emailConfig });
     writer.call.mockResolvedValue(json({ subject: "Fiera Sintetica e LuckyLap", body: cleanBody }));
     await run(writer);
     const written = writer.call.mock.calls[0]![0];
-    expect(written).toEqual(writeCall(current, "2026-09-01"));
-    expect(JSON.stringify(written)).toContain("Maglietta co-firmata: puoi proporla");
-    const reviewer = setup("controllo", current);
-    reviewer.call.mockResolvedValue(json({ approved: true, problems: [] }));
-    await run(reviewer);
-    expect(reviewer.call.mock.calls[0]![0]).toEqual(reviewCall(current));
-    expect(JSON.stringify(reviewer.call.mock.calls[0]![0])).toContain(
-      "Maglietta co-firmata: puoi proporla",
+    expect(writer.loadEmailConfig).toHaveBeenCalledWith(undefined, expect.any(AbortSignal));
+    expect(written.messages[0].content).toContain(
+      "- una maglietta co-firmata dedicata all'edizione",
     );
+    expect(written.system).toContain("È obbligatoria esattamente una domanda");
+    expect(written.system).toContain("Le possibilità sono facoltative");
+    expect(written.system).toContain("Il nome di Tommaso e il link alla home sono facoltativi.");
+    expect(writer.completeDraft.mock.calls[0]![1].draft).toMatchObject({
+      configVersion: 1,
+      configDay: current.today,
+      rulesVersion: 1,
+    });
+
+    const reviewed = {
+      ...current,
+      today: "2026-10-17",
+      draft: { ...savedDraft, configVersion: 1, configDay: current.today },
+    };
+    const reviewer = setup("controllo", reviewed);
+    reviewer.loadEmailConfig.mockResolvedValue({ ok: true, value: emailConfig });
+    reviewer.call.mockResolvedValue(
+      json({ approved: false, problems: ["Domanda finale: manca."] }),
+    );
+    await run(reviewer);
+    expect(reviewer.loadEmailConfig).toHaveBeenCalledWith(1, expect.any(AbortSignal));
+    const reviewPrompt = reviewer.call.mock.calls[0]![0];
+    expect(reviewPrompt.system).toEqual(written.system);
+    expect(reviewPrompt.messages[0].content).toContain(
+      "- una maglietta co-firmata dedicata all'edizione",
+    );
+    expect(reviewPrompt.messages[0].content).toContain("Controlla ciascun blocco");
+    expect(reviewer.completeReview.mock.calls[0]![1].problems).toEqual(["Domanda finale: manca."]);
+
+    const rewrite = setup("scrittura", {
+      ...reviewed,
+      lastReview: { approved: false, problems: ["Domanda finale: manca."] },
+    });
+    rewrite.loadEmailConfig.mockResolvedValue({ ok: true, value: emailConfig });
+    rewrite.call.mockResolvedValue(
+      json({ subject: "Fiera Sintetica e LuckyLap", body: cleanBody }),
+    );
+    await run(rewrite);
+    expect(rewrite.loadEmailConfig).toHaveBeenCalledWith(1, expect.any(AbortSignal));
+    const rewritePrompt = rewrite.call.mock.calls[0]![0].messages[0].content;
+    expect(rewritePrompt).toContain("Domanda finale: manca.");
+    expect(rewritePrompt).toContain("Riscrivi l'intera bozza applicando la configurazione");
+    expect(rewritePrompt).not.toContain("- una maglietta co-firmata dedicata all'edizione");
+    expect(rewrite.completeDraft.mock.calls[0]![1].draft).toMatchObject({
+      configVersion: 1,
+      configDay: reviewed.today,
+    });
+  });
+
+  it("in estrazione conserva l'evidenza delle possibilità senza cambiare la scelta", async () => {
+    const excerpt = "La fiera conferma di organizzare una nuova edizione ogni anno.";
+    const current = { ...context, research: { ...context.research!, text: excerpt } };
+    const state = setup("estrazione", current);
+    state.loadEmailConfig.mockResolvedValue({
+      ok: true,
+      value: { config: partnerEmailConfigSchema.parse(emailConfigSeed) },
+    });
+    state.call.mockResolvedValue(
+      json({ ...extracted, possibility_evidence: [{ candidate_id: "evento_vicino:2", excerpt }] }),
+    );
+    await run(state);
+    expect(state.call).toHaveBeenCalledOnce();
+    const prompt = state.call.mock.calls[0]![0];
+    expect(prompt.messages[0].content).toContain("Se l'evento è ricorrente.");
+    expect(prompt.messages[0].content).not.toContain("un capo per staff e volontari");
+    expect(state.completeChoice.mock.calls[0]![1]).toMatchObject({
+      choice: { contactKind: "evento", request: "stand_evento" },
+      decision: { kind: "scrivi" },
+      possibilityEvidence: [
+        { format: "evento_vicino", conditionHash: expect.stringMatching(/^[0-9a-f]{64}$/u) },
+      ],
+    });
+  });
+
+  it("una versione della bozza non disponibile sospende la revisione", async () => {
+    const state = setup("controllo", {
+      ...context,
+      draft: { ...savedDraft, configVersion: 2 },
+    });
+    expect(await run(state)).toEqual({ status: "uncertain", step: "controllo" });
+    expect(state.loadEmailConfig).toHaveBeenCalledWith(2, expect.any(AbortSignal));
+    expect(state.call).not.toHaveBeenCalled();
+    expect(state.completeReview).not.toHaveBeenCalled();
   });
 
   it("bozza con recapito cambiato: contesto_cambiato, nessun fail", async () => {
