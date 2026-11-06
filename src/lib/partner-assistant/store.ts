@@ -492,7 +492,11 @@ export type PartnerAssistantStore = {
   ): Promise<StoreResult<PartnerAssistantDone>>;
   completeDraft(
     job: PartnerAssistantLease,
-    input: { draft: PartnerAssistantDraft; checksOk: boolean; failures: string[] },
+    input: {
+      draft: PartnerAssistantDraft & { configVersion?: number };
+      checksOk: boolean;
+      failures: string[];
+    },
     operationId: string,
     signal: AbortSignal,
   ): Promise<StoreResult<PartnerAssistantDone>>;
@@ -662,10 +666,18 @@ export function createPartnerAssistantStore(config: PartnerAssistantConfig): Par
       );
     },
     completeDraft(job, input, operationId, signal) {
+      const { configVersion } = input.draft;
       return complete(
         "complete_partner_assistant_draft",
         job,
-        { draft: draftRow(input.draft), checks_ok: input.checksOk, failures: input.failures },
+        {
+          draft: {
+            ...draftRow(input.draft),
+            ...(configVersion === undefined ? {} : { config_version: configVersion }),
+          },
+          checks_ok: input.checksOk,
+          failures: input.failures,
+        },
         operationId,
         signal,
       );
