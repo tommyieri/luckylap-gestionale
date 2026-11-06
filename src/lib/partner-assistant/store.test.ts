@@ -431,6 +431,26 @@ const cases: Case[] = [
     })),
   ]),
   {
+    label: "bozza generica con la versione della configurazione usata",
+    name: "complete_partner_assistant_draft",
+    run: (s, signal) =>
+      s.completeDraft(
+        lease,
+        { draft: { ...draft, configVersion: 2 }, checksOk: false, failures: ["parola_vietata"] },
+        operationId,
+        signal,
+      ),
+    args: {
+      ...wroteArgs,
+      p_payload: {
+        ...wroteArgs.p_payload,
+        draft: { ...wroteArgs.p_payload.draft, config_version: 2 },
+      },
+    },
+    row: done,
+    value: doneValue,
+  },
+  {
     label: "bozza con il recapito cambiato",
     name: "complete_partner_assistant_draft",
     run: wrote,
