@@ -127,9 +127,12 @@ Il checkout originale Partner non è stato modificato. Le sole sezioni Finance d
 ## Verifica locale finale (9 novembre 2026)
 
 - `npm run typecheck`: superato.
-- `npm test`: 257 file, 5.656 test superati.
+- `npm test`: 260 file, 5.737 test superati.
 - `npm run build`: superato; `next-env.d.ts` ripristinato.
-- `LUCKYLAP_PG_BIN=/opt/homebrew/opt/postgresql@17/bin npm run test:db`: 59 harness superati, nessuno saltato. PGlite: 38 harness e 7.256 controlli. PostgreSQL 17: 21 harness e 2.322 controlli. Dati sintetici e cluster temporanei, nessun accesso al database di produzione.
+- `LUCKYLAP_PG_BIN=/opt/homebrew/opt/postgresql@17/bin npm run test:db`: 61 harness superati, nessuno saltato. PGlite: 39 harness e 7.352 controlli. PostgreSQL 17: 22 harness e 2.561 controlli. Dati sintetici e cluster temporanei, nessun accesso al database di produzione.
 - `npm run format` e `npm run format:check`: superati prima del commit.
 - Revisione indipendente: tutti i rilievi sostanziali risolti. Test di regressione per digitazione multi-parola, eliminati legacy, range ampi, dirty e salvataggi tardivi, recovery e cambio attore.
 - Browser: disabilitato nelle impostazioni, verifica interattiva desktop/telefono non eseguita.
+
+
+I controlli finali sopra sono stati ripetuti dopo il rebase su `493678a` (PR #50 Partner). Le parti Partner di guida, test, indice e DESIGN sono identiche a quel main; solo Finance cambia in questa consegna.
