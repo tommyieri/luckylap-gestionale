@@ -12,6 +12,7 @@ const mocks = vi.hoisted(() => ({
   rules: vi.fn(),
   ids: vi.fn(),
   send: vi.fn(),
+  plan: vi.fn(),
 }));
 vi.mock("server-only", () => ({}));
 vi.mock("../../../../lib/supabase/config", () => ({ getSupabasePublicConfig: mocks.config }));
@@ -23,6 +24,7 @@ vi.mock("../../../../lib/partner/server", () => ({
   loadPartnerIdsByCo: mocks.ids,
   loadPartnerAssistantSend: mocks.send,
 }));
+vi.mock("../../../../lib/partner/send-plan-server", () => ({ loadPartnerSendPlan: mocks.plan }));
 vi.mock("next/navigation", () => ({
   redirect: (to: string) => {
     throw Error(`NEXT_REDIRECT:${to}`);
@@ -92,8 +94,9 @@ beforeEach(() => {
   vi.stubEnv("LUCKYLAP_LOCAL_PREVIEW", "true");
   vi.stubEnv("VERCEL", "");
   for (const key of ENV_KEYS) vi.stubEnv(key, "");
-  for (const mock of [mocks.verified, mocks.status, mocks.rules, mocks.ids, mocks.send])
+  for (const mock of [mocks.verified, mocks.status, mocks.rules, mocks.ids, mocks.send, mocks.plan])
     mock.mockReset();
+  mocks.plan.mockResolvedValue(null);
   mocks.config.mockReset();
   mocks.config.mockImplementation(() => {
     throw Error("Supabase non configurato.");
@@ -159,6 +162,8 @@ describe("/partner/assistente", () => {
     });
     expect(mocks.ids).toHaveBeenCalledWith(expect.anything(), [1]);
     expect(mocks.send).toHaveBeenCalledOnce();
+    expect(mocks.plan).toHaveBeenCalledWith(expect.anything(), partnerToday());
+    expect(page.props.plan).toBeNull();
   });
 
   it("Tommi con le variabili valide: posta, due indirizzi di prova, assistente configurato", async () => {

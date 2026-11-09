@@ -62,6 +62,7 @@ const input: PartnerAssistantFollowupMailboxInput = {
   messageIds: [knownId],
   firstSentAt: "2026-11-01T10:00:00Z",
   subject: "Progetto sintetico",
+  timezone: "Europe/Rome",
 };
 const mail: PartnerAssistantMailConfig = {
   user: own,
@@ -516,9 +517,20 @@ describe("verifica della casella prima dei solleciti", () => {
     { ...input, firstSentAt: "2026-02-30T12:00:00Z" },
     { ...input, firstSentAt: "2026-11-10T12:00:00Z" },
     { ...input, subject: "Injected\r\nheader" },
+    { ...input, timezone: undefined },
+    { ...input, timezone: null },
+    { ...input, timezone: 1 },
+    { ...input, timezone: "" },
+    { ...input, timezone: "Not/A_Timezone" },
+    { ...input, timezone: "+01:00" },
+    { ...input, timezone: "-10:00" },
+    { ...input, timezone: "Europe/Rome\n" },
   ])("rifiuta input non valido prima di collegarsi (%#)", async (value) => {
     const f = fixture();
-    expect(await f.run(value)).toEqual({ status: "uncertain", reason: "followup_invalid_input" });
+    expect(await f.run(value as PartnerAssistantFollowupMailboxInput)).toEqual({
+      status: "uncertain",
+      reason: "followup_invalid_input",
+    });
     expect(f.create).not.toHaveBeenCalled();
   });
 });
@@ -900,12 +912,64 @@ describe("rinvio per assenza automatica con rientro certo", () => {
     },
   );
 
-  it("il giorno del rientro è il giorno corrente di Roma, non UTC", async () => {
+  it("per il destinatario a Roma il rientro segue il giorno locale, non UTC", async () => {
     const f = fixture(
       { INBOX: [autoReply(1, "I am out of the office. I return on 2026-11-09.")] },
       Date.parse("2026-11-08T23:30:00Z"),
     );
     expect(await f.run()).toMatchObject({ status: "clear" });
+  });
+
+  it("non anticipa il rientro a Honolulu quando Roma è già al giorno successivo", async () => {
+    const f = fixture({ Archive: [autoReply()] }, Date.parse("2026-11-16T23:30:00Z"));
+    expect(await f.run({ ...input, timezone: "Pacific/Honolulu" })).toMatchObject({
+      status: "deferred",
+      resumeOn: "2026-11-17",
+      folderCount: 6,
+      messageCount: 1,
+    });
+    expect(f.fake.list).toHaveBeenCalledTimes(2);
+    expect(f.fake.getMailboxLock).toHaveBeenCalledTimes(12);
+    expect(f.fake.noop).toHaveBeenCalledOnce();
+    expect(f.fake.close).toHaveBeenCalled();
+  });
+
+  it("può riprendere solo dal 17 locale a Honolulu, dopo tutta la scansione stabile", async () => {
+    const f = fixture({ Archive: [autoReply()] }, Date.parse("2026-11-17T10:00:00Z"));
+    expect(await f.run({ ...input, timezone: "Pacific/Honolulu" })).toMatchObject({
+      status: "clear",
+      folderCount: 6,
+      messageCount: 1,
+    });
+    expect(f.fake.list).toHaveBeenCalledTimes(2);
+    expect(f.fake.getMailboxLock).toHaveBeenCalledTimes(12);
+    expect(f.fake.noop).toHaveBeenCalledOnce();
+  });
+
+  it("il ritorno locale non rende completa una lettura parziale della casella", async () => {
+    const f = fixture(
+      { Archive: [autoReply()], Trash: [message(7)] },
+      Date.parse("2026-11-17T10:00:00Z"),
+    );
+    f.fake.fetchAll.mockImplementation(async () =>
+      f.fake.mailbox && f.fake.mailbox.path !== "Trash"
+        ? (f.fake.messages[f.fake.mailbox.path] ?? [])
+        : [],
+    );
+    expect(await f.run({ ...input, timezone: "Pacific/Honolulu" })).toEqual({
+      status: "uncertain",
+      reason: "followup_fetch_incomplete",
+    });
+    expect(f.fake.close).toHaveBeenCalled();
+  });
+
+  it("una data locale già raggiunta a Auckland non dipende dal giorno di Roma", async () => {
+    const f = fixture({ Archive: [autoReply()] }, Date.parse("2026-11-16T11:00:00Z"));
+    expect(await f.run({ ...input, timezone: "Pacific/Auckland" })).toMatchObject({
+      status: "clear",
+      folderCount: 6,
+      messageCount: 1,
+    });
   });
 
   it("non invia al server rinvii oltre il budget di 366 giorni", async () => {

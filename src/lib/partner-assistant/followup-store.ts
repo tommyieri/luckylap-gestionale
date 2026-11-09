@@ -34,6 +34,8 @@ export type PartnerFollowupCandidate = {
   followups_sent: number;
   next_due_on: string;
   send_allowed: boolean;
+  /** Termine assoluto del trasporto; obbligatorio quando il piano autorizza l'invio. */
+  send_not_after?: string;
   draft: null | {
     draft_id: string;
     number: number;
@@ -175,6 +177,7 @@ export function readPartnerFollowupCandidate(value: unknown): PartnerFollowupCan
       "next_due_on",
       "send_allowed",
       "draft",
+      ...(Object.hasOwn(c, "send_not_after") ? ["send_not_after"] : []),
     ])
   )
     return null;
@@ -197,7 +200,9 @@ export function readPartnerFollowupCandidate(value: unknown): PartnerFollowupCan
     !string(c.timezone, 80) ||
     !string(c.country, 200) ||
     !integer(c.followups_sent, 0, 4) ||
-    !date(c.next_due_on)
+    !date(c.next_due_on) ||
+    (Object.hasOwn(c, "send_not_after") && !instant(c.send_not_after)) ||
+    (c.send_allowed && !Object.hasOwn(c, "send_not_after"))
   )
     return null;
   try {

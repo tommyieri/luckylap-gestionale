@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { addDays, romeDay } from "./dates";
+import { addDays } from "./dates";
 import { PartnerReadError } from "./model";
 import {
   forecastPartnerEmails,
@@ -87,7 +87,7 @@ function snapshot(
 const plan = (value: PartnerEmailProgramSnapshot) =>
   forecastPartnerEmails(parsePartnerEmailProgram(value));
 const prepared = (result: ReturnType<typeof plan>) =>
-  result.items.filter((row) => row.plannedAt !== null);
+  result.items.filter((row) => row.estimatedDay !== null);
 const unprepared = (n: number): PartnerEmailUnprepared => ({
   partnerId: id(n + 70_000),
   co: n,
@@ -217,7 +217,7 @@ describe("lettura del programma email", () => {
       (s.unprepared[0] as unknown as Record<string, unknown>).jobId = id(80);
     },
     (s: PartnerEmailProgramSnapshot) => {
-      (s.unprepared[0] as unknown as Record<string, unknown>).plannedAt = NOW;
+      (s.unprepared[0] as unknown as Record<string, unknown>).estimatedDay = NOW;
     },
   ])(
     "rifiuta destinatari senza lavoro troncati, duplicati o arricchiti di dati inventati (%#)",
@@ -251,25 +251,21 @@ describe("previsione globale delle prime email", () => {
     expect(result.days[0]).toEqual({ day: TODAY, limit: 5, club: 2, altri: 0 });
     expect(result.items.some((row) => row.partnerId === s.unprepared[0].partnerId)).toBe(false);
   });
-  it("riserva 3 posti agli altri e 2 ai Club, con precedenza globale e passo di 8 minuti", () => {
+  it("riserva 3 posti agli altri e 2 ai Club, con precedenza globale e soltanto il giorno stimato", () => {
     const source = snapshot([...rows(5, "altri"), ...rows(4, "club", 20)]);
     const original = structuredClone(source);
     const result = plan(source);
-    expect(prepared(result).map((row) => [row.co, row.plannedAt])).toEqual([
-      [1, "2026-11-04T08:30:00.000Z"],
-      [2, "2026-11-04T08:38:00.000Z"],
-      [3, "2026-11-04T08:46:00.000Z"],
-      [20, "2026-11-04T08:54:00.000Z"],
-      [21, "2026-11-04T09:02:00.000Z"],
+    expect(prepared(result).map((row) => [row.co, row.estimatedDay])).toEqual([
+      [1, "2026-11-04"],
+      [2, "2026-11-04"],
+      [3, "2026-11-04"],
+      [20, "2026-11-04"],
+      [21, "2026-11-04"],
     ]);
     expect(result.days[0]).toEqual({ day: TODAY, limit: 5, club: 2, altri: 3 });
-    expect(result.assumption).toContain("8 minuti");
-    expect(result.assumption).toContain(
-      "quote delle prime email sono separate dal tetto di 6 solleciti al giorno",
-    );
-    expect(result.assumption).toContain(
-      "condividono la casella e l'intervallo reale di 4–11 minuti",
-    );
+    expect(result.assumption).toContain("Queste righe non assegnano un orario");
+    expect(result.assumption).toContain("Piano d’invio del giorno");
+    expect(result.assumption).not.toMatch(/8 minuti|4–11 minuti/);
     expect(source).toEqual(original);
   });
   it.each(["club", "altri"] as const)(
@@ -312,16 +308,16 @@ describe("previsione globale delle prime email", () => {
     s.config.firstRealOn = "2026-10-20";
     s.config.dailyFirstLimit = 6;
     const result = plan(s);
-    expect(prepared(result).map((row) => [row.co, row.plannedAt])).toEqual([
-      [1, "2026-11-04T08:30:00.000Z"],
-      [2, "2026-11-04T08:38:00.000Z"],
-      [3, "2026-11-04T08:46:00.000Z"],
-      [20, "2026-11-04T08:54:00.000Z"],
-      [21, "2026-11-04T09:02:00.000Z"],
-      [22, "2026-11-04T09:10:00.000Z"],
+    expect(prepared(result).map((row) => [row.co, row.estimatedDay])).toEqual([
+      [1, "2026-11-04"],
+      [2, "2026-11-04"],
+      [3, "2026-11-04"],
+      [20, "2026-11-04"],
+      [21, "2026-11-04"],
+      [22, "2026-11-04"],
     ]);
     expect(result.days[0]).toEqual({ day: TODAY, limit: 6, club: 3, altri: 3 });
-    expect(result.items.filter((row) => row.plannedAt === null).map((row) => row.co)).toEqual([
+    expect(result.items.filter((row) => row.estimatedDay === null).map((row) => row.co)).toEqual([
       4, 23,
     ]);
   });
@@ -341,9 +337,7 @@ describe("previsione globale delle prime email", () => {
       { day: TODAY, limit: 6, club: 0, altri: 0 },
       { day: tomorrow, limit: 6, club: 3, altri: 3 },
     ]);
-    expect(prepared(result).every((row) => romeDay(new Date(row.plannedAt!)) === tomorrow)).toBe(
-      true,
-    );
+    expect(prepared(result).every((row) => row.estimatedDay === tomorrow)).toBe(true);
   });
   it("consuma gli invii già fatti, compresi gli incerti nei conteggi SQL, senza ricontarli come previsti", () => {
     const result = plan(
@@ -376,7 +370,7 @@ describe("previsione globale delle prime email", () => {
       const original = structuredClone(s);
       const result = plan(s);
       expect(result.items[0]).toMatchObject({
-        plannedAt: null,
+        estimatedDay: null,
         state: status === "incerto" ? "da_rivedere" : "non_prevista",
         draft: s.items[0].draft,
       });
@@ -427,7 +421,7 @@ describe("previsione globale delle prime email", () => {
       ]),
     );
     expect(prepared(result).map((row) => row.co)).toEqual([1, 2, 3, 20, 21]);
-    expect(result.items.find((row) => row.co === 20)?.plannedAt).toBe("2026-11-04T14:30:00.000Z");
+    expect(result.items.find((row) => row.co === 20)?.estimatedDay).toBe("2026-11-04");
   });
   it("non presta i posti di una coda pronta che oggi non ha alcuna finestra", () => {
     const result = plan(snapshot([...rows(5, "altri"), item(20, { windows: [] })]));
@@ -437,7 +431,7 @@ describe("previsione globale delle prime email", () => {
   it("conserva i posti inutilizzati dopo l'esaurimento dell'altro flusso", () => {
     const result = plan(snapshot([...rows(5, "altri"), item(20)]));
     expect(prepared(result).map((row) => row.co)).toEqual([1, 2, 3, 20]);
-    expect(result.items.find((row) => row.co === 4)?.plannedAt).toBeNull();
+    expect(result.items.find((row) => row.co === 4)?.estimatedDay).toBeNull();
   });
   it("esclude le bozze sospese senza trasferire i loro posti all'altro flusso", () => {
     const held = item(20, { hold: { id: id(90), version: 1, createdAt: NOW } });
@@ -445,7 +439,7 @@ describe("previsione globale delle prime email", () => {
     expect(prepared(result).length).toBe(3);
     expect(result.items.find((row) => row.co === 20)).toMatchObject({
       state: "sospesa",
-      plannedAt: null,
+      estimatedDay: null,
     });
   });
   it("non pianifica una revisione manuale fuori contesto e conserva la quota degli altri", () => {
@@ -453,7 +447,7 @@ describe("previsione globale delle prime email", () => {
     const result = plan(snapshot([stale, ...rows(5, "altri", 20)]));
     expect(result.items[0]).toMatchObject({
       state: "da_rivedere",
-      plannedAt: null,
+      estimatedDay: null,
       draft: stale.draft,
     });
     expect(prepared(result).map((row) => row.co)).toEqual([20, 21, 22]);
@@ -467,7 +461,7 @@ describe("previsione globale delle prime email", () => {
         item(3, { rank: 3 }),
       ]),
     );
-    expect(result.items.find((row) => row.co === 2)?.plannedAt).toBe("2026-11-04T08:30:00.000Z");
+    expect(result.items.find((row) => row.co === 2)?.estimatedDay).toBe("2026-11-04");
     expect(result.days[0]).toMatchObject({ club: 2, altri: 1 });
   });
   it("mantiene gli invii delle pronte durante la pausa credito ma non inventa bozze future", () => {
@@ -478,7 +472,7 @@ describe("previsione globale delle prime email", () => {
         item(3, { status: "attesa", draft: null, writeOn: "2026-11-05", windows: [] }),
       ]),
     );
-    expect(result.items.map((row) => [row.state, row.plannedAt !== null])).toEqual([
+    expect(result.items.map((row) => [row.state, row.estimatedDay !== null])).toEqual([
       ["prevista", true],
       ["da_preparare", false],
       ["attesa", false],
@@ -491,7 +485,7 @@ describe("previsione globale delle prime email", () => {
     (mode) => {
       const s = snapshot([item(1)]);
       s.config.mode = mode;
-      expect(plan(s).items[0]).toMatchObject({ state: "sospesa", plannedAt: null });
+      expect(plan(s).items[0]).toMatchObject({ state: "sospesa", estimatedDay: null });
     },
   );
   it("fermo persistente, contatto non idoneo e lavoro già inviato non ricevono altre partenze", () => {
@@ -514,15 +508,12 @@ describe("previsione globale delle prime email", () => {
     s.config.backoffUntil = "2026-11-04T12:00:00Z";
     s.mail.backoffUntil = "2026-11-04T08:35:00Z";
     s.mail.nextSendAfter = "2026-11-04T08:40:00Z";
-    expect(prepared(plan(s)).map((row) => row.plannedAt)).toEqual([
-      "2026-11-04T08:40:00.000Z",
-      "2026-11-04T08:48:00.000Z",
-    ]);
+    expect(prepared(plan(s)).map((row) => row.estimatedDay)).toEqual(["2026-11-04", "2026-11-04"]);
   });
   it("un fermo del giorno rinvia a domani senza fingere un fermo permanente", () => {
     const s = snapshot([item(1, { windows: [window(), window("2026-11-05")] })]);
     s.mail.dayStoppedOn = TODAY;
-    expect(plan(s).items[0].plannedAt).toBe("2026-11-05T08:30:00.000Z");
+    expect(plan(s).items[0].estimatedDay).toBe("2026-11-05");
   });
   it("usa esclusivamente le finestre SQL, compresa la festa francese dell'11 novembre", () => {
     const s = snapshot(
@@ -532,16 +523,10 @@ describe("previsione globale delle prime email", () => {
       ],
       { from: "2026-11-11", days: 2 },
     );
-    expect(plan(s).items.map((row) => row.plannedAt)).toEqual([
-      "2026-11-12T08:30:00.000Z",
-      "2026-11-11T08:30:00.000Z",
-    ]);
+    expect(plan(s).items.map((row) => row.estimatedDay)).toEqual(["2026-11-12", "2026-11-11"]);
   });
   it("non sottrae due volte il margine e tratta end come esclusivo", () => {
-    const s = snapshot([
-      item(1, { windows: [window(TODAY, "09:58:29", "09:58:30")] }),
-      item(2, { windows: [window(TODAY, "09:58:29", "09:58:30")] }),
-    ]);
+    const s = snapshot([item(1, { windows: [window(TODAY, "09:58:29", "09:58:30")] })]);
     s.mail.nextSendAfter = "2026-11-04T09:58:29Z";
     expect(prepared(plan(s)).map((row) => row.co)).toEqual([1]);
     s.mail.nextSendAfter = "2026-11-04T09:58:30Z";
@@ -551,7 +536,7 @@ describe("previsione globale delle prime email", () => {
     const a = item(1, { researchAt: "2026-10-14T07:00:00Z" });
     const b = item(2);
     b.draft!.rulesVersion = 2;
-    expect(plan(snapshot([a, b])).items.map((row) => [row.state, row.plannedAt])).toEqual([
+    expect(plan(snapshot([a, b])).items.map((row) => [row.state, row.estimatedDay])).toEqual([
       ["da_rivedere", null],
       ["da_rivedere", null],
     ]);
@@ -561,7 +546,7 @@ describe("previsione globale delle prime email", () => {
       [item(1, { researchAt: "2026-10-15T07:00:00Z", windows: [window("2026-11-06")] })],
       { days: 3 },
     );
-    expect(plan(s).items[0]).toMatchObject({ state: "da_rivedere", plannedAt: null });
+    expect(plan(s).items[0]).toMatchObject({ state: "da_rivedere", estimatedDay: null });
   });
   it("una ricerca che scade a metà giornata non libera posti per l'altro flusso", () => {
     const s = snapshot(
@@ -572,8 +557,8 @@ describe("previsione globale delle prime email", () => {
       { todaySent: { club: 0, altri: 3 } },
     );
     const result = plan(s);
-    expect(result.items[0]).toMatchObject({ state: "non_prevista", plannedAt: null });
-    expect(result.items[1]).toMatchObject({ state: "da_rivedere", plannedAt: null });
+    expect(result.items[0]).toMatchObject({ state: "non_prevista", estimatedDay: null });
+    expect(result.items[1]).toMatchObject({ state: "da_rivedere", estimatedDay: null });
   });
   it("riusa il controllo reale delle date nel corpo e del cambio proposta degli eventi", () => {
     const date = item(1, { windows: [window("2026-11-05")] });
@@ -586,7 +571,7 @@ describe("previsione globale delle prime email", () => {
     });
     // Il 3 novembre il margine era 32 giorni; il 4 è 31 e la proposta va riscritta.
     const result = plan(snapshot([date, event]));
-    expect(result.items.map((row) => [row.state, row.plannedAt])).toEqual([
+    expect(result.items.map((row) => [row.state, row.estimatedDay])).toEqual([
       ["da_rivedere", null],
       ["da_rivedere", null],
     ]);
@@ -611,7 +596,7 @@ describe("previsione globale delle prime email", () => {
       days: 2,
     });
     expect(plan(s).days[0]).toEqual({ day: "2026-11-03", limit: 5, club: 0, altri: 0 });
-    expect(plan(s).items[0].plannedAt).toBe("2026-11-04T08:30:00.000Z");
+    expect(plan(s).items[0].estimatedDay).toBe("2026-11-04");
     expect(plan(s)).toEqual(plan(s));
   });
   it("conta sulla domenica di Roma una finestra del lunedì in Nuova Zelanda", () => {
@@ -621,7 +606,7 @@ describe("previsione globale delle prime email", () => {
       days: 1,
     });
     const result = plan(s);
-    expect(romeDay(new Date(result.items[0].plannedAt!))).toBe("2026-11-08");
+    expect(result.items[0].estimatedDay).toBe("2026-11-08");
     expect(result.days[0].club).toBe(1);
   });
   it("azzera la quota al cambio di giorno a Roma anche quando UTC è ancora al giorno precedente", () => {
@@ -645,15 +630,13 @@ describe("previsione globale delle prime email", () => {
       { day: TODAY, limit: 6, club: 0, altri: 0 },
       { day: tomorrow, limit: 6, club: 3, altri: 0 },
     ]);
-    expect(result.items.map((row) => row.plannedAt)).toEqual([
-      "2026-11-04T23:30:00.000Z",
-      "2026-11-04T23:38:00.000Z",
-      "2026-11-04T23:46:00.000Z",
+    expect(result.items.map((row) => row.estimatedDay)).toEqual([
+      "2026-11-05",
+      "2026-11-05",
+      "2026-11-05",
       null,
     ]);
-    expect(prepared(result).every((row) => romeDay(new Date(row.plannedAt!)) === tomorrow)).toBe(
-      true,
-    );
+    expect(prepared(result).every((row) => row.estimatedDay === tomorrow)).toBe(true);
   });
   it("accetta finestre SQL con offset diversi dopo il cambio dell'ora", () => {
     const s = snapshot(
@@ -670,10 +653,7 @@ describe("previsione globale delle prime email", () => {
       row.draft!.createdAt = "2026-10-22T07:00:00Z";
     });
     s.config.firstRealOn = "2026-10-20";
-    expect(plan(s).items.map((row) => row.plannedAt)).toEqual([
-      "2026-10-23T07:30:00.000Z",
-      "2026-10-26T08:30:00.000Z",
-    ]);
+    expect(plan(s).items.map((row) => row.estimatedDay)).toEqual(["2026-10-23", "2026-10-26"]);
   });
   it("non duplica il programma quando la UI filtra le sezioni dopo la previsione", () => {
     const result = plan(

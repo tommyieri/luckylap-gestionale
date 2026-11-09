@@ -2,7 +2,7 @@ import "server-only";
 import { createHash } from "node:crypto";
 import { ImapFlow, type ImapFlowOptions, type FetchMessageObject } from "imapflow";
 import { partnerAssistantMailAddress, type PartnerAssistantMailConfig } from "./mail-config";
-import { isCalendarDay, instantDay, addDays } from "../partner/dates";
+import { isCalendarDay, addDays } from "../partner/dates";
 import {
   PARTNER_FOLLOWUP_AUTO_REPLY_MAX_BYTES,
   readPartnerFollowupAutoReply,
@@ -14,6 +14,7 @@ export type PartnerAssistantFollowupMailboxInput = {
   messageIds: string[];
   firstSentAt: string;
   subject: string;
+  timezone: string;
 };
 
 export type PartnerAssistantFollowupMailboxResult =
@@ -76,6 +77,34 @@ function normalizeSubject(value: string): string {
     .toLowerCase();
 }
 
+/** La data di rientro appartiene al destinatario: mezzanotte a Roma può ancora essere
+ * il pomeriggio precedente nel suo fuso. Scarti numerici non sono nomi IANA. */
+function recipientDay(now: number, timezone: unknown): string {
+  if (
+    typeof timezone !== "string" ||
+    timezone.length < 1 ||
+    timezone.length > 80 ||
+    /^[+-]/u.test(timezone) ||
+    /[\x00-\x20\x7f]/u.test(timezone) ||
+    !Number.isFinite(now)
+  )
+    return stop("invalid_input");
+  try {
+    const parts = new Intl.DateTimeFormat("en-CA", {
+      timeZone: timezone,
+      year: "numeric",
+      month: "2-digit",
+      day: "2-digit",
+    }).formatToParts(new Date(now));
+    const part = (name: string) => parts.find((value) => value.type === name)?.value;
+    const day = `${part("year")}-${part("month")}-${part("day")}`;
+    if (isCalendarDay(day)) return day;
+  } catch {
+    // Nessuna correzione implicita del fuso o ripiego su Roma.
+  }
+  return stop("invalid_input");
+}
+
 function validatedInput(
   input: PartnerAssistantFollowupMailboxInput,
   mail: PartnerAssistantMailConfig,
@@ -85,7 +114,8 @@ function validatedInput(
     !input ||
     typeof input !== "object" ||
     Array.isArray(input) ||
-    Object.keys(input).sort().join(",") !== "addresses,firstSentAt,messageIds,ownAddress,subject" ||
+    Object.keys(input).sort().join(",") !==
+      "addresses,firstSentAt,messageIds,ownAddress,subject,timezone" ||
     typeof input.ownAddress !== "string" ||
     !Array.isArray(input.addresses) ||
     input.addresses.length < 1 ||
@@ -103,6 +133,7 @@ function validatedInput(
     )
   )
     return stop("invalid_input");
+  recipientDay(now, input.timezone);
   const ownAddress = partnerAssistantMailAddress(input.ownAddress);
   const sent = Date.parse(input.firstSentAt);
   if (
@@ -450,8 +481,7 @@ export async function checkPartnerAssistantFollowupMailbox(
     const paths = folderPaths(await call(() => box.list()));
     const states: (FolderState & { uids: number[] })[] = [];
     const datedReplies: { path: string; uid: number; resumeOn: string; sha256: string }[] = [];
-    const today = instantDay(new Date(now()).toISOString());
-    if (today === null) stop("invalid_input");
+    const today = recipientDay(now(), value.timezone);
     let resumeOn: string | null = null;
     let messageCount = 0;
     // SINCE cerca giorni interni IMAP, non millisecondi né il Date: scritto dal mittente.

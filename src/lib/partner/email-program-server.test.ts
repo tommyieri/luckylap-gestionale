@@ -72,7 +72,7 @@ describe("loadPartnerEmailProgram", () => {
     expect(db.abortSignal.mock.calls[0]?.[0]).toBeInstanceOf(AbortSignal);
     expect(result.snapshot).toEqual(snapshot());
     expect(result.forecast.items).toEqual([]);
-    expect(result.forecast.assumption).toContain("Stime");
+    expect(result.forecast.assumption).toContain("Giorni stimati");
   });
 
   it.each([

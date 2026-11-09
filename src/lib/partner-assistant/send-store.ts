@@ -179,6 +179,10 @@ const prepareRefusals = oneOf([
   "finestra_chiusa",
   "destinatario_prova",
   "doppione",
+  "slot_assente",
+  "slot_futuro",
+  "slot_scaduto",
+  "contesto_cambiato",
 ] as const);
 const startStops = oneOf([
   "modifica_in_corso",
@@ -190,6 +194,11 @@ const startStops = oneOf([
   "non_idoneo",
   "recapito_cambiato",
   "finestra_chiusa",
+  "slot_assente",
+  "slot_futuro",
+  "slot_scaduto",
+  "contesto_cambiato",
+  "limite",
 ] as const);
 const skipReasons = oneOf<PartnerAssistantSendSkipReason>([
   "conversazione_esistente",
@@ -242,6 +251,7 @@ function candidateFrom(
   mode: PartnerAssistantSendMode,
 ): PartnerAssistantSendCandidate | null {
   const hasLookbook = Object.hasOwn(record(value) ?? {}, "lookbook");
+  const hasDeadline = Object.hasOwn(record(value) ?? {}, "send_not_after");
   const row = exact(value, [
     "job_id",
     "partner_id",
@@ -255,6 +265,7 @@ function candidateFrom(
     "test_run_id",
     "test_index",
     ...(hasLookbook ? ["lookbook"] : []),
+    ...(hasDeadline ? ["send_not_after"] : []),
   ]);
   const draft = exact(row?.draft, [
     "draft_id",
@@ -288,7 +299,9 @@ function candidateFrom(
     !instant(draft.created_at) ||
     !contactKinds(choice.contact_kind) ||
     !requests(choice.request) ||
-    !dayOrEmpty(choice.event_starts_on)
+    !dayOrEmpty(choice.event_starts_on) ||
+    (hasDeadline && (mode !== "invio" || !instant(row.send_not_after))) ||
+    (mode === "invio" && !hasDeadline)
   )
     return null;
   // In prova la coppia (run, indirizzo) c'è sempre; in invio mai.
@@ -325,6 +338,7 @@ function candidateFrom(
     testRunId: mode === "prova" ? (row.test_run_id as string) : null,
     testIndex: mode === "prova" ? (row.test_index as number) : null,
     ...(lookbook ? { lookbook } : {}),
+    ...(hasDeadline ? { sendNotAfter: row.send_not_after as string } : {}),
   };
 }
 

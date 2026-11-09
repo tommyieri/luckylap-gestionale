@@ -24,7 +24,7 @@ Rispetto alla base del piano: **59 date 2027, più Good Friday nei Paesi Bassi e
 
 ## Guardie conservate
 
-Restano lunedì–venerdì, finestra 9:30–11:00 nel fuso del destinatario, controllo anche a fine margine di 90 secondi e blackout dal 21 dicembre al 7 gennaio. **Dopo il 31 dicembre 2027 la finestra si chiude nuovamente in ogni paese**, anche per i paesi non riconosciuti, finché una nuova migrazione non verifica ed estende la copertura. Il blackout rende già chiusi gli ultimi giorni di dicembre e i primi di gennaio.
+La migrazione del calendario preserva lunedì–venerdì, controllo anche a fine margine di 90 secondi e blackout dal 21 dicembre al 7 gennaio. La successiva consegna [Invii distribuiti](partner-invii-distribuiti.md) estende la fascia locale da 9:30–11:00 a **9:00–16:00**, con piano comune di prime email e solleciti, senza cambiare queste date o il perimetro delle feste. **Dopo il 31 dicembre 2027 la finestra si chiude nuovamente in ogni paese**, anche per i paesi non riconosciuti, finché una nuova migrazione non verifica ed estende la copertura. Il blackout rende già chiusi gli ultimi giorni di dicembre e i primi di gennaio.
 
 Prime email, solleciti e previsioni del Programma email usano lo stesso helper. La migrazione aggiunge soltanto date e sostituisce il valore restituito da `partner_assistant_holidays_until()`, mantenendone identità e permessi. Non cambia code, stati commerciali, scheduler, quote o modalità; non invia messaggi e non accende i solleciti.
 

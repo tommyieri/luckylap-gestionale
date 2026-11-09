@@ -9,6 +9,8 @@ import { PARTNER_SECTIONS, type PartnerSection } from "@/lib/partner/model";
 import { partnerEmailProgramFixture } from "@/lib/partner/email-program-fixtures";
 import { forecastPartnerEmails } from "@/lib/partner/email-program";
 import { loadPartnerEmailProgram } from "@/lib/partner/email-program-server";
+import { loadPartnerSendPlan } from "@/lib/partner/send-plan-server";
+import { partnerSendPlanDay } from "@/lib/partner/send-plan";
 
 export const dynamic = "force-dynamic";
 export const metadata: Metadata = { title: "Calendario email · Partner" };
@@ -26,6 +28,10 @@ export default async function PartnerEmailPage({
     ? (value as PartnerSection)
     : "tutti";
   const today = partnerToday();
+  const planDay = partnerSendPlanDay(
+    Array.isArray(params.giorno) ? params.giorno[0] : params.giorno,
+    today,
+  );
   if (current.status === "preview") {
     const snapshot = partnerEmailProgramFixture(today);
     return (
@@ -49,11 +55,10 @@ export default async function PartnerEmailPage({
       />
     );
   try {
-    const { snapshot, forecast } = await loadPartnerEmailProgram(
-      current.supabase,
-      addDays(today, -30),
-      90,
-    );
+    const [{ snapshot, forecast }, plan] = await Promise.all([
+      loadPartnerEmailProgram(current.supabase, addDays(today, -30), 90),
+      loadPartnerSendPlan(current.supabase, planDay),
+    ]);
     return (
       <PartnerEmailProgramView
         snapshot={snapshot}
@@ -61,6 +66,7 @@ export default async function PartnerEmailPage({
         founder={current.member.role === "founder"}
         preview={false}
         initialSection={initialSection}
+        plan={plan}
       />
     );
   } catch {

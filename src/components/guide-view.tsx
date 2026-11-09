@@ -480,10 +480,15 @@ export function GuideView({ access, preview = false }: { access: GuideAccess; pr
               </li>
               <li>
                 In «Invio» l’assistente manda le prime email dalla casella aziendale, nei giorni
-                feriali tra le 9:30 e le 11 dell’ora del contatto. Ne manda poche al giorno, una
-                ogni 4-11 minuti, e mai due allo stesso contatto. Le email del giorno sono divise a
-                metà tra i club e gli altri contatti (con 5: 3 agli altri e 2 ai club); se una delle
-                due parti non ha email pronte, l’altra usa i posti liberi.
+                feriali tra le 9 e le 16 dell’ora del contatto. Il piano del giorno distribuisce gli
+                invii fra le 9:00 e le 15:55; un piano nato dopo le 9 usa il tempo rimasto e con un
+                solo invio usa il centro dell’intervallo disponibile. Gli orari si leggono nel
+                Calendario email e nella pagina Assistente, sia locali sia di Roma. Un orario
+                mancato non viene recuperato con una raffica di email. Le quote si contano sul
+                giorno di Roma: al massimo 6 prime email, 3 Club e 3 altri, senza trasferire i posti
+                inutilizzati, più 6 solleciti con un limite separato. Stessa data locale e stessa
+                finestra UTC formano un gruppo, anche con fusi di nomi diversi: per esempio Roma,
+                Parigi e Berlino quando gli orari coincidono.
               </li>
               <li>
                 Prima Tommi fa una prova con «Manda la prova» e la conferma con «La prova è arrivata
@@ -491,10 +496,13 @@ export function GuideView({ access, preview = false }: { access: GuideAccess; pr
                 e «Invio» li sceglie solo Tommi.
               </li>
               <li>
-                Le risposte arrivano nella casella aziendale come sempre: l’assistente non le legge.
-                Il sollecito dopo 7 giorni lo manda Tommi: lo trova nella sua Oggi. Per ora lo
-                scrive lui, partendo dalla «Bozza dell'email» mandata, che resta nella scheda.
-                Quando l’ha mandato, nel «Registro» preme «Segna sollecito inviato», poi «Registra».
+                I solleciti automatici nascono in «osserva», senza invii: i promemoria di Tommi
+                restano validi. Quando Tommi attiva l’invio dei solleciti, possono partire fino a
+                quattro messaggi a 7, 17, 45 e 90 giorni, solo con bozza approvata e controlli della
+                posta prima dell’invio. Una possibile risposta ferma il ciclo; un fuori ufficio
+                riconosciuto con data certa lo rinvia. L’assistente non risponde alle persone. Se lo
+                manda a mano, Tommi parte dalla «Bozza dell'email» mandata nella scheda e nel
+                «Registro» preme «Segna sollecito inviato», poi «Registra».
               </li>
               <li>
                 In cima a Partner c’è la striscia dell’assistente: dice cosa sta facendo, quante
