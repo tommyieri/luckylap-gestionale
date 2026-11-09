@@ -1,0 +1,102 @@
+.dialog {
+  position: fixed;
+  inset: 0 0 0 auto;
+  margin: 0;
+  width: min(760px, 100vw);
+  max-width: 100vw;
+  height: 100dvh;
+  max-height: 100dvh;
+  padding: 0;
+  border: 0;
+  border-left: 1px solid var(--rule);
+  background: var(--paper);
+  color: var(--ink);
+  overflow: auto;
+  overscroll-behavior: contain;
+}
+.dialog::backdrop {
+  background: rgb(0 35 27 / 45%);
+}
+.sheet {
+  min-height: 100%;
+  min-width: 0;
+}
+.header {
+  position: sticky;
+  top: 0;
+  z-index: 1;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 20px 28px;
+  background: var(--paper);
+  border-bottom: 1px solid var(--rule);
+}
+.header h2 {
+  font-family: var(--f-cond);
+  font-size: var(--text-xl);
+  margin: 2px 0 0;
+}
+.eyebrow {
+  font-size: var(--text-sm);
+  color: var(--muted);
+  margin: 0;
+}
+.body {
+  padding: 24px 28px 40px;
+  overflow-wrap: anywhere;
+}
+.summary {
+  display: grid;
+  gap: 8px;
+  margin-bottom: 24px;
+}
+.summary p,
+.summary h3 {
+  margin: 0;
+}
+.amount {
+  font-family: var(--f-cond);
+  font-size: var(--text-title);
+  font-variant-numeric: tabular-nums;
+}
+.notice {
+  background: var(--tint);
+  border: 1px solid var(--rule);
+  padding: 16px;
+  margin: 16px 0;
+}
+.notice button {
+  margin-top: 12px;
+}
+.source {
+  border-top: 1px solid var(--rule);
+  margin-top: 28px;
+  padding-top: 8px;
+}
+.source summary {
+  min-height: 44px;
+  align-content: center;
+  cursor: pointer;
+  font-weight: 600;
+}
+.source p {
+  margin-top: 12px;
+}
+@media (max-width: 650px) {
+  .dialog {
+    width: 100vw;
+    border: 0;
+  }
+  .header {
+    padding: 16px;
+    gap: 12px;
+  }
+  .header h2 {
+    font-size: var(--text-lg);
+  }
+  .body {
+    padding: 20px 16px 32px;
+  }
+}

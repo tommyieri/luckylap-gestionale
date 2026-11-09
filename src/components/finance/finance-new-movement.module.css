@@ -1,0 +1,56 @@
+.entry {
+  min-width: 0;
+}
+.grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 16px;
+}
+.field {
+  display: grid;
+  align-content: start;
+  gap: 8px;
+  min-width: 0;
+}
+.direction,
+.description {
+  grid-column: 1 / -1;
+}
+.help {
+  color: var(--muted);
+  font-size: var(--text-sm);
+  line-height: 1.5;
+}
+.help a {
+  color: var(--green);
+  text-underline-offset: 3px;
+}
+.error {
+  color: var(--red);
+  font-size: var(--text-sm);
+  line-height: 1.5;
+}
+.entry .confirmation {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  min-height: var(--tap);
+  font-size: var(--text-md);
+  font-weight: 400;
+  line-height: 1.5;
+}
+.entry .confirmation input {
+  flex: 0 0 20px;
+  width: 20px;
+  height: 20px;
+  min-height: 20px;
+  accent-color: var(--green);
+}
+@media (max-width: 600px) {
+  .grid {
+    grid-template-columns: minmax(0, 1fr);
+  }
+  .entry button {
+    width: 100%;
+  }
+}

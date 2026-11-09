@@ -16,6 +16,7 @@ import { readFinanceWork } from "@/lib/finance-work/server";
 import { readDashboardSettlements } from "@/lib/finance/dashboard-server";
 import { localReportDate } from "@/lib/finance/model";
 import { buildFinanceDashboard } from "@/lib/finance/dashboard";
+import { financePreviewData } from "@/lib/finance/preview";
 import { loadFinanceRevisionContext } from "@/lib/finance-revisions/context-server";
 import { readFinanceProfileNames } from "@/lib/finance-revisions/names-server";
 import {
@@ -57,15 +58,22 @@ function AccessState({
  * Anteprima locale (00-sequenza §1.5): nessuna lettura, nessuna fonte importata,
  * solo i resoconti e i pagamenti sintetici del conto vendita.
  */
-function FinancePreview() {
+function FinancePreview({
+  initialParams,
+}: {
+  initialParams: Record<string, string | string[] | undefined>;
+}) {
   const reportDate = localReportDate(new Date())!;
+  const data = financePreviewData(reportDate);
   const { reports, payments, locations } = shopFinanceRows();
   return (
     <>
       <FinancePreviewNotice />
       <SensitiveAreaSessionBar area="finance" preview />
       <FinanceImportsView
-        snapshot={{ batches: [], transactions: [] }}
+        snapshot={data.snapshot}
+        workSnapshot={data.workSnapshot}
+        initialParams={initialParams}
         shopPayments={dashboardShopPaymentsFromRows(payments, reports, locations)}
         consignment={
           <ConsignmentMonthlyFinance
@@ -80,8 +88,11 @@ function FinancePreview() {
   );
 }
 
-export default async function FinancePage() {
-  if (isLocalPreviewEnabled()) return <FinancePreview />;
+export default async function FinancePage({
+  searchParams,
+}: { searchParams?: Promise<Record<string, string | string[] | undefined>> } = {}) {
+  const initialParams = searchParams ? await searchParams : {};
+  if (isLocalPreviewEnabled()) return <FinancePreview initialParams={initialParams} />;
   try {
     getSupabasePublicConfig();
   } catch {
@@ -165,6 +176,9 @@ export default async function FinancePage() {
     <>
       <SensitiveAreaSessionBar area="finance" />
       <FinanceImportsView
+        key={access.member.userId}
+        actorId={access.member.userId}
+        initialParams={initialParams}
         snapshot={snapshot}
         workSnapshot={work.snapshot}
         settlements={settlements}

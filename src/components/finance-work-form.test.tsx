@@ -117,7 +117,7 @@ describe("modulo Finance con un invio da verificare", () => {
       rereadLabel: "Rileggi il registro",
     });
     await retry(attempt);
-    expect(mocks.run).toHaveBeenCalledWith({ ...command(), retry: true });
+    expect(mocks.run).toHaveBeenCalledWith({ ...command(), retry: true }, userId);
     expect(sessionStorage.setItem).toHaveBeenCalledWith(
       key,
       JSON.stringify({ ...command(), retry: true }),
@@ -222,7 +222,7 @@ describe("«Invii Finance da verificare» fuori dal modulo", () => {
     const attempts = recoveryAttempts();
     expect(attempts.map((attempt) => attempt.props.onDiscard)).toEqual([undefined, undefined]);
     await retry(attempts[0]);
-    expect(mocks.run).toHaveBeenCalledWith({ ...other(), retry: true });
+    expect(mocks.run).toHaveBeenCalledWith({ ...other(), retry: true }, userId);
     expect(sessionStorage.removeItem).not.toHaveBeenCalled();
     expect(mocks.setters[2]).not.toHaveBeenCalled();
   });
@@ -282,5 +282,228 @@ describe("«Invii Finance da verificare» fuori dal modulo", () => {
     expect(mocks.setters[1]).toHaveBeenCalledWith(
       "Non riesco a liberare il tentativo conservato in questa scheda. Chiudi la scheda e riaprila.",
     );
+  });
+});
+
+describe("callback del modulo Finance breve", () => {
+  function formTree(extra: Partial<Parameters<typeof FinanceWorkForm>[0]> = {}) {
+    mocks.stateIndex = 0;
+    return FinanceWorkForm({
+      userId,
+      scope: "manual",
+      kind: "record_finance_entry",
+      build: () => command().payload,
+      label: "Registra uscita",
+      children: null,
+      ...extra,
+    }) as Element;
+  }
+  beforeEach(() => {
+    mocks.states[4] = true;
+  });
+
+  it("pubblica il successo e libera dirty solo dopo la ricevuta confermata", async () => {
+    mocks.states[0] = command();
+    mocks.run.mockResolvedValue({
+      status: "success",
+      entryId: workId(1),
+      replayed: false,
+      message: "Confermata",
+    });
+    const onSaved = vi.fn(),
+      onDirtyChange = vi.fn();
+    const attempt = attemptsOf(formTree({ onSaved, onDirtyChange }))[0];
+    await retry(attempt);
+    expect(onSaved).toHaveBeenCalledWith(
+      { status: "success", entryId: workId(1), replayed: false, message: "Confermata" },
+      { addAnother: false },
+    );
+    expect(onDirtyChange).toHaveBeenCalledWith(false);
+  });
+
+  it("esito incerto o recovery non liberabile non consentono un’altra voce", async () => {
+    mocks.states[0] = command();
+    const onSaved = vi.fn();
+    mocks.run.mockResolvedValue({ status: "uncertain", message: "Incerta" });
+    await retry(attemptsOf(formTree({ onSaved }))[0]);
+    expect(onSaved).not.toHaveBeenCalled();
+    mocks.run.mockResolvedValue({
+      status: "success",
+      entryId: workId(1),
+      replayed: false,
+      message: "Confermata",
+    });
+    vi.mocked(sessionStorage.removeItem).mockImplementation(() => {
+      throw Error("bloccato");
+    });
+    await retry(attemptsOf(formTree({ onSaved }))[0]);
+    expect(onSaved).not.toHaveBeenCalled();
+    expect(mocks.setters[0]).not.toHaveBeenCalledWith(null);
+    expect(mocks.setters[5]).not.toHaveBeenCalled();
+  });
+
+  it("anteprima blocca anche il retry posto fuori dal fieldset", async () => {
+    mocks.states[0] = command();
+    const attempt = attemptsOf(formTree({ disabled: true }))[0];
+    expect(attempt.props.pending).toBe(true);
+    await retry(attempt);
+    expect(mocks.run).not.toHaveBeenCalled();
+    expect(sessionStorage.setItem).not.toHaveBeenCalled();
+  });
+
+  it("espone il dirty sui cambiamenti e mantiene compatibile il testo lungo preesistente", () => {
+    const onDirtyChange = vi.fn();
+    const tree = formTree({ onDirtyChange });
+    (tree.props.onChange as () => void)();
+    expect(onDirtyChange).toHaveBeenCalledWith(true);
+    const text = descendants(tree)
+      .filter((node) => node.type === "p")
+      .map((node) => [node.props.children].flat().join(""))
+      .join(" ");
+    expect(text).toContain("Gli incassi del conto vendita");
+    const brief = descendants(
+      formTree({ showRecordHelp: false, secondaryLabel: "Registra e aggiungi un’altra" }),
+    );
+    expect(
+      brief.some(
+        (node) =>
+          node.type === "p" &&
+          String(node.props.children).includes("Gli incassi del conto vendita"),
+      ),
+    ).toBe(false);
+    expect(brief.some((node) => node.type === "button" && node.props.value === "addAnother")).toBe(
+      true,
+    );
+  });
+});
+
+describe("scelta esplicita di aggiungere un’altra voce", () => {
+  it("non crea una nuova operazione dopo un esito incerto, anche prima del prossimo render", async () => {
+    mocks.states[4] = true;
+    const NativeFormData = globalThis.FormData;
+    vi.stubGlobal(
+      "FormData",
+      class {
+        constructor() {
+          return {} as FormData;
+        }
+      },
+    );
+    vi.stubGlobal("crypto", { randomUUID: vi.fn(() => workId(75)) });
+    const onSaved = vi.fn();
+    mocks.stateIndex = 0;
+    const tree = FinanceWorkForm({
+      userId,
+      scope: "record",
+      kind: "record_finance_entry",
+      build: () => command().payload,
+      label: "Registra uscita",
+      secondaryLabel: "Registra e aggiungi un’altra",
+      children: null,
+      onSaved,
+    }) as Element;
+    const submit = tree.props.onSubmit as (event: unknown) => void;
+    try {
+      mocks.run.mockResolvedValue({ status: "uncertain", message: "Incerta" });
+      submit({
+        preventDefault: vi.fn(),
+        currentTarget: {},
+        nativeEvent: { submitter: { value: "addAnother" } },
+      });
+      await Promise.all(mocks.transitions);
+      expect(onSaved).not.toHaveBeenCalled();
+      expect(crypto.randomUUID).toHaveBeenCalledTimes(1);
+      expect(mocks.run).toHaveBeenCalledTimes(1);
+      expect(sessionStorage.removeItem).not.toHaveBeenCalled();
+      const frozen = mocks.run.mock.calls[0][0];
+      expect(frozen).toMatchObject({ operationId: workId(75), kind: "record_finance_entry" });
+      expect(mocks.run.mock.calls[0][1]).toBe(userId);
+      expect(sessionStorage.setItem).toHaveBeenCalledWith(
+        `luckylap.finance.work:${userId}:record`,
+        JSON.stringify(frozen),
+      );
+
+      // Un secondo submit prima del render non deve poter creare un'altra operazione.
+      submit({
+        preventDefault: vi.fn(),
+        currentTarget: {},
+        nativeEvent: { submitter: { value: "addAnother" } },
+      });
+      submit({
+        preventDefault: vi.fn(),
+        currentTarget: {},
+        nativeEvent: { submitter: { value: "addAnother" } },
+      });
+      expect(mocks.run).toHaveBeenCalledTimes(1);
+      expect(crypto.randomUUID).toHaveBeenCalledTimes(1);
+    } finally {
+      vi.stubGlobal("FormData", NativeFormData);
+    }
+  });
+});
+
+describe("ricevuta della seconda azione", () => {
+  it("comunica addAnother solo dopo il successo confermato, poi permette una nuova operazione", async () => {
+    mocks.states[4] = true;
+    const NativeFormData = globalThis.FormData;
+    vi.stubGlobal(
+      "FormData",
+      class {
+        constructor() {
+          return {} as FormData;
+        }
+      },
+    );
+    vi.stubGlobal("crypto", { randomUUID: vi.fn(() => workId(76)) });
+    const onSaved = vi.fn();
+    mocks.stateIndex = 0;
+    const tree = FinanceWorkForm({
+      userId,
+      scope: "record",
+      kind: "record_finance_entry",
+      build: () => command().payload,
+      label: "Registra uscita",
+      secondaryLabel: "Registra e aggiungi un’altra",
+      children: null,
+      onSaved,
+    }) as Element;
+    const submit = tree.props.onSubmit as (event: unknown) => void;
+    let complete!: (result: unknown) => void;
+    mocks.run.mockReturnValue(
+      new Promise((resolve) => {
+        complete = resolve;
+      }),
+    );
+    try {
+      const event = {
+        preventDefault: vi.fn(),
+        currentTarget: {},
+        nativeEvent: { submitter: { value: "addAnother" } },
+      };
+      submit(event);
+      submit(event);
+      expect(mocks.run).toHaveBeenCalledTimes(1);
+      expect(onSaved).not.toHaveBeenCalled();
+      const receipt = {
+        status: "success",
+        entryId: workId(1),
+        replayed: false,
+        message: "Confermata",
+      };
+      complete(receipt);
+      await Promise.all(mocks.transitions);
+      expect(onSaved).toHaveBeenCalledWith(receipt, { addAnother: true });
+      expect(sessionStorage.removeItem).toHaveBeenCalledWith(
+        `luckylap.finance.work:${userId}:record`,
+      );
+      expect(mocks.setters[5]).toHaveBeenCalled();
+      mocks.run.mockResolvedValue(receipt);
+      submit(event);
+      await Promise.all(mocks.transitions);
+      expect(crypto.randomUUID).toHaveBeenCalledTimes(2);
+      expect(mocks.run).toHaveBeenCalledTimes(2);
+    } finally {
+      vi.stubGlobal("FormData", NativeFormData);
+    }
   });
 });

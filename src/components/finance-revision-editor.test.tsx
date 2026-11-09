@@ -74,3 +74,43 @@ describe("editor dei movimenti Finance", () => {
     expect(html).toContain("Se la lasci vuota, nello storico resta «Correzione»");
   });
 });
+
+describe("editor incorporabile e storico leggibile", () => {
+  it("nasconde il ritorno pagina nel pannello e rende lo storico richiudibile", () => {
+    const html = renderToStaticMarkup(
+      <FinanceRevisionEditor
+        history={history("manual", null)}
+        actorId={id(1)}
+        names={{}}
+        embedded
+      />,
+    );
+    expect(html).not.toContain("← Finance");
+    expect(html).not.toContain("<h1>");
+    expect(html).toMatch(/<details[^>]*>\s*<summary[^>]*>Storico delle versioni/);
+    expect(html).toContain("Riepilogo corrente");
+  });
+  it("mostra le differenze prima della versione completa e conserva il ripristino", () => {
+    const value = history("manual", null);
+    value.revisions.push({
+      sourceKind: "manual",
+      sourceId: id(2),
+      id: id(3),
+      operationId: id(4),
+      version: 1,
+      previousVersion: 0,
+      action: "update",
+      restoredFromVersion: null,
+      values: { ...value.original.values, amountCents: 5250, description: "Descrizione corretta" },
+      deleted: false,
+      reason: "Correzione sintetica",
+      createdBy: id(1),
+      createdAt: "2026-06-11T10:00:00Z",
+    });
+    const html = render(value);
+    expect(html).toContain("Importo:");
+    expect(html).toContain("Descrizione:");
+    expect(html.indexOf("Importo:")).toBeLessThan(html.indexOf("Versione completa"));
+    expect(html).toContain("Ripristina fonte originale");
+  });
+});

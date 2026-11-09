@@ -1,5 +1,7 @@
 import { describe, expect, it, vi } from "vitest";
 import { renderToStaticMarkup } from "react-dom/server";
+vi.mock("./finance/finance-movement-panel", () => ({ FinanceMovementPanel: () => null }));
+vi.mock("./finance/finance-new-movement", () => ({ FinanceNewMovement: () => null }));
 vi.mock("server-only", () => ({}));
 vi.mock("next/navigation", () => ({ useRouter: () => ({ refresh: vi.fn(), push: vi.fn() }) }));
 vi.mock("@/lib/finance/model", () => import("../lib/finance/model"));
@@ -136,33 +138,31 @@ describe("pannello «Conto vendita · da incassare»", () => {
 });
 
 describe("pagamenti del negozio nella panoramica Finance", () => {
-  it("solo il denaro ricevuto entra nei saldi; il pannello sta prima dei movimenti", () => {
+  it("i pagamenti alimentano il saldo, mentre i crediti restano nella vista Da incassare", () => {
     const rows = shopFinanceRows();
-    const html = renderToStaticMarkup(
-      <FinanceImportsView
-        snapshot={{ batches: [], transactions: [] }}
-        shopPayments={dashboardShopPaymentsFromRows(rows.payments, rows.reports, rows.locations)}
-        consignment={<ConsignmentMonthlyFinance snapshot={finance()} />}
-        reportDate="2026-10-22"
-        displayName="Synthetic"
-      />,
+    const props = {
+      snapshot: { batches: [], transactions: [] },
+      shopPayments: dashboardShopPaymentsFromRows(rows.payments, rows.reports, rows.locations),
+      consignment: <ConsignmentMonthlyFinance snapshot={finance()} />,
+      reportDate: "2026-10-22",
+      displayName: "Synthetic",
+    };
+    const overview = renderToStaticMarkup(<FinanceImportsView {...props} />);
+    expect(text(overview)).toMatch(/Saldo dai movimenti Al 22\/10\/2026 83,00 €/);
+    expect(overview).not.toContain("134,99");
+    expect(overview).not.toContain('id="conto-vendita-da-incassare"');
+    const register = renderToStaticMarkup(
+      <FinanceImportsView {...props} initialParams={{ vista: "movements", periodo: "all" }} />,
     );
-    // Conto indicato: 50,00 €; contanti senza conto: «Cash» 33,00 €. Mai 134,99 € da fatturare.
-    const accounts = html.slice(0, html.indexOf('id="finance-trend-title"'));
-    expect(accounts).toContain("Conto sintetico");
-    expect(accounts).toContain("50,00 €");
-    expect(accounts).toContain("Cash");
-    expect(accounts).toContain("33,00 €");
-    expect(accounts).toContain("83,00 €");
-    expect(accounts).not.toContain("134,99");
-    expect(html).toContain('href="#conto-vendita-da-incassare"');
-    expect(html.indexOf('id="conto-vendita-da-incassare"')).toBeLessThan(
-      html.indexOf('id="finance-transactions"'),
+    expect(register).toContain(`id="movimento-shop_payment-${sx.payment}"`);
+    expect(register).toContain(`id="movimento-shop_payment-${sx.closedPayment}"`);
+    expect(register).not.toContain(`movimento-shop_payment-${sx.voidedPayment}`);
+    expect(text(register)).toContain("Pagamento del negozio");
+    const receivables = renderToStaticMarkup(
+      <FinanceImportsView {...props} initialParams={{ vista: "receivables" }} />,
     );
-    expect(html).toContain(`id="movimento-shop_payment-${sx.payment}"`);
-    expect(html).toContain(`id="movimento-shop_payment-${sx.closedPayment}"`);
-    expect(html).not.toContain(`movimento-shop_payment-${sx.voidedPayment}`);
-    expect(text(html)).toContain("Pagamento del negozio");
+    expect(receivables).toContain('id="conto-vendita-da-incassare"');
+    expect(receivables).not.toContain('id="finance-transactions"');
   });
 
   it("senza pannello la panoramica resta com'era", () => {

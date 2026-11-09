@@ -41,6 +41,7 @@ vi.mock("@/lib/auth/server", () => ({ verifiedMember: mocks.member }));
 vi.mock("@/lib/auth/sensitive-access", () => ({ verifiedSensitiveAccess: mocks.gate }));
 vi.mock("@/lib/finance/server", () => ({ loadFinanceImports: mocks.imports }));
 vi.mock("@/lib/finance/model", () => import("../../../lib/finance/model"));
+vi.mock("@/lib/finance/preview", () => import("../../../lib/finance/preview"));
 vi.mock("@/lib/finance/dashboard", () => import("../../../lib/finance/dashboard"));
 vi.mock("@/lib/finance/dashboard-server", () => ({ readDashboardSettlements: mocks.settlements }));
 vi.mock("@/lib/finance-work/server", () => ({ readFinanceWork: mocks.work }));
@@ -116,15 +117,17 @@ beforeEach(() => {
   mocks.context.mockResolvedValue(context);
 });
 describe("callsite e gate Finance con revisioni", () => {
-  it("passa il contesto completo alla dashboard e le teste efficaci al registro manuale", async () => {
+  it("passa il contesto completo alla dashboard e reindirizza i vecchi segnalibri", async () => {
     const overview = opened(await FinancePage());
     expect(mocks.context).toHaveBeenCalledExactlyOnceWith({}, []);
     expect(overview.props.revisionHeads).toBe(context.heads);
     expect(overview.props.revisionOriginals).toBe(context.originals);
     expect(overview.props.deletedShopPayments).toEqual([]);
     expect(overview.props.names).toEqual({ [id]: "Membro sintetico" });
-    const registry = opened(await FinanceWorkPage());
-    expect(registry.props.revisionHeads).toBe(context.heads);
+    await expect(async () => FinanceWorkPage()).rejects.toThrow(
+      "redirect:/finance?vista=movements&nuovo=expense",
+    );
+    expect(mocks.context).toHaveBeenCalledTimes(1);
   });
   it("passa lo storico P3 completo all’editor corretto dopo il gate", async () => {
     const history = {
@@ -219,7 +222,9 @@ describe("callsite e gate Finance con revisioni", () => {
     const html = renderToStaticMarkup(await FinancePage());
     expect(html).toContain("Anteprima sintetica");
     expect(html).toContain('<p data-area-bar="finance">Chiusura spenta</p>');
-    expect(renderToStaticMarkup(await FinanceWorkPage())).not.toContain("data-area-bar");
+    await expect(async () => FinanceWorkPage()).rejects.toThrow(
+      "redirect:/finance?vista=movements&nuovo=expense",
+    );
     expect(
       renderToStaticMarkup(await ShopPaymentPage({ params: Promise.resolve({ id }) })),
     ).not.toContain("data-area-bar");

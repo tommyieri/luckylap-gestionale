@@ -17,16 +17,26 @@ import { euroCents, money, moneyInput } from "../lib/sales/model";
 import { localReportDate } from "../lib/finance/model";
 import { formatRomeDate, formatRomeDateTime } from "../lib/team/model";
 import { PendingAttempt } from "./pending-attempt";
+import { FinanceVersionChanges } from "./finance-revision-editor";
+import type { FinanceRevisionValues } from "../lib/finance-revisions/model";
 import styles from "./finance-revision-editor.module.css";
 
 export function FinanceShopPaymentEditor({
   history,
   actorId,
   names,
+  embedded = false,
+  readOnly = false,
+  onDirtyChange,
+  onSaved,
 }: {
   history: ShopPaymentFinanceHistory;
   actorId: string;
   names: Record<string, string>;
+  embedded?: boolean;
+  readOnly?: boolean;
+  onDirtyChange?: (dirty: boolean) => void;
+  onSaved?: () => void;
 }) {
   const router = useRouter(),
     current = history.current;
@@ -35,7 +45,18 @@ export function FinanceShopPaymentEditor({
     [message, setMessage] = useState(""),
     [confirmDelete, setConfirmDelete] = useState(false);
   const [busy, start] = useTransition();
+  const [dirty, setDirty] = useState(false);
   const reason = useRef<HTMLInputElement>(null);
+  useEffect(() => {
+    onDirtyChange?.(dirty || busy || Boolean(attempt));
+  }, [dirty, busy, attempt, onDirtyChange]);
+  useEffect(() => {
+    setDirty(false);
+  }, [actorId, history.paymentId, history.version]);
+  function markDirty() {
+    setDirty(true);
+    onDirtyChange?.(true);
+  }
   const sender = useRef(
     createShopSender(
       shopPendingKey(actorId),
@@ -53,9 +74,10 @@ export function FinanceShopPaymentEditor({
     (attempt.kind !== "shop" ||
       command?.kind !== "update_consignment_payment" ||
       command.payload.payment_id !== history.paymentId);
-  const locked = !ready || busy || !!attempt;
+  const locked = readOnly || !ready || busy || !!attempt;
   function send(value: ShopCommand, retry = false) {
-    if (sender.current.isBusy()) return;
+    if (readOnly || sender.current.isBusy()) return;
+    onDirtyChange?.(true);
     const existing = readStoredAttempt(sessionStorage, actorId);
     if (
       existing &&
@@ -81,6 +103,9 @@ export function FinanceShopPaymentEditor({
       else setAttempt(null);
       if (outcome.result.status === "success") {
         setConfirmDelete(false);
+        setDirty(false);
+        onDirtyChange?.(outcome.kept);
+        onSaved?.();
         router.refresh();
       }
     });
@@ -127,18 +152,37 @@ export function FinanceShopPaymentEditor({
   const versions = [
     ...new Map([...history.revisions, current].map((row) => [row.version, row])).values(),
   ].sort((a, b) => b.version - a.version);
+  const byVersion = new Map(versions.map((row) => [row.version, row]));
   return (
-    <div className={styles.page}>
+    <div className={embedded ? styles.embedded : styles.page}>
       <header className={styles.head}>
-        <Link href="/finance" prefetch={false}>
-          Finance
-        </Link>
-        <h1>Incasso conto vendita</h1>
+        {!embedded && (
+          <>
+            <Link href="/finance" prefetch={false}>
+              Finance
+            </Link>
+            <h1>Incasso conto vendita</h1>
+          </>
+        )}
         <p>
           {current.voided ? "Eliminato dalla vista attiva" : "Versione attiva"} · versione{" "}
           {history.version}
         </p>
       </header>
+      <section className={styles.summary} aria-label="Riepilogo corrente">
+        <h2>Riepilogo corrente</h2>
+        <p>
+          {formatRomeDate(current.paidAt)} · {money(current.amountCents)} ·{" "}
+          {current.direction === "expense" ? "Uscita" : "Entrata"} ·{" "}
+          {current.accountLabel ?? "Conto da attribuire"}
+        </p>
+        <p>{current.description}</p>
+      </section>
+      {readOnly && (
+        <p className={styles.notice}>
+          Sola lettura: le modifiche richiedono il workspace condiviso.
+        </p>
+      )}
       <p className={styles.notice}>
         Questo è lo stesso pagamento del resoconto. La correzione conserva importo, versione e
         storico in un solo registro.
@@ -177,7 +221,7 @@ export function FinanceShopPaymentEditor({
           }}
           onReread={() => router.refresh()}
           onDiscard={
-            attempt.blocked
+            !readOnly && attempt.blocked
               ? () => {
                   try {
                     sessionStorage.removeItem(shopPendingKey(actorId));
@@ -197,6 +241,7 @@ export function FinanceShopPaymentEditor({
         <h2 id="shop-payment-edit">Correggi il pagamento</h2>
         <form
           key={`${history.paymentId}:${history.version}`}
+          onChange={markDirty}
           onSubmit={(event: FormEvent<HTMLFormElement>) => {
             event.preventDefault();
             submit("update", new FormData(event.currentTarget));
@@ -312,46 +357,98 @@ export function FinanceShopPaymentEditor({
           </div>
         )}
       </section>
-      <section className={styles.section} aria-labelledby="shop-payment-history">
-        <h2 id="shop-payment-history">Storico del pagamento</h2>
+      <details className={`${styles.section} ${styles.historyDisclosure}`}>
+        <summary>Storico del pagamento</summary>
         <p>
           Ripristinare una versione crea una nuova versione nello stesso registro del resoconto.
         </p>
         <ol className={styles.history}>
-          {versions.map((row) => (
-            <li key={row.version}>
-              <div className={styles.versionHead}>
-                <h3>
-                  Versione {row.version}
-                  {row.version === history.version ? " · attuale" : ""}
-                  {row.voided ? " · eliminata" : ""}
-                </h3>
-                {(row.version !== history.version || current.voided) && (
-                  <button
-                    className="button button-secondary"
-                    disabled={locked}
-                    onClick={() => submit("restore", undefined, row.version)}
-                  >
-                    Ripristina versione {row.version}
-                  </button>
+          {versions.map((row) => {
+            const previous = byVersion.get(row.version - 1);
+            return (
+              <li key={row.version}>
+                <div className={styles.versionHead}>
+                  <h3>
+                    Versione {row.version}
+                    {row.version === history.version ? " · attuale" : ""}
+                    {row.voided ? " · eliminata" : ""}
+                  </h3>
+                  {(row.version !== history.version || current.voided) && (
+                    <button
+                      className="button button-secondary"
+                      disabled={locked}
+                      onClick={() => submit("restore", undefined, row.version)}
+                    >
+                      Ripristina versione {row.version}
+                    </button>
+                  )}
+                </div>
+                <p>
+                  {names[row.createdBy] ?? "Membro del team"} · {formatRomeDateTime(row.createdAt)}
+                </p>
+                <FinanceVersionChanges
+                  before={previous ? financeValues(previous) : null}
+                  after={financeValues(row)}
+                  wasDeleted={previous?.voided ?? false}
+                  deleted={row.voided}
+                />
+                {previous && (
+                  <ul className={styles.changes}>
+                    {previous.method !== row.method && (
+                      <li>
+                        <strong>Metodo:</strong> {paymentMethodLabel[previous.method]} →{" "}
+                        {paymentMethodLabel[row.method]}
+                      </li>
+                    )}
+                    {previous.reference !== row.reference && (
+                      <li>
+                        <strong>Riferimento:</strong> {previous.reference || "Non indicato"} →{" "}
+                        {row.reference || "Non indicato"}
+                      </li>
+                    )}
+                    {previous.paidAt !== row.paidAt &&
+                      financeValues(previous).date === financeValues(row).date && (
+                        <li>
+                          <strong>Data e ora:</strong> {formatRomeDateTime(previous.paidAt)} →{" "}
+                          {formatRomeDateTime(row.paidAt)}
+                        </li>
+                      )}
+                  </ul>
                 )}
-              </div>
-              <p>
-                {names[row.createdBy] ?? "Membro del team"} · {formatRomeDateTime(row.createdAt)}
-              </p>
-              <p>
-                {formatRomeDate(row.paidAt)} · {money(row.amountCents)} ·{" "}
-                {row.direction === "expense" ? "Uscita" : "Entrata"} ·{" "}
-                {row.accountLabel ?? "Conto da attribuire"}
-                {row.category && ` · ${row.category}`}
-                {row.pending && " · Pending"}
-              </p>
-              <p>{row.description}</p>
-              {row.reason && <p>{row.reason}</p>}
-            </li>
-          ))}
+                {row.reason && <p>{row.reason}</p>}
+                <details className={styles.fullVersion}>
+                  <summary>Versione completa</summary>
+                  <p>
+                    {formatRomeDate(row.paidAt)} · {money(row.amountCents)} ·{" "}
+                    {row.direction === "expense" ? "Uscita" : "Entrata"} ·{" "}
+                    {row.accountLabel ?? "Conto da attribuire"}
+                    {row.category && ` · ${row.category}`}
+                    {row.pending && " · Pending"}
+                  </p>
+                  <p>{row.description}</p>
+                  <p>
+                    Metodo: {paymentMethodLabel[row.method]} · Riferimento:{" "}
+                    {row.reference || "Non indicato"}
+                  </p>
+                </details>
+              </li>
+            );
+          })}
         </ol>
-      </section>
+      </details>
     </div>
   );
+}
+
+function financeValues(row: ShopPaymentFinanceHistory["current"]): FinanceRevisionValues {
+  return {
+    date: localReportDate(new Date(row.paidAt)) ?? "",
+    direction: row.direction,
+    amountCents: row.amountCents,
+    account: row.accountLabel,
+    targetAccount: null,
+    category: row.category,
+    description: row.description,
+    pending: row.pending,
+  };
 }

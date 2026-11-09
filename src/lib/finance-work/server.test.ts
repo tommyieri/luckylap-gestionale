@@ -198,3 +198,35 @@ describe("Finance authorization and command receipts", () => {
     expect((await executeFinanceWork(f.client, manualCommand())).status).toBe("uncertain");
   });
 });
+
+describe("attore atteso per il comando Finance", () => {
+  it("esegue il payload originale quando il membro verificato coincide con il modulo", async () => {
+    const f = fixture(),
+      command = manualCommand();
+    expect(await executeFinanceWork(f.client, command, workId(10))).toMatchObject({
+      status: "success",
+    });
+    expect(f.rpc).toHaveBeenCalledWith("record_finance_entry", {
+      p_operation_id: command.operationId,
+      p_payload: command.payload,
+    });
+  });
+
+  it("rifiuta il nuovo invio preparato da un altro account prima di ogni RPC di scrittura", async () => {
+    const f = fixture();
+    expect(await executeFinanceWork(f.client, manualCommand(), workId(20))).toMatchObject({
+      status: "rejected",
+      code: "finance_actor_changed",
+    });
+    expect(f.auth.getUser).toHaveBeenCalledOnce();
+    expect(f.rpc).toHaveBeenCalledExactlyOnceWith("sensitive_area_status", { p_area: "finance" });
+  });
+
+  it("conserva incerto il retry di un altro account senza inviare il comando", async () => {
+    const f = fixture();
+    expect(
+      await executeFinanceWork(f.client, { ...manualCommand(), retry: true }, workId(20)),
+    ).toMatchObject({ status: "uncertain" });
+    expect(f.rpc).toHaveBeenCalledExactlyOnceWith("sensitive_area_status", { p_area: "finance" });
+  });
+});

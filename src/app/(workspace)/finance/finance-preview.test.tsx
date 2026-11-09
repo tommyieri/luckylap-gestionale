@@ -33,6 +33,14 @@ vi.mock("@/lib/auth/model", () => import("../../../lib/auth/model"));
 vi.mock("@/lib/runtime", () => import("../../../lib/runtime"));
 vi.mock("@/lib/finance/model", () => import("../../../lib/finance/model"));
 vi.mock("@/lib/finance/dashboard", () => import("../../../lib/finance/dashboard"));
+vi.mock("@/lib/finance/preview", () => import("../../../lib/finance/preview"));
+vi.mock("../../../components/finance/finance-movement-panel", () => ({
+  FinanceMovementPanel: () => null,
+}));
+vi.mock("../../../components/finance/finance-new-movement", () => ({
+  FinanceNewMovement: () => null,
+}));
+vi.mock("../../../components/finance-work-form", () => ({ FinanceWorkRecovery: () => null }));
 vi.mock("@/lib/finance/categories", () => import("../../../lib/finance/categories"));
 vi.mock("@/lib/consignment/shop-finance", () => import("../../../lib/consignment/shop-finance"));
 vi.mock("@/lib/consignment/shop-fixtures", () => import("../../../lib/consignment/shop-fixtures"));
@@ -69,15 +77,23 @@ describe("anteprima locale di Finance (00-sequenza §1.5)", () => {
   it("in sviluppo mostra il pannello del conto vendita sintetico, senza Supabase", async () => {
     const t = await text();
     expect(t).toContain("Anteprima locale: dati sintetici, salvataggio disattivato.");
-    expect(t).toContain("Conto vendita · da incassare");
-    expect(t).toContain("Negozio sintetico");
-    expect(t).toContain("Pagamento del negozio");
+    expect(t).toContain("Saldo dai movimenti");
+    expect(t).toContain("Entrate registrate");
+    expect(t).toContain("Uscite registrate");
+    expect(t).not.toContain("Negozio sintetico");
     expect(t).toContain("Anteprima locale: la chiusura di Finance è disattivata.");
     expect(t).not.toContain("aperta su questo dispositivo");
     const html = renderToStaticMarkup((await FinancePage()) as ReactElement);
     expect(html).toMatch(/<button[^>]*disabled=""[^>]*>Chiudi Finance<\/button>/);
     expect(mocks.config).not.toHaveBeenCalled();
     expect(mocks.client).not.toHaveBeenCalled();
+    const receivables = renderToStaticMarkup(
+      (await FinancePage({
+        searchParams: Promise.resolve({ vista: "receivables" }),
+      })) as ReactElement,
+    );
+    expect(receivables).toContain("Conto vendita · da incassare");
+    expect(receivables).toContain("Negozio sintetico");
   });
 
   it.each([

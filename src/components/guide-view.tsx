@@ -41,7 +41,7 @@ export const SECTION_TEXT: Partial<Record<SectionId, string>> = {
   partner:
     "Negozi, eventi, club, media e brand da contattare, con lo stato e il registro di ogni contatto.",
   team: "Il lavoro di tutti i giorni del team.",
-  finance: "Conti, movimenti e documenti del brand.",
+  finance: "Saldo dai movimenti, entrate, uscite e somme da incassare dai negozi.",
 };
 
 /** Una frase per scheda: il test vuole tutte le schede della mappa. */
@@ -60,9 +60,6 @@ export const TAB_TEXT: Record<string, string> = {
     "Il calendario del mese (un pallino sui giorni con impegni), le cose da fare, le note e le idee. Qui c’è anche «Partner nel Team».",
   "/development": "I prodotti nuovi, dall’idea al campione fino al prodotto pronto.",
   "/assets": "Loghi, grafiche, foto e video del brand, da scaricare o da aggiungere.",
-  "/finance": "Conti e movimenti, con i saldi. Ogni movimento si corregge e si ripristina.",
-  "/finance/work": "Le voci aggiunte a mano, accanto a quelle che arrivano dalle vendite.",
-  "/finance/documents": "I file originali ricevuti, in archivio privato.",
 };
 
 /** Le nove parti della guida, nell'ordine dell'indice. */
@@ -597,8 +594,8 @@ export function GuideView({ access, preview = false }: { access: GuideAccess; pr
               <div>
                 <dt>Finance</dt>
                 <dd>
-                  Conti, movimenti, registrazioni e documenti del brand. La apre chi conosce la
-                  password Finance.
+                  Saldo dai movimenti, entrate, uscite e somme da incassare dai negozi. La apre chi
+                  conosce la password Finance.
                 </dd>
               </div>
             </dl>
@@ -614,13 +611,39 @@ export function GuideView({ access, preview = false }: { access: GuideAccess; pr
                   condiviso, premi «Chiudi Finance» in cima alle pagine Finance, oppure chiudila da
                   «Account e sicurezza».
                 </p>
+                <h3 className={styles.subTitle}>Panoramica, Movimenti e Da incassare</h3>
+                <p>
+                  Finance si apre sulla Panoramica: saldo dai movimenti, entrate e uscite, con il
+                  periodo e i conti scelti. Il saldo viene dalle registrazioni e non è verificato
+                  con la banca. Voci future e in sospeso sono separate; quelle senza conto si
+                  trovano in «Da attribuire». Tocca un valore o una barra per vedere i movimenti che
+                  lo compongono.
+                </p>
+                <p>
+                  In Movimenti cerca per descrizione, categoria, conto o importo. Controlla il
+                  periodo: «Tutti i periodi» cerca anche negli altri anni; senza risultati trovi
+                  «Cerca in tutti i periodi». In «Altri filtri» scegli stato e fonte.
+                </p>
+                <h3 className={styles.subTitle}>Aggiungere un movimento</h3>
+                <p>
+                  «Nuovo movimento» apre subito il modulo: Uscita o Entrata, importo senza segno,
+                  data, descrizione, conto e categoria. Usa la virgola per i centesimi. Conto e
+                  categoria sono facoltativi: «Da attribuire» e «Da classificare» li lasciano da
+                  completare. Puoi anche scrivere un conto o una categoria personalizzati.
+                </p>
+                <p>
+                  La data parte da oggi e non può essere futura: per una scadenza usa un promemoria
+                  nel Calendario. Controlla che il movimento non sia già presente, conferma e premi
+                  «Registra uscita» o «Registra entrata». «Registra e aggiungi un’altra» prepara il
+                  modulo successivo solo dopo un salvataggio confermato.
+                </p>
                 <h3 className={styles.subTitle}>Correggere un movimento</h3>
                 <p>
-                  In Panoramica e in Registrazioni ogni movimento ha «Modifica / storico». Lì
-                  correggi i dati con «Salva correzione», lo elimini o torni a una versione di prima
-                  dallo storico. La motivazione è facoltativa: lo storico dice comunque chi ha
-                  cambiato cosa e quando. In Panoramica lo stato «Modificati» mostra i movimenti
-                  corretti.
+                  In Movimenti apri una riga: nella scheda correggi i dati con «Salva correzione»,
+                  elimini il movimento o apri lo storico per tornare a una versione di prima. La
+                  motivazione è facoltativa: lo storico dice comunque chi ha cambiato cosa e quando.
+                  Chiudendo la scheda ritrovi ricerca e filtri. In «Altri filtri» lo stato
+                  «Modificati» mostra i movimenti corretti.
                 </p>
                 <p>
                   Gli incassi delle vendite e i rimborsi Shopify non si eliminano da Finance: si
@@ -628,8 +651,15 @@ export function GuideView({ access, preview = false }: { access: GuideAccess; pr
                   registrazione», oppure registra il reso con «Registra reso».
                 </p>
                 <p>
-                  Un movimento eliminato esce dai saldi ma non si perde: in Panoramica scegli lo
-                  stato «Eliminati · recuperabili» e premi «Ripristina / storico».
+                  Un movimento eliminato esce dai saldi ma non si perde: in Movimenti scegli lo
+                  stato «Eliminati · recuperabili», apri la scheda e ripristina una versione dallo
+                  storico.
+                </p>
+                <h3 className={styles.subTitle}>Da incassare e documenti</h3>
+                <p>
+                  Da incassare mostra i residui dei resoconti dei negozi. Registra il pagamento dal
+                  resoconto: non aggiungere anche un’entrata manuale. «Documenti e fonti» raccoglie
+                  importazioni e dati originali, con il collegamento ai documenti.
                 </p>
                 <p className={styles.actions}>
                   <Link
@@ -639,13 +669,21 @@ export function GuideView({ access, preview = false }: { access: GuideAccess; pr
                   >
                     Apri Finance
                   </Link>
+                  <Link href="/finance/work" prefetch={false} className="button button-secondary">
+                    Nuovo movimento
+                  </Link>
                   <Link href="/auth/account" prefetch={false} className="button button-secondary">
                     Account e sicurezza
                   </Link>
                 </p>
               </div>
             ) : (
-              <p className={styles.after}>Per aprire Finance serve la password Finance.</p>
+              <p className={styles.after}>
+                Per aprire Finance serve la password Finance.{" "}
+                <Link href="/finance/work" prefetch={false}>
+                  Apri Finance per aggiungere un movimento.
+                </Link>
+              </p>
             )}
           </Part>
 

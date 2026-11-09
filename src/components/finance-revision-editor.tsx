@@ -24,10 +24,18 @@ export function FinanceRevisionEditor({
   history,
   actorId,
   names,
+  embedded = false,
+  readOnly = false,
+  onDirtyChange,
+  onSaved,
 }: {
   history: FinanceRevisionHistory;
   actorId: string;
   names: Record<string, string>;
+  embedded?: boolean;
+  readOnly?: boolean;
+  onDirtyChange?: (dirty: boolean) => void;
+  onSaved?: () => void;
 }) {
   const router = useRouter();
   const latest = history.revisions.at(-1);
@@ -42,7 +50,18 @@ export function FinanceRevisionEditor({
   const [message, setMessage] = useState("");
   const [blocked, setBlocked] = useState(false);
   const [confirmDelete, setConfirmDelete] = useState(false);
+  const [dirty, setDirty] = useState(false);
   const reason = useRef<HTMLInputElement>(null);
+  useEffect(() => {
+    onDirtyChange?.(dirty || busy || Boolean(attempt) || broken);
+  }, [dirty, busy, attempt, broken, onDirtyChange]);
+  useEffect(() => {
+    setDirty(false);
+  }, [actorId, history.original.sourceId, version]);
+  function markDirty() {
+    setDirty(true);
+    onDirtyChange?.(true);
+  }
   useEffect(() => {
     try {
       setAttempt(readPendingFinanceRevision(sessionStorage, actorId));
@@ -60,6 +79,8 @@ export function FinanceRevisionEditor({
       attempt.payload.source_id !== history.original.sourceId),
   );
   function send(command: FinanceRevisionCommand, retry = false) {
+    if (readOnly) return;
+    onDirtyChange?.(true);
     start(async () => {
       let frozen: FinanceRevisionCommand;
       try {
@@ -80,6 +101,9 @@ export function FinanceRevisionEditor({
           setAttempt(null);
           setBlocked(false);
           setConfirmDelete(false);
+          setDirty(false);
+          onDirtyChange?.(false);
+          onSaved?.();
           router.refresh();
         } else if (result.status === "rejected") setBlocked(true);
       } catch {
@@ -94,7 +118,7 @@ export function FinanceRevisionEditor({
     form?: FormData,
     restoreVersion?: number,
   ) {
-    if (attempt || busy || !ready) return;
+    if (readOnly || attempt || busy || !ready) return;
     const payload: Record<string, unknown> = {
       schema_version: 1,
       source_kind: history.original.sourceKind,
@@ -133,6 +157,8 @@ export function FinanceRevisionEditor({
   }
   const rows = [
     {
+      previous: null,
+      previousDeleted: false,
       version: 0,
       values: history.original.values,
       deleted: history.original.deleted,
@@ -140,7 +166,10 @@ export function FinanceRevisionEditor({
       at: null as string | null,
       reason: "Valori acquisiti dalla fonte.",
     },
-    ...history.revisions.map((r) => ({
+    ...history.revisions.map((r, index) => ({
+      previous: index === 0 ? history.original.values : history.revisions[index - 1].values,
+      previousDeleted:
+        index === 0 ? history.original.deleted : history.revisions[index - 1].deleted,
       version: r.version,
       values: r.values,
       deleted: r.deleted,
@@ -150,19 +179,32 @@ export function FinanceRevisionEditor({
     })),
   ].reverse();
   return (
-    <div className={styles.page}>
+    <div className={embedded ? styles.embedded : styles.page}>
       <header className={styles.head}>
         <div>
-          <Link href="/finance" prefetch={false}>
-            ← Finance
-          </Link>
-          <h1>Movimento Finance</h1>
+          {!embedded && (
+            <>
+              <Link href="/finance" prefetch={false}>
+                ← Finance
+              </Link>
+              <h1>Movimento Finance</h1>
+            </>
+          )}
           <p>
             {deleted ? "Eliminato dalla vista attiva" : "Versione attiva"} ·{" "}
             {version === 0 ? "fonte originale" : `versione ${version}`}
           </p>
         </div>
       </header>
+      <section className={styles.summary} aria-label="Riepilogo corrente">
+        <h2>Riepilogo corrente</h2>
+        <VersionSummary values={current} />
+      </section>
+      {readOnly && (
+        <p className={styles.notice}>
+          Sola lettura: le modifiche richiedono il workspace condiviso.
+        </p>
+      )}
       {history.original.orderId && (
         <p className={styles.notice}>
           L’importo corretto aggiorna anche il saldo dichiarato dell’ordine.{" "}
@@ -213,7 +255,7 @@ export function FinanceRevisionEditor({
           onRetry={() => attempt && !otherContext && send(attempt, true)}
           onReread={() => router.refresh()}
           onDiscard={
-            blocked || broken
+            !readOnly && (blocked || broken)
               ? () => {
                   sessionStorage.removeItem(`luckylap.finance-revisions.pending:${actorId}`);
                   setAttempt(null);
@@ -230,9 +272,10 @@ export function FinanceRevisionEditor({
         <form
           key={`${version}:${history.original.sourceId}`}
           action={(form) => submit("update", form)}
+          onChange={markDirty}
         >
           <fieldset
-            disabled={!ready || busy || Boolean(attempt) || broken || deleted}
+            disabled={readOnly || !ready || busy || Boolean(attempt) || broken || deleted}
             className={styles.fields}
           >
             <label>
@@ -309,7 +352,7 @@ export function FinanceRevisionEditor({
               name="reason"
               maxLength={500}
               aria-describedby="revision-reason-help"
-              disabled={busy || Boolean(attempt) || broken}
+              disabled={readOnly || busy || Boolean(attempt) || broken}
               placeholder="Correzione"
             />
           </label>
@@ -320,7 +363,7 @@ export function FinanceRevisionEditor({
             <button
               type="submit"
               className="button button-primary"
-              disabled={!ready || busy || Boolean(attempt) || broken || deleted}
+              disabled={readOnly || !ready || busy || Boolean(attempt) || broken || deleted}
             >
               {busy ? "Salvataggio…" : "Salva correzione"}
             </button>
@@ -328,7 +371,7 @@ export function FinanceRevisionEditor({
               <button
                 type="button"
                 className="button button-secondary"
-                disabled={!ready || busy || Boolean(attempt) || broken}
+                disabled={readOnly || !ready || busy || Boolean(attempt) || broken}
                 onClick={() => setConfirmDelete(true)}
               >
                 Elimina movimento
@@ -352,7 +395,7 @@ export function FinanceRevisionEditor({
               <button
                 type="button"
                 className="button button-primary"
-                disabled={busy || Boolean(attempt)}
+                disabled={readOnly || busy || Boolean(attempt)}
                 onClick={() => submit("delete")}
               >
                 Conferma eliminazione
@@ -368,8 +411,8 @@ export function FinanceRevisionEditor({
           </div>
         )}
       </section>
-      <section aria-labelledby="history-title" className={styles.section}>
-        <h2 id="history-title">Storico delle versioni</h2>
+      <details className={`${styles.section} ${styles.historyDisclosure}`}>
+        <summary>Storico delle versioni</summary>
         <p>Ogni ripristino crea una nuova versione e conserva le precedenti.</p>
         <ol className={styles.history}>
           {rows.map((row) => (
@@ -384,7 +427,7 @@ export function FinanceRevisionEditor({
                   <button
                     type="button"
                     className="button button-secondary"
-                    disabled={!ready || busy || Boolean(attempt) || broken}
+                    disabled={readOnly || !ready || busy || Boolean(attempt) || broken}
                     onClick={() => submit("restore", undefined, row.version)}
                   >
                     Ripristina {row.version === 0 ? "fonte originale" : `versione ${row.version}`}
@@ -395,12 +438,21 @@ export function FinanceRevisionEditor({
                 {row.actor}
                 {row.at && ` · ${formatRomeDateTime(row.at)}`}
               </p>
-              <VersionSummary values={row.values} />
+              <FinanceVersionChanges
+                before={row.previous}
+                after={row.values}
+                wasDeleted={row.previousDeleted}
+                deleted={row.deleted}
+              />
               <p>{row.reason}</p>
+              <details className={styles.fullVersion}>
+                <summary>Versione completa</summary>
+                <VersionSummary values={row.values} />
+              </details>
             </li>
           ))}
         </ol>
-      </section>
+      </details>
     </div>
   );
 }
@@ -446,5 +498,56 @@ function VersionSummary({ values }: { values: FinanceRevisionValues }) {
       <br />
       {values.description}
     </p>
+  );
+}
+
+/** Human-readable changes appear before the full immutable snapshot. */
+export function FinanceVersionChanges({
+  before,
+  after,
+  wasDeleted,
+  deleted,
+}: {
+  before: FinanceRevisionValues | null;
+  after: FinanceRevisionValues;
+  wasDeleted: boolean;
+  deleted: boolean;
+}) {
+  if (!before) return <p>Registrazione originale.</p>;
+  const labels: Record<keyof FinanceRevisionValues, string> = {
+    date: "Data",
+    direction: "Tipo",
+    amountCents: "Importo",
+    account: "Conto",
+    targetAccount: "Conto di destinazione",
+    category: "Categoria",
+    description: "Descrizione",
+    pending: "In sospeso",
+  };
+  const display = (key: keyof FinanceRevisionValues, values: FinanceRevisionValues) => {
+    const value = values[key];
+    if (key === "amountCents") return money(values.amountCents);
+    if (key === "date") return formatRomeDate(`${values.date}T12:00Z`);
+    if (key === "direction") return value === "income" ? "Entrata" : "Uscita";
+    if (key === "pending") return value ? "Sì" : "No";
+    return value === null || value === "" ? "Non indicato" : String(value);
+  };
+  const changes = (Object.keys(labels) as (keyof FinanceRevisionValues)[]).filter(
+    (key) => before[key] !== after[key],
+  );
+  return (
+    <ul className={styles.changes}>
+      {wasDeleted !== deleted && (
+        <li>{deleted ? "Eliminato dalla vista attiva." : "Ripristinato nella vista attiva."}</li>
+      )}
+      {changes.map((key) => (
+        <li key={key}>
+          <strong>{labels[key]}:</strong> {display(key, before)} → {display(key, after)}
+        </li>
+      ))}
+      {changes.length === 0 && wasDeleted === deleted && (
+        <li>Valori invariati; nuova revisione conservata.</li>
+      )}
+    </ul>
   );
 }

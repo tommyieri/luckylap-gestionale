@@ -14,6 +14,7 @@ import {
   parseFinanceWorkCommand,
   type FinanceWorkCommand,
   type FinanceWorkKind,
+  type FinanceWorkResult,
 } from "@/lib/finance-work/model";
 import { financeWorkAttemptSummary } from "../lib/finance-work/attempt";
 import {
@@ -28,6 +29,9 @@ const DISCARD_FAILED =
   "Non riesco a liberare il tentativo conservato in questa scheda. Chiudi la scheda e riaprila.";
 import { FINANCE_ACCOUNT_SUGGESTIONS, FINANCE_CATEGORY_GROUPS } from "@/lib/finance/categories";
 
+export type FinanceWorkReceipt = Extract<FinanceWorkResult, { status: "success" }>;
+export type FinanceWorkSaveContext = { addAnother: boolean };
+
 export function FinanceWorkForm({
   userId,
   scope,
@@ -35,6 +39,12 @@ export function FinanceWorkForm({
   build,
   label,
   disabled = false,
+  secondaryLabel,
+  showRecordHelp = true,
+  successMessage,
+  invalidMessage = "Controlla i dati e la conferma di verifica delle altre fonti.",
+  onDirtyChange,
+  onSaved,
   children,
 }: {
   userId: string;
@@ -43,11 +53,27 @@ export function FinanceWorkForm({
   build: (form: FormData) => Record<string, unknown>;
   label: string;
   disabled?: boolean;
+  secondaryLabel?: string;
+  showRecordHelp?: boolean;
+  successMessage?: string;
+  invalidMessage?: string;
+  onDirtyChange?: (dirty: boolean) => void;
+  onSaved?: (receipt: FinanceWorkReceipt, context: FinanceWorkSaveContext) => void;
   children: ReactNode;
 }) {
   const key = `${financeWorkPrefix(userId)}${scope}`,
     router = useRouter(),
-    sending = useRef(false);
+    sending = useRef(false),
+    addAnother = useRef(false),
+    frozen = useRef<FinanceWorkCommand | null>(null),
+    currentInstance = useRef({ key, kind, active: true });
+  // Invalida subito anche una risposta tra il render della nuova identità e i suoi effetti.
+  if (currentInstance.current.key !== key || currentInstance.current.kind !== kind) {
+    currentInstance.current.active = false;
+    currentInstance.current = { key, kind, active: true };
+  }
+  const instance = currentInstance.current;
+  const isCurrent = () => instance.active && currentInstance.current === instance;
   const [command, setCommand] = useState<FinanceWorkCommand | null>(null),
     [notice, setNotice] = useState(""),
     [success, setSuccess] = useState(false),
@@ -59,6 +85,24 @@ export function FinanceWorkForm({
     [conflict, setConflict] = useState(false);
   const [pending, startTransition] = useTransition();
   useEffect(() => {
+    instance.active = true;
+    return () => {
+      instance.active = false;
+    };
+  }, [instance]);
+  useEffect(() => {
+    if (!isCurrent()) return;
+    sending.current = false;
+    frozen.current = null;
+    addAnother.current = false;
+    setCommand(null);
+    setNotice("");
+    setSuccess(false);
+    setBlocked(false);
+    setLoaded(false);
+    setUnreadable(false);
+    setConflict(false);
+    setEpoch((value) => value + 1);
     try {
       const saved = sessionStorage.getItem(key);
       if (saved) {
@@ -71,7 +115,11 @@ export function FinanceWorkForm({
         if (!parsed || parsed.kind !== kind) {
           setBlocked(true);
           setUnreadable(true);
-        } else setCommand(parsed);
+        } else {
+          frozen.current = parsed;
+          setCommand(parsed);
+        }
+        onDirtyChange?.(true);
       }
     } catch {
       setBlocked(true);
@@ -82,7 +130,7 @@ export function FinanceWorkForm({
     setLoaded(true);
   }, [key, kind]);
   function send(next: FinanceWorkCommand) {
-    if (sending.current) return;
+    if (!isCurrent() || sending.current || disabled) return;
     sending.current = true;
     try {
       sessionStorage.setItem(key, JSON.stringify(next));
@@ -92,45 +140,62 @@ export function FinanceWorkForm({
       setNotice("Il tentativo non può essere conservato. Nessun nuovo invio eseguito.");
       return;
     }
+    if (!isCurrent()) return;
     setCommand(next);
+    frozen.current = next;
     setSuccess(false);
     startTransition(async () => {
       try {
-        const result = await runFinanceWork(next);
+        const result = await runFinanceWork(next, userId);
+        // Una ricevuta tardiva resta recuperabile nello scope originale: nessun ack o callback.
+        if (!isCurrent()) return;
         setNotice(result.message);
         if (result.status === "success") {
           setSuccess(true);
+          let cleared = false;
           try {
             sessionStorage.removeItem(key);
             window.dispatchEvent(new Event(FINANCE_WORK_EVENT));
+            if (!isCurrent()) return;
             setCommand(null);
+            frozen.current = null;
             setEpoch((value) => value + 1);
+            cleared = true;
           } catch {
             setNotice(
               `${result.message} Verifica di nuovo questo tentativo prima di crearne un altro.`,
             );
           }
-          router.refresh();
+          if (cleared) {
+            if (successMessage && !result.replayed) setNotice(successMessage);
+            onDirtyChange?.(false);
+            if (isCurrent()) onSaved?.(result, { addAnother: addAnother.current });
+          }
+          if (isCurrent()) router.refresh();
         } else if (result.status === "rejected" && result.code !== "idempotency_conflict") {
           try {
             sessionStorage.removeItem(key);
             window.dispatchEvent(new Event(FINANCE_WORK_EVENT));
+            if (!isCurrent()) return;
             setCommand(null);
+            frozen.current = null;
           } catch {
             /* Frozen payload remains available. */
           }
         } else if (result.status === "rejected") setConflict(true);
       } catch {
+        if (!isCurrent()) return;
         setNotice(
           "Connessione interrotta: la voce potrebbe essere già registrata. Riprova lo stesso invio senza crearne uno nuovo.",
         );
       } finally {
-        sending.current = false;
+        if (isCurrent()) sending.current = false;
       }
     });
   }
   /** Libera il modulo da un tentativo che non potrà riuscire. Non cancella niente nel registro. */
   function discard() {
+    if (!isCurrent() || disabled) return;
     try {
       sessionStorage.removeItem(key);
       window.dispatchEvent(new Event(FINANCE_WORK_EVENT));
@@ -138,16 +203,29 @@ export function FinanceWorkForm({
       setNotice(DISCARD_FAILED);
       return;
     }
+    if (!isCurrent()) return;
     setCommand(null);
+    frozen.current = null;
     setConflict(false);
     setUnreadable(false);
     setBlocked(false);
     setNotice("");
     setEpoch((value) => value + 1);
+    onDirtyChange?.(false);
   }
   function submit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
-    if (!loaded || pending || sending.current || blocked || command || disabled) return;
+    if (
+      !isCurrent() ||
+      !loaded ||
+      pending ||
+      sending.current ||
+      blocked ||
+      command ||
+      frozen.current ||
+      disabled
+    )
+      return;
     try {
       const next = parseFinanceWorkCommand({
         operationId: crypto.randomUUID(),
@@ -155,16 +233,26 @@ export function FinanceWorkForm({
         payload: build(new FormData(event.currentTarget)),
       });
       if (!next) {
-        setNotice("Controlla i dati e la conferma di verifica delle altre fonti.");
+        setNotice(invalidMessage);
         return;
       }
+      const submitter = (event.nativeEvent as SubmitEvent | undefined)
+        ?.submitter as HTMLButtonElement | null;
+      addAnother.current = Boolean(secondaryLabel && submitter?.value === "addAnother");
+      onDirtyChange?.(true);
       send(next);
     } catch (error) {
       setNotice(error instanceof Error ? error.message : "Controlla i dati del modulo.");
     }
   }
   return (
-    <form onSubmit={submit} className={styles.form}>
+    <form
+      onSubmit={submit}
+      onChange={() => {
+        if (isCurrent() && !disabled) onDirtyChange?.(true);
+      }}
+      className={styles.form}
+    >
       {notice && (
         <p
           role={success ? "status" : "alert"}
@@ -181,12 +269,12 @@ export function FinanceWorkForm({
               "Il tentativo conservato in questa scheda non si può leggere. Controlla nel registro se la voce c’è già, poi scartalo.",
             ]}
             operationId="non leggibile"
-            pending={false}
+            pending={disabled}
             blocked
             onRetry={() => {}}
             onReread={() => router.refresh()}
             rereadLabel="Rileggi il registro"
-            onDiscard={discard}
+            onDiscard={disabled ? undefined : discard}
           />
         </div>
       )}
@@ -195,12 +283,12 @@ export function FinanceWorkForm({
           <PendingAttempt
             {...financeWorkAttemptSummary(command)}
             operationId={command.operationId}
-            pending={pending}
+            pending={pending || disabled}
             blocked={conflict}
             onRetry={() => send({ ...command, retry: true })}
             onReread={() => router.refresh()}
             rereadLabel="Rileggi il registro"
-            onDiscard={conflict ? discard : undefined}
+            onDiscard={conflict && !disabled ? discard : undefined}
           />
         </div>
       )}
@@ -208,7 +296,7 @@ export function FinanceWorkForm({
         key={epoch}
         disabled={!loaded || pending || blocked || command !== null || disabled}
       >
-        {kind === "record_finance_entry" && (
+        {kind === "record_finance_entry" && showRecordHelp && (
           <p className={styles.help}>
             Gli incassi del conto vendita si registrano dal resoconto del negozio: non inserirli
             anche qui.
@@ -218,6 +306,11 @@ export function FinanceWorkForm({
         <button type="submit" className="button button-primary">
           {pending ? "Registrazione in corso…" : label}
         </button>
+        {secondaryLabel && (
+          <button type="submit" value="addAnother" className="button button-secondary">
+            {secondaryLabel}
+          </button>
+        )}
       </fieldset>
     </form>
   );
@@ -307,7 +400,7 @@ export function FinanceWorkRecovery({
               sending.current = true;
               startTransition(async () => {
                 try {
-                  const result = await runFinanceWork({ ...entry.command, retry: true });
+                  const result = await runFinanceWork({ ...entry.command, retry: true }, userId);
                   setMessage(result.message);
                   if (
                     result.status === "success" ||
