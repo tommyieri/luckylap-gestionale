@@ -413,7 +413,7 @@ export function forecastPartnerEmails(
       explanation: "Nessuna finestra utile nel periodo, con la coda e le quote attuali.",
     })),
     assumption:
-      "Stime sulle bozze attuali con un passo di 8 minuti tra gli invii. L'intervallo reale varia da 4 a 11 minuti; nuove bozze, controlli della casella, modifiche e fermi possono cambiare giorno e ordine. Nessuna data è una prenotazione.",
+      "Stime delle prime email, con un passo di 8 minuti tra gli invii. I solleciti automatici condividono la quota giornaliera e possono spostare queste date. L'intervallo reale varia da 4 a 11 minuti; nuove bozze, controlli della casella, modifiche e fermi possono cambiare giorno e ordine. Nessuna data è una prenotazione.",
     days: [],
   };
   type Row = PartnerEmailProgramForecast["items"][number];

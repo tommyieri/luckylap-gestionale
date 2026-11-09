@@ -2,7 +2,11 @@ import "server-only";
 import { createHash } from "node:crypto";
 import { ImapFlow, type ImapFlowOptions, type FetchMessageObject } from "imapflow";
 import { partnerAssistantMailAddress, type PartnerAssistantMailConfig } from "./mail-config";
-import { isCalendarDay } from "../partner/dates";
+import { isCalendarDay, instantDay, addDays } from "../partner/dates";
+import {
+  PARTNER_FOLLOWUP_AUTO_REPLY_MAX_BYTES,
+  readPartnerFollowupAutoReply,
+} from "./followup-auto-reply";
 
 export type PartnerAssistantFollowupMailboxInput = {
   ownAddress: string;
@@ -323,6 +327,10 @@ export async function checkPartnerAssistantFollowupMailbox(
     await call(() => box.connect());
     const paths = folderPaths(await call(() => box.list()));
     const states: (FolderState & { uids: number[] })[] = [];
+    const datedReplies: { path: string; uid: number; resumeOn: string; sha256: string }[] = [];
+    const today = instantDay(new Date(now()).toISOString());
+    if (today === null) stop("invalid_input");
+    let resumeOn: string | null = null;
     let messageCount = 0;
     // SINCE cerca giorni interni IMAP, non millisecondi né il Date: scritto dal mittente.
     const since = new Date(Date.parse(value.firstSentAt) - 86_400_000);
@@ -344,7 +352,13 @@ export async function checkPartnerAssistantFollowupMailbox(
           ? await call(() =>
               box.fetchAll(
                 uids,
-                { uid: true, envelope: true, headers: HEADER_NAMES, internalDate: true },
+                {
+                  uid: true,
+                  size: true,
+                  envelope: true,
+                  headers: HEADER_NAMES,
+                  internalDate: true,
+                },
                 { uid: true },
               ),
             )
@@ -358,7 +372,67 @@ export async function checkPartnerAssistantFollowupMailbox(
           stop("fetch_incomplete");
         for (const message of messages) {
           const reason = messageReason(message, value);
-          if (reason) return { status: "found", reason, checkedAt: new Date(now()).toISOString() };
+          if (!reason) continue;
+          const headers = headersOf(message);
+          const auto = headers.get("auto-submitted") ?? [];
+          const collision = (headers.get("message-id") ?? []).some((id) =>
+            value.messageIds.includes(id.trim()),
+          );
+          if (
+            reason === "reply" &&
+            !collision &&
+            auto.length === 1 &&
+            auto[0].trim().toLowerCase() === "auto-replied"
+          ) {
+            const full = await call(() =>
+              box.fetchOne(
+                message.uid,
+                {
+                  uid: true,
+                  size: true,
+                  source: { start: 0, maxLength: PARTNER_FOLLOWUP_AUTO_REPLY_MAX_BYTES + 1 },
+                },
+                { uid: true },
+              ),
+            );
+            if (!full || full.uid !== message.uid) stop("fetch_incomplete");
+            const source = full.source;
+            // RFC822.SIZE deve coincidere prima/dopo e con gli ottetti ricevuti. Il byte
+            // extra richiesto rileva anche un messaggio oltre il budget, senza troncarlo.
+            if (
+              !Number.isSafeInteger(message.size) ||
+              message.size! < 1 ||
+              !Number.isSafeInteger(full.size) ||
+              full.size !== message.size ||
+              !Buffer.isBuffer(source) ||
+              source.byteLength !== full.size ||
+              source.byteLength > PARTNER_FOLLOWUP_AUTO_REPLY_MAX_BYTES
+            )
+              return {
+                status: "found",
+                reason: "ambiguous",
+                checkedAt: new Date(now()).toISOString(),
+              };
+            const automatic = readPartnerFollowupAutoReply(source);
+            if (automatic.status !== "dated" || automatic.resumeOn > addDays(today, 366))
+              return {
+                status: "found",
+                reason: "ambiguous",
+                checkedAt: new Date(now()).toISOString(),
+              };
+            datedReplies.push({
+              path,
+              uid: message.uid,
+              resumeOn: automatic.resumeOn,
+              sha256: createHash("sha256").update(source).digest("hex"),
+            });
+            if (automatic.resumeOn > today && (resumeOn === null || automatic.resumeOn > resumeOn))
+              resumeOn = automatic.resumeOn;
+            // Anche dopo una data futura continuiamo: una risposta umana in un'altra
+            // cartella prevale sul rinvio; un errore successivo rende tutto incerto.
+            continue;
+          }
+          return { status: "found", reason, checkedAt: new Date(now()).toISOString() };
         }
         if (JSON.stringify(folderState(box, path)) !== JSON.stringify(before))
           stop("mailbox_changed");
@@ -383,15 +457,18 @@ export async function checkPartnerAssistantFollowupMailbox(
     await call(() => box.noop());
     if (box.usable !== true) stop("connection_failed");
     const checkedAt = new Date(now()).toISOString();
-    result = {
-      status: "clear",
+    const complete = {
       checkedAt,
       proofSha256: createHash("sha256")
-        .update(JSON.stringify({ version: 1, input: value, states, checkedAt }))
+        .update(JSON.stringify({ version: 2, input: value, states, datedReplies, checkedAt }))
         .digest("hex"),
       folderCount: paths.length,
       messageCount,
     };
+    result =
+      resumeOn === null
+        ? { status: "clear", ...complete }
+        : { status: "deferred", resumeOn, ...complete };
   } catch (error) {
     close();
     result = {

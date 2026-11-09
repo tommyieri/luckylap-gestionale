@@ -93,6 +93,11 @@ class FakeImap extends EventEmitter {
   fetchAll = vi.fn(async (_uids: number[], _query: unknown, _options: unknown) =>
     this.mailbox ? (this.messages[this.mailbox.path] ?? []) : [],
   );
+  fetchOne = vi.fn(async (uid: number, _query: unknown, _options: unknown) =>
+    this.mailbox
+      ? ((this.messages[this.mailbox.path] ?? []).find((row) => row.uid === uid) ?? false)
+      : false,
+  );
   noop = vi.fn(async () => {});
   logout = vi.fn(async () => {
     this.usable = false;
@@ -101,16 +106,29 @@ class FakeImap extends EventEmitter {
     this.usable = false;
   });
 }
-function fixture(messages: Record<string, FetchMessageObject[]> = {}) {
+function fixture(messages: Record<string, FetchMessageObject[]> = {}, clock = NOW) {
   const fake = new FakeImap(messages);
   const create = vi.fn((_options: ImapFlowOptions) => fake as unknown as ImapFlow);
   const controller = new AbortController();
   const run = (value = input) =>
     checkPartnerAssistantFollowupMailbox(mail, value, controller.signal, {
       createImapFlow: create,
-      now: () => NOW,
+      now: () => clock,
     });
   return { fake, create, controller, run };
+}
+
+function autoReply(uid = 1, body = "I am out of the office. I will return on 2026-11-17.") {
+  const headers = Buffer.from(
+    `Message-ID: <ooo-${uid}@partner.example.test>\r\nIn-Reply-To: ${knownId}\r\nAuto-Submitted: auto-replied\r\nContent-Type: text/plain; charset=utf-8\r\nContent-Transfer-Encoding: 8bit\r\n`,
+  );
+  const source = Buffer.concat([headers, Buffer.from(`\r\n${body.replace(/\r?\n/gu, "\r\n")}`)]);
+  return message(uid, {
+    envelope: { from: [{ address: target }], to: [{ address: own }], subject: "Automatic reply" },
+    headers,
+    source,
+    size: source.byteLength,
+  });
 }
 
 describe("verifica della casella prima dei solleciti", () => {
@@ -229,7 +247,7 @@ describe("verifica della casella prima dei solleciti", () => {
         }),
       ],
     });
-    expect(await f.run()).toMatchObject({ status: "found", reason: "reply" });
+    expect(await f.run()).toMatchObject({ status: "found", reason: "ambiguous" });
   });
   it.each(["Re: Progetto sintetico", " Fwd: Re: Progetto sintetico", "AW: Progetto sintetico"])(
     "blocca un possibile inoltro con oggetto %s",
@@ -458,5 +476,260 @@ describe("verifica della casella prima dei solleciti", () => {
     const f = fixture();
     expect(await f.run(value)).toEqual({ status: "uncertain", reason: "followup_invalid_input" });
     expect(f.create).not.toHaveBeenCalled();
+  });
+});
+
+describe("rinvio per assenza automatica con rientro certo", () => {
+  it("rinvia solo dopo aver verificato tutte le cartelle e il messaggio completo in PEEK", async () => {
+    const f = fixture({ Archive: [autoReply()] });
+    const result = await f.run();
+    expect(result).toMatchObject({
+      status: "deferred",
+      resumeOn: "2026-11-17",
+      checkedAt: new Date(NOW).toISOString(),
+      folderCount: 6,
+      messageCount: 1,
+      proofSha256: expect.stringMatching(/^[0-9a-f]{64}$/u),
+    });
+    expect(f.fake.fetchOne).toHaveBeenCalledWith(
+      1,
+      {
+        uid: true,
+        size: true,
+        source: { start: 0, maxLength: 65_537 },
+      },
+      { uid: true },
+    );
+    expect(f.fake.list).toHaveBeenCalledTimes(2);
+    expect(f.fake.getMailboxLock).toHaveBeenCalledTimes(12);
+    expect(f.fake.noop).toHaveBeenCalledOnce();
+    expect(f.fake.close).toHaveBeenCalled();
+    expect(JSON.stringify(result)).not.toMatch(/@|office|Archive/u);
+  });
+
+  it.each(["2026-11-08", "2026-11-09"])(
+    "può ignorare un OOO solo datato già rientrato il %s",
+    async (date) => {
+      const f = fixture({ INBOX: [autoReply(1, `I am out of the office. I return on ${date}.`)] });
+      expect(await f.run()).toMatchObject({ status: "clear", messageCount: 1 });
+      expect(f.fake.fetchOne).toHaveBeenCalledOnce();
+    },
+  );
+
+  it("il giorno del rientro è il giorno corrente di Roma, non UTC", async () => {
+    const f = fixture(
+      { INBOX: [autoReply(1, "I am out of the office. I return on 2026-11-09.")] },
+      Date.parse("2026-11-08T23:30:00Z"),
+    );
+    expect(await f.run()).toMatchObject({ status: "clear" });
+  });
+
+  it("non invia al server rinvii oltre il budget di 366 giorni", async () => {
+    const far = fixture({
+      INBOX: [autoReply(1, "I am out of the office. I return on 2027-11-11.")],
+    });
+    expect(await far.run()).toMatchObject({ status: "found", reason: "ambiguous" });
+  });
+
+  it("sceglie il rientro più lontano fra OOO certi, anche in cartelle differenti", async () => {
+    const f = fixture({
+      Archive: [autoReply(1, "I am out of the office. I return on 2026-11-20.")],
+      "Clienti/Partner": [autoReply(2)],
+      Trash: [autoReply(3, "I am out of the office. I return on 2026-11-08.")],
+    });
+    expect(await f.run()).toMatchObject({
+      status: "deferred",
+      resumeOn: "2026-11-20",
+      messageCount: 3,
+    });
+    expect(f.fake.fetchOne).toHaveBeenCalledTimes(3);
+  });
+
+  it.each(["reply", "manual", "ambiguous"] as const)(
+    "una risposta %s prevale sempre sul rinvio, anche dopo l'OOO",
+    async (reason) => {
+      const later =
+        reason === "manual"
+          ? message(2, {
+              envelope: { from: [{ address: own }], to: [{ address: target }], subject: "Altro" },
+            })
+          : reason === "ambiguous"
+            ? message(2, {
+                envelope: {
+                  from: [{ address: "alias@different.example.test" }],
+                  subject: `Re: ${input.subject}`,
+                },
+              })
+            : message(2, { envelope: { from: [{ address: target }], subject: "Risposta reale" } });
+      const f = fixture({ Archive: [autoReply()], Trash: [later] });
+      expect(await f.run()).toMatchObject({ status: "found", reason });
+      expect(f.fake.fetchOne).toHaveBeenCalledOnce();
+    },
+  );
+
+  it("dopo OOO passato una risposta umana impedisce comunque clear", async () => {
+    const f = fixture({
+      Archive: [autoReply(1, "I am out of the office. I return on 2026-11-08.")],
+      INBOX: [message(2, { envelope: { from: [{ address: target }] } })],
+    });
+    expect(await f.run()).toMatchObject({ status: "found", reason: "reply" });
+  });
+
+  it.each([
+    "I am out of the office.",
+    "I am out of the office until 2026-11-17.",
+    "I am out of the office. I return tomorrow.",
+    "I am out of the office. I return on 10/11/2026.",
+    "I am out of the office. I return on 2026-11-17. I return on 2026-11-18.",
+    "I am out of the office. I return on 2026-11-08. Please unsubscribe me.",
+  ])("non ignora assenza ambigua o mescolata ad altro contenuto %#", async (body) => {
+    expect(await fixture({ INBOX: [autoReply(1, body)] }).run()).toMatchObject({
+      status: "found",
+      reason: "ambiguous",
+    });
+  });
+
+  it("un alias è attribuito da References prima di leggere l'OOO", async () => {
+    const value = autoReply();
+    value.envelope = {
+      from: [{ address: "alias@different.example.test" }],
+      to: [{ address: own }],
+      subject: "Automatic reply",
+    };
+    expect(await fixture({ Trash: [value] }).run()).toMatchObject({
+      status: "deferred",
+      resumeOn: "2026-11-17",
+    });
+  });
+
+  it.each(["2026-11-17", "2026-11-08"])(
+    "un OOO datato %s collegato solo dall'oggetto resta ambiguo",
+    async (date) => {
+      const value = autoReply(1, `I am out of the office. I return on ${date}.`);
+      value.envelope = {
+        from: [{ address: "estraneo@different.example.test" }],
+        to: [{ address: own }],
+        subject: `Re: ${input.subject}`,
+      };
+      value.headers = Buffer.from(
+        value.headers!.toString("utf8").replace(`In-Reply-To: ${knownId}\r\n`, ""),
+      );
+      value.source = Buffer.from(
+        value.source!.toString("utf8").replace(`In-Reply-To: ${knownId}\r\n`, ""),
+      );
+      value.size = value.source.byteLength;
+      const f = fixture({ INBOX: [value] });
+      expect(await f.run()).toMatchObject({ status: "found", reason: "ambiguous" });
+      expect(f.fake.fetchOne).not.toHaveBeenCalled();
+    },
+  );
+
+  it("il solo oggetto automatico o un header assente non bastano", async () => {
+    const value = autoReply();
+    value.headers = Buffer.from(
+      `Message-ID: <ooo-1@partner.example.test>\r\nIn-Reply-To: ${knownId}\r\n`,
+    );
+    const f = fixture({ INBOX: [value] });
+    expect(await f.run()).toMatchObject({ status: "found", reason: "reply" });
+    expect(f.fake.fetchOne).not.toHaveBeenCalled();
+  });
+
+  it("Auto-Submitted nel risultato FETCH non sostituisce quello della fonte completa", async () => {
+    const value = autoReply();
+    value.source = Buffer.from(
+      value
+        .source!.toString("utf8")
+        .replace("Auto-Submitted: auto-replied", "X-Untrusted: auto-replied"),
+    );
+    value.size = value.source.byteLength;
+    expect(await fixture({ INBOX: [value] }).run()).toMatchObject({
+      status: "found",
+      reason: "ambiguous",
+    });
+  });
+
+  it.each(["missing", "short", "changedSize", "oversized"])(
+    "fonte %s non autorizza rinvio o ripresa",
+    async (kind) => {
+      const value = autoReply();
+      const f = fixture({ INBOX: [value] });
+      const full = { ...value };
+      if (kind === "missing") full.source = undefined;
+      if (kind === "short") full.source = full.source!.subarray(0, full.source!.byteLength - 1);
+      if (kind === "changedSize") full.size = full.size! + 1;
+      if (kind === "oversized") {
+        full.source = Buffer.alloc(65_537);
+        full.size = 65_537;
+        value.size = 65_537;
+      }
+      f.fake.fetchOne.mockResolvedValue(full);
+      expect(await f.run()).toMatchObject({ status: "found", reason: "ambiguous" });
+    },
+  );
+
+  it.each([false as const, { ...autoReply(), uid: 99 }])(
+    "FETCH full assente o UID sbagliato resta incerto %#",
+    async (full) => {
+      const f = fixture({ INBOX: [autoReply()] });
+      f.fake.fetchOne.mockResolvedValue(full);
+      expect(await f.run()).toEqual({ status: "uncertain", reason: "followup_fetch_incomplete" });
+    },
+  );
+
+  it("una fonte UTF-8 danneggiata o un multipart non decodificato resta ambiguo", async () => {
+    for (const kind of ["utf8", "multipart"]) {
+      const value = autoReply();
+      value.source =
+        kind === "utf8"
+          ? Buffer.concat([value.source!, Buffer.from([0xc3, 0x28])])
+          : Buffer.from(
+              value
+                .source!.toString("utf8")
+                .replace(
+                  "text/plain; charset=utf-8",
+                  'multipart/alternative; boundary="synthetic"',
+                ),
+            );
+      value.size = value.source.byteLength;
+      expect(await fixture({ INBOX: [value] }).run()).toMatchObject({
+        status: "found",
+        reason: "ambiguous",
+      });
+    }
+  });
+
+  it("una scansione incompleta dopo OOO non viene trasformata in deferred", async () => {
+    const f = fixture({ Archive: [autoReply()], INBOX: [message(2)] });
+    f.fake.fetchAll
+      .mockResolvedValueOnce([autoReply()])
+      .mockRejectedValueOnce(new Error("Riservato"));
+    expect(await f.run()).toEqual({ status: "uncertain", reason: "followup_imap_failed" });
+  });
+
+  it("cambiamenti di UIDNEXT o delle cartelle dopo OOO invalidano anche il rinvio", async () => {
+    const changed = fixture({ Archive: [autoReply()] });
+    changed.fake.onLock = (path, count) => {
+      if (path === "Archive" && count === 2 && changed.fake.mailbox) changed.fake.mailbox.uidNext++;
+    };
+    expect(await changed.run()).toEqual({
+      status: "uncertain",
+      reason: "followup_mailbox_changed",
+    });
+    const lost = fixture({ Archive: [autoReply()] });
+    lost.fake.list
+      .mockResolvedValueOnce(folders)
+      .mockResolvedValueOnce(folders.filter((f) => f.path !== "Trash"));
+    expect(await lost.run()).toEqual({ status: "uncertain", reason: "followup_folders_changed" });
+  });
+
+  it("l'abort durante il FETCH completo chiude il socket e impedisce clear/deferred", async () => {
+    const f = fixture({ INBOX: [autoReply()] });
+    f.fake.fetchOne.mockImplementation(() => new Promise<false | FetchMessageObject>(() => {}));
+    const pending = f.run();
+    await vi.waitFor(() => expect(f.fake.fetchOne).toHaveBeenCalled());
+    f.controller.abort();
+    expect(await pending).toEqual({ status: "uncertain", reason: "followup_aborted" });
+    expect(f.fake.close).toHaveBeenCalled();
+    expect(f.fake.usable).toBe(false);
   });
 });

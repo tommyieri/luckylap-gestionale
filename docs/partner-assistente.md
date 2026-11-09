@@ -24,7 +24,7 @@ Il tetto di **20 bozze Club pronte è un limite di scorta**: regola quante bozze
 
 Il branch `codex/partner-solleciti-automatici` prepara un percorso separato per i quattro solleciti a 7, 17, 45 e 90 giorni. **Questa sezione descrive la nuova consegna e non ne dichiara l'attivazione in produzione.** La modalità iniziale è «osserva»: nessun invio automatico dei solleciti, promemoria manuali di Tommi conservati. Per inviare servono l'attivazione esplicita del founder, una bozza approvata preparata da Codex con ricerca fresca e due controlli della casella, l'ultimo dopo il login SMTP e prima dei byte. Il percorso non chiama Claude e funziona anche con la preparazione Anthropic in pausa per credito.
 
-Prime email e solleciti condividono il tetto di 6 invii totali e le quote rigide di 3 Club e 3 altri. I solleciti sono nello stesso thread, hanno 40–90 parole e non includono PDF o altri allegati. Valgono le indicazioni aggiornate di Luca: nessuna richiesta di telefono, chiamata o appuntamento. Una possibile risposta o un dubbio sulla casella ferma la conversazione; l'assistente non risponde automaticamente. Un fuori ufficio riconosciuto con data di rientro certa, completa di anno, rinvia invece il sollecito a quella data; senza data certa controlla Tommi. Il calendario resta chiuso dopo il 31 gennaio 2027 finché non viene esteso. Dettagli e limiti della verifica in [Solleciti automatici Partner](partner-solleciti-automatici.md).
+Prime email e solleciti condividono il tetto di 6 invii totali e le quote rigide di 3 Club e 3 altri. I solleciti sono nello stesso thread, hanno 40–90 parole e non includono PDF o altri allegati. Valgono le indicazioni aggiornate di Luca: nessuna richiesta di telefono, chiamata o appuntamento. Una possibile risposta o un dubbio sulla casella ferma la conversazione; l'assistente non risponde automaticamente. Un fuori ufficio riconosciuto con data di rientro certa, completa di anno, rinvia invece il sollecito a quella data; senza data certa controlla Tommi. La migrazione del [calendario Partner 2027](partner-calendario-2027.md) estende la copertura al 31 dicembre 2027, conservando finestra, margine e blackout; oltre quella data la finestra resta chiusa fino a una nuova estensione verificata. Dettagli e limiti della verifica in [Solleciti automatici Partner](partner-solleciti-automatici.md).
 
 Le sezioni sulla consegna 2a e sul piano 2b più avanti restano lo storico: descrivevano solleciti ancora manuali e una futura gestione completa delle risposte. Questa nuova consegna non introduce risposte automatiche, riassunti o risposte suggerite alle persone.
 
@@ -247,7 +247,7 @@ Codice: `src/lib/partner-assistant/mail-config.ts` (variabili), `mail-compose.ts
 
 - Lunedì-venerdì, dalle 9:30 incluse alle 11:00 escluse nell'ora del contatto. Il fuso è quello della scelta; se manca o non è valido vale `Europe/Rome`. I fusi validi sono quelli di PostgreSQL al momento della migrazione (tabella `partner_assistant_timezones`).
 - Un invio comincia solo se la finestra è aperta anche 90 secondi dopo: niente invii a ridosso delle 11:00.
-- Niente feste nazionali del paese della scheda (`partners.country`), dal 29 ottobre 2026 al 31 gennaio 2027:
+- La prima versione censiva le feste nazionali del paese della scheda (`partners.country`) dal 29 ottobre 2026 al 31 gennaio 2027. La tabella seguente è storica; la copertura estesa è in [Calendario Partner 2027](partner-calendario-2027.md):
 
   | Paese | Feste |
   | --- | --- |
@@ -260,7 +260,7 @@ Codice: `src/lib/partner-assistant/mail-config.ts` (variabili), `mail-compose.ts
 
   Il paese si riconosce dal nome in italiano, in inglese o nella sua lingua (per esempio «Regno Unito», «UK», «England»). Un paese che l'elenco non conosce non ha feste: l'invio parte e gli eventi lo segnalano una volta per contatto (`paese_senza_calendario`).
 - Nessun invio dal 21 dicembre al 7 gennaio.
-- Dopo il 31 gennaio 2027 la finestra resta chiusa in ogni paese finché una migrazione non aggiunge le feste nuove.
+- Il calendario originario della consegna 2a chiudeva la finestra dopo il 31 gennaio 2027. La nuova migrazione descritta in [Calendario Partner 2027](partner-calendario-2027.md) estende la copertura al 31 dicembre 2027, mantenendo la chiusura oltre la data coperta.
 - La pagina mostra la finestra di Roma («Finestra aperta fino alle 11:00, ora di Roma» o «Prossima finestra: …»). I contatti nel Regno Unito partono dalle 10:30 di Roma.
 
 ### Limiti

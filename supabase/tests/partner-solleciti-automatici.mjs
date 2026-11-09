@@ -1,4 +1,4 @@
-// test-db: pglite minimo 1
+// test-db: pglite minimo 203
 // Solleciti automatici: prove fresche, quote condivise, stato SMTP e arresto nel dubbio.
 // Migrazioni Partner attuali, Auth simulata e dati sintetici, nessun accesso cloud.
 import assert from "node:assert/strict";
@@ -43,13 +43,18 @@ const TODAY = "2026-11-10";
 const MORNING = `${TODAY}T09:00:00Z`;
 const NEW_YORK_MORNING = `${TODAY}T14:45:00Z`;
 
-async function as(role, sub, fn, { now } = {}) {
+async function as(role, sub, fn, { now, proofNow = now } = {}) {
   await db.exec("begin");
   try {
     await db.query("select set_config('request.jwt.claims', $1, true)", [
       JSON.stringify(sub ? { sub, role } : { role }),
     ]);
-    if (now) await db.query("select set_config('luckylap.partner_assistant.now', $1, true)", [now]);
+    if (now) {
+      await db.query("select set_config('luckylap.partner_assistant.now', $1, true)", [now]);
+      await db.query("select set_config('luckylap.partner_followup.proof_now', $1, true)", [
+        proofNow,
+      ]);
+    }
     await db.exec(`set local role ${role}`);
     const out = await fn();
     await db.exec("commit");
@@ -1018,6 +1023,271 @@ try {
     { code: "42501" },
   );
   checks++;
+
+  // Assenza con rientro certo: rinvia senza sopprimere e continua a controllare risposte.
+  c = await fresh();
+  pr = await check(c);
+  const beforeAbsence = await prepare(c, pr);
+  eq(beforeAbsence.status, "pronto");
+  const beforeAbsenceVersion = c.candidate.version;
+  const beforeSuppressions = await value(
+    "select count(*)::int as v from private.partner_followup_suppressions",
+  );
+  const beforeTasks = await value("select count(*)::int as v from public.tasks");
+  const defer = (candidate, resumeOn, overrides = {}) =>
+    service("record_partner_followup_check", [
+      candidate.lease_token,
+      candidate.candidate.id,
+      candidate.candidate.version,
+      JSON.stringify({
+        result: "deferred",
+        reason: "fuori_ufficio",
+        checked_at: now,
+        proof_sha256: sha("ooo" + now),
+        folder_count: 3,
+        message_count: 1,
+        resume_on: resumeOn,
+        ...overrides,
+      }),
+    ]);
+  eq(await defer(c, "2026-11-20"), { status: "deferred", resume_on: "2026-11-20" });
+  let absent = await conv(c.candidate.id);
+  eq(absent.status, "active");
+  eq(absent.reason, "fuori_ufficio");
+  eq(absent.deferred_until, "2026-11-20");
+  eq(absent.next_due_on, "2026-11-20");
+  eq(absent.version, beforeAbsenceVersion + 1);
+  eq(absent.draft_id, null);
+  eq(
+    await value("select send_status as v from public.partner_assistant_messages where id=$1", [
+      beforeAbsence.message_row_id,
+    ]),
+    "scartato",
+  );
+  eq(
+    await value("select count(*)::int as v from private.partner_followup_suppressions"),
+    beforeSuppressions,
+  );
+  eq(
+    await value("select count(*)::int as v from public.tasks"),
+    beforeTasks,
+    "OOO datata non crea compiti",
+  );
+  await release();
+  await wake(c.candidate.id);
+  c = await claim();
+  eq(c.status, "claimed", "la scansione continua durante l'assenza");
+  eq(c.candidate.send_allowed, false);
+  const repeatedVersion = c.candidate.version;
+  eq((await defer(c, "2026-11-20")).status, "deferred");
+  eq(
+    (await conv(c.candidate.id)).version,
+    repeatedVersion,
+    "stesso rientro non incrementa continuamente la versione",
+  );
+  eq((await defer(c, "2026-11-22", { folder_count: 2 })).status, "retry");
+  eq(
+    (await conv(c.candidate.id)).deferred_until,
+    "2026-11-20",
+    "copertura incompleta non prolunga la sospensione",
+  );
+  await assert.rejects(() => defer(c, TODAY), { code: "22023" });
+  checks++;
+  await assert.rejects(() => defer(c, "2028-01-01"), { code: "22023" });
+  checks++;
+  await assert.rejects(
+    () =>
+      service("record_partner_followup_check", [
+        c.lease_token,
+        c.candidate.id,
+        c.candidate.version,
+        JSON.stringify({
+          result: "clear",
+          reason: null,
+          checked_at: now,
+          proof_sha256: sha("badresume"),
+          folder_count: 3,
+          message_count: 0,
+          resume_on: "2026-11-20",
+        }),
+      ]),
+    { code: "22023" },
+  );
+  checks++;
+  const noEarlyPrep = await as(
+    "authenticated",
+    founder,
+    () => value("select public.read_partner_followup_preparation_queue() as v"),
+    { now },
+  );
+  eq(
+    noEarlyPrep.items.some((x) => x.id === c.candidate.id),
+    false,
+  );
+  await release();
+  now = "2026-11-19T09:00:00Z";
+  const nearReturn = await as(
+    "authenticated",
+    founder,
+    () => value("select public.read_partner_followup_preparation_queue() as v"),
+    { now },
+  );
+  eq(
+    nearReturn.items.some((x) => x.id === c.candidate.id),
+    true,
+    "bozza preparabile dal giorno prima del rientro",
+  );
+  const absenceId = c.candidate.id;
+  now = "2026-11-20T09:00:00Z";
+  await save(absenceId);
+  c = await claim();
+  eq(c.candidate.send_allowed, true, "al rientro resta necessario il nuovo controllo della posta");
+  await complete(c);
+  eq((await conv(absenceId)).followups_sent, 1);
+  eq((await conv(absenceId)).deferred_until, null);
+  await release();
+
+  // Il giorno delle quote viene dal clock post-lock, anche attraversando mezzanotte a Roma.
+  c = await fresh(true);
+  await release();
+  const midnightId = c.candidate.id;
+  const sydneyChoice = await value(
+    `insert into public.partner_assistant_notes(partner_id,kind,content,sources,rules_version,model,operation_id,created_by)
+    select partner_id,'scelta',content||jsonb_build_object('timezone','Australia/Sydney'),sources,rules_version,null,gen_random_uuid(),created_by
+    from public.partner_assistant_notes where id=(select choice_note_id from public.partner_assistant_followups where id=$1)
+    returning id as v`,
+    [midnightId],
+  );
+  await asOwner("update public.partner_assistant_followups set choice_note_id=$2 where id=$1", [
+    midnightId,
+    sydneyChoice,
+  ]);
+  await asOwner("update public.partners set country='Australia' where id=$1", [
+    c.candidate.partner_id,
+  ]);
+  now = "2026-11-10T23:00:01Z"; // 00:00 Roma dell'11, 10:00 a Sydney.
+  await save(midnightId);
+  c = await claim();
+  eq(c.candidate.send_allowed, true);
+  pr = await check(c);
+  const afterMidnight = await prepare(c, pr);
+  eq(afterMidnight.status, "pronto");
+  const midnightProof = await check(c);
+  const startedAfterMidnight = await as(
+    "service_role",
+    null,
+    () =>
+      value("select public.start_partner_followup_send($1,$2,$3) as v", [
+        c.lease_token,
+        afterMidnight.message_row_id,
+        midnightProof.proof_id,
+      ]),
+    { now: "2026-11-10T22:59:59Z", proofNow: now },
+  );
+  eq(startedAfterMidnight.status, "in_invio");
+  eq(
+    await value("select send_day::text as v from public.partner_assistant_messages where id=$1", [
+      afterMidnight.message_row_id,
+    ]),
+    "2026-11-11",
+  );
+  eq(await flowSent(true, "2026-11-11"), 1);
+  eq(await flowSent(true, TODAY), 0);
+  await finish(c, afterMidnight);
+  await release();
+
+  // Configurazioni mancanti: nessun DTO claimed e nessuna autorizzazione SMTP.
+  c = await fresh();
+  pr = await check(c);
+  const configuredPending = await prepare(c, pr);
+  const configuredProof = await check(c);
+  for (const table of ["private.partner_followup_config", "private.partner_assistant_config"]) {
+    await db.exec("begin");
+    try {
+      await db.exec(`delete from ${table}`);
+      await db.query("select set_config('request.jwt.claims',$1,true)", [
+        JSON.stringify({ role: "service_role" }),
+      ]);
+      await db.query("select set_config('luckylap.partner_assistant.now',$1,true)", [now]);
+      await db.query("select set_config('luckylap.partner_followup.proof_now',$1,true)", [now]);
+      await db.exec("set local role service_role");
+      eq(
+        await value("select public.claim_partner_followup($1,300) as v", [WORKER]),
+        { status: "idle", reason: "non_configurato" },
+        `${table}: nessun candidato senza configurazione`,
+      );
+      const noStart = await value("select public.start_partner_followup_send($1,$2,$3) as v", [
+        c.lease_token,
+        configuredPending.message_row_id,
+        configuredProof.proof_id,
+      ]);
+      eq(
+        noStart,
+        { status: "stop", reason: "osserva" },
+        `${table}: fallimento chiuso prima dell'SMTP`,
+      );
+    } finally {
+      await db.exec("rollback");
+    }
+  }
+  eq(
+    await value("select send_status as v from public.partner_assistant_messages where id=$1", [
+      configuredPending.message_row_id,
+    ]),
+    "pronto",
+    "le fixture negative ripristinano configurazioni e messaggio con rollback",
+  );
+  await release();
+
+  // I solleciti pronti e inviabili precedono controlli piu vecchi senza bozza o non ancora dovuti.
+  c = await fresh(true);
+  const readyPriorityId = c.candidate.id;
+  await release();
+  const [olderDraftlessPartner] = await sent(1, { club: false, day: "2026-10-20" });
+  const [olderFuturePartner] = await sent(1, { club: false, day: "2026-10-20" });
+  await asOwner("update public.partners set stage='contattato' where id=any($1::uuid[])", [
+    [olderDraftlessPartner, olderFuturePartner],
+  ]);
+  await asOwner("select private.refresh_partner_followups()");
+  const olderDraftlessId = await value(
+    "select id as v from public.partner_assistant_followups where partner_id=$1",
+    [olderDraftlessPartner],
+  );
+  const olderFutureId = await value(
+    "select id as v from public.partner_assistant_followups where partner_id=$1",
+    [olderFuturePartner],
+  );
+  await save(olderFutureId);
+  const restorePriorityTimes = async () => {
+    await asOwner(
+      "update public.partner_assistant_followups set next_check_at=$2::timestamptz where id=$1",
+      [readyPriorityId, now],
+    );
+    await asOwner(
+      "update public.partner_assistant_followups set next_check_at=$2::timestamptz-interval '2 hours' where id=$1",
+      [olderDraftlessId, now],
+    );
+    await asOwner(
+      "update public.partner_assistant_followups set next_check_at=$2::timestamptz-interval '1 hour',next_due_on=$3::date where id=$1",
+      [olderFutureId, now, "2026-11-11"],
+    );
+  };
+  await restorePriorityTimes();
+  c = await claim();
+  eq(
+    c.candidate.id,
+    readyPriorityId,
+    "la bozza pronta non attende dietro la coda di sole scansioni",
+  );
+  eq(c.candidate.send_allowed, true);
+  await release();
+  await asOwner("update private.partner_followup_config set mode='osserva'");
+  await restorePriorityTimes();
+  c = await claim();
+  eq(c.candidate.id, olderDraftlessId, "in osserva resta FIFO per ultimo controllo");
+  eq(c.candidate.send_allowed, false);
+  await release();
+  await asOwner("update private.partner_followup_config set mode='invio'");
 
   console.log(`PASS ${checks} controlli`);
 } catch (error) {

@@ -135,6 +135,7 @@ const uuid = (value) => typeof value === "string" && UUID.test(value) && value !
 const coValid = (value) => integer(value, 1, 99_999);
 const text = (value, max) =>
   typeof value === "string" &&
+  value.isWellFormed() &&
   value.trim().length > 0 &&
   [...value].length <= max &&
   !TEXT_CONTROL.test(value);
@@ -187,7 +188,12 @@ function readJson(path, maxBytes, privateFile = false) {
 }
 
 function publicHttps(value) {
-  if (typeof value !== "string" || value.length > 2000 || /[\s\x00-\x1f\x7f\\]/u.test(value))
+  if (
+    typeof value !== "string" ||
+    !value.isWellFormed() ||
+    value.length > 2000 ||
+    /[\s\x00-\x1f\x7f\\]/u.test(value)
+  )
     return false;
   try {
     const url = new URL(value);
@@ -200,7 +206,10 @@ function publicHttps(value) {
       !url.password &&
       !url.port &&
       !url.hash &&
-      /^[a-z0-9](?:[a-z0-9.-]*[a-z0-9])?$/u.test(url.hostname) &&
+      url.hostname.length <= 253 &&
+      url.hostname
+        .split(".")
+        .every((label) => /^[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?$/u.test(label)) &&
       url.hostname.includes(".") &&
       !/^(?:\d+\.){3}\d+$/u.test(url.hostname) &&
       !/(?:^|\.)(?:localhost|local|internal|invalid)$/u.test(url.hostname)
@@ -408,7 +417,7 @@ WITH data AS MATERIALIZED (
     AS entry(partner_id uuid, operation_id uuid, payload jsonb)
   ORDER BY entry.partner_id
 ), config AS MATERIALIZED (
-  SELECT (SELECT handoff_to FROM private.partner_assistant_config WHERE singleton LIMIT 1 FOR SHARE) AS handoff_to
+  SELECT (SELECT handoff_to FROM private.partner_assistant_config WHERE singleton LIMIT 1) AS handoff_to
 )
 SELECT jsonb_agg(private.save_partner_followup_draft_as_founder(
   config.handoff_to, data.operation_id, data.payload

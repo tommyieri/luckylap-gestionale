@@ -211,6 +211,8 @@ describe("CLI offline di preparazione dei solleciti", () => {
     expect(statSync(f.paths.output).mode & 0o777).toBe(0o600);
     expect(readFileSync(f.paths.output, "utf8")).toMatch(/\nROLLBACK;\n$/u);
     expect(readFileSync(f.paths.output, "utf8")).not.toMatch(/^COMMIT;/mu);
+    // I lock restano dentro la RPC (mail_state → config), senza inversione nel chiamante.
+    expect(readFileSync(f.paths.output, "utf8")).not.toMatch(/FOR SHARE|FOR UPDATE/u);
     expect(
       [f.paths.snapshot, f.paths.texts, f.paths.signature].map((p) => readFileSync(p, "utf8")),
     ).toEqual(before);
@@ -396,6 +398,8 @@ describe("input e controlli editoriali fail closed", () => {
     { sources: ["http://museo-sintetico.example.test/news"] },
     { sources: ["https://utente:segreto@museo-sintetico.example.test/news"] },
     { sources: ["https://localhost/news"] },
+    { sources: ["https://a..example.test/news"] },
+    { sources: ["https://-a.example.test/news"] },
     { sources: ["https://127.0.0.1/news"] },
     { sources: ["https://[::1]/news"] },
     { sources: ["https://museo-sintetico.example.test:8443/news"] },
@@ -405,6 +409,8 @@ describe("input e controlli editoriali fail closed", () => {
     { body: BODY + "\n" },
     { body: BODY.replace("\n", "\r\n") },
     { body: BODY + "\u0000" },
+    { body: BODY + "\ud800" },
+    { research_text: RESEARCH + "\ud800" },
     { subject: "Oggetto controllato dal chiamante" },
     { signature: "Firma controllata dal chiamante" },
     { to_address: "altro@example.test" },
@@ -424,6 +430,7 @@ describe("input e controlli editoriali fail closed", () => {
     [PHONE, "telefono"],
     ["Tommi", "parola_vietata"],
     ["[nome]", "segnaposto"],
+    ["Ho allegato il lookbook PDF", "allegato"],
     ["🏁", "emoji"],
   ])("condivide i divieti del runner: %s", (line, failure) => {
     const f = fixture();
@@ -555,6 +562,16 @@ describe("filesystem, privacy e sicurezza SQL del CLI", () => {
     const f = fixture();
     rmSync(f.paths.snapshot);
     rejected(f, "lettura_input_fallita");
+  });
+  it("blocca budget di file/righe e JSON root estranei senza creare output", () => {
+    const config = fixture();
+    writeFileSync(config.paths.signature, " ".repeat(4097));
+    rejected(config, "config_firma_non_privata_o_non_valida");
+    const extra = fixture();
+    editJson(extra.paths.snapshot, (value) => ({ ...value, actor_id: uuid(99) }));
+    rejected(extra, "snapshot_non_valido");
+    const many = fixture(Array.from({ length: 101 }, (_, i) => candidate(i + 1)));
+    rejected(many, "snapshot_non_valido");
   });
 
   it("usa dollar quote senza collisioni e il database interpreta ogni input come dato", async () => {

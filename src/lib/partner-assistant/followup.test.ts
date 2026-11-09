@@ -89,9 +89,11 @@ function setup(c = candidate(), mode: "invio" | "osserva" = "invio") {
             proof_id: id(10 + checks),
             expires_at: "2026-11-09T09:00:30Z",
           })
-        : payload.result === "found"
-          ? yes({ status: "blocked" as const, reason: "risposta_rilevata" })
-          : yes({ status: "retry" as const, reason: "casella_incerta" });
+        : payload.result === "deferred"
+          ? yes({ status: "deferred" as const, resume_on: payload.resume_on! })
+          : payload.result === "found"
+            ? yes({ status: "blocked" as const, reason: "risposta_rilevata" })
+            : yes({ status: "retry" as const, reason: "casella_incerta" });
     }),
     prepare: vi.fn(async () => {
       events.push("prepare");
@@ -140,6 +142,55 @@ function setup(c = candidate(), mode: "invio" | "osserva" = "invio") {
 }
 
 describe("solleciti: scansioni complete e autorizzazione prima dei byte SMTP", () => {
+  it("rinvia un fuori ufficio con data certa senza sopprimerlo come una risposta umana", async () => {
+    const t = setup();
+    vi.mocked(t.checkMailbox).mockResolvedValueOnce({
+      status: "deferred",
+      resumeOn: "2026-11-17",
+      checkedAt: new Date(NOW).toISOString(),
+      proofSha256: "b".repeat(64),
+      folderCount: 6,
+      messageCount: 41,
+    });
+    expect(await t.run()).toEqual({ status: "observed" });
+    expect(t.store.recordCheck).toHaveBeenCalledWith(
+      id(6),
+      t.c,
+      expect.objectContaining({
+        result: "deferred",
+        reason: "fuori_ufficio",
+        resume_on: "2026-11-17",
+        folder_count: 6,
+        message_count: 41,
+      }),
+      expect.any(AbortSignal),
+    );
+    expect(t.smtp.send).not.toHaveBeenCalled();
+    expect(t.store.prepare).not.toHaveBeenCalled();
+  });
+  it("un fuori ufficio certo arrivato prima dei byte rinvia anche un MIME già preparato", async () => {
+    const t = setup();
+    vi.mocked(t.checkMailbox)
+      .mockResolvedValueOnce(clear())
+      .mockResolvedValueOnce({
+        status: "deferred",
+        resumeOn: "2026-11-17",
+        checkedAt: new Date(NOW).toISOString(),
+        proofSha256: "b".repeat(64),
+        folderCount: 6,
+        messageCount: 41,
+      });
+    await t.run();
+    expect(t.store.prepare).toHaveBeenCalledTimes(1);
+    expect(t.store.start).not.toHaveBeenCalled();
+    expect(t.events).not.toContain("smtp:bytes");
+    expect(t.store.finish).toHaveBeenCalledWith(
+      id(6),
+      expect.any(String),
+      expect.objectContaining({ outcome: "scartato", reason: "verifica_preinvio" }),
+      expect.any(AbortSignal),
+    );
+  });
   it("esegue seconda scansione dopo login e prima di start e send, senza allegati o nuova ricerca pagata", async () => {
     const t = setup();
     expect(await t.run()).toEqual({ status: "complete" });

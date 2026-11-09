@@ -132,6 +132,16 @@ language sql stable security invoker set search_path = '' as $$
             'prossima_azione', 'approccio')))
 $$;
 
+-- Le scadenze delle proof seguono il tempo reale anche dopo un'attesa sui lock.
+-- Solo gli harness con sessione proprietaria possono fissare questo orologio separato.
+create function private.partner_followup_proof_now() returns timestamptz
+language sql volatile security invoker set search_path='' as $$
+  select case when session_user in ('postgres','supabase_admin')
+      and nullif(current_setting('luckylap.partner_followup.proof_now',true),'') is not null
+    then current_setting('luckylap.partner_followup.proof_now',true)::timestamptz
+    else clock_timestamp() end
+$$;
+
 create function private.partner_followup_reason(p_id uuid,p_draft boolean default false) returns text
 language sql stable security invoker set search_path='' as $$
   select case
@@ -167,7 +177,7 @@ language sql stable security invoker set search_path='' as $$
       or d.partner_id<>f.partner_id or d.contact_id<>f.contact_id or d.partner_version<>p.version
       or fd.contact_version<>k.version or fd.address_sha256<>f.address_sha256
       or d.rules_version<>(select max(version) from public.partner_assistant_rules)
-      or n.created_at<=private.partner_assistant_now()-interval '21 days'
+      or n.created_at<=private.partner_followup_proof_now()-interval '21 days'
       or d.sha256<>encode(sha256(convert_to(d.subject||E'\n\n'||d.body||E'\n\n'||d.signature,'UTF8')),'hex')
       or r.kind<>'controllo' or r.content->'approved' is distinct from 'true'::jsonb
       or r.content->>'sha256' is distinct from d.sha256) then 'bozza_da_preparare'
@@ -182,10 +192,10 @@ language sql stable security invoker set search_path='' as $$
     left join public.partner_assistant_notes r on r.id=fd.review_id
 $$;
 
-create function private.partner_followup_send_reason(p_id uuid) returns text
+create function private.partner_followup_send_reason(p_id uuid,p_at timestamptz default null) returns text
 language plpgsql stable security invoker set search_path='' as $$
 declare f public.partner_assistant_followups%rowtype; s private.partner_assistant_mail_state%rowtype;
-  c private.partner_assistant_config%rowtype; v_now timestamptz:=private.partner_assistant_now();
+  c private.partner_assistant_config%rowtype; v_now timestamptz:=coalesce(p_at,private.partner_followup_proof_now());
   v_today date:=private.partner_assistant_rome_day(v_now); v_reason text; v_tz text; v_country text;
 begin
   v_reason:=private.partner_followup_reason(p_id,true);
@@ -196,7 +206,8 @@ begin
   select n.content->>'timezone',p.country into v_tz,v_country from public.partners p
     left join public.partner_assistant_notes n on n.id=f.choice_note_id where p.id=f.partner_id;
   return case
-    when (select mode from private.partner_followup_config where singleton)<>'invio' or c.mode<>'invio' then 'osserva'
+    when (select mode from private.partner_followup_config where singleton) is distinct from 'invio'
+      or c.mode is distinct from 'invio' then 'osserva'
     when f.deferred_until>v_today then 'fuori_ufficio'
     when f.next_due_on>v_today or private.partner_assistant_rome_day(f.last_sent_at)+7>v_today then 'non_scaduto'
     when s.stop_reason is not null or s.day_stopped_on=v_today then 'fermo'
@@ -241,8 +252,8 @@ begin
   end if;
   if f.status<>'active' then return; end if;
   update public.partner_assistant_followups set status='held',reason=p_reason,version=version+1,
-    draft_id=null,next_check_at=private.partner_assistant_now()+interval '30 minutes',updated_at=now() where id=f.id;
-  update private.partner_followup_proofs set used_at=private.partner_assistant_now() where conversation_id=f.id and used_at is null;
+    draft_id=null,next_check_at=private.partner_followup_proof_now()+interval '30 minutes',updated_at=now() where id=f.id;
+  update private.partner_followup_proofs set used_at=private.partner_followup_proof_now() where conversation_id=f.id and used_at is null;
   update public.partner_assistant_messages set send_status='scartato',outcome=p_reason,updated_at=now()
     where partner_id=f.partner_id and kind='sollecito' and send_status='pronto';
   insert into private.partner_assistant_events(partner_id,step,outcome) values(f.partner_id,'sollecito',p_reason);
@@ -251,7 +262,7 @@ begin
     select name,co into v_name,v_co from public.partners where id=f.partner_id;
     insert into public.tasks(title,description,status,due_at,assigned_to,created_by)
       values(left('Controllare risposta · '||v_name,240),'Partner CO '||v_co||' · '||p_reason,
-        'todo',private.partner_assistant_rome_day(private.partner_assistant_now())::timestamp at time zone 'Europe/Rome',v_owner,v_actor);
+        'todo',private.partner_assistant_rome_day(private.partner_followup_proof_now())::timestamp at time zone 'Europe/Rome',v_owner,v_actor);
   end if;
 end
 $$;
@@ -306,7 +317,7 @@ create function public.claim_partner_followup(p_worker_id uuid,p_lease_seconds i
 language plpgsql security definer set search_path='' as $$
 declare s private.partner_assistant_mail_state%rowtype; c private.partner_assistant_config%rowtype;
   f public.partner_assistant_followups%rowtype; m public.partner_assistant_messages%rowtype; x record;
-  v_now timestamptz:=private.partner_assistant_now(); v_mode text; v_reason text; v_candidate jsonb; v_token uuid;
+  v_now timestamptz:=private.partner_followup_proof_now(); v_mode text; v_reason text; v_candidate jsonb; v_token uuid;
 begin
   perform private.partner_assistant_service_required();
   perform private.partner_assistant_as_actor();
@@ -314,6 +325,10 @@ begin
   select * into s from private.partner_assistant_mail_state where singleton for update;
   select * into c from private.partner_assistant_config where singleton for share;
   select mode into v_mode from private.partner_followup_config where singleton for share;
+  if c.singleton is null or v_mode is null then
+    return jsonb_build_object('status','idle','reason','non_configurato');
+  end if;
+  v_now:=private.partner_followup_proof_now();
   if c.actor_id is null or c.handoff_to is null then return jsonb_build_object('status','idle','reason','non_configurato'); end if;
   if s.lease_expires_at>clock_timestamp() then return jsonb_build_object('status','idle','reason','occupato'); end if;
   -- Prima del recupero storico del worker delle prime email, recupera soltanto i MIME dei solleciti.
@@ -336,7 +351,7 @@ begin
     if v_reason is not null then perform private.partner_followup_hold(x.id,v_reason,false); end if;
   end loop;
   select * into f from public.partner_assistant_followups where status='active' and next_check_at<=v_now
-    order by next_check_at,next_due_on,partner_id limit 1;
+    order by (private.partner_followup_send_reason(id,v_now) is null) desc,next_check_at,next_due_on,partner_id limit 1;
   if f.id is null then return jsonb_build_object('status','idle','reason','vuota'); end if;
   perform 1 from public.partners where id=f.partner_id for share;
   select * into f from public.partner_assistant_followups where id=f.id for update;
@@ -371,8 +386,8 @@ $$;
 
 create function public.record_partner_followup_check(p_lease_token uuid,p_conversation_id uuid,p_expected_version bigint,p_payload jsonb) returns jsonb
 language plpgsql security definer set search_path='' as $$
-declare f public.partner_assistant_followups%rowtype; v_now timestamptz:=private.partner_assistant_now();
-  v_result text; v_reason text; v_checked timestamptz; v_hash text; v_folders integer; v_count integer; v_id uuid; v_prepared uuid; v_related record; v_resume date;
+declare f public.partner_assistant_followups%rowtype; v_now timestamptz:=private.partner_followup_proof_now();
+  v_result text; v_reason text; v_checked timestamptz; v_hash text; v_folders integer; v_count integer; v_id uuid; v_prepared uuid; v_related record; v_resume date; v_proof_now timestamptz;
 begin
   perform private.partner_assistant_service_required();
   perform private.partner_assistant_as_actor();
@@ -397,7 +412,9 @@ begin
   select * into f from public.partner_assistant_followups where id=p_conversation_id for update;
   if f.id is null or f.version is distinct from p_expected_version or f.status<>'active'
     or not exists(select 1 from private.partner_followup_leases l where l.lease_token=p_lease_token and l.conversation_id=f.id) then return jsonb_build_object('status','lease_persa'); end if;
-  update private.partner_followup_proofs set used_at=v_now where conversation_id=f.id and used_at is null;
+  v_proof_now:=private.partner_followup_proof_now();
+  v_now:=v_proof_now;
+  update private.partner_followup_proofs set used_at=v_proof_now where conversation_id=f.id and used_at is null;
   if v_result='found' then
     update public.partner_assistant_followups set last_checked_at=v_now where id=f.id;
     perform private.partner_followup_suppress(f.partner_id,f.address_sha256,'possible_response');
@@ -410,7 +427,7 @@ begin
     end loop;
     return jsonb_build_object('status','blocked','reason',coalesce(v_reason,'risposta_trovata'));
   end if;
-  if v_result='uncertain' or v_checked<v_now-interval '60 seconds' or v_checked>v_now+interval '5 seconds' or v_folders<3 then
+  if v_result='uncertain' or v_checked<v_proof_now-interval '60 seconds' or v_checked>v_proof_now+interval '5 seconds' or v_folders<3 then
     if v_reason='bozza_non_valida' then
       update private.partner_followup_drafts set invalidated_at=v_now where draft_id=f.draft_id;
       update public.partner_assistant_messages set send_status='scartato',outcome='bozza_non_valida',updated_at=now()
@@ -444,11 +461,11 @@ begin
     and kind='sollecito' and draft_id=f.draft_id and send_status='pronto';
   insert into private.partner_followup_proofs(conversation_id,conversation_version,draft_id,prepared_message_id,
     lease_token,proof_sha256,checked_at,folder_count,message_count,created_at,expires_at)
-    values(f.id,f.version,f.draft_id,v_prepared,p_lease_token,v_hash,v_checked,v_folders,v_count,v_now,v_now+interval '30 seconds') returning id into v_id;
+    values(f.id,f.version,f.draft_id,v_prepared,p_lease_token,v_hash,v_checked,v_folders,v_count,v_proof_now,v_proof_now+interval '30 seconds') returning id into v_id;
   update public.partner_assistant_followups set last_checked_at=v_now,reason=null,
     deferred_until=case when deferred_until>private.partner_assistant_rome_day(v_now) then deferred_until end,
     next_check_at=v_now+interval '30 minutes' where id=f.id;
-  return jsonb_build_object('status','clear','proof_id',v_id,'expires_at',v_now+interval '30 seconds');
+  return jsonb_build_object('status','clear','proof_id',v_id,'expires_at',v_proof_now+interval '30 seconds');
 end
 $$;
 
@@ -458,7 +475,7 @@ declare f public.partner_assistant_followups%rowtype; p public.partners%rowtype;
   m public.partner_assistant_messages%rowtype; d public.partner_assistant_drafts%rowtype;
   v_payload jsonb:=p_payload; v_replay jsonb; v_result jsonb; v_rules integer; v_number integer; v_expected bigint;
   v_subject text; v_body text; v_signature text; v_language text; v_research text; v_sources text[]; v_sha text;
-  v_note uuid; v_draft uuid; v_review uuid; v_words integer; v_lines text[]; v_reason text; v_address text; v_now timestamptz:=private.partner_assistant_now();
+  v_note uuid; v_draft uuid; v_review uuid; v_words integer; v_lines text[]; v_reason text; v_address text; v_now timestamptz:=private.partner_followup_proof_now();
 begin
   perform 1 from public.memberships where user_id=p_actor_id and active and role='founder' for share;
   if not found then raise exception 'partner_assistant_founder_required' using errcode='42501'; end if;
@@ -477,6 +494,7 @@ begin
   select * into k from public.partner_contacts where id=f.contact_id for share;
   select * into m from public.partner_assistant_messages where id=f.first_message_id;
   select * into d from public.partner_assistant_drafts where id=m.draft_id;
+  v_now:=private.partner_followup_proof_now();
   select max(version) into v_rules from public.partner_assistant_rules;
   v_expected:=private.partner_bigint(v_payload,'expected_version',1,9007199254740991);
   v_number:=private.partner_bigint(v_payload,'number',1,4);
@@ -522,9 +540,9 @@ begin
     returning id into v_review;
   insert into private.partner_followup_drafts(draft_id,conversation_id,number,contact_version,address_sha256,review_id)
     values(v_draft,f.id,v_number,k.version,f.address_sha256,v_review);
-  update public.partner_assistant_followups set draft_id=v_draft,version=version+1,next_check_at=private.partner_assistant_now(),updated_at=now()
+  update public.partner_assistant_followups set draft_id=v_draft,version=version+1,next_check_at=private.partner_followup_proof_now(),updated_at=now()
     where id=f.id returning * into f;
-  update private.partner_followup_proofs set used_at=private.partner_assistant_now() where conversation_id=f.id and used_at is null;
+  update private.partner_followup_proofs set used_at=private.partner_followup_proof_now() where conversation_id=f.id and used_at is null;
   insert into private.partner_assistant_events(partner_id,step,outcome) values(f.partner_id,'sollecito','bozza_sollecito_salvata');
   v_result:=jsonb_build_object('id',v_draft,'version',f.version,'number',v_number,'replayed',false);
   return private.partner_assistant_finish(p_operation_id,'save_partner_followup_draft',p_actor_id,v_payload,v_result);
@@ -545,7 +563,7 @@ language plpgsql security definer set search_path='' as $$
 declare f public.partner_assistant_followups%rowtype; d public.partner_assistant_drafts%rowtype;
   m public.partner_assistant_messages%rowtype; pr private.partner_followup_proofs%rowtype;
   v_actor uuid; v_reason text; v_replay jsonb; v_result jsonb; v_address text; v_raw text; v_text text; v_opt text; v_id uuid; v_message_id text;
-  v_now timestamptz:=private.partner_assistant_now(); v_payload jsonb; v_headers text; v_references text;
+  v_now timestamptz:=private.partner_followup_proof_now(); v_payload jsonb; v_headers text; v_references text; v_proof_now timestamptz;
 begin
   perform private.partner_assistant_service_required(); v_actor:=private.partner_assistant_as_actor();
   perform private.partner_keys(p_payload,array['expected_version','draft_id','number','to_address','subject','text','opt_out','raw','message_id','proof_id'],
@@ -563,12 +581,14 @@ begin
   select * into m from public.partner_assistant_messages where id=f.first_message_id;
   select * into pr from private.partner_followup_proofs where id=private.partner_uuid(p_payload,'proof_id') for update;
   select private.partner_assistant_address(link_value) into v_address from public.partner_contacts where id=f.contact_id;
-  v_reason:=private.partner_followup_send_reason(f.id);
+  v_proof_now:=private.partner_followup_proof_now();
+  v_now:=v_proof_now;
+  v_reason:=private.partner_followup_send_reason(f.id,v_now);
   if f.id is null or not exists(select 1 from private.partner_followup_leases l where l.lease_token=p_lease_token and l.conversation_id=f.id)
     or f.version is distinct from private.partner_bigint(p_payload,'expected_version',1,9007199254740991)
     or d.id is distinct from private.partner_uuid(p_payload,'draft_id')
     or private.partner_bigint(p_payload,'number',1,4) is distinct from f.followups_sent+1 then v_reason:='contesto_cambiato'; end if;
-  if pr.id is null or pr.used_at is not null or pr.expires_at<=v_now or pr.lease_token is distinct from p_lease_token
+  if pr.id is null or pr.used_at is not null or pr.expires_at<=v_proof_now or pr.lease_token is distinct from p_lease_token
     or pr.conversation_id is distinct from f.id or pr.conversation_version is distinct from f.version
     or pr.draft_id is distinct from d.id or pr.prepared_message_id is not null then v_reason:='controllo_scaduto'; end if;
   if v_reason is not null then return jsonb_build_object('status','stop','reason',v_reason); end if;
@@ -594,9 +614,9 @@ begin
   insert into public.partner_assistant_messages(partner_id,draft_id,kind,mode,send_status,message_id,to_address,address_sha256,
     subject,body,raw,sha256,rules_version,lease_token,operation_id,created_by,followup_number,flow_template,created_at)
     values(f.partner_id,d.id,'sollecito','invio','pronto',v_message_id,v_address,f.address_sha256,d.subject,v_text,v_raw,
-      encode(sha256(convert_to(v_raw,'UTF8')),'hex'),d.rules_version,p_lease_token,p_operation_id,v_actor,f.followups_sent+1,f.flow_template,v_now)
+      encode(sha256(convert_to(v_raw,'UTF8')),'hex'),d.rules_version,p_lease_token,p_operation_id,v_actor,f.followups_sent+1,f.flow_template,v_proof_now)
     returning id into v_id;
-  update private.partner_followup_proofs set used_at=v_now where id=pr.id;
+  update private.partner_followup_proofs set used_at=v_proof_now where id=pr.id;
   v_result:=jsonb_build_object('status','pronto','message_row_id',v_id,'replayed',false);
   return private.partner_assistant_finish(p_operation_id,'prepare_partner_followup_send',v_actor,v_payload,v_result);
 end
@@ -605,7 +625,7 @@ $$;
 create function public.start_partner_followup_send(p_lease_token uuid,p_message_row_id uuid,p_proof_id uuid) returns jsonb
 language plpgsql security definer set search_path='' as $$
 declare f public.partner_assistant_followups%rowtype; m public.partner_assistant_messages%rowtype;
-  pr private.partner_followup_proofs%rowtype; v_reason text; v_now timestamptz:=private.partner_assistant_now();
+  pr private.partner_followup_proofs%rowtype; v_reason text; v_now timestamptz:=private.partner_followup_proof_now(); v_proof_now timestamptz;
 begin
   perform private.partner_assistant_service_required(); perform private.partner_assistant_as_actor();
   if not private.partner_assistant_mail_guard(p_lease_token,true) then return jsonb_build_object('status','lease_persa'); end if;
@@ -618,10 +638,12 @@ begin
   select * into pr from private.partner_followup_proofs where id=p_proof_id for update;
   if m.id is null or m.kind<>'sollecito' or m.mode<>'invio' or m.send_status<>'pronto'
     or m.lease_token is distinct from p_lease_token then return jsonb_build_object('status','lease_persa'); end if;
-  v_reason:=private.partner_followup_send_reason(f.id);
+  v_proof_now:=private.partner_followup_proof_now();
+  v_now:=v_proof_now;
+  v_reason:=private.partner_followup_send_reason(f.id,v_now);
   if not exists(select 1 from private.partner_followup_leases l where l.lease_token=p_lease_token and l.conversation_id=f.id)
     or m.draft_id is distinct from f.draft_id or m.followup_number is distinct from f.followups_sent+1 then v_reason:='contesto_cambiato'; end if;
-  if pr.id is null or pr.used_at is not null or pr.expires_at<=v_now or pr.lease_token is distinct from p_lease_token
+  if pr.id is null or pr.used_at is not null or pr.expires_at<=v_proof_now or pr.lease_token is distinct from p_lease_token
     or pr.conversation_id is distinct from f.id or pr.conversation_version is distinct from f.version
     or pr.draft_id is distinct from m.draft_id or pr.prepared_message_id is distinct from m.id
     or pr.created_at<m.created_at or pr.checked_at<m.created_at then v_reason:='controllo_scaduto'; end if;
@@ -629,7 +651,7 @@ begin
     update public.partner_assistant_messages set send_status='scartato',outcome=v_reason,updated_at=now() where id=m.id;
     return jsonb_build_object('status','stop','reason',v_reason);
   end if;
-  update private.partner_followup_proofs set used_at=v_now where id=pr.id;
+  update private.partner_followup_proofs set used_at=v_proof_now where id=pr.id;
   update public.partner_assistant_messages set send_status='in_invio',send_day=private.partner_assistant_rome_day(v_now),updated_at=now() where id=m.id;
   return jsonb_build_object('status','in_invio');
 end
@@ -639,7 +661,7 @@ create function public.finish_partner_followup_send(p_lease_token uuid,p_operati
 language plpgsql security definer set search_path='' as $$
 declare f public.partner_assistant_followups%rowtype; m public.partner_assistant_messages%rowtype;
   v_actor uuid; v_replay jsonb; v_result jsonb; v_outcome text; v_code integer; v_enhanced text; v_spam boolean; v_reason text;
-  v_now timestamptz:=private.partner_assistant_now(); v_number integer; v_first_day date;
+  v_now timestamptz:=private.partner_followup_proof_now(); v_number integer; v_first_day date;
 begin
   perform private.partner_assistant_service_required(); v_actor:=private.partner_assistant_as_actor();
   perform private.partner_keys(p_payload,array['message_row_id','outcome','smtp_code','enhanced_code','spam','reason'],
@@ -661,6 +683,7 @@ begin
   if m.id is null or m.kind<>'sollecito' or m.lease_token is distinct from p_lease_token
     or (m.send_status<>'in_invio' and not(v_outcome='scartato' and m.send_status in ('pronto','scartato'))) then
       return jsonb_build_object('status','lease_persa'); end if;
+  v_now:=private.partner_followup_proof_now();
   if m.send_status<>'scartato' then
     update public.partner_assistant_messages set send_status=v_outcome,smtp_code=v_code,enhanced_code=v_enhanced,
       outcome=v_reason,sent_at=case when v_outcome in ('inviato','incerto') then v_now end,updated_at=now() where id=m.id;
@@ -717,7 +740,7 @@ language plpgsql stable security definer set search_path='' as $$
 begin
   if not private.is_member() then raise exception 'partner_member_required' using errcode='42501'; end if;
   return (select jsonb_build_object('id',id,'status',status,'reason',reason,'version',version,
-    'followups_sent',followups_sent,'next_due_on',next_due_on,'deferred_until',deferred_until,'last_checked_at',last_checked_at,'next_check_at',next_check_at,
+    'followups_sent',followups_sent,'next_due_on',next_due_on,'last_checked_at',last_checked_at,'next_check_at',next_check_at,
     'mode',(select mode from private.partner_followup_config where singleton))
     from public.partner_assistant_followups where partner_id=p_partner_id);
 end
@@ -739,7 +762,7 @@ begin
       from public.partner_assistant_followups f join public.partners p on p.id=f.partner_id
       join public.partner_contacts k on k.id=f.contact_id join public.partner_assistant_messages m on m.id=f.first_message_id
       join public.partner_assistant_drafts d on d.id=m.draft_id left join public.partner_assistant_notes n on n.id=f.choice_note_id
-      where f.status='active' and f.next_due_on<=private.partner_assistant_rome_day(private.partner_assistant_now())+1
+      where f.status='active' and f.next_due_on<=private.partner_assistant_rome_day(private.partner_followup_proof_now())+1
         and private.partner_followup_reason(f.id,false) is null and private.partner_followup_reason(f.id,true) is not null
       order by f.next_due_on,p.co limit 100
     ) q),'[]'::jsonb));
@@ -754,7 +777,7 @@ begin
 end
 $$;
 
-revoke all on function private.read_partner_followup_preparation_queue_as_founder(uuid),private.partner_followup_suppress(uuid,text,text),private.partner_followup_manual_intervention(),private.partner_followup_address_held(uuid),private.partner_followup_reason(uuid,boolean),private.partner_followup_send_reason(uuid),
+revoke all on function private.partner_followup_proof_now(),private.read_partner_followup_preparation_queue_as_founder(uuid),private.partner_followup_suppress(uuid,text,text),private.partner_followup_manual_intervention(),private.partner_followup_address_held(uuid),private.partner_followup_reason(uuid,boolean),private.partner_followup_send_reason(uuid,timestamptz),
   private.partner_followup_close_tasks(uuid),private.partner_followup_hold(uuid,text,boolean),private.refresh_partner_followups(),
   private.save_partner_followup_draft_as_founder(uuid,uuid,jsonb) from public,anon,authenticated,service_role;
 revoke all on function public.claim_partner_followup(uuid,integer),public.record_partner_followup_check(uuid,uuid,bigint,jsonb),
