@@ -1,6 +1,10 @@
 // Controlli editoriali e MIME dei solleciti. Non attestano la ricerca, la seconda lettura o
 // l'autorizzazione all'invio: queste verifiche appartengono al chiamante e alle RPC della posta.
-import { checkPartnerAssistantDraft, type PartnerAssistantCheckCode } from "./checks";
+import {
+  checkPartnerAssistantDraft,
+  partnerAssistantHasRetiredSocialProof,
+  type PartnerAssistantCheckCode,
+} from "./checks";
 import { partnerAssistantMailAddress } from "./mail-config";
 import type { PartnerAssistantOutgoing } from "./mail-compose";
 import type { PartnerAssistantDraft } from "./types";
@@ -48,8 +52,6 @@ export function partnerAssistantFollowupSubject(firstSubject: string): string | 
   return [...subject].length <= SUBJECT_MAX ? subject : null;
 }
 
-const SOCIAL_PROOF =
-  /Porsche[\s-]*Clubs?(?:[\s-]+(?:di|della|in))?[\s-]+Toscana|(?:150|centocinquanta|one\s+hundred\s+(?:and\s+)?fifty|hundertfünfzig|cent\s+cinquante|ciento\s+cincuenta)\s+(?:\p{L}[\p{L}\p{M}'’–-]{0,30}\s+){0,4}(?:magliett\p{L}*|t[\s-]?shirts?|shirts?|camisetas?)/iu;
 const PHONE_CTA =
   /(?<![\p{L}\p{N}])(?:telefon\p{L}*|téléphon\p{L}*|teléfon\p{L}*|chiamat\p{L}*|appuntament\p{L}*|sentiamoci|sentirci|call(?:s|ing)?|phone|appointment\p{L}*|meeting\p{L}*|rendez[\s-]vous|r?appel\p{L}*|anruf\p{L}*|gespräch\p{L}*|termin(?:e|en)?|llamad\p{L}*|cita(?:s)?)(?![\p{L}\p{N}])/iu;
 const COMMERCIAL_TERMS =
@@ -72,7 +74,8 @@ export function checkPartnerAssistantFollowupDraft(
     failures.push("oggetto_thread");
   if ((draft.body.match(/\?/gu) ?? []).length !== 1) failures.push("domande");
   const texts = `${draft.subject}\n${draft.body}`;
-  if (SOCIAL_PROOF.test(texts)) failures.push("prova_sociale");
+  if (partnerAssistantHasRetiredSocialProof(texts, context.names.slice(0, 1)))
+    failures.push("prova_sociale");
   if (PHONE_CTA.test(texts)) failures.push("invito_telefonata");
   if (COMMERCIAL_TERMS.test(texts)) failures.push("condizioni_commerciali");
   if (ATTACHMENT_PROMISE.test(texts)) failures.push("allegato");

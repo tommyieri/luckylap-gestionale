@@ -204,6 +204,7 @@ const skipReasons = oneOf<PartnerAssistantSendSkipReason>([
   "conversazione_esistente",
   "bozza_scaduta",
   "casella_incerta",
+  "riferimento_superato",
 ]);
 const finishOutcomes = oneOf<PartnerAssistantFinishInput["outcome"]>([
   "inviato",

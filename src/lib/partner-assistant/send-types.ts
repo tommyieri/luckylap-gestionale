@@ -99,7 +99,7 @@ export type PartnerAssistantFinishInput = {
 };
 
 export type PartnerAssistantSendSkipReason =
-  "conversazione_esistente" | "bozza_scaduta" | "casella_incerta";
+  "conversazione_esistente" | "bozza_scaduta" | "casella_incerta" | "riferimento_superato";
 
 /** L'esito del giro e gli accessi: "ok" o un codice; null se l'accesso non è stato provato. */
 export type PartnerAssistantReleaseInput = {

@@ -134,7 +134,7 @@ describe("controlli editoriali dei solleciti", () => {
       failures: ["modello_porsche"],
     });
   });
-  it("il flag followup cambia solo il range; le prime email conservano i propri limiti", () => {
+  it("il range followup conserva le firme del percorso e i limiti delle prime email", () => {
     for (const template of [true, false]) {
       const value = {
         ...draft(),
@@ -173,6 +173,51 @@ describe("controlli editoriali dei solleciti", () => {
   it("la ricerca delle quantità resta circoscritta al riferimento alle magliette", () => {
     expect(failures(withLine("La strada numero 150 attraversa questa città."))).toEqual([]);
   });
+  it.each([
+    "Tuscan Porsche Club",
+    "Porsche Club in Tuscany",
+    "Porsche-Club-Toskana",
+    "Club Porsche de Toscane",
+    "centocinquanta magliette",
+    "one hundred and fifty T-shirts",
+    "einhundertfuenfzig Shirts",
+    "cent-cinquante t-shirts",
+    "ciento cincuenta camisetas",
+    "150 bespoke ones",
+    "one hundred fifty custom-made ones",
+  ])("condivide il divieto delle prime senza duplicare il codice: %s", (text) =>
+    expect(failures(withLine(text))).toEqual(["prova_sociale"]),
+  );
+  it("ammette l'identità del destinatario ma non la quantità del vecchio caso", () => {
+    const name = "Porsche Club Toscana";
+    const value = { ...draft(), subject: `Re: ${name} e LuckyLap` };
+    const ownContext = { ...context, firstSubject: `${name} e LuckyLap`, names: [name] };
+    expect(checkPartnerAssistantFollowupDraft(value, ownContext)).toEqual({ ok: true });
+    expect(
+      checkPartnerAssistantFollowupDraft({ ...value, ...withLine("150 T-shirts") }, ownContext),
+    ).toEqual({ ok: false, failures: ["prova_sociale"] });
+  });
+  it("il nome evento in seconda posizione non esenta un riferimento ritirato", () => {
+    const name = "Porsche Club Toscana";
+    const value = { ...draft(), subject: `Re: ${name} e LuckyLap` };
+    expect(
+      checkPartnerAssistantFollowupDraft(value, {
+        ...context,
+        firstSubject: `${name} e LuckyLap`,
+        names: [name, "Evento Sintetico"],
+      }),
+    ).toEqual({ ok: true });
+    expect(failures(withLine(name), { names: ["Club Sintetico", name] })).toEqual([
+      "prova_sociale",
+    ]);
+  });
+  it.each([
+    "Il 150 anniversario con magliette",
+    "Il modello 1500",
+    "150 anni di storia e T-shirts",
+  ])("non confonde altri numeri con la vecchia commessa: %s", (text) =>
+    expect(failures(withLine(text))).toEqual([]),
+  );
   it.each([
     "Ho allegato il PDF.",
     "Il lookbook è qui.",

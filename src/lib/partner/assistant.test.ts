@@ -995,6 +995,7 @@ describe("etichette in italiano", () => {
         "riscrittura",
         "seconda_lettura",
         "modello_bocciato",
+        "riferimenti_generici",
       ],
       // Modalità modello: la bozza del testo per i club, da ricerca, estrazione o scrittura.
       modello: [
@@ -1057,6 +1058,7 @@ describe("etichette in italiano", () => {
         "recapito_cambiato",
         "regole_superate",
         "bozza_scaduta",
+        "riferimento_superato",
         "indirizzo_non_valido",
         "conversazione_esistente",
         "impronta",

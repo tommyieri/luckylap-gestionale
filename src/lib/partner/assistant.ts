@@ -154,6 +154,8 @@ export const PARTNER_ASSISTANT_REASON_LABELS = {
   // credito): la frase non promette che l'assistente la riscriva.
   bozza_scaduta:
     "Bozza scaduta: l'evento è già iniziato o una data citata è passata, e la bozza non è più valida. L'assistente non la manda; decide Tommi.",
+  riferimento_superato:
+    "Il testo cita un vecchio caso cliente o la quantità della commessa: usa il riferimento generale ai Porsche Club italiani prima dell'invio.",
   conversazione_esistente:
     "Conversazione recente nella casella: nella posta degli ultimi 12 mesi c'è già uno scambio con questo indirizzo. L'assistente non scrive; decide Tommi.",
   invio_incerto:
@@ -232,6 +234,7 @@ export const PARTNER_ASSISTANT_EVENT_LABELS = {
   prova_avviata: "Prova avviata da Tommi",
   modifica_iniziata: "Email sospesa per la modifica di Tommi",
   modifica_salvata: "Testo approvato da Tommi per l'invio",
+  riferimenti_generici: "Riferimenti cliente aggiornati",
   modifica_annullata: "Modifica annullata: testo precedente conservato",
   modifica_in_corso: "Email sospesa durante la modifica",
   bozza_manuale_da_rivedere: "Testo di Tommi da rivedere: contesto cambiato",
@@ -255,6 +258,7 @@ export const PARTNER_ASSISTANT_EVENT_LABELS = {
   ricerca_scaduta: "Ricerca di oltre 21 giorni: la rifà",
   recapito_cambiato: "Email del contatto cambiata: riscrive la bozza",
   bozza_scaduta: "Bozza scaduta: riscrive o passa a Tommi",
+  riferimento_superato: "Riferimento cliente superato: invio fermato",
   indirizzo_non_valido: "Indirizzo non valido: passa a Tommi",
   conversazione_esistente: "Scambio recente nella casella: passa a Tommi",
   impronta: "Testo diverso da quello approvato: passa a Tommi",

@@ -527,6 +527,36 @@ describe("passo d'invio dell'assistente Partner", () => {
     expect(state.recorded.smtp).toHaveLength(0);
     expect(released()?.outcome).toBe("composizione_fallita");
   });
+  it.each([
+    "Come per il Porsche Club Toscana.",
+    "We made 150 bespoke T-shirts for their members.",
+    "We made 150 bespoke ones for their members.",
+  ])("una vecchia bozza approvata con riferimento ritirato non apre la posta: %s", async (body) => {
+    await runSend({ candidate: withBody(`Gentile segreteria,\n${body}\nUn saluto,`) });
+    expect(calls).toEqual(["claim", "skip:riferimento_superato", "release"]);
+    expect(state.recorded.prepare).toHaveLength(0);
+    expect(state.recorded.smtp).toHaveLength(0);
+    expect(released()).toMatchObject({ outcome: "riferimento_superato" });
+  });
+  it("una prova con riferimento ritirato non viene spedita", async () => {
+    await runSend({
+      candidate: {
+        ...testCandidate(0),
+        draft: withBody("Come per il Porsche Club Toscana.").draft,
+      },
+    });
+    expect(calls).toEqual(["claim", "skip:riferimento_superato", "release"]);
+    expect(state.recorded.smtp).toHaveLength(0);
+  });
+  it("il riferimento generico ai Porsche Club italiani prosegue fino all'invio", async () => {
+    await runSend({
+      candidate: withBody(
+        "Gentile segreteria,\nAbbiamo già collaborato con Porsche Club italiani.\nUn saluto,",
+      ),
+    });
+    expect(calls).toContain("finish:inviato");
+    expect(calls).not.toContain("skip:riferimento_superato");
+  });
   it("bozza scaduta (data del corpo passata): skip bozza_scaduta, casella non aperta senza appends", async () => {
     expect(
       await runSend({
