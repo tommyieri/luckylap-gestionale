@@ -103,7 +103,8 @@ export type PartnerEmailProgramState =
   "prevista" | "sospesa" | "da_preparare" | "attesa" | "da_rivedere" | "non_prevista";
 export type PartnerEmailProgramForecast = {
   items: (PartnerEmailProgramItem & {
-    plannedAt: string | null;
+    /** Giorno stimato di quota a Roma; nessun orario o slot viene assegnato da questo forecast. */
+    estimatedDay: string | null;
     state: PartnerEmailProgramState;
     explanation: string;
   })[];
@@ -122,7 +123,6 @@ const FLOWS = ["club", "altri"] as const;
 const MAX_ROWS = 2000;
 const MINUTE = 60_000;
 const TTL = 21 * 24 * 60 * MINUTE;
-const STEP = 8 * MINUTE;
 const fail = (): never => {
   throw new PartnerReadError("Programma email");
 };
@@ -410,12 +410,12 @@ export function forecastPartnerEmails(
   const result: PartnerEmailProgramForecast = {
     items: snapshot.items.map((item) => ({
       ...item,
-      plannedAt: null,
+      estimatedDay: null,
       state: "non_prevista",
       explanation: "Nessuna finestra utile nel periodo, con la coda e le quote attuali.",
     })),
     assumption:
-      "Stime delle prime email, con un passo di 8 minuti tra gli invii. Le quote delle prime email sono separate dal tetto di 6 solleciti al giorno. I solleciti condividono la casella e l'intervallo reale di 4–11 minuti, quindi possono ancora spostare ore e date. Nuove bozze, controlli della casella, modifiche e fermi possono cambiare giorno e ordine. Nessuna data è una prenotazione.",
+      "Giorni stimati delle sole prime email, secondo coda, quote e calendario di Roma. Queste righe non assegnano un orario: gli orari effettivamente pianificati di prime email e solleciti sono nel Piano d’invio del giorno. Nuove bozze, verifiche della posta, modifiche e fermi possono cambiare giorno e ordine. Nessuna data è una prenotazione.",
     days: [],
   };
   type Row = PartnerEmailProgramForecast["items"][number];
@@ -570,17 +570,16 @@ export function forecastPartnerEmails(
         );
       const chosen = pool.find((row) => allowed(row.flow) && open(row));
       if (chosen) {
-        chosen.plannedAt = new Date(cursor).toISOString();
+        chosen.estimatedDay = on;
         set(
           chosen,
           "prevista",
-          "Stima secondo la coda globale, la finestra del destinatario e la quota del suo lavoro. Il testo e la casella saranno ricontrollati all'invio.",
+          "Giorno stimato sul calendario di Roma secondo coda, finestra del destinatario e quote delle prime email. L’orario si legge nel piano del giorno; testo e casella saranno ricontrollati all’invio.",
         );
         used[chosen.flow]++;
         dayResult[chosen.flow]++;
         firstRealOn ??= on;
         pool = pool.filter((row) => row !== chosen);
-        cursor += STEP;
         nextAt = cursor;
       } else {
         let next = end;

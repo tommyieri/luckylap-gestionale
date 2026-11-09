@@ -42,6 +42,8 @@ export type PartnerAssistantSendCandidate = {
   address: string | null;
   testRunId: string | null;
   testIndex: number | null;
+  /** Termine assoluto del trasporto, assegnato dal piano SQL per gli invii reali. */
+  sendNotAfter?: string;
   /** PDF Club deciso dal database: fissato all'avvio della prova o attivo dal 4 novembre. */
   lookbook?: PartnerAssistantTestLookbook | null;
 };

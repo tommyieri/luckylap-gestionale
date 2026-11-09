@@ -60,6 +60,7 @@ const candidateRow = {
   address: "info@club-951.example.test",
   test_run_id: null,
   test_index: null,
+  send_not_after: "2099-12-31T23:59:59Z",
 };
 const candidate = {
   jobId: id(10),
@@ -73,6 +74,7 @@ const candidate = {
   address: "info@club-951.example.test",
   testRunId: null,
   testIndex: null,
+  sendNotAfter: "2099-12-31T23:59:59Z",
 };
 const testCandidateRow = {
   ...candidateRow,
@@ -88,6 +90,9 @@ const testCandidate = {
   testRunId: id(20),
   testIndex: 4,
 };
+// Le prove non prenotano slot né ricevono la scadenza degli invii reali.
+delete (testCandidateRow as { send_not_after?: string }).send_not_after;
+delete (testCandidate as { sendNotAfter?: string }).sendNotAfter;
 const appendRow = {
   message_row_id: messageRowId,
   message_id: messageId,
@@ -507,6 +512,45 @@ beforeEach(() => {
 });
 
 describe("store d'invio dell'assistente Partner", () => {
+  it.each([null, undefined, "", "domani", "2026-02-30T15:00:00Z", 123])(
+    "rifiuta la scadenza del trasporto non valida: %s",
+    async (deadline) => {
+      replying({
+        status: "claimed",
+        lease_token: lease,
+        mode: "invio",
+        appends: [],
+        candidate: { ...candidateRow, send_not_after: deadline },
+      });
+      expect(await store().claim(workerId, 300, 0, signal())).toEqual({ ok: false });
+    },
+  );
+  it("non autorizza un invio reale privo della scadenza assegnata dal piano", async () => {
+    const row = { ...candidateRow } as Record<string, unknown>;
+    delete row.send_not_after;
+    replying({ status: "claimed", lease_token: lease, mode: "invio", appends: [], candidate: row });
+    expect(await store().claim(workerId, 300, 0, signal())).toEqual({ ok: false });
+  });
+  it.each(["slot_assente", "slot_futuro", "slot_scaduto", "contesto_cambiato", "limite"])(
+    "riconosce il fermo del piano %s senza trasformarlo in un'autorizzazione",
+    async (reason) => {
+      replying({ status: "stop", reason });
+      expect(await store().start(lease, messageRowId, signal())).toEqual({
+        ok: true,
+        value: { status: "stop", reason },
+      });
+    },
+  );
+  it.each(["slot_assente", "slot_futuro", "slot_scaduto", "contesto_cambiato"])(
+    "riconosce la preparazione rifiutata dal piano: %s",
+    async (reason) => {
+      replying({ status: "rifiutato", reason });
+      expect(await store().prepare(lease, operationId, prepareInput, signal())).toEqual({
+        ok: true,
+        value: { status: "rifiutato", reason },
+      });
+    },
+  );
   it("le nove RPC d'invio, nessun'altra", () => {
     expect([...PARTNER_ASSISTANT_SEND_RPC_NAMES]).toEqual([
       "claim_partner_assistant_send",

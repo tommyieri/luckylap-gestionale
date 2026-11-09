@@ -51,6 +51,7 @@ function candidate(): PartnerFollowupCandidate {
     followups_sent: 0,
     next_due_on: "2026-11-09",
     send_allowed: true,
+    send_not_after: "2099-12-31T23:59:59Z",
     draft: {
       draft_id: id(12),
       number: 1,
@@ -157,6 +158,20 @@ beforeEach(() => {
 });
 
 describe("candidato dei solleciti", () => {
+  it.each([null, undefined, "", "domani", "2026-02-30T15:00:00Z", 123])(
+    "non accetta una scadenza del trasporto non valida: %s",
+    (deadline) => {
+      expect(readPartnerFollowupCandidate({ ...candidate(), send_not_after: deadline })).toBeNull();
+    },
+  );
+  it("un candidato da inviare senza scadenza è incompleto, uno solo da osservare è leggibile", () => {
+    const row = { ...candidate() } as Record<string, unknown>;
+    delete row.send_not_after;
+    expect(readPartnerFollowupCandidate(row)).toBeNull();
+    expect(
+      readPartnerFollowupCandidate({ ...row, send_allowed: false, draft: null }),
+    ).not.toBeNull();
+  });
   it("preserva testo, impronte, versione e indirizzi senza mutare la risposta", () => {
     const c = candidate();
     const before = structuredClone(c);

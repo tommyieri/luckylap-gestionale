@@ -30,6 +30,8 @@ import {
   partnerAssistantReasonLabel,
 } from "../../lib/partner/assistant";
 import styles from "./partner-email.module.css";
+import { PartnerSendPlanPanel } from "./partner-send-plan";
+import type { PartnerSendPlan } from "../../lib/partner/send-plan";
 
 type ForecastRow = PartnerEmailProgramForecast["items"][number];
 type Period = "oggi" | "domani" | "dopodomani" | "14giorni" | "mese" | "tutto";
@@ -72,31 +74,21 @@ const needsReview = (row: ForecastRow) =>
   row.state === "da_rivedere" ||
   row.state === "sospesa" ||
   (row.state === "non_prevista" && row.status !== "inviata") ||
-  (row.status === "pronta" && !row.plannedAt);
-const recipientDay = (at: string, timezone: string) => {
-  try {
-    return new Intl.DateTimeFormat("it-IT", {
-      timeZone: timezone,
-      day: "numeric",
-      month: "long",
-    }).format(new Date(at));
-  } catch {
-    return "Data locale da verificare";
-  }
-};
-
+  (row.status === "pronta" && !row.estimatedDay);
 /** I filtri non ricalcolano la coda: la previsione arriva già calcolata sull'intera capacità. */
 export function PartnerEmailProgramView({
   snapshot,
   forecast,
   founder,
   preview,
+  plan = null,
   initialSection = "tutti",
 }: {
   snapshot: PartnerEmailProgramSnapshot;
   forecast: PartnerEmailProgramForecast;
   founder: boolean;
   preview: boolean;
+  plan?: PartnerSendPlan | null;
   initialSection?: PartnerSection | "tutti";
 }) {
   const router = useRouter();
@@ -145,13 +137,13 @@ export function PartnerEmailProgramView({
     .filter((row) => {
       if (view === "da_preparare") return row.state === "da_preparare" || row.state === "attesa";
       if (view === "da_rivedere") return needsReview(row);
-      if (view !== "programma" || !row.plannedAt) return false;
-      const day = romeDay(new Date(row.plannedAt));
+      if (view !== "programma" || !row.estimatedDay) return false;
+      const day = row.estimatedDay;
       return day >= from && day <= end;
     })
     .sort((a, b) =>
       view === "programma"
-        ? (a.plannedAt ?? "").localeCompare(b.plannedAt ?? "") || a.co - b.co
+        ? (a.estimatedDay ?? "").localeCompare(b.estimatedDay ?? "") || a.co - b.co
         : a.co - b.co,
     );
   const sent = snapshot.sent
@@ -160,7 +152,7 @@ export function PartnerEmailProgramView({
     .sort((a, b) => b.at.localeCompare(a.at));
   const unprepared = snapshot.unprepared.filter(matches).sort((a, b) => a.co - b.co);
   const counts = {
-    programma: forecast.items.filter((row) => row.plannedAt !== null).length,
+    programma: forecast.items.filter((row) => row.estimatedDay !== null).length,
     da_preparare:
       forecast.items.filter((row) => ["da_preparare", "attesa"].includes(row.state)).length +
       snapshot.unprepared.length,
@@ -170,8 +162,7 @@ export function PartnerEmailProgramView({
   const grouped = useMemo(() => {
     const groups = new Map<string, ForecastRow[]>();
     for (const row of rows.slice(0, limit)) {
-      const key =
-        view === "programma" && row.plannedAt ? romeDay(new Date(row.plannedAt)) : "senza_data";
+      const key = view === "programma" && row.estimatedDay ? row.estimatedDay : "senza_data";
       groups.set(key, [...(groups.get(key) ?? []), row]);
     }
     return [...groups].sort(([a], [b]) => a.localeCompare(b));
@@ -279,9 +270,11 @@ export function PartnerEmailProgramView({
           Anteprima locale con dati inventati. Salvataggi e invii disattivati.
         </p>
       )}
+      <PartnerSendPlanPanel plan={plan} today={today} preview={preview} />
+      <h2>Coda delle prime email</h2>
       <div className={styles.summary}>
         <p>
-          <strong>{confirmedToday.length} email inviate oggi</strong>
+          <strong>{confirmedToday.length} prime email inviate oggi</strong>
           <span>
             {confirmedToday.filter((row) => row.flow === "club").length} Club ·{" "}
             {confirmedToday.filter((row) => row.flow === "altri").length} altri contatti
@@ -294,7 +287,7 @@ export function PartnerEmailProgramView({
         </p>
         <p>
           <strong>
-            {snapshot.items.filter((row) => row.status === "pronta").length} bozze pronte
+            {snapshot.items.filter((row) => row.status === "pronta").length} prime email pronte
           </strong>
           <span>
             {snapshot.items.filter((row) => row.status === "pronta" && row.flow === "club").length}{" "}
@@ -512,22 +505,16 @@ export function PartnerEmailProgramView({
                     <span className={styles.badge} data-held={!!row.hold || undefined}>
                       {row.hold ? "Modifica aperta" : STATES[row.state]}
                     </span>
-                    {row.plannedAt ? (
+                    {row.estimatedDay ? (
                       <>
-                        <strong>
-                          Circa {localTime(row.plannedAt, row.timezone ?? "Europe/Rome")} locale
-                        </strong>
-                        <small>
-                          {recipientDay(row.plannedAt, row.timezone ?? "Europe/Rome")} ·{" "}
-                          {row.timezone ?? "Europe/Rome"}
-                        </small>
-                        <small>{localTime(row.plannedAt)} a Roma</small>
+                        <strong>Giorno stimato: {longDay(row.estimatedDay, today)} · Roma</strong>
+                        <small>L'orario si legge nel Piano d'invio del giorno.</small>
                       </>
                     ) : row.writeOn ? (
                       <small>Preparazione dal {longDay(row.writeOn, today)}</small>
                     ) : null}
                     <small>
-                      {row.plannedAt ? row.explanation : row.choiceReason ? row.explanation : ""}
+                      {row.estimatedDay ? row.explanation : row.choiceReason ? row.explanation : ""}
                     </small>
                   </span>
                   <ArrowUpRight size={18} aria-hidden />

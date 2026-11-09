@@ -2,7 +2,7 @@ import { describe, expect, it, vi } from "vitest";
 vi.mock("server-only", () => ({}));
 import { partnerAssistantDraftSha256 } from "./checks";
 import { partnerAssistantTemplateSignature } from "./template";
-import { runPartnerAssistantFollowup } from "./followup";
+import { runPartnerAssistantFollowup, type PartnerFollowupDependencies } from "./followup";
 import type { PartnerFollowupCandidate, PartnerFollowupStore } from "./followup-store";
 import type { PartnerAssistantSendStore } from "./send-store";
 import type { PartnerAssistantSmtp } from "./smtp";
@@ -52,6 +52,7 @@ const candidate = (): PartnerFollowupCandidate => ({
   followups_sent: 0,
   next_due_on: "2026-11-08",
   send_allowed: true,
+  send_not_after: "2099-12-31T23:59:59Z",
   draft: {
     draft_id: id(5),
     number: 1,
@@ -128,7 +129,7 @@ function setup(c = candidate(), mode: "invio" | "osserva" = "invio") {
       return { outcome: { kind: "inviato" as const, responseCode: 250 as const }, login: "ok" };
     }),
   };
-  const run = () =>
+  const run = (extra: Partial<PartnerFollowupDependencies> = {}) =>
     runPartnerAssistantFollowup(config, mail, new AbortController().signal, {
       store,
       sendStore,
@@ -137,11 +138,113 @@ function setup(c = candidate(), mode: "invio" | "osserva" = "invio") {
       compose,
       now: () => NOW,
       uuid: () => id(uuids++),
+      ...extra,
     });
   return { run, store, release, pause, sendStore, checkMailbox, compose, smtp, events, c };
 }
 
 describe("solleciti: scansioni complete e autorizzazione prima dei byte SMTP", () => {
+  it.each([true, false])(
+    "attende start pendente dopo chiusura SMTP, esito certo=%s",
+    async (certain) => {
+      vi.useFakeTimers();
+      const t = setup();
+      let completeStart!: (result: Awaited<ReturnType<PartnerFollowupStore["start"]>>) => void;
+      vi.mocked(t.store.start).mockImplementation(
+        () =>
+          new Promise((resolve) => {
+            completeStart = resolve;
+          }),
+      );
+      vi.mocked(t.smtp.send).mockImplementation(async (input) => {
+        void input.beforeSend!();
+        await vi.waitFor(() => expect(completeStart).toBeTypeOf("function"));
+        t.events.push("smtp:closed");
+        return { login: "ok", outcome: { kind: "non_partito", code: "smtp_econnreset" } };
+      });
+      try {
+        const running = t.run();
+        await vi.waitFor(() => expect(t.events).toContain("smtp:closed"));
+        expect(t.store.finish).not.toHaveBeenCalled();
+        expect(t.release).not.toHaveBeenCalled();
+        completeStart(certain ? yes({ status: "in_invio" }) : { ok: false });
+        expect(await running).toEqual({ status: certain ? "complete" : "uncertain" });
+        expect(t.events).not.toContain("smtp:bytes");
+        if (certain) {
+          expect(t.store.finish).toHaveBeenCalledWith(
+            id(6),
+            expect.any(String),
+            expect.objectContaining({ outcome: "scartato", reason: "smtp_non_partito" }),
+            expect.any(AbortSignal),
+          );
+          expect(vi.mocked(t.store.finish).mock.invocationCallOrder[0]).toBeLessThan(
+            t.release.mock.invocationCallOrder[0],
+          );
+        } else {
+          expect(t.store.finish).not.toHaveBeenCalled();
+          expect(t.release).not.toHaveBeenCalled();
+        }
+        expect(vi.getTimerCount()).toBe(0);
+      } finally {
+        vi.useRealTimers();
+      }
+    },
+  );
+  it("non prepara un invio con la scadenza assoluta già raggiunta", async () => {
+    const t = setup({ ...candidate(), send_not_after: new Date(NOW).toISOString() });
+    expect(await t.run()).toEqual({ status: "observed" });
+    expect(t.store.prepare).not.toHaveBeenCalled();
+    expect(t.smtp.send).not.toHaveBeenCalled();
+  });
+  it("lo scadere dell'orario durante la seconda scansione impedisce start e DATA", async () => {
+    let wall = NOW;
+    const t = setup({ ...candidate(), send_not_after: new Date(NOW + 1000).toISOString() });
+    t.checkMailbox.mockResolvedValueOnce(clear()).mockImplementationOnce(async () => {
+      wall = NOW + 1000;
+      return clear();
+    });
+    await t.run({ now: () => wall });
+    expect(t.store.recordCheck).toHaveBeenCalledTimes(2);
+    expect(t.store.start).not.toHaveBeenCalled();
+    expect(t.events).not.toContain("smtp:bytes");
+  });
+  it("interrompe SMTP al termine assoluto conservando l'esito incerto senza ritentare", async () => {
+    vi.useFakeTimers();
+    vi.setSystemTime(NOW);
+    const t = setup({ ...candidate(), send_not_after: new Date(NOW + 40).toISOString() });
+    let abortedAt: number | null = null;
+    vi.mocked(t.smtp.send).mockImplementation(async (input) => {
+      if (!(await input.beforeSend!()))
+        return { login: "ok", outcome: { kind: "non_partito", code: "smtp_preinvio" } };
+      return new Promise((resolve) =>
+        input.signal.addEventListener(
+          "abort",
+          () => {
+            abortedAt = Date.now();
+            resolve({ login: "ok", outcome: { kind: "incerto", code: "smtp_scadenza" } });
+          },
+          { once: true },
+        ),
+      );
+    });
+    try {
+      const running = t.run({ now: () => Date.now() });
+      await vi.advanceTimersByTimeAsync(39);
+      expect(abortedAt).toBeNull();
+      await vi.advanceTimersByTimeAsync(1);
+      expect(await running).toEqual({ status: "uncertain" });
+      expect(abortedAt).toBe(NOW + 40);
+      expect(t.smtp.send).toHaveBeenCalledTimes(1);
+      expect(t.store.finish).toHaveBeenCalledWith(
+        id(6),
+        expect.any(String),
+        expect.objectContaining({ outcome: "incerto" }),
+        expect.any(AbortSignal),
+      );
+    } finally {
+      vi.useRealTimers();
+    }
+  });
   it("rinvia un fuori ufficio con data certa senza sopprimerlo come una risposta umana", async () => {
     const t = setup();
     vi.mocked(t.checkMailbox).mockResolvedValueOnce({

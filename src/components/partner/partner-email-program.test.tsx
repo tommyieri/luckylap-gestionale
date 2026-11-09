@@ -168,7 +168,7 @@ describe("calendario email", () => {
     const snapshot = partnerEmailProgramFixture(today);
     snapshot.todaySent.club = 1;
     const tree = render({ snapshot, forecast: forecastPartnerEmails(snapshot) });
-    expect(words(tree)).toContain("0 email inviate oggi");
+    expect(words(tree)).toContain("0 prime email inviate oggi");
     expect(words(tree)).toContain("Posti occupati nella quota: 1");
   });
   it("rende visibile il fermo della casella anche in modalità invio", () => {
@@ -178,14 +178,44 @@ describe("calendario email", () => {
     expect(words(tree)).toContain("Invii fermi");
     expect(words(tree)).not.toContain("Invii attivi");
   });
-  it("mostra anche giorno locale e fuso quando differiscono dal giorno di Roma", () => {
+  it("la previsione futura mostra solo il giorno stimato a Roma senza inventare ore locali", () => {
     const snapshot = partnerEmailProgramFixture(today);
     snapshot.items[0].timezone = "Pacific/Auckland";
     const forecast = forecastPartnerEmails(snapshot);
-    forecast.items[0].plannedAt = `${today}T20:30:00Z`;
+    forecast.items[0].estimatedDay = today;
     const tree = render({ snapshot, forecast });
-    expect(words(tree)).toContain("5 novembre · Pacific/Auckland");
-    expect(words(tree)).toContain("4 novembre · Roma");
+    expect(words(tree)).toContain("Giorno stimato: 4 novembre · Roma");
+    expect(words(tree)).not.toContain("Circa");
+    expect(words(tree)).not.toContain("Pacific/Auckland");
+  });
+  it("il piano misto conserva gli orari SQL anche quando si filtra la coda delle prime email", async () => {
+    const plan: NonNullable<Parameters<typeof PartnerEmailProgramView>[0]["plan"]> = {
+      day: today,
+      generatedAt: `${today}T07:00:00Z`,
+      mode: "invio",
+      slots: ["primo", "sollecito"].map((kind, index) => ({
+        id: id(80 + index),
+        partnerId: id(90 + index),
+        co: 980 + index,
+        name: `Piano sintetico ${index + 1}`,
+        kind: kind as "primo" | "sollecito",
+        timezone: "Europe/Paris",
+        localDay: today,
+        plannedAt: `${today}T${index === 0 ? "08:00" : "14:55"}:00Z`,
+        expiresAt: `${today}T${index === 0 ? "08:05" : "14:58"}:00Z`,
+        status: "scheduled",
+        reason: null,
+      })),
+    };
+    await click(button(render({ plan }), "Vendita"));
+    const tree = render({ plan });
+    expect(words(tree)).toContain("Piano sintetico 1");
+    expect(words(tree)).toContain("Piano sintetico 2");
+    expect(words(tree)).toContain("09:00 locale");
+    expect(words(tree)).toContain("15:55 locale");
+    expect(words(tree)).toContain("Prima email");
+    expect(words(tree)).toContain("Sollecito");
+    expect(mock.read).not.toHaveBeenCalled();
   });
   it("mostra anche chi è in coda senza un lavoro o un testo ancora preparato", async () => {
     await click(button(render(), "Da preparare"));

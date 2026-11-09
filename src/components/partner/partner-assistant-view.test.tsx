@@ -251,6 +251,7 @@ describe("PartnerAssistantView", () => {
     expect(titles(tree)).toEqual([
       "Stato",
       "Modalità",
+      "Piano d'invio del giorno",
       "Limite",
       "Coda",
       "Spesa",
@@ -260,18 +261,20 @@ describe("PartnerAssistantView", () => {
     ]);
     // Ogni struttura nuova parte con lo stato dei componenti vuoto (gli hook seguono l'ordine).
     mocks.states = [];
-    expect(titles(render({}, { mode: "prova" })).slice(0, 5)).toEqual([
+    expect(titles(render({}, { mode: "prova" })).slice(0, 6)).toEqual([
       "Stato",
       "Modalità",
       "Prova",
       "Invii",
+      "Piano d'invio del giorno",
       "Limite",
     ]);
     mocks.states = [];
-    expect(titles(render({}, { mode: "invio" })).slice(0, 4)).toEqual([
+    expect(titles(render({}, { mode: "invio" })).slice(0, 5)).toEqual([
       "Stato",
       "Modalità",
       "Invii",
+      "Piano d'invio del giorno",
       "Limite",
     ]);
     expect(descendants(tree).some((node) => node.type === "main")).toBe(false);
@@ -918,7 +921,7 @@ describe("PartnerAssistantView", () => {
     );
     mocks.states = [];
     expect(words(render({}, { mode: "invio" }))).toContain(
-      "manda le prime email ai contatti dalla casella aziendale, nei giorni feriali tra le 9:30 e le 11 dell'ora del contatto, una ogni 4-11 minuti",
+      "manda prime email e solleciti attivati dalla casella aziendale, nei giorni feriali tra le 9 e le 16 dell'ora del contatto, agli orari distribuiti del piano del giorno",
     );
   });
 
@@ -1066,7 +1069,7 @@ describe("PartnerAssistantView", () => {
     );
     const invii = words(sectionOf(tree, "Invii"));
     expect(invii).toContain("Prime email oggi: 3 su 5");
-    expect(invii).toContain("Finestra aperta fino alle 11:00, ora di Roma");
+    expect(invii).toContain("Finestra aperta fino alle 16:00, ora di Roma");
     expect(invii).toContain("Per i contatti in altri fusi vale la loro ora.");
     expect(invii).toContain("Prossimo invio non prima delle 11:12");
     expect(invii).toContain("In attesa fino alle 11:40: la casella non ha risposto.");

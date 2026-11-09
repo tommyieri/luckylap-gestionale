@@ -78,6 +78,8 @@ const candidate: PartnerAssistantSendCandidate = {
   address,
   testRunId: null,
   testIndex: null,
+  // I casi precedenti verificano altri confini; quelli sulla scadenza usano orari vicini.
+  sendNotAfter: "2099-12-31T23:59:59Z",
 };
 const withBody = (
   body: string,
@@ -116,7 +118,13 @@ const credentials: PartnerAssistantMailboxOpening = {
   error: { kind: "credenziali", code: "imap_autenticazione" },
 };
 
-type SmtpInput = { raw: string; from: string; to: string; signal: AbortSignal };
+type SmtpInput = {
+  raw: string;
+  from: string;
+  to: string;
+  signal: AbortSignal;
+  beforeSend?: () => Promise<boolean>;
+};
 type Options = {
   candidate?: PartnerAssistantSendCandidate | null;
   appends?: PartnerAssistantPendingAppend[];
@@ -127,10 +135,11 @@ type Options = {
   find?: (messageId: string) => number[] | null;
   append?: boolean;
   prepare?: StoreResult<unknown>;
-  start?: StoreResult<unknown>;
+  start?: StoreResult<unknown> | (() => Promise<StoreResult<unknown>>);
   finish?: StoreResult<unknown>;
   smtp?: (input: SmtpInput) => Promise<PartnerAssistantSmtpResult>;
-  now?: number;
+  skipBeforeSend?: boolean;
+  now?: number | (() => number);
   loadTestLookbook?: typeof loadPartnerAssistantTestLookbook;
   /** Il clock del budget dopo una chiamata, per simulare il tempo che passa. */
   clockAfter?: Partial<Record<"claim" | "correspondence" | "start", number>>;
@@ -203,7 +212,11 @@ function setup(options: Options) {
     start: vi.fn(async () => {
       calls.push("start");
       after("start");
-      return (options.start ?? { ok: true, value: { status: "in_invio" } }) as never;
+      return (
+        typeof options.start === "function"
+          ? await options.start()
+          : (options.start ?? { ok: true, value: { status: "in_invio" } })
+      ) as never;
     }),
     finish: vi.fn(async (_lease, _operation, input) => {
       calls.push(`finish:${input.outcome}`);
@@ -270,6 +283,9 @@ function setup(options: Options) {
     send: vi.fn(async (input: SmtpInput) => {
       calls.push("smtp");
       recorded.smtp.push(input);
+      if (input.beforeSend && !options.skipBeforeSend && !(await input.beforeSend()))
+        return { outcome: { kind: "non_partito" as const, code: "smtp_preinvio" }, login: "ok" };
+      if (!options.skipBeforeSend) calls.push("data");
       return (options.smtp ?? (async () => smtpOk))(input);
     }),
   };
@@ -284,7 +300,7 @@ function setup(options: Options) {
       smtp,
       openMailbox: openMailbox as never,
       clock: () => clockNow,
-      now: () => options.now ?? NOW,
+      now: () => (typeof options.now === "function" ? options.now() : (options.now ?? NOW)),
       workerId: () => id(1),
       uuid: () => id(next++),
       ...(options.loadTestLookbook ? { loadTestLookbook: options.loadTestLookbook } : {}),
@@ -364,8 +380,9 @@ describe("passo d'invio dell'assistente Partner", () => {
       "folders",
       "correspondence",
       "prepare",
-      "start",
       "smtp",
+      "start",
+      "data",
       "finish:inviato",
       "findMessageId",
       "append",
@@ -631,8 +648,9 @@ describe("passo d'invio dell'assistente Partner", () => {
       "append",
       "correspondence",
       "prepare",
-      "start",
       "smtp",
+      "start",
+      "data",
       "finish:inviato",
       "findMessageId",
       "append",
@@ -859,8 +877,9 @@ describe("passo d'invio dell'assistente Partner", () => {
       "folders",
       "correspondence",
       "prepare",
-      "start",
       "smtp",
+      "start",
+      "data",
       "finish:incerto",
       "close",
       "release",
@@ -905,7 +924,7 @@ describe("passo d'invio dell'assistente Partner", () => {
     expect(abortedAt! - startedAt).toBeLessThan(5_000);
     expect(state.recorded.finish[0]).toMatchObject({ outcome: "incerto", reason: "smtp_scadenza" });
   });
-  it("start stop: nessun SMTP", async () => {
+  it("start stop dopo il login: nessun DATA", async () => {
     // Fuoco 3
     await runSend({ start: { ok: true, value: { status: "stop", reason: "non_idoneo" } } });
     expect(calls).toEqual([
@@ -914,20 +933,126 @@ describe("passo d'invio dell'assistente Partner", () => {
       "folders",
       "correspondence",
       "prepare",
+      "smtp",
       "start",
       "close",
       "release",
     ]);
-    expect(released()).toMatchObject({ outcome: "non_idoneo", smtpLogin: null });
+    expect(released()).toMatchObject({ outcome: "non_idoneo", smtpLogin: "ok" });
   });
-  it("start senza lease o senza risposta certa: nessun SMTP", async () => {
+  it("una scadenza assoluta già raggiunta non prepara né apre SMTP", async () => {
+    await runSend({ candidate: { ...candidate, sendNotAfter: new Date(NOW).toISOString() } });
+    expect(calls).not.toContain("prepare");
+    expect(calls).not.toContain("smtp");
+    expect(released()).toMatchObject({ outcome: "orario_scaduto" });
+  });
+  it("ricontrolla la scadenza dopo il login: niente start e niente DATA", async () => {
+    let wall = NOW;
+    await runSend({
+      candidate: { ...candidate, sendNotAfter: new Date(NOW + 1000).toISOString() },
+      now: () => wall,
+      skipBeforeSend: true,
+      smtp: async (input) => {
+        wall = NOW + 1000;
+        expect(await input.beforeSend!()).toBe(false);
+        return { login: "ok", outcome: { kind: "non_partito", code: "smtp_preinvio" } };
+      },
+    });
+    expect(calls).not.toContain("start");
+    expect(calls).not.toContain("data");
+    expect(state.recorded.finish[0]).toMatchObject({
+      outcome: "scartato",
+      reason: "smtp_non_partito",
+    });
+  });
+  it("un errore di credenziali prima dell'autorizzazione scarta il MIME ancora pronto", async () => {
+    await runSend({
+      skipBeforeSend: true,
+      smtp: failed({ kind: "credenziali", code: "smtp_535" }, "smtp_535"),
+    });
+    expect(calls).not.toContain("start");
+    expect(calls).not.toContain("data");
+    expect(state.recorded.finish[0]).toMatchObject({
+      outcome: "scartato",
+      reason: "smtp_credenziali",
+    });
+  });
+  it("il termine assoluto interrompe un trasporto ancora attivo anche con budget residuo", async () => {
+    vi.useFakeTimers();
+    vi.setSystemTime(NOW);
+    let abortedAt: number | null = null;
+    try {
+      const running = runSend({
+        candidate: { ...candidate, sendNotAfter: new Date(NOW + 40).toISOString() },
+        now: () => Date.now(),
+        smtp: ({ signal }) =>
+          new Promise((resolve) => {
+            signal.addEventListener(
+              "abort",
+              () => {
+                abortedAt = Date.now();
+                resolve({ login: "ok", outcome: { kind: "incerto", code: "smtp_scadenza" } });
+              },
+              { once: true },
+            );
+          }),
+      });
+      await vi.advanceTimersByTimeAsync(39);
+      expect(abortedAt).toBeNull();
+      await vi.advanceTimersByTimeAsync(1);
+      await running;
+      expect(abortedAt).toBe(NOW + 40);
+      expect(state.recorded.finish[0]).toMatchObject({ outcome: "incerto" });
+      expect(calls.filter((call) => call === "data")).toHaveLength(1);
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+  it("start senza lease o senza risposta certa: nessun DATA", async () => {
     // Fuoco 3
     await runSend({ start: { ok: true, value: { status: "lease_persa" } } });
-    expect(calls).not.toContain("smtp");
+    expect(calls).not.toContain("data");
     calls = [];
     expect(await runSend({ start: { ok: false } })).toEqual({ status: "uncertain" });
-    expect(calls).not.toContain("smtp");
+    expect(calls).not.toContain("data");
   });
+  it.each([true, false])(
+    "attende start pendente dopo chiusura SMTP, esito certo=%s",
+    async (certain) => {
+      vi.useFakeTimers();
+      let completeStart!: (result: StoreResult<unknown>) => void;
+      try {
+        const running = runSend({
+          skipBeforeSend: true,
+          start: () =>
+            new Promise((resolve) => {
+              completeStart = resolve;
+            }),
+          smtp: async (input) => {
+            void input.beforeSend!();
+            await vi.waitFor(() => expect(completeStart).toBeTypeOf("function"));
+            calls.push("smtp:closed");
+            return { login: "ok", outcome: { kind: "non_partito", code: "smtp_econnreset" } };
+          },
+        });
+        await vi.waitFor(() => expect(calls).toContain("smtp:closed"));
+        expect(state.store.finish).not.toHaveBeenCalled();
+        expect(state.store.release).not.toHaveBeenCalled();
+        completeStart(certain ? { ok: true, value: { status: "in_invio" } } : { ok: false });
+        expect(await running).toEqual({ status: certain ? "complete" : "uncertain" });
+        expect(calls).not.toContain("data");
+        if (certain) {
+          expect(state.recorded.finish).toMatchObject([
+            { outcome: "scartato", reason: "smtp_non_partito" },
+          ]);
+          expect(calls.indexOf("finish:scartato")).toBeLessThan(calls.indexOf("release"));
+        } else expect(state.store.finish).not.toHaveBeenCalled();
+        expect(vi.getTimerCount()).toBe(0);
+      } finally {
+        vi.useRealTimers();
+      }
+    },
+  );
   it("prepare rifiutato: nessuno start", async () => {
     await runSend({ prepare: { ok: true, value: { status: "rifiutato", reason: "limite" } } });
     expect(calls).toEqual([

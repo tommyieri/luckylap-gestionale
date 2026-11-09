@@ -22,6 +22,7 @@ import {
   loadPartnerIdsByCo,
 } from "../../../../lib/partner/server";
 import { isLocalPreviewEnabled } from "../../../../lib/runtime";
+import { loadPartnerSendPlan } from "../../../../lib/partner/send-plan-server";
 
 export const dynamic = "force-dynamic";
 export const metadata: Metadata = { title: "Assistente" };
@@ -87,13 +88,16 @@ export default async function PartnerAssistantPage() {
       />
     );
   let loaded:
-    | Pick<Parameters<typeof PartnerAssistantView>[0], "status" | "send" | "rules" | "partnerIds">
+    | Pick<
+        Parameters<typeof PartnerAssistantView>[0],
+        "status" | "send" | "rules" | "partnerIds" | "plan"
+      >
     | typeof PARTNER_ASSISTANT_INACTIVE;
   try {
     // Le regole si leggono insieme allo stato; senza migrazioni non ci sono, e conta lo stato.
     // Lo stato dell'invio ha un catch proprio: senza, le sezioni dell'invio lo dicono e il resto
     // della pagina si vede.
-    const [status, rules, send] = await Promise.all([
+    const [status, rules, send, plan] = await Promise.all([
       loadPartnerAssistantStatus(current.supabase),
       loadPartnerAssistantRules(current.supabase).then(
         (value) => ({ value }),
@@ -102,6 +106,7 @@ export default async function PartnerAssistantPage() {
       loadPartnerAssistantSend(current.supabase).catch(
         (): PartnerAssistantSendStatus | null => null,
       ),
+      loadPartnerSendPlan(current.supabase, today),
     ]);
     if (status === PARTNER_ASSISTANT_INACTIVE) loaded = status;
     else {
@@ -110,7 +115,7 @@ export default async function PartnerAssistantPage() {
         current.supabase,
         status.toReview.map((item) => item.co),
       );
-      loaded = { status, send, rules: rules.value, partnerIds };
+      loaded = { status, send, rules: rules.value, partnerIds, plan };
     }
   } catch {
     return (

@@ -35,6 +35,8 @@ import { PartnerProvider, usePartnerContext, type PartnerContextPartner } from "
 import { CopyButton } from "./copy-button";
 import { PartnerRuleText } from "./partner-rules";
 import styles from "./partner.module.css";
+import type { PartnerSendPlan } from "../../lib/partner/send-plan";
+import { PartnerSendPlanPanel } from "./partner-send-plan";
 
 /*
  * /partner/assistente (specifica dell'assistente Partner, «Interfaccia»): stato, modalità, prova,
@@ -64,7 +66,7 @@ const MODE_SENTENCES: Record<PartnerAssistantMode, string> = {
   prova:
     "Prova: l'assistente manda le email di prova solo agli indirizzi di prova di Tommi, con l'oggetto e il testo delle email vere.",
   invio:
-    "Invio: l'assistente manda le prime email ai contatti dalla casella aziendale, nei giorni feriali tra le 9:30 e le 11 dell'ora del contatto, una ogni 4-11 minuti.",
+    "Invio: l'assistente manda prime email e solleciti attivati dalla casella aziendale, nei giorni feriali tra le 9 e le 16 dell'ora del contatto, agli orari distribuiti del piano del giorno.",
 };
 
 /** Passati a Tommi per motivi che «Ridai all'assistente» non riprende (scelta 10 del piano). */
@@ -144,6 +146,7 @@ export function PartnerAssistantView({
   now,
   preview,
   userId,
+  plan = null,
 }: {
   status: PartnerAssistantStatus;
   /** read_partner_assistant_send; `null` se non è leggibile. */
@@ -160,6 +163,7 @@ export function PartnerAssistantView({
   now: string;
   preview: boolean;
   userId: string | null;
+  plan?: PartnerSendPlan | null;
 }) {
   // I contatti di «Da vedere»: un invio incerto, ripreso dopo un ricaricamento, li scrive con CO
   // e nome.
@@ -199,6 +203,7 @@ export function PartnerAssistantView({
         <AssistantMode status={status} send={send} mail={mail} now={now} />
         {status.mode === "prova" && <AssistantTest status={status} send={send} mail={mail} />}
         {sendingMode(status.mode) && <AssistantSends status={status} send={send} now={now} />}
+        <PartnerSendPlanPanel plan={plan} today={today} preview={preview} />
         <AssistantLimit status={status} send={send} />
         <AssistantQueue counts={status.counts} />
         <AssistantSpend status={status} />
@@ -625,7 +630,7 @@ function AssistantTest({
   );
 }
 
-/** «lunedì 2 novembre alle 9:30», ora di Roma. */
+/** «lunedì 2 novembre alle 9:00», ora di Roma. */
 function windowMoment(instant: string, today: string): string {
   const day = instantDay(instant);
   if (day === null) return "in un momento non leggibile";
@@ -706,7 +711,7 @@ function AssistantSends({
           </p>
           <p className={styles.dataLine}>
             {send.windowOpenRome
-              ? "Finestra aperta fino alle 11:00, ora di Roma"
+              ? "Finestra aperta fino alle 16:00, ora di Roma"
               : send.nextWindowRome === null
                 ? "Nessuna finestra d'invio nei prossimi 40 giorni, ora di Roma"
                 : `Prossima finestra: ${windowMoment(send.nextWindowRome, today)}, ora di Roma`}

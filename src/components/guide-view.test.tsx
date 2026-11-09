@@ -263,15 +263,15 @@ describe("Partner", () => {
   it("dice quando l'assistente manda le email, con la prova di Tommi prima", () => {
     const copy = text(part(everyone));
     expect(copy).toContain(
-      "In «Invio» l’assistente manda le prime email dalla casella aziendale, nei giorni feriali tra le 9:30 e le 11 dell’ora del contatto.",
+      "In «Invio» l’assistente manda le prime email dalla casella aziendale, nei giorni feriali tra le 9 e le 16 dell’ora del contatto.",
     );
     expect(copy).toContain(
       "Prima Tommi fa una prova con «Manda la prova» e la conferma con «La prova è arrivata in posta in arrivo».",
     );
-    expect(copy).toContain(
-      "Le risposte arrivano nella casella aziendale come sempre: l’assistente non le legge.",
-    );
-    expect(copy).toContain("Il sollecito dopo 7 giorni lo manda Tommi: lo trova nella sua Oggi.");
+    expect(copy).toContain("L’assistente non risponde alle persone.");
+    expect(copy).toContain("I solleciti automatici nascono in «osserva», senza invii");
+    expect(copy).toContain("Un orario mancato non viene recuperato con una raffica di email");
+    expect(copy).toContain("al massimo 6 prime email, 3 Club e 3 altri");
     expect(copy).not.toContain("non manda niente");
   });
 
@@ -302,7 +302,7 @@ describe("Partner", () => {
   it("il sollecito lo scrive Tommi dalla «Bozza dell'email» mandata, e lo segna nel «Registro»", () => {
     const copy = text(part(everyone));
     expect(copy).toContain(
-      "Per ora lo scrive lui, partendo dalla «Bozza dell'email» mandata, che resta nella scheda. Quando l’ha mandato, nel «Registro» preme «Segna sollecito inviato», poi «Registra».",
+      "Se lo manda a mano, Tommi parte dalla «Bozza dell'email» mandata nella scheda e nel «Registro» preme «Segna sollecito inviato», poi «Registra».",
     );
   });
 

@@ -106,6 +106,7 @@ export async function runPartnerAssistantFollowup(
   parentSignal.addEventListener("abort", abort, { once: true });
   if (parentSignal.aborted) controller.abort();
   const timer = setTimeout(abort, PARTNER_FOLLOWUP_BUDGET_MS);
+  let slotTimer: ReturnType<typeof setTimeout> | null = null;
   const store = dependencies.store ?? createPartnerFollowupStore(config);
   const sendStore = dependencies.sendStore ?? createPartnerAssistantSendStore(config);
   const checkMailbox = dependencies.checkMailbox ?? checkPartnerAssistantFollowupMailbox;
@@ -144,6 +145,7 @@ export async function runPartnerAssistantFollowup(
               messageIds: candidate.message_ids,
               firstSentAt: candidate.first_sent_at,
               subject: candidate.first_subject,
+              timezone: candidate.timezone,
             },
             signal,
           ),
@@ -197,6 +199,12 @@ export async function runPartnerAssistantFollowup(
     if (first.status !== "clear") return { status: "observed" };
     if (claimed.value.mode !== "invio" || !c.send_allowed || c.draft === null)
       return { status: "observed" };
+    const sendNotAfter = Date.parse(c.send_not_after ?? "");
+    if (!Number.isFinite(sendNotAfter) || sendNotAfter <= now()) {
+      outcome = "sollecito_orario_scaduto";
+      return { status: "observed" };
+    }
+    slotTimer = setTimeout(abort, Math.max(0, Math.min(remaining(), sendNotAfter - now())));
     const d = c.draft;
     const draft = {
       language: d.language,
@@ -267,33 +275,75 @@ export async function runPartnerAssistantFollowup(
     const rowId = prepared.value.message_row_id;
     let smtpStarted = false;
     let secondBlocked = false;
+    let transportSettled = false;
+    let authorizationPending = false;
+    let startPending = false;
+    let startUncertain = false;
+    let authorization: Promise<boolean> | null = null;
     const smtp = dependencies.smtp ?? createPartnerAssistantSmtp(mail);
-    const result = await smtp.send({
-      raw,
-      from: mail.user,
-      to: c.address,
-      signal: controller.signal,
-      beforeSend: async () => {
-        const checkedAgain = await scan(c);
-        const second = await record(c, checkedAgain);
-        if (!second || second.status !== "clear" || second.proof_id === first.proof_id) {
-          secondBlocked = true;
-          return false;
-        }
-        const started = await db((signal) => store.start(lease!, rowId, second.proof_id, signal));
-        if (!started.ok) {
-          releaseAllowed = false;
-          return false;
-        }
-        if (started.value.status !== "in_invio") {
-          secondBlocked = true;
-          return false;
-        }
-        smtpStarted = true;
-        return true;
-      },
-    });
+    const authorize = async (): Promise<boolean> => {
+      if (transportSettled || controller.signal.aborted || sendNotAfter <= now()) {
+        secondBlocked = true;
+        return false;
+      }
+      const checkedAgain = await scan(c);
+      if (transportSettled && checkedAgain.status === "uncertain") {
+        secondBlocked = true;
+        return false;
+      }
+      const second = await record(c, checkedAgain);
+      if (!second || second.status !== "clear" || second.proof_id === first.proof_id) {
+        secondBlocked = true;
+        return false;
+      }
+      if (transportSettled || controller.signal.aborted || sendNotAfter <= now()) {
+        secondBlocked = true;
+        return false;
+      }
+      startPending = true;
+      const started = await db((signal) =>
+        store.start(lease!, rowId, second.proof_id, signal),
+      ).finally(() => {
+        startPending = false;
+      });
+      if (!started.ok) {
+        releaseAllowed = false;
+        startUncertain = true;
+        return false;
+      }
+      if (started.value.status !== "in_invio") {
+        secondBlocked = true;
+        return false;
+      }
+      smtpStarted = true;
+      return !transportSettled && sendNotAfter > now() && !controller.signal.aborted;
+    };
+    let result: Awaited<ReturnType<PartnerAssistantSmtp["send"]>>;
+    try {
+      result = await smtp.send({
+        raw,
+        from: mail.user,
+        to: c.address,
+        signal: controller.signal,
+        beforeSend: () => {
+          if (authorization === null) {
+            authorizationPending = true;
+            authorization = authorize().finally(() => {
+              authorizationPending = false;
+            });
+          }
+          return authorization;
+        },
+      });
+    } finally {
+      transportSettled = true;
+      // Una scansione non deve avviare start dopo la chiusura SMTP. Uno start gia avviato
+      // conserva invece i suoi dieci secondi per dare un esito prima di finish/release.
+      if (authorizationPending && !startPending) controller.abort();
+      if (authorization !== null) await authorization;
+    }
     smtpLogin = result.login;
+    if (startUncertain) return { status: "uncertain" };
     // Un trasporto incoerente non può trasformare una verifica saltata in un invio ripetibile.
     if (!smtpStarted && result.outcome.kind === "inviato") {
       releaseAllowed = false;
@@ -318,6 +368,7 @@ export async function runPartnerAssistantFollowup(
     return { status: "uncertain" };
   } finally {
     clearTimeout(timer);
+    if (slotTimer !== null) clearTimeout(slotTimer);
     parentSignal.removeEventListener("abort", abort);
     controller.abort();
     if (lease !== null && releaseAllowed) {

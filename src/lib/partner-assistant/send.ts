@@ -352,6 +352,12 @@ export async function runPartnerAssistantSendStep(
         outcome = "tempo_insufficiente";
         return;
       }
+      const sendNotAfter =
+        chosen.mode === "invio" ? Date.parse(chosen.sendNotAfter ?? "") : Infinity;
+      if (chosen.mode === "invio" && (!Number.isFinite(sendNotAfter) || sendNotAfter <= now())) {
+        outcome = "orario_scaduto";
+        return;
+      }
 
       // 8. Il messaggio composto, poi prepare.
       phase = "composizione";
@@ -420,44 +426,100 @@ export async function runPartnerAssistantSendStep(
       }
       const messageRowId = prepared.value.messageRowId;
 
-      // 9. start: l'ultimo controllo prima dell'SMTP (Fuoco 3).
-      phase = "start";
-      const started = await database((signal) => store.start(lease, messageRowId, signal));
-      if (!started.ok) {
-        outcome = "start_incerto";
-        uncertain();
-        return;
-      }
-      if (started.value.status !== "in_invio") {
-        outcome =
-          started.value.status === "stop"
-            ? code(started.value.reason, "start_fermato")
-            : "lease_persa";
-        return;
-      }
+      // 9. Gli invii veri rileggono lo slot dopo il login, subito prima dei byte.
+      // La prova conserva il percorso precedente e non prende slot degli invii reali.
+      let startAttempted = false;
+      let smtpStarted = false;
+      let transportSettled = false;
+      let authorization: Promise<boolean> | null = null;
+      let refreshSmtpDeadline = () => {};
+      const authorize = async (): Promise<boolean> => {
+        if (
+          transportSettled ||
+          controller.signal.aborted ||
+          parentSignal.aborted ||
+          sendNotAfter <= now()
+        ) {
+          outcome = "orario_scaduto";
+          return false;
+        }
+        phase = "start";
+        startAttempted = true;
+        const started = await database((signal) => store.start(lease, messageRowId, signal));
+        if (!started.ok) {
+          outcome = "start_incerto";
+          uncertain();
+          return false;
+        }
+        if (started.value.status !== "in_invio") {
+          outcome =
+            started.value.status === "stop"
+              ? code(started.value.reason, "start_fermato")
+              : "lease_persa";
+          return false;
+        }
+        smtpStarted = true;
+        const allowed =
+          !transportSettled &&
+          sendNotAfter > now() &&
+          !controller.signal.aborted &&
+          !parentSignal.aborted;
+        if (allowed) {
+          refreshSmtpDeadline();
+          phase = "smtp";
+        }
+        return allowed;
+      };
+      if (chosen.mode === "prova" && !(await authorize())) return;
 
       // 10. Un solo SMTP, con una scadenza rigida prima della fine del budget.
       phase = "smtp";
       const smtpController = new AbortController();
-      const smtpTimer = setTimeout(
-        () => smtpController.abort(),
-        Math.max(0, remaining() - PARTNER_ASSISTANT_SMTP_MARGIN_MS),
-      );
+      let smtpTimer: ReturnType<typeof setTimeout> | null = null;
+      refreshSmtpDeadline = () => {
+        if (transportSettled) return;
+        if (smtpTimer !== null) clearTimeout(smtpTimer);
+        smtpTimer = setTimeout(
+          () => smtpController.abort(),
+          Math.max(
+            0,
+            Math.min(remaining() - PARTNER_ASSISTANT_SMTP_MARGIN_MS, sendNotAfter - now()),
+          ),
+        );
+      };
+      refreshSmtpDeadline();
       const onParentAbort = () => smtpController.abort();
       parentSignal.addEventListener("abort", onParentAbort, { once: true });
       let result: PartnerAssistantSmtpResult;
       try {
         const smtp = dependencies.smtp ?? createPartnerAssistantSmtp(mail);
-        result = await smtp.send({ raw, from: mail.user, to, signal: smtpController.signal });
+        result = await smtp.send({
+          raw,
+          from: mail.user,
+          to,
+          signal: smtpController.signal,
+          ...(chosen.mode === "invio" ? { beforeSend: () => (authorization ??= authorize()) } : {}),
+        });
       } catch (error) {
         // Durante l'invio un'eccezione non dice se l'email è partita: incerto, mai un altro SMTP.
         console.error("partner_assistant_send_bug", { phase, error: errorName(error) });
         result = { outcome: { kind: "incerto", code: "smtp_sconosciuto" }, login: null };
       } finally {
-        clearTimeout(smtpTimer);
+        transportSettled = true;
+        if (smtpTimer !== null) clearTimeout(smtpTimer);
         parentSignal.removeEventListener("abort", onParentAbort);
       }
+      // SMTP puo chiudersi mentre start attende il database. Il suo timeout e gia limitato:
+      // attendere l'esito prima di decidere finish/release, senza riaprire il trasporto.
+      if (authorization !== null) await authorization;
       smtpLogin = result.login === null ? null : code(result.login, "smtp_sconosciuto");
+      if (!smtpStarted && result.outcome.kind === "inviato") {
+        outcome = "smtp_senza_autorizzazione";
+        uncertain();
+        return;
+      }
+      // Uno start rifiutato ha già scartato il MIME; una lease persa non si sovrascrive.
+      if (startAttempted && !smtpStarted) return;
       const input = finishInput(messageRowId, result.outcome);
       if (input.reason !== null) input.reason = code(input.reason, "smtp_sconosciuto");
       phase = "finish";
