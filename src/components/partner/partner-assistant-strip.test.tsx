@@ -204,7 +204,7 @@ afterEach(async () => {
 describe("PartnerAssistantStrip", () => {
   it("in «Prepara»: prime email ferme, bozze pronte e comandi disponibili", () => {
     const tree = render({ spentUsd: 21.4, counts: { ...fixture.counts, pronta: 12 } });
-    expect(sentence(tree)).toBe("Prime email automatiche ferme · Prepara · 12 bozze pronte");
+    expect(sentence(tree)).toBe("Email automatiche ferme · Prepara · 12 bozze pronte");
     expect(sentence(tree)).not.toContain("USD");
     expect(strip(tree).props["data-attention"]).toBeUndefined();
     expect(stop(tree)).toHaveLength(1);
@@ -244,26 +244,26 @@ describe("PartnerAssistantStrip", () => {
 
   it("«Spento»: fondo ambra con la parola scritta e nessun pulsante per fermarlo", () => {
     const tree = render({ mode: "spento" });
-    expect(sentence(tree)).toBe("Prime email automatiche ferme · Spento · Preparazione ferma");
+    expect(sentence(tree)).toBe("Email automatiche ferme · Spento · Preparazione ferma");
     expect(strip(tree).props["data-attention"]).toBe(true);
     expect(stop(tree)).toEqual([]);
   });
 
   it("preparazione in pausa: le prime email già pronte restano attive e si possono fermare", () => {
     const credit = render({ mode: "invio", pausedReason: "credito" });
-    expect(sentence(credit)).toContain("Prime email automatiche attive");
+    expect(sentence(credit)).toContain("Email automatiche attive");
     expect(sentence(credit)).toContain("Preparazione in pausa: credito finito");
     expect(strip(credit).props["data-attention"]).toBe(true);
     expect(stop(credit)).toHaveLength(1);
     const claude = render({ mode: "invio", pausedReason: "errore_claude" });
-    expect(sentence(claude)).toContain("Prime email automatiche attive");
+    expect(sentence(claude)).toContain("Email automatiche attive");
     expect(sentence(claude)).toContain("Preparazione in pausa: errore di Claude");
     expect(strip(claude).props["data-attention"]).toBe(true);
   });
 
   it("non configurato: lo dice, sul fondo ambra", () => {
     const tree = render({ mode: "invio", configured: false });
-    expect(sentence(tree)).toContain("Prime email automatiche da verificare");
+    expect(sentence(tree)).toContain("Email automatiche da verificare");
     expect(sentence(tree)).toContain("Preparazione non ancora configurata");
     expect(strip(tree).props["data-attention"]).toBe(true);
   });
@@ -301,7 +301,7 @@ describe("PartnerAssistantStrip", () => {
       { send: { firstSentToday: 3, firstLimitToday: 5 } },
     );
     expect(sentence(tree)).toBe(
-      "Prime email automatiche attive · 3 email oggi su 5 · 1 bozza pronta",
+      "Email automatiche attive · Prime email oggi: 3 su 5 · solleciti: fino a 6 aggiuntivi al giorno, se attivati · 1 bozza pronta",
     );
     expect(sentence(tree)).not.toContain("USD");
     expect(strip(tree).props["data-attention"]).toBeUndefined();
@@ -311,7 +311,7 @@ describe("PartnerAssistantStrip", () => {
   it("«Prova»: distingue gli invii di prova da quelli automatici", () => {
     const tree = render({ mode: "prova", spentUsd: 12.3 }, { send: { testSentToday: 4 } });
     expect(sentence(tree)).toBe("Invii di prova · 4 email di prova oggi · 1 bozza pronta");
-    expect(sentence(tree)).not.toContain("Prime email automatiche attive");
+    expect(sentence(tree)).not.toContain("Email automatiche attive");
     expect(sentence(tree)).not.toContain("USD");
     expect(strip(tree).props["data-attention"]).toBeUndefined();
   });
@@ -319,14 +319,14 @@ describe("PartnerAssistantStrip", () => {
   it("invii fermi per la casella o per i rifiuti: fondo ambra, motivo e chi li riprende", () => {
     for (const mode of ["prova", "invio"] as const) {
       const tree = render({ mode, spentUsd: 12.3 }, { send: { stopReason: "casella" } });
-      expect(sentence(tree)).not.toContain("Prime email automatiche attive");
+      expect(sentence(tree)).not.toContain("Email automatiche attive");
       expect(sentence(tree)).toContain(
         "Invii fermi: La casella ha rifiutato la password. Tommi li riprende dalla pagina dell'assistente.",
       );
       expect(strip(tree).props["data-attention"]).toBe(true);
     }
     const rejected = render({ mode: "invio" }, { send: { stopReason: "rimbalzi" } });
-    expect(sentence(rejected)).toContain("Prime email automatiche da verificare");
+    expect(sentence(rejected)).toContain("Email automatiche da verificare");
     expect(sentence(rejected)).toContain(
       "Invii fermi: Il server di posta ha rifiutato delle email. Tommi li riprende",
     );
@@ -338,21 +338,21 @@ describe("PartnerAssistantStrip", () => {
 
   it("invii fermi per oggi: ambra solo se il fermo è di oggi", () => {
     const today = render({ mode: "invio" }, { send: { dayStoppedOn: TODAY } });
-    expect(sentence(today)).toContain("Prime email automatiche da verificare");
+    expect(sentence(today)).toContain("Email automatiche da verificare");
     expect(sentence(today)).toContain(
       "Invii fermi per oggi: errori temporanei del server di posta. Riprendono domani.",
     );
     expect(strip(today).props["data-attention"]).toBe(true);
     const yesterday = render({ mode: "invio" }, { send: { dayStoppedOn: "2026-10-21" } });
     expect(sentence(yesterday)).not.toContain("Invii fermi");
-    expect(sentence(yesterday)).toContain("Prime email automatiche attive");
+    expect(sentence(yesterday)).toContain("Email automatiche attive");
     expect(strip(yesterday).props["data-attention"]).toBeUndefined();
   });
 
   it("posta dell'assistente non configurata: in «Prova» e «Invio» lo dice in ambra", () => {
     for (const mode of ["prova", "invio"] as const) {
       const tree = render({ mode }, { mailConfigured: false });
-      expect(sentence(tree)).not.toContain("Prime email automatiche attive");
+      expect(sentence(tree)).not.toContain("Email automatiche attive");
       expect(sentence(tree)).toContain("Posta dell'assistente non configurata: niente invii.");
       expect(strip(tree).props["data-attention"]).toBe(true);
     }
@@ -365,13 +365,13 @@ describe("PartnerAssistantStrip", () => {
   it("stato degli invii non leggibile: in «Invio» lo dice in ambra, senza numeri inventati", () => {
     const tree = render({ mode: "invio", spentUsd: 12.3 }, { send: null });
     expect(sentence(tree)).toBe(
-      "Prime email automatiche da verificare · 1 bozza pronta. Stato degli invii non leggibile: ricarica la pagina tra poco.",
+      "Email automatiche da verificare · 1 bozza pronta. Stato degli invii non leggibile: ricarica la pagina tra poco.",
     );
     expect(strip(tree).props["data-attention"]).toBe(true);
     expect(stop(tree)).toHaveLength(1);
     // In «Prepara» la striscia non ne ha bisogno.
     const prepara = render({}, { send: null });
-    expect(sentence(prepara)).toBe("Prime email automatiche ferme · Prepara · 1 bozza pronta");
+    expect(sentence(prepara)).toBe("Email automatiche ferme · Prepara · 1 bozza pronta");
   });
 
   it("mai indirizzi nella striscia", () => {

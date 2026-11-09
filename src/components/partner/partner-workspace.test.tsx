@@ -98,7 +98,7 @@ describe("riordino operativo Partner", () => {
       },
     );
     const visible = text(html);
-    expect(visible).toContain("Prime email automatiche attive");
+    expect(visible).toContain("Email automatiche attive");
     expect(visible).toContain("Preparazione in pausa: credito finito");
     expect(visible).not.toContain("USD");
     expect(buttons(html).some((button) => button.text === "Da seguire")).toBe(true);
@@ -477,7 +477,7 @@ describe("PartnerWorkspace", () => {
     const strip = `<section class="${styles.assistantStrip}"`;
     expect(html).toContain(strip);
     expect(html.indexOf(strip)).toBeGreaterThan(html.indexOf("<h1>Partner</h1>"));
-    expect(text(html)).toContain("Prime email automatiche ferme · Prepara · 1 bozza pronta");
+    expect(text(html)).toContain("Email automatiche ferme · Prepara · 1 bozza pronta");
     expect(buttons(html).map((b) => b.text)).toContain("Ferma l'assistente");
   });
 
@@ -494,7 +494,7 @@ describe("PartnerWorkspace", () => {
   it("striscia in «Invio»: le prime email di oggi dallo stato dell'invio passato alla pagina", () => {
     const fixture = partnerAssistantFixture(TODAY);
     const html = render({}, { assistant: { ...fixture.status, mode: "invio" } });
-    expect(text(html)).toContain("Prime email automatiche attive · 1 email oggi su 5");
+    expect(text(html)).toContain("Email automatiche attive · Prime email oggi: 1 su 5");
     const noMail = render(
       {},
       { assistant: { ...fixture.status, mode: "prova" }, mailConfigured: false },

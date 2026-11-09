@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { useId, useMemo, useState, type FormEvent } from "react";
 import {
+  PARTNER_ASSISTANT_FOLLOWUP_DAILY_LIMIT,
   PARTNER_ASSISTANT_COUNT_LABELS,
   PARTNER_ASSISTANT_MODE_LABELS,
   PARTNER_ASSISTANT_RULES_FIRST_AUTHOR,
@@ -693,11 +694,16 @@ function AssistantSends({
       )}
       <p className={styles.dataLine}>
         {invio
-          ? `Oggi: ${send.firstSentToday} email su ${send.firstLimitToday}`
+          ? `Prime email oggi: ${send.firstSentToday} su ${send.firstLimitToday}`
           : `Oggi: ${send.testSentToday} email di prova su ${send.testLimit}`}
       </p>
       {invio && (
         <>
+          <p className={styles.hint}>
+            Solleciti: fino a {PARTNER_ASSISTANT_FOLLOWUP_DAILY_LIMIT} aggiuntivi al giorno, con un
+            limite separato e senza sottolimite Club/altri. Partono solo quando l'invio dei
+            solleciti è attivato e supera tutti i controlli.
+          </p>
           <p className={styles.dataLine}>
             {send.windowOpenRome
               ? "Finestra aperta fino alle 11:00, ora di Roma"
@@ -818,6 +824,11 @@ function AssistantLimit({
       <p className={styles.dataLine}>
         Dopo la prima settimana: al massimo {send.dailyFirstLimit} prime email al giorno.
       </p>
+      <p className={styles.hint}>
+        Quote di oggi per le prime email: al massimo {Math.floor(send.firstLimitToday / 2)} Club e{" "}
+        {Math.ceil(send.firstLimitToday / 2)} altri contatti. I posti inutilizzati non si
+        trasferiscono all'altro gruppo.
+      </p>
       {lastFirstWeekDay === null ? (
         <p className={styles.hint}>Nei primi 7 giorni dalla prima email ne partono al massimo 5.</p>
       ) : (
@@ -827,6 +838,11 @@ function AssistantLimit({
           </p>
         )
       )}
+      <p className={styles.hint}>
+        I solleciti hanno un tetto separato di {PARTNER_ASSISTANT_FOLLOWUP_DAILY_LIMIT} al giorno,
+        senza ripartizione fra Club e altri. Questo campo modifica soltanto il limite delle prime
+        email.
+      </p>
       {founder && (
         <>
           <form className={styles.assistantCredit} onSubmit={save} noValidate>

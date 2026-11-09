@@ -350,6 +350,7 @@ async function tick(
     send?: ReturnType<typeof vi.fn>;
     run?: ReturnType<typeof vi.fn>;
     environmentResult?: unknown;
+    followup?: ReturnType<typeof vi.fn>;
   } = {},
 ) {
   const state = setup();
@@ -368,6 +369,7 @@ async function tick(
       run: run as never,
       send: send as never,
       sendDependencies: sending.sendDependencies,
+      followup: extra.followup as never,
     },
   );
   for (const callback of callbacks) await callback();
@@ -536,6 +538,54 @@ describe("route del worker dell'assistente Partner", () => {
 });
 
 describe("route del worker: variabili, invio e passo con Claude", () => {
+  it("dà precedenza alle prime email, poi osserva i solleciti e rinvia Claude al giro successivo", async () => {
+    const followup = vi.fn().mockResolvedValue({ status: "observed" });
+    const { send, run } = await tick({ ...environment, ...mailEnvironment }, { followup });
+    expect(followup).toHaveBeenCalledTimes(1);
+    expect(send).toHaveBeenCalledTimes(1);
+    expect(run).not.toHaveBeenCalled();
+    expect(send.mock.invocationCallOrder[0]).toBeLessThan(followup.mock.invocationCallOrder[0]);
+  });
+  it.each(["complete", "uncertain"])(
+    "un giro solleciti %s non può mandare una seconda email",
+    async (status) => {
+      const followup = vi.fn().mockResolvedValue({ status });
+      const { send, run } = await tick({ ...environment, ...mailEnvironment }, { followup });
+      expect(send).toHaveBeenCalledOnce();
+      expect(run).not.toHaveBeenCalled();
+    },
+  );
+  it("una verifica solleciti fallita dopo il sender prime idle non prosegue con Claude", async () => {
+    const followup = vi.fn().mockRejectedValue(new Error("synthetic failure"));
+    const { send, run } = await tick({ ...environment, ...mailEnvironment }, { followup });
+    expect(send).toHaveBeenCalledOnce();
+    expect(run).not.toHaveBeenCalled();
+  });
+  it.each(["complete", "uncertain", "stopped"])(
+    "se il percorso prime è %s non avvia un sollecito nello stesso giro",
+    async (status) => {
+      const followup = vi.fn().mockResolvedValue({ status: "complete" });
+      const { send, run } = await tick(
+        { ...environment, ...mailEnvironment },
+        { followup, send: vi.fn().mockResolvedValue({ status }) },
+      );
+      expect(send).toHaveBeenCalledOnce();
+      expect(followup).not.toHaveBeenCalled();
+      expect(run).not.toHaveBeenCalled();
+    },
+  );
+  it("senza solleciti continua il flusso ordinario, senza leggere il corpo della richiesta", async () => {
+    const followup = vi.fn().mockResolvedValue({ status: "idle" });
+    const { send, run } = await tick({ ...environment, ...mailEnvironment }, { followup });
+    expect(followup).toHaveBeenCalledTimes(1);
+    expect(send).toHaveBeenCalledTimes(1);
+    expect(run).toHaveBeenCalledTimes(1);
+  });
+  it("senza casella configurata non avvia neppure la lettura delle risposte", async () => {
+    const followup = vi.fn();
+    await tick(environment, { followup });
+    expect(followup).not.toHaveBeenCalled();
+  });
   it("recordEnvironment a ogni giro dopo il 202, anche con la posta nulla, senza valori", async () => {
     const { response, recordEnvironment, send, run } = await tick(environment);
     expect(response.status).toBe(202);

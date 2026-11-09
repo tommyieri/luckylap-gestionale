@@ -234,6 +234,19 @@ describe("stato dell'assistente (read_partner_assistant_status)", () => {
 });
 
 describe("stato con l'invio", () => {
+  it("un evento dei solleciti non rende illeggibile lo stato delle prime email", () => {
+    const row = statusRow();
+    row.last_events.unshift({
+      created_at: "2026-10-22T08:59:00+00:00",
+      co: 951,
+      step: "sollecito",
+      outcome: "sollecito_inviato",
+    });
+    expect(partnerAssistantStatusFrom(row).lastEvents[0]).toMatchObject({
+      step: "sollecito",
+      outcome: "sollecito_inviato",
+    });
+  });
   it("un evento d'invio (step «invio») si legge", () => {
     const row = statusRow();
     row.last_events.unshift({
@@ -254,6 +267,7 @@ describe("stato con l'invio", () => {
       "scrittura",
       "controllo",
       "invio",
+      "sollecito",
     ]);
   });
 
@@ -381,6 +395,18 @@ describe("invio dell'assistente (read_partner_assistant_send)", () => {
       ],
       priorities: [{ co: 951, name: "Club Sintetico", sendPriority: 9 }],
     });
+  });
+
+  it("il contatore delle prime viene dalla RPC, senza ricavarlo dalla cronologia mista", () => {
+    const row = sendRow();
+    row.first_sent_today = 5;
+    row.first_limit_today = 6;
+    row.recent = [{ ...row.recent[0], subject: "Re: Collaborazione sintetica" }];
+    const result = partnerAssistantSendFrom(row);
+    expect(result.firstSentToday).toBe(5);
+    expect(result.firstLimitToday).toBe(6);
+    expect(result.recent).toHaveLength(1);
+    expect(result).not.toHaveProperty("followupSentToday");
   });
 
   it("legge il nuovo tipo di prova senza rompere le prove precedenti", () => {
@@ -993,6 +1019,18 @@ describe("etichette in italiano", () => {
         "lease_persa",
       ],
       senzaPasso: ["pausa_credito", "pausa_errore_claude"],
+      sollecito: [
+        "bozza_sollecito_salvata",
+        "sollecito_inviato",
+        "sollecito_incerto",
+        "sollecito_respinto",
+        "sollecito_scartato",
+        "reply",
+        "manual",
+        "ambiguous",
+        "risposta_trovata",
+        "risposta_registrata",
+      ],
       // Consegna 2a: gli eventi con step «invio» (comandi del founder e RPC del worker).
       invio: [
         "prova_avviata",

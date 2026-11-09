@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { Bot, BotOff } from "lucide-react";
 import {
+  PARTNER_ASSISTANT_FOLLOWUP_DAILY_LIMIT,
   PARTNER_ASSISTANT_INACTIVE,
   PARTNER_ASSISTANT_MODE_LABELS,
   PARTNER_ASSISTANT_SEND_UNREADABLE,
@@ -151,12 +152,12 @@ function StatusLine({
     send.stopReason === null &&
     send.dayStoppedOn !== today;
   const delivery = active
-    ? "Prime email automatiche attive"
+    ? "Email automatiche attive"
     : status.mode === "prova"
       ? "Invii di prova"
       : status.mode === "invio"
-        ? "Prime email automatiche da verificare"
-        : `Prime email automatiche ferme · ${PARTNER_ASSISTANT_MODE_LABELS[status.mode]}`;
+        ? "Email automatiche da verificare"
+        : `Email automatiche ferme · ${PARTNER_ASSISTANT_MODE_LABELS[status.mode]}`;
   const preparation =
     status.pausedReason === "credito"
       ? "Preparazione in pausa: credito finito"
@@ -169,7 +170,7 @@ function StatusLine({
             : `${status.counts.pronta} ${status.counts.pronta === 1 ? "bozza pronta" : "bozze pronte"}`;
   const counter =
     status.mode === "invio" && send
-      ? `${send.firstSentToday} email oggi su ${send.firstLimitToday}`
+      ? `Prime email oggi: ${send.firstSentToday} su ${send.firstLimitToday} · solleciti: fino a ${PARTNER_ASSISTANT_FOLLOWUP_DAILY_LIMIT} aggiuntivi al giorno, se attivati`
       : status.mode === "prova" && send
         ? `${send.testSentToday} email di prova oggi`
         : null;

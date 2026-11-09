@@ -1,4 +1,5 @@
 import "server-only";
+import type { runPartnerAssistantFollowup } from "./followup";
 import { randomUUID, timingSafeEqual } from "node:crypto";
 import { romeDay } from "../partner/dates";
 import { charCount, hasControlCharacters } from "../partner/model";
@@ -767,6 +768,7 @@ export async function receivePartnerAssistantTick(
     environment?: PartnerAssistantEnvironment & PartnerAssistantMailEnvironment;
     run?: typeof runPartnerAssistantStep;
     send?: typeof runPartnerAssistantSendStep;
+    followup?: typeof runPartnerAssistantFollowup;
     sendDependencies?: PartnerAssistantSendDependencies;
   } = {},
 ): Promise<Response> {
@@ -774,6 +776,7 @@ export async function receivePartnerAssistantTick(
     environment,
     run = runPartnerAssistantStep,
     send = runPartnerAssistantSendStep,
+    followup,
     sendDependencies,
     ...stepDependencies
   } = dependencies;
@@ -808,16 +811,27 @@ export async function receivePartnerAssistantTick(
       }
       // 2. L'invio, solo con la posta configurata. Un giro che manda o copia non fa il passo con
       // Claude: i due insieme non stanno nei 300 secondi.
+      let observedFollowup = false;
       try {
         const mail = partnerAssistantMailConfig(environment);
         if (mail) {
+          // Le 3+3 prime email mantengono la precedenza; i solleciti hanno quota aggiuntiva.
+          // Anche una copia arretrata o un esito incerto chiude il giro prima di un altro invio.
           const sent = await send(config, mail, signal, { ...sendDependencies, store: sendStore });
           if (sent.status !== "idle") return;
+          if (followup) {
+            const checked = await followup(config, mail, signal);
+            if (checked.status === "complete" || checked.status === "uncertain") return;
+            observedFollowup = checked.status === "observed";
+          }
         }
       } catch {
         /* Un invio senza esito certo: la lease della casella lo riporta al giro dopo. */
         return;
       }
+      // Una scansione della posta ha già usato parte dei 300 secondi: il passo Claude mantiene
+      // il proprio budget di 270 secondi e riparte dal giro successivo.
+      if (observedFollowup) return;
       // 3. Il passo con Claude.
       try {
         await run(config, signal, stepDependencies);

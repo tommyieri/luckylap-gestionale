@@ -22,6 +22,7 @@ import type {
 } from "../partner-assistant/types";
 import { PARTNER_ASSISTANT_MODES } from "./commands";
 import { instantTime, isCalendarDay } from "./dates";
+import type { PartnerFollowupStatus } from "./followup-status";
 import {
   PARTNER_NAME_MAX,
   PartnerReadError,
@@ -48,7 +49,11 @@ export const PARTNER_ASSISTANT_STEPS = [
   "controllo",
 ] as const satisfies readonly PartnerAssistantStep[];
 /** I passi degli eventi: quelli dei lavori più «invio», degli eventi delle RPC d'invio. */
-export const PARTNER_ASSISTANT_EVENT_STEPS = [...PARTNER_ASSISTANT_STEPS, "invio"] as const;
+export const PARTNER_ASSISTANT_EVENT_STEPS = [
+  ...PARTNER_ASSISTANT_STEPS,
+  "invio",
+  "sollecito",
+] as const;
 export type PartnerAssistantEventStep = (typeof PARTNER_ASSISTANT_EVENT_STEPS)[number];
 /** Le proposte dell'elenco chiuso (Appendice A), come le salva la nota «scelta». */
 export const PARTNER_ASSISTANT_REQUESTS = [
@@ -103,6 +108,8 @@ export const PARTNER_ASSISTANT_UNREADABLE =
 /** Lo stato dell'invio (read_partner_assistant_send) non leggibile: striscia e pagina. */
 export const PARTNER_ASSISTANT_SEND_UNREADABLE =
   "Stato degli invii non leggibile: ricarica la pagina tra poco.";
+/** Tetto SQL separato dei solleciti: una regola, non un conteggio o un permesso d'invio. */
+export const PARTNER_ASSISTANT_FOLLOWUP_DAILY_LIMIT = 6;
 
 export const PARTNER_ASSISTANT_REQUEST_LABELS: Record<PartnerAssistantRequest, string> = {
   merch_cobranding: "Merch co-firmato",
@@ -264,6 +271,16 @@ export const PARTNER_ASSISTANT_EVENT_LABELS = {
   fermo_rimbalzi: "Invii fermi: il server ha rifiutato delle email",
   fermo_oggi: "Invii fermi fino a domani",
   invio_ripreso: "Invii ripresi da Tommi",
+  bozza_sollecito_salvata: "Bozza del sollecito preparata da Codex",
+  sollecito_inviato: "Sollecito inviato",
+  sollecito_incerto: "Invio del sollecito incerto: passa a Tommi",
+  sollecito_respinto: "Sollecito respinto dal server",
+  sollecito_scartato: "Sollecito non partito",
+  reply: "Possibile risposta nella posta: controlla la conversazione",
+  manual: "Possibile invio manuale: controlla la conversazione",
+  ambiguous: "Messaggio ambiguo: Tommi controlla la conversazione",
+  risposta_trovata: "Possibile risposta nella posta: controlla la conversazione",
+  risposta_registrata: "Risposta registrata nel gestionale",
 } as const;
 export type PartnerAssistantEventOutcome = keyof typeof PARTNER_ASSISTANT_EVENT_LABELS;
 
@@ -526,6 +543,7 @@ export type PartnerAssistantSendStatus = {
   lastOutcome: string | null;
   dailyFirstLimit: number;
   firstLimitToday: number;
+  /** Sole prime email vere del giorno di Roma; i solleciti hanno un contatore SQL separato. */
   firstSentToday: number;
   /** Giorno di Roma della prima email vera; `null` prima della prima. */
   firstRealSendOn: string | null;
@@ -708,6 +726,8 @@ export const PARTNER_ASSISTANT_FORMAT_LABELS = {
  * `PARTNER_ASSISTANT_INACTIVE`.
  */
 export type PartnerAssistantContactView = {
+  /** Metadati dei solleciti; null se assenti/non leggibili, omesso nelle viste precedenti. */
+  followup?: PartnerFollowupStatus | null;
   /** Interruttore «Assistente su questo contatto»: senza riga è attivo. */
   active: boolean;
   /** Versione della riga dell'interruttore; `null` se non c'è. */
@@ -772,6 +792,7 @@ export const PARTNER_ASSISTANT_SENDS_LIMIT = 5;
  * email dell'assistente con un esito.
  */
 export type PartnerAssistantRows = {
+  followup?: PartnerFollowupStatus | null;
   switch: unknown;
   job: unknown;
   notes: readonly unknown[];
@@ -873,6 +894,7 @@ export function partnerAssistantContactFrom(
     .sort((a, b) => Date.parse(b.at) - Date.parse(a.at));
 
   return {
+    ...(rows.followup !== undefined ? { followup: rows.followup } : {}),
     active: toggle === null ? true : bool(toggle.active, what),
     switchVersion: toggle === null ? null : integer(toggle.version, 1, what),
     sendPriority: toggle === null ? 0 : between(toggle.send_priority, 0, 9, what),
