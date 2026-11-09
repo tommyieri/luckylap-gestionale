@@ -1,4 +1,4 @@
-// test-db: postgres minimo 235
+// test-db: postgres minimo 254
 // Piano persistente: concorrenza reale, slot scaduti, monitoraggio, fusi e quote Roma.
 // Cluster PostgreSQL 17 temporaneo, Auth simulata e soli dati sintetici; nessuna rete o SMTP.
 import assert from "node:assert/strict";
@@ -469,6 +469,7 @@ async function bootstrap() {
     "_partner_solleciti_automatici.sql",
     "_partner_calendario_2027.sql",
     "_partner_invii_distribuiti.sql",
+    "_partner_piano_prestazioni.sql",
   ]) {
     const found = names.filter((name) => name.endsWith(suffix));
     eq(found.length, 1, `Una migrazione ${suffix}`);
@@ -1052,6 +1053,114 @@ try {
     "scartato",
   );
   await release(changedClaim.lease_token, changeAt);
+
+  // Regressione prestazioni PostgreSQL: nessun FU pronto, molte prime e storia note distribuite
+  // tra fusi. Il primo gruppo riserva3+3; gli altri non devono esplorare griglie/capacità FU
+  // inesistenti, né rileggere tutti i contesti dopo che la quota Roma è già prenotata.
+  await reset();
+  const crowdedAt = `${DAY}T00:00:00Z`;
+  await ready(8900, { sent: true, at: crowdedAt }); // Superata la prima settimana, limite effettivo6.
+  const timezones = [
+    "Pacific/Auckland",
+    "Australia/Sydney",
+    "Asia/Tokyo",
+    "Asia/Singapore",
+    "Europe/Rome",
+    "Europe/London",
+    "America/New_York",
+  ];
+  const crowded = [];
+  let performanceCo = 8901;
+  for (const tz of timezones)
+    for (let i = 0; i < 12; i++)
+      crowded.push(
+        await ready(performanceCo++, { club: i < 6, tz, country: "Narnia", at: crowdedAt }),
+      );
+  await owner.query(
+    `insert into public.partner_assistant_notes(partner_id,kind,content,sources,rules_version,model,operation_id,created_by,created_at)
+    select ($1::uuid[])[(i%cardinality($1::uuid[]))+1],'ricerca',jsonb_build_object('text','Storia sintetica della ricerca '||i::text),
+      '{}',3,'claude-opus-5-5',gen_random_uuid(),$2,$3::timestamptz-interval '30 days'
+    from generate_series(0,79) i`,
+    [crowded.map((f) => f.id), ASSISTANT, crowdedAt],
+  );
+  eq(
+    await scalar(
+      owner,
+      "select count(*)::integer value from public.partner_assistant_jobs where status='pronta'",
+    ),
+    84,
+    "Carico realistico: almeno56 prime pronte, sette fusi distinti",
+  );
+  eq(
+    await scalar(
+      owner,
+      "select count(*)::integer value from public.partner_assistant_followups where status='active' and draft_id is not null",
+    ),
+    0,
+    "Nessun FU pronto da cui ricavare capacità fantasma",
+  );
+  const measuredPlan = async () => {
+    const startedAt = performance.now();
+    await as(
+      owner,
+      async () => {
+        await owner.query("set local statement_timeout='5s'");
+        await owner.query("select private.refresh_partner_send_plan()");
+      },
+      crowdedAt,
+      "postgres",
+    );
+    const elapsed = performance.now() - startedAt;
+    ok(elapsed < 5000, "Planner multi-fuso entro5s, sotto il budget RPC15s");
+    return elapsed;
+  };
+  const firstPlanMs = await measuredPlan();
+  const crowdedSlots = await slots(),
+    todayCrowded = crowdedSlots.filter((s) => s.quota_day_text === DAY);
+  eq(
+    todayCrowded.length,
+    6,
+    "Le prenotazioni dei fusi precedenti esauriscono le sei prime del giorno Roma",
+  );
+  eq(todayCrowded.filter((s) => s.flow_template).length, 3);
+  eq(todayCrowded.filter((s) => !s.flow_template).length, 3);
+  eq(
+    new Set(todayCrowded.map((s) => s.timezone)).size,
+    1,
+    "Gli altri fusi non prendono quote già prenotate",
+  );
+  eq(
+    crowdedSlots.filter((s) => s.kind === "sollecito").length,
+    0,
+    "Zero FU non genera slot o capacità aggiuntiva",
+  );
+  const perQuotaDay = (
+    await owner.query(
+      "select quota_day::text as day,count(*)::integer total,count(*) filter(where flow_template)::integer club from private.partner_send_slots where status='scheduled' group by quota_day order by quota_day",
+    )
+  ).rows;
+  ok(perQuotaDay.length > 0, "Il caso esercita almeno un giorno di prenotazioni");
+  for (const row of perQuotaDay) {
+    ok(
+      row.total <= 6,
+      "Massimo sei prime prenotate per giorno Roma anche con finestre locali che attraversano mezzanotte",
+    );
+    ok(row.club <= 3 && row.total - row.club <= 3, "Nessun trasferimento della quota Club/altri");
+  }
+  eq(
+    await scalar(owner, "select private.partner_assistant_first_sent($1::date) value", [DAY]),
+    0,
+    "Pianificazione senza falsi invii reali",
+  );
+  const replayPlanMs = await measuredPlan();
+  eq(
+    (await slots()).map((s) => [s.id, s.planned_text]),
+    crowdedSlots.map((s) => [s.id, s.planned_text]),
+    "Replay con84prime e storia note non sposta né duplica il piano",
+  );
+  console.log(
+    `Planner multi-fuso84prime/0FU: ${Math.round(firstPlanMs)}ms, replay${Math.round(replayPlanMs)}ms; budget5000ms.`,
+  );
 
   // Clock sintetico che AVANZA sul tempo reale, solo nel cluster usa-e-getta. Nessun bypass
   // entra nella migrazione: planner, prepare, start e tutte le guardie sono quelli distribuiti.

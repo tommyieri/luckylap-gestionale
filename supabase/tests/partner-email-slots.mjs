@@ -312,6 +312,7 @@ try {
   await db.exec(migration("_partner_solleciti_automatici.sql"));
   await db.exec(migration("_partner_calendario_2027.sql"));
   await db.exec(migration("_partner_invii_distribuiti.sql"));
+  await db.exec(migration("_partner_piano_prestazioni.sql"));
   let now = "2026-11-10T07:00:00Z";
   const service = (fn, args = []) =>
     as(
