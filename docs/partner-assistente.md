@@ -12,6 +12,14 @@ Il perché di ogni scelta è nella [specifica](superpowers/specs/2026-10-27-assi
 
 Nell'interfaccia il founder è «Tommi»; le email sono firmate «Tommaso».
 
+## Aggiornamento del 9 novembre 2026: quote rigide
+
+Tommi ha fissato il limite operativo a **6 prime email vere al giorno, sul giorno di Roma: al massimo 3 Club e 3 altri contatti**. Le due quote sono rigide: i posti inutilizzati di un gruppo restano vuoti anche quando quel gruppo non ha alcuna bozza pronta o non ha contatti nella finestra d'invio. Per esempio, dopo 3 invii Club, con zero altri contatti pronti, i Club devono attendere il giorno successivo.
+
+Questa decisione supera l'elasticità descritta in «La quota del giorno (storico, decisione del 1° novembre)». L'ordine interno delle due code, «Manda per primo», finestre locali e controlli prima dell'invio restano quelli previsti.
+
+Il tetto di **20 bozze Club pronte è un limite di scorta**: regola quante bozze tenere preparate nella coda. Gli invii restano soggetti alla quota di 3 Club al giorno e al tetto complessivo di 6. Il controllo ricorrente che reintegra il lotto approvato riempie questa scorta entro i posti disponibili, senza modificare le quote d'invio o la configurazione.
+
 ## Stato al 30 ottobre 2026
 
 - Le tre migrazioni della prima consegna sono in produzione dal 28 ottobre 2026 e non si modificano più.
@@ -249,6 +257,8 @@ Codice: `src/lib/partner-assistant/mail-config.ts` (variabili), `mail-compose.ts
 
 ### Limiti
 
+Questi limiti descrivono la consegna 2a. Per il tetto operativo e le quote dei due gruppi vale l'«Aggiornamento del 9 novembre 2026: quote rigide» sopra.
+
 - Nei primi 7 giorni di calendario dal primo invio vero (giorno di Roma): al massimo 5 prime email al giorno.
 - Dopo: `daily_first_limit`, predefinito 10. Tommi lo cambia nella pagina, sezione «Limite»: il campo «Prime email al giorno dopo la prima settimana, da 1 a 15» e «Salva» (`set_partner_assistant_settings`). Gli altri vedono solo la frase «Dopo la prima settimana: al massimo N prime email al giorno.».
 - Tra due invii, di prova o veri, un intervallo casuale tra 4 e 11 minuti.
@@ -449,9 +459,11 @@ Il database decide il PDF e ricontrolla l'abbinamento anche subito prima dell'SM
 
 La prova IONOS è stata avviata il 3 novembre con due bozze e cinque indirizzi configurati: dieci email, mantenendo la pausa per credito. Prima del ritorno a «Invio» si controllano gli esiti SMTP, i metadati del PDF, le impronte del MIME e le copie in «Posta inviata». Tommi controlla posta in arrivo/spam nelle caselle destinatarie prima di confermare l'arrivo: un'accettazione SMTP non dimostra la posizione nella casella. Alla fine della prova tornare a «Invio» conservando la pausa per credito.
 
-### La quota del giorno
+### La quota del giorno (storico, decisione del 1° novembre)
 
-Il limite del giorno resta uno (5 prime email nei primi 7 giorni dal primo invio vero, poi il limite della pagina, oggi 10) e si divide a metà tra i due lavori, con il posto dispari agli altri:
+La ripartizione elastica descritta in questa sezione è lo storico della decisione del 1° novembre 2026. È superata dall'«Aggiornamento del 9 novembre 2026: quote rigide» sopra, che fissa 6 invii totali con quote non trasferibili di 3 Club e 3 altri.
+
+Il limite previsto allora era unico (5 prime email nei primi 7 giorni dal primo invio vero, poi il limite della pagina, impostato allora a 10) e si divideva a metà tra i due lavori, con il posto dispari agli altri:
 
 | Limite | Altri | Club |
 | --- | --- | --- |
