@@ -1,4 +1,6 @@
 import { EventEmitter } from "node:events";
+import { createRequire } from "node:module";
+import { dirname, join } from "node:path";
 import { describe, expect, it, vi } from "vitest";
 vi.mock("server-only", () => ({}));
 import type { FetchMessageObject, ImapFlow, ImapFlowOptions } from "imapflow";
@@ -7,6 +9,48 @@ import {
   type PartnerAssistantFollowupMailboxInput,
 } from "./followup-mailbox";
 import type { PartnerAssistantMailConfig } from "./mail-config";
+
+// La compatibilità va verificata sul DTO realmente prodotto dalla versione locale di ImapFlow,
+// non ricostruendo a mano un formato diverso da quello della libreria.
+const require = createRequire(import.meta.url);
+const { parseEnvelope } = require(join(dirname(require.resolve("imapflow")), "tools.js")) as {
+  parseEnvelope: (value: unknown[]) => NonNullable<FetchMessageObject["envelope"]>;
+};
+const token = (value: string) => ({ type: "STRING", value });
+const rawAddress = (address: string, name = "") => {
+  const at = address.lastIndexOf("@");
+  return [
+    name ? token(name) : null,
+    null,
+    token(address.slice(0, at)),
+    token(address.slice(at + 1)),
+  ];
+};
+const rawGroup = (name: string) => [null, null, token(name), null];
+const rawGroupEnd = () => [null, null, null, null];
+type RawEnvelopeOptions = {
+  from?: unknown;
+  to?: unknown;
+  cc?: unknown;
+  bcc?: unknown;
+  replyTo?: unknown;
+  sender?: unknown;
+  subject?: string | null;
+};
+function realEnvelope(options: RawEnvelopeOptions = {}) {
+  return parseEnvelope([
+    null,
+    options.subject == null ? null : token(options.subject),
+    Object.hasOwn(options, "from") ? options.from : [rawAddress("notice@unrelated.example.test")],
+    options.sender ?? null,
+    options.replyTo ?? null,
+    options.to ?? null,
+    options.cc ?? null,
+    options.bcc ?? null,
+    null,
+    token("<synthetic@unrelated.example.test>"),
+  ]);
+}
 
 const own = "sender@brand.example.test";
 const target = "info@partner.example.test";
@@ -476,6 +520,346 @@ describe("verifica della casella prima dei solleciti", () => {
     const f = fixture();
     expect(await f.run(value)).toEqual({ status: "uncertain", reason: "followup_invalid_input" });
     expect(f.create).not.toHaveBeenCalled();
+  });
+});
+
+describe("ENVELOPE reale: gruppi, NIL e destinatari nascosti", () => {
+  const fieldHeaders = { to: "To", cc: "Cc", bcc: "Bcc", replyTo: "Reply-To" } as const;
+  const fields = Object.keys(fieldHeaders) as (keyof typeof fieldHeaders)[];
+  const groupMessage = (field: keyof typeof fieldHeaders, members: string[] = [], raw?: string) => {
+    const envelope = realEnvelope({
+      [field]: [
+        rawGroup("Undisclosed recipients"),
+        ...members.map((a) => rawAddress(a)),
+        rawGroupEnd(),
+      ],
+    });
+    return message(1, {
+      envelope,
+      headers: Buffer.from(
+        `Message-ID: <synthetic@unrelated.example.test>\r\n${fieldHeaders[field]}: ${raw ?? `Undisclosed recipients:${members.join(",")};`}\r\n`,
+      ),
+    });
+  };
+
+  it.each(fields)(
+    "accetta il gruppo vuoto %s solo con header sorgente corrispondente",
+    async (field) => {
+      const value = groupMessage(field);
+      expect(value.envelope![field]).toEqual([{ name: "Undisclosed recipients", address: "" }]);
+      expect(value.envelope!.subject).toBeUndefined();
+      const f = fixture({ INBOX: [value] });
+      expect(await f.run()).toMatchObject({ status: "clear", folderCount: 6, messageCount: 1 });
+      expect(f.fake.getMailboxLock).toHaveBeenCalledTimes(12);
+      expect(f.fake.fetchAll).toHaveBeenCalledWith(
+        [1],
+        expect.objectContaining({
+          headers: expect.arrayContaining(["To", "Cc", "Bcc", "Reply-To"]),
+        }),
+        { uid: true },
+      );
+    },
+  );
+
+  it.each(fields)(
+    "conserva il membro target dentro %s e blocca la conversazione",
+    async (field) => {
+      const value = groupMessage(field, ["other@unrelated.example.test", target]);
+      expect(value.envelope![field]).toEqual([
+        { name: "Undisclosed recipients", address: "" },
+        { name: "", address: "other@unrelated.example.test" },
+        { name: "", address: target },
+      ]);
+      expect(await fixture({ Archive: [value] }).run()).toMatchObject({
+        status: "found",
+        reason: "reply",
+      });
+    },
+  );
+
+  it("verifica anche liste miste e più gruppi, mantenendo tutti i membri e l'ordine", async () => {
+    const envelope = realEnvelope({
+      to: [
+        rawAddress(own),
+        rawGroup("Group A"),
+        rawAddress("a@unrelated.example.test"),
+        rawGroupEnd(),
+        rawGroup("Group B"),
+        rawGroupEnd(),
+        rawAddress("b@unrelated.example.test"),
+      ],
+    });
+    const headers = Buffer.from(
+      `To: ${own}, Group A: a@unrelated.example.test;, Group B:;, b@unrelated.example.test\r\n`,
+    );
+    expect(await fixture({ INBOX: [message(1, { envelope, headers })] }).run()).toMatchObject({
+      status: "clear",
+    });
+  });
+
+  it.each([
+    "Undisclosed recipients",
+    "Undisclosed recipients: member@unrelated.example.test;",
+    "Different name:;",
+    "Undisclosed recipients:; trailing",
+    '"Undisclosed recipients":;',
+    "=?UTF-8?Q?Undisclosed_recipients?=:;",
+    "Undisclosed recipients (comment):;",
+    "Undisclosed recipients: nested:;",
+    "Undisclosed recipients: a@unrelated.example.test,;",
+    "Undisclosed recipients: invalid@;",
+  ])("non converte un header non corrispondente o non supportato in clear %#", async (raw) => {
+    expect(await fixture({ INBOX: [groupMessage("to", [], raw)] }).run()).toEqual({
+      status: "uncertain",
+      reason: "followup_envelope_to_group_unverified",
+    });
+  });
+
+  it("senza header, con duplicati o con un membro perso il gruppo resta incerto", async () => {
+    const absent = groupMessage("to");
+    absent.headers = Buffer.from("Content-Type: text/plain\r\n");
+    expect(await fixture({ INBOX: [absent] }).run()).toEqual({
+      status: "uncertain",
+      reason: "followup_envelope_to_group_unverified",
+    });
+    const duplicate = groupMessage("cc");
+    duplicate.headers = Buffer.concat([
+      duplicate.headers!,
+      Buffer.from("Cc: Undisclosed recipients:;\r\n"),
+    ]);
+    expect(await fixture({ INBOX: [duplicate] }).run()).toEqual({
+      status: "uncertain",
+      reason: "followup_envelope_cc_group_unverified",
+    });
+    const missing = groupMessage("bcc", [], `Undisclosed recipients:${target};`);
+    expect(await fixture({ INBOX: [missing] }).run()).toEqual({
+      status: "uncertain",
+      reason: "followup_envelope_bcc_group_unverified",
+    });
+  });
+
+  it("un ordine diverso dei membri non viene normalizzato per nascondere una discrepanza", async () => {
+    const value = groupMessage(
+      "replyTo",
+      ["a@unrelated.example.test", "b@unrelated.example.test"],
+      "Undisclosed recipients:b@unrelated.example.test,a@unrelated.example.test;",
+    );
+    expect(await fixture({ INBOX: [value] }).run()).toEqual({
+      status: "uncertain",
+      reason: "followup_envelope_reply_to_group_unverified",
+    });
+  });
+
+  it("NIL host e host malformato collassano nello stesso DTO: serve la conferma dall'header", async () => {
+    const group = realEnvelope({ to: [rawGroup("Recipient"), rawGroupEnd()] });
+    const malformed = realEnvelope({
+      to: [[token("Recipient"), null, token("broken"), token("")]],
+    });
+    expect(group.to).toEqual(malformed.to);
+    expect(
+      await fixture({
+        INBOX: [
+          message(1, { envelope: malformed, headers: Buffer.from("To: Recipient <broken@>\r\n") }),
+        ],
+      }).run(),
+    ).toEqual({ status: "uncertain", reason: "followup_envelope_to_group_unverified" });
+  });
+
+  it("un membro bare con doppio punto nel localpart non autorizza clear", async () => {
+    const value = groupMessage("to", ["a..b@unrelated.example.test"]);
+    expect(await fixture({ INBOX: [value] }).run()).toEqual({
+      status: "uncertain",
+      reason: "followup_envelope_to_group_unverified",
+    });
+  });
+
+  it("label DNS con trattino iniziale o finale non diventano membri bare verificati", async () => {
+    for (const address of ["a@-unrelated.example.test", "a@unrelated-.example.test"]) {
+      const value = groupMessage("to", [address]);
+      expect(await fixture({ INBOX: [value] }).run()).toEqual({
+        status: "uncertain",
+        reason: "followup_envelope_to_group_unverified",
+      });
+    }
+  });
+
+  it.each(["from", "sender"] as const)("non permette un gruppo nel campo %s", async (field) => {
+    const envelope = realEnvelope({ [field]: [rawGroup("Originator"), rawGroupEnd()] });
+    expect(await fixture({ INBOX: [message(1, { envelope })] }).run()).toEqual({
+      status: "uncertain",
+      reason: `followup_envelope_${field}_invalid`,
+    });
+  });
+
+  it("richiede sempre un From valido, anche se il subject è NIL", async () => {
+    const envelope = realEnvelope({ from: null });
+    expect(envelope.from).toBeUndefined();
+    expect(envelope.subject).toBeUndefined();
+    expect(await fixture({ INBOX: [message(1, { envelope })] }).run()).toEqual({
+      status: "uncertain",
+      reason: "followup_envelope_from_invalid",
+    });
+  });
+
+  it.each(["from", "to", "cc", "bcc", "replyTo", "sender"] as const)(
+    "segnala la forma invalida di %s senza dati del messaggio",
+    async (field) => {
+      const envelope = { ...realEnvelope(), [field]: [{ name: "Solo nome" }] };
+      const result = await fixture({ INBOX: [message(1, { envelope })] }).run();
+      expect(result).toEqual({
+        status: "uncertain",
+        reason: `followup_envelope_${field === "replyTo" ? "reply_to" : field}_invalid`,
+      });
+      expect(JSON.stringify(result)).not.toMatch(/@|Solo nome|synthetic/u);
+    },
+  );
+
+  it.each(
+    [
+      [{ name: "", address: "" }],
+      [{ name: "Group\nInjected", address: "" }],
+      [{ name: "Group", address: null }],
+      [{ name: "Group", address: "", members: [target] }],
+      [{ address: "invalid@" }],
+      [{ address: 42 }],
+      [],
+      null,
+      "not-a-list",
+    ].map((to) => ({ to })),
+  )("forme ambigue o indirizzi malformati restano incerti %#", async ({ to }) => {
+    const envelope = { ...realEnvelope(), to } as unknown as FetchMessageObject["envelope"];
+    expect(await fixture({ INBOX: [message(1, { envelope })] }).run()).toEqual({
+      status: "uncertain",
+      reason: "followup_envelope_to_invalid",
+    });
+  });
+
+  it.each([undefined, null, ""])(
+    "subject %j è assente senza bypassare le altre verifiche",
+    async (subject) => {
+      const envelope = { ...realEnvelope(), subject } as FetchMessageObject["envelope"];
+      expect(await fixture({ INBOX: [message(1, { envelope })] }).run()).toMatchObject({
+        status: "clear",
+      });
+      const replied = { ...envelope, from: [{ address: target }] };
+      expect(await fixture({ INBOX: [message(1, { envelope: replied })] }).run()).toMatchObject({
+        status: "found",
+        reason: "reply",
+      });
+    },
+  );
+  it.each([42, {}, ["subject"], "A\nInjected"])(
+    "subject di forma invalida %j resta incerto",
+    async (subject) => {
+      const envelope = { ...realEnvelope(), subject } as unknown as FetchMessageObject["envelope"];
+      expect(await fixture({ INBOX: [message(1, { envelope })] }).run()).toEqual({
+        status: "uncertain",
+        reason: "followup_envelope_subject_invalid",
+      });
+    },
+  );
+
+  it("un messaggio manuale a Bcc target viene trovato anche con To estraneo", async () => {
+    const envelope = realEnvelope({
+      from: [rawAddress(own)],
+      to: [rawAddress("other@unrelated.example.test")],
+      bcc: [rawAddress(target)],
+    });
+    expect(await fixture({ Sent: [message(1, { envelope })] }).run()).toMatchObject({
+      status: "found",
+      reason: "manual",
+    });
+  });
+
+  it.each(["bcc", "replyTo", "sender"] as const)(
+    "non ignora un nostro ID noto con %s alterato",
+    async (field) => {
+      const envelope = realEnvelope({
+        from: [rawAddress(own)],
+        to: [rawAddress(target)],
+        [field]: [rawAddress("altered@unrelated.example.test")],
+      });
+      expect(
+        await fixture({
+          Sent: [message(1, { envelope, headers: Buffer.from(`Message-ID: ${knownId}\r\n`) })],
+        }).run(),
+      ).toMatchObject({ status: "found", reason: "manual" });
+    },
+  );
+
+  it("anche Bcc al target o un header Bcc non rappresentato impedisce l'esclusione dell'ID noto", async () => {
+    for (const withEnvelope of [true, false]) {
+      const envelope = realEnvelope({
+        from: [rawAddress(own)],
+        to: [rawAddress(target)],
+        ...(withEnvelope ? { bcc: [rawAddress(target)] } : {}),
+      });
+      expect(
+        await fixture({
+          Sent: [
+            message(1, {
+              envelope,
+              headers: Buffer.from(`Message-ID: ${knownId}\r\nBcc: ${target}\r\n`),
+            }),
+          ],
+        }).run(),
+      ).toMatchObject({ status: "found", reason: "manual" });
+    }
+  });
+
+  it("Sender e Reply-To standard uguali al mittente non impediscono di riconoscere il nostro originale", async () => {
+    const envelope = realEnvelope({
+      from: [rawAddress(own)],
+      to: [rawAddress(target)],
+      sender: [rawAddress(own)],
+      replyTo: [rawAddress(own)],
+    });
+    expect(
+      await fixture({
+        Sent: [
+          message(1, {
+            envelope,
+            headers: Buffer.from(`Message-ID: ${knownId}\r\nReply-To: ${own}\r\n`),
+          }),
+        ],
+      }).run(),
+    ).toMatchObject({ status: "clear" });
+  });
+
+  it("un Reply-To aggiunto soltanto nelle intestazioni impedisce l'early skip dell'originale", async () => {
+    const envelope = realEnvelope({ from: [rawAddress(own)], to: [rawAddress(target)] });
+    expect(
+      await fixture({
+        Sent: [
+          message(1, {
+            envelope,
+            headers: Buffer.from(
+              `Message-ID: ${knownId}\r\nReply-To: altered@unrelated.example.test\r\n`,
+            ),
+          }),
+        ],
+      }).run(),
+    ).toMatchObject({ status: "found", reason: "manual" });
+  });
+
+  it("un From con più autori che comprende noi non viene classificato come OOO ricevuto", async () => {
+    const value = autoReply();
+    value.envelope = { from: [{ address: own }, { address: target }], to: [{ address: own }] };
+    expect(await fixture({ INBOX: [value] }).run()).toMatchObject({
+      status: "found",
+      reason: "manual",
+    });
+  });
+
+  it("un DSN potenzialmente nostro ricevuto in Bcc resta ambiguo", async () => {
+    const envelope = realEnvelope({ bcc: [rawAddress(own)] });
+    expect(
+      await fixture({
+        INBOX: [
+          message(1, { envelope, headers: Buffer.from("Content-Type: multipart/report\r\n") }),
+        ],
+      }).run(),
+    ).toMatchObject({ status: "found", reason: "ambiguous" });
   });
 });
 
