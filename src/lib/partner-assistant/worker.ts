@@ -815,13 +815,15 @@ export async function receivePartnerAssistantTick(
       try {
         const mail = partnerAssistantMailConfig(environment);
         if (mail) {
+          // Le 3+3 prime email mantengono la precedenza; i solleciti hanno quota aggiuntiva.
+          // Anche una copia arretrata o un esito incerto chiude il giro prima di un altro invio.
+          const sent = await send(config, mail, signal, { ...sendDependencies, store: sendStore });
+          if (sent.status !== "idle") return;
           if (followup) {
             const checked = await followup(config, mail, signal);
             if (checked.status === "complete" || checked.status === "uncertain") return;
             observedFollowup = checked.status === "observed";
           }
-          const sent = await send(config, mail, signal, { ...sendDependencies, store: sendStore });
-          if (sent.status !== "idle") return;
         }
       } catch {
         /* Un invio senza esito certo: la lease della casella lo riporta al giro dopo. */

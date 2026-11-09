@@ -78,9 +78,11 @@ export type PartnerEmailProgramSnapshot = {
     dayStoppedOn: string | null;
     nextSendAfter: string | null;
   };
+  /** Sole prime email; i solleciti non consumano questi posti. */
   todaySent: { club: number; altri: number };
   items: PartnerEmailProgramItem[];
   unprepared: PartnerEmailUnprepared[];
+  /** Storico delle sole prime email, filtrato kind=primo nella RPC. */
   sent: {
     id: string;
     partnerId: string;
@@ -399,7 +401,7 @@ function romeStart(day: string): number {
   return lo;
 }
 
-/** Nessun filtro qui: quote e prestiti si calcolano sull'intera coda. */
+/** Nessun filtro qui: le quote rigide delle prime email si calcolano sull'intera coda. */
 export function forecastPartnerEmails(
   snapshot: PartnerEmailProgramSnapshot,
 ): PartnerEmailProgramForecast {
@@ -413,7 +415,7 @@ export function forecastPartnerEmails(
       explanation: "Nessuna finestra utile nel periodo, con la coda e le quote attuali.",
     })),
     assumption:
-      "Stime delle prime email, con un passo di 8 minuti tra gli invii. I solleciti automatici condividono la quota giornaliera e possono spostare queste date. L'intervallo reale varia da 4 a 11 minuti; nuove bozze, controlli della casella, modifiche e fermi possono cambiare giorno e ordine. Nessuna data è una prenotazione.",
+      "Stime delle prime email, con un passo di 8 minuti tra gli invii. Le quote delle prime email sono separate dal tetto di 6 solleciti al giorno. I solleciti condividono la casella e l'intervallo reale di 4–11 minuti, quindi possono ancora spostare ore e date. Nuove bozze, controlli della casella, modifiche e fermi possono cambiare giorno e ordine. Nessuna data è una prenotazione.",
     days: [],
   };
   type Row = PartnerEmailProgramForecast["items"][number];

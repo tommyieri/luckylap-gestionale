@@ -538,29 +538,42 @@ describe("route del worker dell'assistente Partner", () => {
 });
 
 describe("route del worker: variabili, invio e passo con Claude", () => {
-  it("dopo una scansione dei solleciti può inviare una prima email ma rinvia Claude al giro successivo", async () => {
+  it("dà precedenza alle prime email, poi osserva i solleciti e rinvia Claude al giro successivo", async () => {
     const followup = vi.fn().mockResolvedValue({ status: "observed" });
     const { send, run } = await tick({ ...environment, ...mailEnvironment }, { followup });
     expect(followup).toHaveBeenCalledTimes(1);
     expect(send).toHaveBeenCalledTimes(1);
     expect(run).not.toHaveBeenCalled();
-    expect(followup.mock.invocationCallOrder[0]).toBeLessThan(send.mock.invocationCallOrder[0]);
+    expect(send.mock.invocationCallOrder[0]).toBeLessThan(followup.mock.invocationCallOrder[0]);
   });
   it.each(["complete", "uncertain"])(
     "un giro solleciti %s non può mandare una seconda email",
     async (status) => {
       const followup = vi.fn().mockResolvedValue({ status });
       const { send, run } = await tick({ ...environment, ...mailEnvironment }, { followup });
-      expect(send).not.toHaveBeenCalled();
+      expect(send).toHaveBeenCalledOnce();
       expect(run).not.toHaveBeenCalled();
     },
   );
-  it("una verifica solleciti fallita non prosegue con invii o Claude", async () => {
+  it("una verifica solleciti fallita dopo il sender prime idle non prosegue con Claude", async () => {
     const followup = vi.fn().mockRejectedValue(new Error("synthetic failure"));
     const { send, run } = await tick({ ...environment, ...mailEnvironment }, { followup });
-    expect(send).not.toHaveBeenCalled();
+    expect(send).toHaveBeenCalledOnce();
     expect(run).not.toHaveBeenCalled();
   });
+  it.each(["complete", "uncertain", "stopped"])(
+    "se il percorso prime è %s non avvia un sollecito nello stesso giro",
+    async (status) => {
+      const followup = vi.fn().mockResolvedValue({ status: "complete" });
+      const { send, run } = await tick(
+        { ...environment, ...mailEnvironment },
+        { followup, send: vi.fn().mockResolvedValue({ status }) },
+      );
+      expect(send).toHaveBeenCalledOnce();
+      expect(followup).not.toHaveBeenCalled();
+      expect(run).not.toHaveBeenCalled();
+    },
+  );
   it("senza solleciti continua il flusso ordinario, senza leggere il corpo della richiesta", async () => {
     const followup = vi.fn().mockResolvedValue({ status: "idle" });
     const { send, run } = await tick({ ...environment, ...mailEnvironment }, { followup });

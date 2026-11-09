@@ -34,7 +34,7 @@ Il validatore TypeScript controlla il testo e il MIME; non dimostra da solo la f
 
 ## Controlli prima dei byte SMTP
 
-Il percorso usa la stessa lease della casella e gli stessi contatori delle prime email, senza due invii concorrenti. Un giro prende una sola conversazione. La lettura ordinaria viene ripianificata dopo 30 minuti; una verifica incerta rinvia il controllo e non autorizza l'invio.
+Il percorso usa la stessa lease della casella e lo stesso intervallo tra gli invii delle prime email, senza due invii concorrenti. I contatori giornalieri delle due categorie restano separati. Un giro prende una sola conversazione. La lettura ordinaria viene ripianificata dopo 30 minuti; una verifica incerta rinvia il controllo e non autorizza l'invio.
 
 1. Lo scanner apre la casella in sola lettura e scandisce tutte le cartelle selezionabili, comprese posta in arrivo, inviata, spam e archivi disponibili. Confronta gli indirizzi verificati e i Message-ID della conversazione. Non interpreta l'assenza di dati come assenza di risposte.
 2. Un risultato completo e senza segnali da controllare produce una prova breve nel database. Il database la lega a lease, conversazione, versione e bozza. Solo allora si prepara il MIME immutabile del sollecito.
@@ -48,7 +48,9 @@ Se l'esito SMTP è **incerto**, la conversazione si ferma e quel messaggio non v
 
 ## Quote e calendario
 
-La decisione del 9 novembre 2026 è **6 email automatiche totali al giorno di Roma, contando prime email e solleciti insieme: al massimo 3 Club e 3 altri contatti**. Le quote sono rigide: i posti di un gruppo restano vuoti se quel gruppo non ha candidati lavorabili. I solleciti non hanno sei posti aggiuntivi. Il tetto di 20 Club pronte riguarda la scorta delle prime bozze, non il numero di invii del giorno.
+La scelta finale di Tommi del 9 novembre 2026 è **6 prime email al giorno di Roma, al massimo 3 Club e 3 altri contatti, più un massimo separato di 6 solleciti al giorno**. Le quote delle prime email sono rigide: i posti di un gruppo restano vuoti se quel gruppo non ha candidati lavorabili. I sei solleciti aggiuntivi non hanno sottolimiti Club/altri e non consumano posti delle prime email; possono riguardare anche un solo gruppo. Questa scelta supera l'ipotesi precedente dello stesso giorno di includere entrambi i tipi entro sei invii totali. Il massimo teorico è quindi dodici invii reali, senza garantirne la partenza: finestre, intervallo e controlli possono ridurli. Il tetto di 20 Club pronte riguarda la scorta delle prime bozze, non il numero di invii del giorno.
+
+Le prime email pronte e idonee hanno la precedenza, quando finestra e intervallo permettono di lavorarle. Ogni giro prova prima il loro percorso; passa ai solleciti soltanto se quel percorso non ha lavoro da eseguire (`idle`). Un invio, un esito incerto, un fermo o il recupero di una copia nella posta inviata chiudono il giro senza tentare un secondo invio. Non si aspetta il completamento di sei prime email quando mancano candidati idonei: una quota massima non garantisce che ci siano sei invii eseguibili.
 
 Restano le finestre 9:30–11:00 dell'ora del destinatario, i giorni ammessi, le feste, l'intervallo casuale di 4–11 minuti e la sospensione dal 21 dicembre al 7 gennaio. **La nuova migrazione del calendario estende la copertura verificata fino al 31 dicembre 2027**, così anche il quarto sollecito delle prime email di novembre può trovare una finestra a febbraio. Dopo il 31 dicembre 2027 la finestra si chiude per ogni paese fino a una nuova estensione verificata. Restano finestra, margine e blackout originari; fonti e perimetro in [Calendario Partner 2027](partner-calendario-2027.md). La precedente scadenza del 31 gennaio appartiene al calendario della consegna 2a.
 
@@ -56,7 +58,7 @@ Restano le finestre 9:30–11:00 dell'ora del destinatario, i giorni ammessi, le
 
 Il blocco «Assistente» conserva la prima email e mostra separatamente i metadati del ciclo: modalità, solleciti inviati su quattro, prossima scadenza e ultima verifica della casella registrata. La data dell'ultimo controllo non certifica che l'esito fosse completo e senza risposte. Un ciclo fermo invita Tommi a controllare la conversazione, senza dichiarare che una persona abbia certamente risposto. Il rinvio certo mostra «Fuori ufficio: sollecito non prima del …»; una verifica incerta resta distinta da questo rinvio.
 
-In «osserva» e «spento» il promemoria manuale resta visibile. Solo quando il nuovo stato è leggibile e la modalità dei solleciti è «invio» scompare la vecchia frase «il sollecito dopo 7 giorni lo manda Tommi». RPC assente, DTO superato o lettura fallita mostrano «Verifica dei solleciti non leggibile», senza nascondere la prima email o presumere un'automazione attiva. Conteggi e limite della pagina Assistente includono prime email e solleciti. Le viste delle prime email continuano a filtrare `kind=primo`.
+In «osserva» e «spento» il promemoria manuale resta visibile. Solo quando il nuovo stato è leggibile e la modalità dei solleciti è «invio» scompare la vecchia frase «il sollecito dopo 7 giorni lo manda Tommi». RPC assente, DTO superato o lettura fallita mostrano «Verifica dei solleciti non leggibile», senza nascondere la prima email o presumere un'automazione attiva. Il contatore «Prime email oggi» e il limite modificabile della pagina Assistente riguardano soltanto le prime email. Una nota indica i sei solleciti aggiuntivi e la necessità di attivarli; non viene mostrato un totale giornaliero dei solleciti, non presente nella risposta della RPC. Il Programma email e le viste delle prime email filtrano `kind=primo`, sia nello storico sia nei conteggi delle quote.
 
 ## Confini della verifica e configurazione
 

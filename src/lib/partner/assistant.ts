@@ -108,6 +108,8 @@ export const PARTNER_ASSISTANT_UNREADABLE =
 /** Lo stato dell'invio (read_partner_assistant_send) non leggibile: striscia e pagina. */
 export const PARTNER_ASSISTANT_SEND_UNREADABLE =
   "Stato degli invii non leggibile: ricarica la pagina tra poco.";
+/** Tetto SQL separato dei solleciti: una regola, non un conteggio o un permesso d'invio. */
+export const PARTNER_ASSISTANT_FOLLOWUP_DAILY_LIMIT = 6;
 
 export const PARTNER_ASSISTANT_REQUEST_LABELS: Record<PartnerAssistantRequest, string> = {
   merch_cobranding: "Merch co-firmato",
@@ -541,6 +543,7 @@ export type PartnerAssistantSendStatus = {
   lastOutcome: string | null;
   dailyFirstLimit: number;
   firstLimitToday: number;
+  /** Sole prime email vere del giorno di Roma; i solleciti hanno un contatore SQL separato. */
   firstSentToday: number;
   /** Giorno di Roma della prima email vera; `null` prima della prima. */
   firstRealSendOn: string | null;

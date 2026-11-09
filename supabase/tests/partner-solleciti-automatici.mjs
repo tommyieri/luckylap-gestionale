@@ -1,5 +1,5 @@
-// test-db: pglite minimo 203
-// Solleciti automatici: prove fresche, quote condivise, stato SMTP e arresto nel dubbio.
+// test-db: pglite minimo 255
+// Solleciti automatici: prove fresche, quote separate, stato SMTP e arresto nel dubbio.
 // Migrazioni Partner attuali, Auth simulata e dati sintetici, nessun accesso cloud.
 import assert from "node:assert/strict";
 import { createHash, randomUUID } from "node:crypto";
@@ -88,6 +88,10 @@ const flowSent = (template, day = TODAY) =>
   value("select private.partner_assistant_flow_sent($1::date, $2) as v", [day, template]);
 const share = (template, day = TODAY) =>
   value("select private.partner_assistant_flow_share($1::date, $2) as v", [day, template]);
+const firstSent = (day = TODAY) =>
+  value("select private.partner_assistant_first_sent($1::date) as v", [day]);
+const followupSent = (day = TODAY) =>
+  value("select private.partner_followup_sent($1::date) as v", [day]);
 
 // Un contatto con la bozza pronta: un club con la nota di ricerca del testo fisso, oppure un altro
 // contatto (collab) con la ricerca di Claude. La ricerca degli altri è più vecchia: nella coda d'invio
@@ -177,7 +181,7 @@ async function ready(co, { club, tz = "Europe/Rome", country = "Italia", researc
 
 // Prime email vere già partite quel giorno, copiate in «Posta inviata», a contatti nuovi (CO da 2001).
 let nextCo = 2001;
-async function sent(n, { club, day = TODAY }) {
+async function sent(n, { club, day = TODAY, kind = "primo", sendStatus = "inviato" }) {
   const partners = [];
   for (let i = 0; i < n; i++) {
     const co = nextCo++;
@@ -192,9 +196,10 @@ async function sent(n, { club, day = TODAY }) {
     await asOwner(
       `insert into public.partner_assistant_messages(partner_id, draft_id, kind, mode, send_status, message_id,
          to_address, subject, body, raw, sha256, rules_version, lease_token, send_day, sent_at, appended_at,
-         operation_id, created_by)
-       values ($1, $2, 'primo', 'invio', 'inviato', $3, $4, $5, $6, $7, $8, 1, gen_random_uuid(), $9::date,
-         $9::date + time '08:40', $9::date + time '08:41', gen_random_uuid(), $10)`,
+         operation_id, created_by, followup_number, flow_template)
+       values ($1, $2, $11, 'invio', $12, $3, $4, $5, $6, $7, $8, 1, gen_random_uuid(), $9::date,
+         $9::date + time '08:40', case when $12='inviato' then $9::date + time '08:41' end, gen_random_uuid(), $10,
+         case when $11='sollecito' then 1 end, case when $11='sollecito' then $13::boolean end)`,
       [
         partner,
         draftIds.get(partner),
@@ -206,6 +211,9 @@ async function sent(n, { club, day = TODAY }) {
         sha(raw),
         day,
         assistant,
+        kind,
+        sendStatus,
+        club,
       ],
     );
     partners.push(partner);
@@ -450,6 +458,50 @@ try {
     false,
   );
 
+  for (const role of ["anon", "authenticated", "service_role"]) {
+    eq(
+      await value(
+        "select has_function_privilege($1,'private.set_partner_followup_mode_as_founder(uuid,uuid,jsonb)','execute') as v",
+        [role],
+      ),
+      false,
+    );
+    eq(
+      await value(
+        "select has_function_privilege($1,'private.partner_followup_sent(date)','execute') as v",
+        [role],
+      ),
+      false,
+    );
+  }
+  await assert.rejects(
+    () =>
+      value("select private.set_partner_followup_mode_as_founder($1,$2,$3::jsonb) as v", [
+        assistant,
+        randomUUID(),
+        JSON.stringify({ schema_version: 1, expected_version: 1, mode: "invio" }),
+      ]),
+    { code: "42501" },
+  );
+  checks++;
+  await db.exec("begin");
+  try {
+    const op = randomUUID();
+    const payload = JSON.stringify({ schema_version: 1, expected_version: 1, mode: "invio" });
+    const ownerMode = () =>
+      value("select private.set_partner_followup_mode_as_founder($1,$2,$3::jsonb) as v", [
+        founder,
+        op,
+        payload,
+      ]);
+    eq(await ownerMode(), { mode: "invio", version: 2, replayed: false });
+    eq(await ownerMode(), { mode: "invio", version: 2, replayed: true });
+    eq(await value("select updated_by as v from private.partner_followup_config"), founder);
+  } finally {
+    await db.exec("rollback");
+  }
+  eq(await value("select mode as v from private.partner_followup_config"), "osserva");
+
   await asOwner("update private.partner_assistant_config set daily_first_limit=6");
   const [club] = await sent(1, { club: true, day: "2026-10-20" });
   await asOwner("update public.partners set stage='contattato' where id=$1", [club]);
@@ -529,7 +581,9 @@ try {
   eq((await finish(c, m, "inviato", m.finishOp)).replayed, true);
   eq((await conv(id)).followups_sent, 1);
   eq((await conv(id)).next_due_on, "2026-11-17");
-  eq(await flowSent(true), 1, "FU Club resta nel flusso Club");
+  eq(await flowSent(true), 0, "FU Club non consuma il contatore delle prime Club");
+  eq(await followupSent(), 1);
+  eq(await firstSent(), 0);
   eq(await flowSent(false), 0);
   const oldConfig = await configSafe();
   async function configSafe() {
@@ -747,8 +801,8 @@ try {
   pr = await check(c);
   const staged = await prepare(c, pr);
   eq(staged.status, "pronto");
-  // Nuova prova può essere ancora valida ma la quota deve essere ricontrollata a start.
-  await sent(3, { club: false });
+  // Una prova valida non basta se il sesto sollecito è partito dopo prepare.
+  await sent(6, { club: false, kind: "sollecito" });
   const latest = await check(c);
   eq(
     (
@@ -759,26 +813,94 @@ try {
       ])
     ).reason,
     "limite",
+    "il settimo sollecito si ferma anche all'ultimo controllo",
   );
-  eq(await flowSent(false), 3, "prime e solleciti usano lo stesso contatore di flusso");
-  await release();
-
-  c = await fresh(true);
-  await sent(3, { club: true });
-  pr = await check(c);
-  eq(
-    (await prepare(c, pr)).reason,
-    "limite",
-    "tre prime Club impediscono un sollecito Club aggiuntivo",
-  );
-  await sent(3, { club: false });
-  eq(await value("select private.partner_assistant_first_sent($1::date) as v", [TODAY]), 6);
-  eq([await flowSent(true), await flowSent(false)], [3, 3]);
+  eq(await followupSent(), 6);
+  eq(await firstSent(), 0);
+  eq([await flowSent(true), await flowSent(false)], [0, 0]);
   await release();
   await wake(c.candidate.id);
   c = await claim();
-  eq(c.status, "claimed", "quota piena non ferma il controllo delle risposte");
+  eq(c.status, "claimed", "quota FU piena non ferma il controllo delle risposte");
   eq(c.candidate.send_allowed, false);
+  pr = await check(c);
+  eq((await prepare(c, pr)).reason, "limite", "il settimo sollecito si ferma già a prepare");
+  await release();
+
+  // Sei prime esaurite non consumano i sei posti aggiuntivi per i solleciti.
+  c = await fresh(true);
+  await sent(3, { club: true });
+  await sent(3, { club: false });
+  eq(await firstSent(), 6);
+  eq([await flowSent(true), await flowSent(false)], [3, 3]);
+  const quotaFollowup = await complete(c);
+  eq(await firstSent(), 6);
+  eq(await followupSent(), 1, "un FU parte anche dopo tutte le sei prime");
+  eq([await flowSent(true), await flowSent(false)], [3, 3]);
+  await release();
+  const firstProgram = await as(
+    "authenticated",
+    founder,
+    () => value("select public.read_partner_email_program($1::date,1) as v", [TODAY]),
+    { now },
+  );
+  eq(firstProgram.todaySent, { club: 3, altri: 3 });
+  eq(firstProgram.sent.length, 6, "lo storico del calendario prime esclude il sollecito");
+  eq(
+    firstProgram.sent.some((x) => x.id === quotaFollowup.message_row_id),
+    false,
+  );
+
+  // Nessun sottolimite di flusso sui solleciti: sei Club sono consentiti.
+  c = await fresh(true);
+  await sent(5, { club: true, kind: "sollecito" });
+  await complete(c);
+  eq(await followupSent(), 6, "anche sei solleciti Club nello stesso giorno");
+  eq(await firstSent(), 0);
+  eq([await flowSent(true), await flowSent(false)], [0, 0]);
+  await release();
+  // Il motore prime può fare una lease di sole copie: la fixture simula l'APPEND concluso.
+  await asOwner(
+    "update public.partner_assistant_messages set appended_at=sent_at where send_status='inviato' and appended_at is null",
+  );
+  const firstClubCo = nextCo++;
+  await ready(firstClubCo, { club: true });
+  eq(await candidateAt(now), firstClubCo, "sei FU non impediscono la prima email Club");
+  await sent(3, { club: true });
+  eq(await candidateAt(now), "limite", "tre prime Club restano un tetto rigido anche dopo sei FU");
+  const firstOtherCo = nextCo++;
+  await ready(firstOtherCo, { club: false });
+  eq(await candidateAt(now), firstOtherCo, "restano disponibili i tre posti delle altre prime");
+  await sent(3, { club: false });
+  eq(await candidateAt(now), "limite", "sei prime e sei solleciti esauriscono quote indipendenti");
+  eq(await firstSent(), 6);
+  eq(await followupSent(), 6);
+  eq([await flowSent(true), await flowSent(false)], [3, 3]);
+  eq(await firstSent("2026-11-11"), 0);
+  eq(await followupSent("2026-11-11"), 0);
+
+  // In invio e incerto consumano solo il rispettivo contatore, come gli invii confermati.
+  c = await fresh();
+  for (const sendStatus of ["in_invio", "incerto", "inviato"]) {
+    await sent(2, { club: false, kind: "sollecito", sendStatus });
+  }
+  eq(await followupSent(), 6);
+  eq(await firstSent(), 0);
+  eq(await flowSent(false), 0);
+  eq(
+    await value("select private.partner_followup_send_reason($1,$2::timestamptz) as v", [
+      c.candidate.id,
+      now,
+    ]),
+    "limite",
+  );
+  await sent(1, { club: true, kind: "sollecito", sendStatus: "pronto" });
+  await sent(1, { club: true, kind: "sollecito", sendStatus: "scartato" });
+  await sent(1, { club: true, kind: "sollecito", sendStatus: "respinto" });
+  eq(await followupSent(), 6, "pronto, scartato e respinto non consumano un invio FU");
+  await sent(1, { club: false, kind: "sollecito", day: "2026-11-11" });
+  eq(await followupSent("2026-11-11"), 1);
+  eq(await followupSent(), 6);
   await release();
 
   // Un intervento umano o la revoca prevalgono anche su una bozza già composta.
@@ -1191,7 +1313,9 @@ try {
     ]),
     "2026-11-11",
   );
-  eq(await flowSent(true, "2026-11-11"), 1);
+  eq(await flowSent(true, "2026-11-11"), 0);
+  eq(await followupSent("2026-11-11"), 1);
+  eq(await firstSent("2026-11-11"), 0);
   eq(await flowSent(true, TODAY), 0);
   await finish(c, afterMidnight);
   await release();

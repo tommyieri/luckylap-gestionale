@@ -494,7 +494,7 @@ describe("PartnerWorkspace", () => {
   it("striscia in «Invio»: le prime email di oggi dallo stato dell'invio passato alla pagina", () => {
     const fixture = partnerAssistantFixture(TODAY);
     const html = render({}, { assistant: { ...fixture.status, mode: "invio" } });
-    expect(text(html)).toContain("Email automatiche attive · 1 email oggi su 5");
+    expect(text(html)).toContain("Email automatiche attive · Prime email oggi: 1 su 5");
     const noMail = render(
       {},
       { assistant: { ...fixture.status, mode: "prova" }, mailConfigured: false },

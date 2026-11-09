@@ -264,6 +264,12 @@ describe("previsione globale delle prime email", () => {
     ]);
     expect(result.days[0]).toEqual({ day: TODAY, limit: 5, club: 2, altri: 3 });
     expect(result.assumption).toContain("8 minuti");
+    expect(result.assumption).toContain(
+      "quote delle prime email sono separate dal tetto di 6 solleciti al giorno",
+    );
+    expect(result.assumption).toContain(
+      "condividono la casella e l'intervallo reale di 4–11 minuti",
+    );
     expect(source).toEqual(original);
   });
   it.each(["club", "altri"] as const)(

@@ -1,4 +1,4 @@
--- Solleciti Partner, con controlli della posta obbligatori e quote condivise.
+-- Solleciti Partner, con controlli della posta obbligatori e quote separate dalle prime email.
 -- La modalità iniziale osserva le conversazioni. Nessuna impostazione esistente cambia.
 begin;
 
@@ -89,14 +89,102 @@ create unique index partner_assistant_messages_one_followup
   where mode='invio' and kind='sollecito' and send_status in ('pronto','in_invio','inviato','incerto');
 
 -- I nuovi attributi non sono tra i campi modificabili della guardia già presente.
+-- Le prime conservano le proprie quote: con daily_first_limit=6, 3 Club e 3 altri.
+-- Gli stessi helper sono già usati da claim/preparazione prime e dal calendario: nessun sollecito
+-- consuma quei posti. Gli esiti in invio o incerti consumano comunque la rispettiva quota.
+create or replace function private.partner_assistant_first_sent(p_day date) returns integer
+language sql stable security invoker set search_path='' as $$
+  select count(*)::integer from public.partner_assistant_messages m
+  where m.mode='invio' and m.kind='primo' and m.send_day=p_day
+    and m.send_status in ('in_invio','inviato','incerto')
+$$;
+
 create or replace function private.partner_assistant_flow_sent(p_day date,p_template boolean) returns integer
 language sql stable security invoker set search_path='' as $$
   select count(*)::integer from public.partner_assistant_messages m
   left join public.partner_assistant_drafts d on d.id=m.draft_id
-  where m.mode='invio' and m.send_day=p_day and m.send_status in ('in_invio','inviato','incerto')
-    and coalesce(m.flow_template,case when d.id is not null
-      then private.partner_assistant_is_template(d.research_note_id)
-      else private.partner_assistant_uses_template(m.partner_id) end)=p_template
+  where m.mode='invio' and m.kind='primo' and m.send_day=p_day and m.send_status in ('in_invio','inviato','incerto')
+    and case when d.id is not null then private.partner_assistant_is_template(d.research_note_id)
+      else private.partner_assistant_uses_template(m.partner_id) end=p_template
+$$;
+
+-- Sei solleciti aggiuntivi al giorno di Roma, senza suddivisione Club/altri.
+-- Lease, intervallo, finestre, arresti e controlli della posta restano condivisi.
+create function private.partner_followup_sent(p_day date) returns integer
+language sql stable security invoker set search_path='' as $$
+  select count(*)::integer from public.partner_assistant_messages m
+  where m.mode='invio' and m.kind='sollecito' and m.send_day=p_day
+    and m.send_status in ('in_invio','inviato','incerto')
+$$;
+
+-- Il programma e il suo storico restano dedicati alle prime email; il contratto JSON
+-- e i permessi esistenti non cambiano. Corpo precedente con soli filtri kind=primo.
+create or replace function private.read_partner_email_program(p_from date,p_days integer) returns jsonb
+language plpgsql stable security definer set search_path = '' as $$
+declare v_total integer; v_sent integer; v_unprepared_total integer; v_unprepared jsonb; v_items jsonb; v_history jsonb; v_now timestamptz:=private.partner_assistant_now();
+begin
+ perform private.partner_actor();
+ if p_from is null or not isfinite(p_from) or p_days is null or p_days not between 1 and 90 then
+   raise exception 'invalid_partner_payload' using errcode='22023'; end if;
+ select count(*) into v_total from public.partner_assistant_jobs;
+ select count(*) into v_unprepared_total from private.partner_assistant_queue(private.partner_assistant_rome_day(v_now));
+ select count(*) into v_sent from public.partner_assistant_messages where kind='primo' and coalesce(sent_at,created_at)>=p_from::timestamp at time zone 'Europe/Rome'
+   and coalesce(sent_at,created_at)<(p_from+p_days)::timestamp at time zone 'Europe/Rome';
+ if v_total+v_unprepared_total>2000 or v_sent>2000 then raise exception 'partner_email_program_too_large' using errcode='54000'; end if;
+ select coalesce(jsonb_agg(jsonb_build_object('partnerId',p.id,'co',p.co,'name',p.name,'sections',p.sections,
+  'flow',case when private.partner_assistant_uses_template(p.id) then 'club' else 'altri' end,
+  'partnerVersion',p.version) order by q.co),'[]'::jsonb) into v_unprepared
+ from private.partner_assistant_queue(private.partner_assistant_rome_day(v_now)) q join public.partners p on p.id=q.partner_id;
+ with rows as (
+ select j.*,p.co,p.name,p.sections,p.country,p.version as partner_version,p.priority,
+  d.id as d_id,d.subject,d.body,d.language,d.sha256,d.rules_version,d.created_at as draft_at,
+  n.created_at as research_at,s.content as choice,coalesce(x.send_priority,0) as send_priority,
+  private.partner_assistant_eligible(p.id) as eligible,
+  case when d.id is not null then private.partner_assistant_is_template(d.research_note_id)
+    else private.partner_assistant_uses_template(p.id) end as template,
+  row_number() over(order by coalesce(x.send_priority,0) desc,nullif(s.content->>'event_starts_on','')::date nulls last,
+    n.created_at,array_position(array['alta','media','bassa']::text[],p.priority),p.co) as rank,
+  h.id as hold_id,h.version as hold_version,h.created_at as hold_at
+ from public.partner_assistant_jobs j join public.partners p on p.id=j.partner_id
+ left join public.partner_assistant_drafts d on d.id=j.draft_id
+ left join public.partner_assistant_notes n on n.id=coalesce(d.research_note_id,j.research_note_id)
+ left join public.partner_assistant_notes s on s.id=j.choice_note_id
+ left join public.partner_assistant_contacts x on x.partner_id=p.id
+ left join private.partner_email_edit_holds h on h.job_id=j.id and h.closed_at is null
+ ) select coalesce(jsonb_agg(jsonb_build_object('jobId',r.id,'partnerId',r.partner_id,'co',r.co,'name',r.name,
+  'sections',r.sections,'flow',case when r.template then 'club' else 'altri' end,'status',r.status,'step',r.step,
+  'reason',case when private.partner_email_manual_stale(r.d_id) then 'bozza_manuale_da_rivedere' else r.reason end,'writeOn',r.write_on,'eligible',r.eligible,'rank',case when r.status='pronta' then r.rank end,
+  'sendPriority',r.send_priority,'country',r.country,'timezone',case when r.status='pronta' then
+    case when private.partner_assistant_valid_timezone(r.choice->>'timezone') then r.choice->>'timezone' else 'Europe/Rome' end
+    else nullif(r.choice->>'timezone','') end,
+  'choiceReason',nullif(r.choice->>'reason_it',''),'request',r.choice->>'request',
+  'contactKind',r.choice->>'contact_kind','eventStartsOn',nullif(r.choice->>'event_starts_on',''),
+  'researchAt',r.research_at,'partnerVersion',r.partner_version,
+  'draft',case when r.d_id is not null then jsonb_build_object('id',r.d_id,'sha256',r.sha256,'subject',r.subject,'body',r.body,
+    'language',r.language,'rulesVersion',r.rules_version,'createdAt',r.draft_at) end,
+  'hold',case when r.hold_id is not null then jsonb_build_object('id',r.hold_id,'version',r.hold_version,'createdAt',r.hold_at) end,
+  'windows',case when r.status='pronta' then private.partner_email_windows(p_from,p_days,r.choice->>'timezone',r.country) else '[]'::jsonb end
+ ) order by r.rank,r.co),'[]'::jsonb) into v_items from rows r;
+ select coalesce(jsonb_agg(jsonb_build_object('id',m.id,'partnerId',m.partner_id,'co',p.co,'name',p.name,'sections',p.sections,
+  'flow',case when case when d.id is not null then private.partner_assistant_is_template(d.research_note_id)
+    else private.partner_assistant_uses_template(p.id) end then 'club' else 'altri' end,
+  'mode',m.mode,'status',m.send_status,'subject',m.subject,'at',coalesce(m.sent_at,m.created_at),'lookbookCode',m.lookbook->>'code')
+  order by coalesce(m.sent_at,m.created_at),m.id),'[]'::jsonb) into v_history
+ from public.partner_assistant_messages m join public.partners p on p.id=m.partner_id
+ left join public.partner_assistant_drafts d on d.id=m.draft_id
+ where m.kind='primo' and coalesce(m.sent_at,m.created_at)>=p_from::timestamp at time zone 'Europe/Rome'
+  and coalesce(m.sent_at,m.created_at)<(p_from+p_days)::timestamp at time zone 'Europe/Rome';
+ return jsonb_build_object('generatedAt',v_now,'from',p_from,'days',p_days,
+ 'config',(select jsonb_build_object('mode',mode,'pausedReason',paused_reason,'backoffUntil',backoff_until,
+   'dailyFirstLimit',daily_first_limit,'firstRealOn',private.partner_assistant_first_real_day(),
+   'currentRulesVersion',(select max(version) from public.partner_assistant_rules)) from private.partner_assistant_config where singleton),
+ 'mail',(select jsonb_build_object('stopReason',stop_reason,'backoffUntil',backoff_until,'dayStoppedOn',day_stopped_on,
+   'nextSendAfter',next_send_after) from private.partner_assistant_mail_state where singleton),
+ 'todaySent',jsonb_build_object('club',private.partner_assistant_flow_sent(private.partner_assistant_rome_day(v_now),true),
+   'altri',private.partner_assistant_flow_sent(private.partner_assistant_rome_day(v_now),false)),
+ 'items',v_items,'unprepared',v_unprepared,'sent',v_history,'counts',jsonb_build_object('total',v_total,'returned',jsonb_array_length(v_items),
+   'unpreparedTotal',v_unprepared_total,'unpreparedReturned',jsonb_array_length(v_unprepared)));
+end
 $$;
 
 create table private.partner_followup_suppressions (
@@ -212,8 +300,7 @@ begin
     when f.next_due_on>v_today or private.partner_assistant_rome_day(f.last_sent_at)+7>v_today then 'non_scaduto'
     when s.stop_reason is not null or s.day_stopped_on=v_today then 'fermo'
     when s.backoff_until>v_now or s.next_send_after>v_now then 'intervallo'
-    when private.partner_assistant_first_sent(v_today)>=private.partner_assistant_first_limit(v_today)
-      or private.partner_assistant_flow_sent(v_today,f.flow_template)>=private.partner_assistant_flow_share(v_today,f.flow_template) then 'limite'
+    when private.partner_followup_sent(v_today)>=6 then 'limite'
     when not private.partner_assistant_window_open(v_tz,v_country,v_now,interval '90 seconds') then 'fuori_finestra'
   end;
 end
@@ -715,11 +802,12 @@ begin
 end
 $$;
 
-create function public.set_partner_followup_mode(p_operation_id uuid,p_payload jsonb) returns jsonb
+create function private.set_partner_followup_mode_as_founder(p_actor_id uuid,p_operation_id uuid,p_payload jsonb) returns jsonb
 language plpgsql security definer set search_path='' as $$
-declare v_actor uuid:=private.partner_actor(); v_mode text; v_expected bigint; v_replay jsonb; c private.partner_followup_config%rowtype; v_result jsonb;
+declare v_actor uuid:=p_actor_id; v_mode text; v_expected bigint; v_replay jsonb; c private.partner_followup_config%rowtype; v_result jsonb;
 begin
-  if not private.is_founder() then raise exception 'partner_assistant_founder_required' using errcode='42501'; end if;
+  perform 1 from public.memberships where user_id=p_actor_id and active and role='founder' for share;
+  if not found then raise exception 'partner_assistant_founder_required' using errcode='42501'; end if;
   perform private.partner_payload(p_payload,array['schema_version','expected_version','mode'],array['schema_version','expected_version','mode']);
   v_mode:=private.partner_enum(p_payload,'mode',array['spento','osserva','invio']);
   v_expected:=private.partner_bigint(p_payload,'expected_version',1,9007199254740991);
@@ -728,10 +816,19 @@ begin
   if v_replay is not null then return v_replay; end if;
   perform 1 from private.partner_assistant_mail_state where singleton for update;
   select * into c from private.partner_followup_config where singleton for update;
-  if c.version<>v_expected then raise exception 'partner_changed' using errcode='40001'; end if;
+  if c.version is distinct from v_expected then raise exception 'partner_changed' using errcode='40001'; end if;
   update private.partner_followup_config set mode=v_mode,version=version+1,updated_by=v_actor,updated_at=now() where singleton returning * into c;
   v_result:=jsonb_build_object('mode',c.mode,'version',c.version,'replayed',false);
   return private.partner_assistant_finish(p_operation_id,'set_partner_followup_mode',v_actor,p_payload,v_result);
+end
+$$;
+
+create function public.set_partner_followup_mode(p_operation_id uuid,p_payload jsonb) returns jsonb
+language plpgsql security definer set search_path='' as $$
+declare v_actor uuid:=private.partner_actor();
+begin
+  if not private.is_founder() then raise exception 'partner_assistant_founder_required' using errcode='42501'; end if;
+  return private.set_partner_followup_mode_as_founder(v_actor,p_operation_id,p_payload);
 end
 $$;
 
@@ -777,7 +874,7 @@ begin
 end
 $$;
 
-revoke all on function private.partner_followup_proof_now(),private.read_partner_followup_preparation_queue_as_founder(uuid),private.partner_followup_suppress(uuid,text,text),private.partner_followup_manual_intervention(),private.partner_followup_address_held(uuid),private.partner_followup_reason(uuid,boolean),private.partner_followup_send_reason(uuid,timestamptz),
+revoke all on function private.set_partner_followup_mode_as_founder(uuid,uuid,jsonb),private.partner_followup_sent(date),private.partner_followup_proof_now(),private.read_partner_followup_preparation_queue_as_founder(uuid),private.partner_followup_suppress(uuid,text,text),private.partner_followup_manual_intervention(),private.partner_followup_address_held(uuid),private.partner_followup_reason(uuid,boolean),private.partner_followup_send_reason(uuid,timestamptz),
   private.partner_followup_close_tasks(uuid),private.partner_followup_hold(uuid,text,boolean),private.refresh_partner_followups(),
   private.save_partner_followup_draft_as_founder(uuid,uuid,jsonb) from public,anon,authenticated,service_role;
 revoke all on function public.claim_partner_followup(uuid,integer),public.record_partner_followup_check(uuid,uuid,bigint,jsonb),

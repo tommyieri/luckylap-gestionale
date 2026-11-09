@@ -397,6 +397,18 @@ describe("invio dell'assistente (read_partner_assistant_send)", () => {
     });
   });
 
+  it("il contatore delle prime viene dalla RPC, senza ricavarlo dalla cronologia mista", () => {
+    const row = sendRow();
+    row.first_sent_today = 5;
+    row.first_limit_today = 6;
+    row.recent = [{ ...row.recent[0], subject: "Re: Collaborazione sintetica" }];
+    const result = partnerAssistantSendFrom(row);
+    expect(result.firstSentToday).toBe(5);
+    expect(result.firstLimitToday).toBe(6);
+    expect(result.recent).toHaveLength(1);
+    expect(result).not.toHaveProperty("followupSentToday");
+  });
+
   it("legge il nuovo tipo di prova senza rompere le prove precedenti", () => {
     const row = sendRow();
     row.test_run!.club_lookbooks = true;

@@ -1,4 +1,4 @@
-// test-db: pglite minimo 144
+// test-db: pglite minimo 152
 // Calendario 2027: fonti ufficiali, guardie comuni e quarto sollecito sintetico di febbraio.
 // Migrazioni Partner attuali, Auth simulata e dati sintetici, nessun accesso cloud.
 import assert from "node:assert/strict";
@@ -642,6 +642,13 @@ try {
   const saved = await save(discovered.candidate.id);
   eq(saved.number, 4);
   await asOwner("update private.partner_assistant_config set daily_first_limit=6");
+  // Le sei prime del giorno hanno esaurito il loro 3+3; il FU ha sei posti separati.
+  await sent(3, { club: true, day: "2027-02-08" });
+  await sent(3, { club: false, day: "2027-02-08" });
+  eq(await value("select private.partner_assistant_first_sent(date '2027-02-08') v"), 6);
+  eq(await flowSent(true, "2027-02-08"), 3);
+  eq(await flowSent(false, "2027-02-08"), 3);
+  eq(await value("select private.partner_followup_sent(date '2027-02-08') v"), 0);
   await team("set_partner_followup_mode", {
     schema_version: 1,
     expected_version: 1,
@@ -649,7 +656,11 @@ try {
   });
   const candidate = await claim();
   eq(candidate.candidate.draft.number, 4);
-  eq(candidate.candidate.send_allowed, true, "90giorni non piu bloccati dalla vecchia scadenza");
+  eq(
+    candidate.candidate.send_allowed,
+    true,
+    "90giorni e sei prime gia inviate non bloccano la quota FU separata",
+  );
   const proof = await check(candidate);
   eq(proof.status, "clear");
   const pending = await prepare(candidate, proof);
@@ -672,6 +683,10 @@ try {
     ]),
     "2027-02-08",
   );
+  eq(await value("select private.partner_assistant_first_sent(date '2027-02-08') v"), 6);
+  eq(await value("select private.partner_followup_sent(date '2027-02-08') v"), 1);
+  eq(await flowSent(true, "2027-02-08"), 3);
+  eq(await flowSent(false, "2027-02-08"), 3);
   await finish(candidate, pending);
   eq((await conv(candidate.candidate.id)).status, "complete");
   eq((await conv(candidate.candidate.id)).followups_sent, 4);

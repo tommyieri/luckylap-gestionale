@@ -1,4 +1,4 @@
-// test-db: postgres minimo 65
+// test-db: postgres minimo 70
 // Solleciti: lease unica, risposta prima di start, proof monouso, CAS e scadenza dopo un lock.
 // PostgreSQL 17 locale con connessioni distinte, Auth e dati sintetici; nessun SMTP/IMAP/cloud.
 import assert from "node:assert/strict";
@@ -520,6 +520,26 @@ try {
   );
   await b.query("commit");
   eq(await state(m3.message_row_id), "in_invio");
+  eq(
+    await scalar(owner, "select private.partner_followup_sent(date '2026-11-10') value"),
+    1,
+    "Start FU riserva solo la quota dei solleciti",
+  );
+  eq(
+    await scalar(owner, "select private.partner_assistant_first_sent(date '2026-11-10') value"),
+    0,
+    "FU non consuma i sei posti delle prime email",
+  );
+  for (const template of [true, false])
+    eq(
+      await scalar(
+        owner,
+        "select private.partner_assistant_flow_sent(date '2026-11-10',$1) value",
+        [template],
+      ),
+      0,
+      "FU non consuma le quote rigide 3+3 delle prime email",
+    );
   ok(
     await scalar(
       owner,
@@ -542,6 +562,11 @@ try {
     );
   eq((await finish()).send_status, "incerto");
   eq((await finish()).replayed, true);
+  eq(
+    await scalar(owner, "select private.partner_followup_sent(date '2026-11-10') value"),
+    1,
+    "Un FU incerto conta una volta nella quota separata anche dopo replay",
+  );
   eq(await state(m3.message_row_id), "incerto");
   eq((await conversation(c3Id)).status, "held");
   eq((await conversation(c3Id)).reason, "invio_incerto");

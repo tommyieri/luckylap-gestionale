@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { useId, useMemo, useState, type FormEvent } from "react";
 import {
+  PARTNER_ASSISTANT_FOLLOWUP_DAILY_LIMIT,
   PARTNER_ASSISTANT_COUNT_LABELS,
   PARTNER_ASSISTANT_MODE_LABELS,
   PARTNER_ASSISTANT_RULES_FIRST_AUTHOR,
@@ -693,11 +694,16 @@ function AssistantSends({
       )}
       <p className={styles.dataLine}>
         {invio
-          ? `Oggi: ${send.firstSentToday} email su ${send.firstLimitToday} (prime e solleciti)`
+          ? `Prime email oggi: ${send.firstSentToday} su ${send.firstLimitToday}`
           : `Oggi: ${send.testSentToday} email di prova su ${send.testLimit}`}
       </p>
       {invio && (
         <>
+          <p className={styles.hint}>
+            Solleciti: fino a {PARTNER_ASSISTANT_FOLLOWUP_DAILY_LIMIT} aggiuntivi al giorno, con un
+            limite separato e senza sottolimite Club/altri. Partono solo quando l'invio dei
+            solleciti è attivato e supera tutti i controlli.
+          </p>
           <p className={styles.dataLine}>
             {send.windowOpenRome
               ? "Finestra aperta fino alle 11:00, ora di Roma"
@@ -765,7 +771,7 @@ function AssistantSends({
 type LimitDraft = { value: string; base: number };
 
 /**
- * Il limite delle email automatiche al giorno dopo la prima settimana: Tommi lo cambia (da 1 a 15), gli
+ * Il limite delle prime email al giorno dopo la prima settimana: Tommi lo cambia (da 1 a 15), gli
  * altri leggono la frase. Nella prima settimana ne partono comunque al massimo 5.
  */
 function AssistantLimit({
@@ -816,13 +822,12 @@ function AssistantLimit({
     <section className={styles.dataSection} aria-labelledby="assistente-limite">
       <h2 id="assistente-limite">Limite</h2>
       <p className={styles.dataLine}>
-        Dopo la prima settimana: al massimo {send.dailyFirstLimit} email automatiche al giorno
-        (prime e solleciti).
+        Dopo la prima settimana: al massimo {send.dailyFirstLimit} prime email al giorno.
       </p>
       <p className={styles.hint}>
-        Quote di oggi: al massimo {Math.floor(send.firstLimitToday / 2)} Club e{" "}
-        {Math.ceil(send.firstLimitToday / 2)} altri contatti, contando prime email e solleciti
-        insieme. I posti inutilizzati non si trasferiscono all'altro gruppo.
+        Quote di oggi per le prime email: al massimo {Math.floor(send.firstLimitToday / 2)} Club e{" "}
+        {Math.ceil(send.firstLimitToday / 2)} altri contatti. I posti inutilizzati non si
+        trasferiscono all'altro gruppo.
       </p>
       {lastFirstWeekDay === null ? (
         <p className={styles.hint}>Nei primi 7 giorni dalla prima email ne partono al massimo 5.</p>
@@ -833,11 +838,16 @@ function AssistantLimit({
           </p>
         )
       )}
+      <p className={styles.hint}>
+        I solleciti hanno un tetto separato di {PARTNER_ASSISTANT_FOLLOWUP_DAILY_LIMIT} al giorno,
+        senza ripartizione fra Club e altri. Questo campo modifica soltanto il limite delle prime
+        email.
+      </p>
       {founder && (
         <>
           <form className={styles.assistantCredit} onSubmit={save} noValidate>
             <label className={styles.field} htmlFor={fieldId}>
-              Email automatiche al giorno dopo la prima settimana, da 1 a 15
+              Prime email al giorno dopo la prima settimana, da 1 a 15
               <input
                 id={fieldId}
                 name="limite"

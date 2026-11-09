@@ -301,7 +301,7 @@ describe("PartnerAssistantStrip", () => {
       { send: { firstSentToday: 3, firstLimitToday: 5 } },
     );
     expect(sentence(tree)).toBe(
-      "Email automatiche attive · 3 email oggi su 5 (prime e solleciti) · 1 bozza pronta",
+      "Email automatiche attive · Prime email oggi: 3 su 5 · solleciti: fino a 6 aggiuntivi al giorno, se attivati · 1 bozza pronta",
     );
     expect(sentence(tree)).not.toContain("USD");
     expect(strip(tree).props["data-attention"]).toBeUndefined();

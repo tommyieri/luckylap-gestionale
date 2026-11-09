@@ -1065,7 +1065,7 @@ describe("PartnerAssistantView", () => {
       },
     );
     const invii = words(sectionOf(tree, "Invii"));
-    expect(invii).toContain("Oggi: 3 email su 5");
+    expect(invii).toContain("Prime email oggi: 3 su 5");
     expect(invii).toContain("Finestra aperta fino alle 11:00, ora di Roma");
     expect(invii).toContain("Per i contatti in altri fusi vale la loro ora.");
     expect(invii).toContain("Prossimo invio non prima delle 11:12");
@@ -1185,7 +1185,7 @@ describe("PartnerAssistantView", () => {
     const tree = render(options, { version: 5 });
     const limite = sectionOf(tree, "Limite");
     expect(words(limite)).toContain(
-      "Dopo la prima settimana: al massimo 10 email automatiche al giorno (prime e solleciti)",
+      "Dopo la prima settimana: al massimo 10 prime email al giorno.",
     );
     const input = descendants(limite).find(
       (node) => node.type === "input" && node.props.name === "limite",
@@ -1198,17 +1198,27 @@ describe("PartnerAssistantView", () => {
     );
   });
 
-  it("sei invii contano prime email e solleciti con quote rigide tre e tre", () => {
+  it("separa sei prime email con quote tre e tre dai sei solleciti aggiuntivi", () => {
     const tree = render(
       {},
       { mode: "invio" },
       { dailyFirstLimit: 6, firstLimitToday: 6, firstSentToday: 5 },
     );
-    expect(words(sectionOf(tree, "Invii"))).toContain("Oggi: 5 email su 6 (prime e solleciti)");
+    const delivery = words(sectionOf(tree, "Invii"));
+    expect(delivery).toContain("Prime email oggi: 5 su 6");
+    expect(delivery).toContain(
+      "Solleciti: fino a 6 aggiuntivi al giorno, con un limite separato e senza sottolimite Club/altri",
+    );
+    expect(delivery).toContain("Partono solo quando l'invio dei solleciti è attivato");
     const limit = words(sectionOf(tree, "Limite"));
-    expect(limit).toContain("6 email automatiche al giorno (prime e solleciti)");
-    expect(limit).toContain("Quote di oggi: al massimo 3 Club e 3 altri contatti");
+    expect(limit).toContain("6 prime email al giorno");
+    expect(limit).toContain(
+      "Quote di oggi per le prime email: al massimo 3 Club e 3 altri contatti",
+    );
     expect(limit).toContain("I posti inutilizzati non si trasferiscono all'altro gruppo");
+    expect(limit).toContain("I solleciti hanno un tetto separato di 6 al giorno");
+    expect(limit).toContain("Questo campo modifica soltanto il limite delle prime email");
+    expect(delivery).not.toContain("(prime e solleciti)");
   });
 
   it("limite fuori da 1-15: nessun invio e l'errore vicino al campo", () => {
@@ -1227,7 +1237,7 @@ describe("PartnerAssistantView", () => {
     const tree = render({}, {}, { firstRealSendOn: TODAY });
     const limite = sectionOf(tree, "Limite");
     expect(words(limite)).toContain(
-      "Dopo la prima settimana: al massimo 10 email automatiche al giorno (prime e solleciti)",
+      "Dopo la prima settimana: al massimo 10 prime email al giorno.",
     );
     expect(words(limite)).toContain("Fino al 28 ottobre ne partono al massimo 5.");
     expect(descendants(limite).some((node) => node.type === "input")).toBe(false);
