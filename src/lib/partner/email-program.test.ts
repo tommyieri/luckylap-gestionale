@@ -241,14 +241,14 @@ describe("lettura del programma email", () => {
 });
 
 describe("previsione globale delle prime email", () => {
-  it("i destinatari ancora senza lavoro non consumano posti né riservano la quota del loro flusso", () => {
+  it("i destinatari ancora senza lavoro non consumano posti nella quota del loro flusso", () => {
     const s = snapshot(rows(5, "club"));
     s.unprepared = [unprepared(50)];
     s.counts.unpreparedTotal = s.counts.unpreparedReturned = 1;
     const result = plan(s);
     expect(result.items).toHaveLength(5);
-    expect(prepared(result).map((row) => row.co)).toEqual([1, 2, 3, 4, 5]);
-    expect(result.days[0]).toEqual({ day: TODAY, limit: 5, club: 5, altri: 0 });
+    expect(prepared(result).map((row) => row.co)).toEqual([1, 2]);
+    expect(result.days[0]).toEqual({ day: TODAY, limit: 5, club: 2, altri: 0 });
     expect(result.items.some((row) => row.partnerId === s.unprepared[0].partnerId)).toBe(false);
   });
   it("riserva 3 posti agli altri e 2 ai Club, con precedenza globale e passo di 8 minuti", () => {
@@ -265,6 +265,79 @@ describe("previsione globale delle prime email", () => {
     expect(result.days[0]).toEqual({ day: TODAY, limit: 5, club: 2, altri: 3 });
     expect(result.assumption).toContain("8 minuti");
     expect(source).toEqual(original);
+  });
+  it.each(["club", "altri"] as const)(
+    "distribuisce venti bozze %s a tre al giorno anche quando l'altra coda è vuota",
+    (flow) => {
+      const days = Array.from({ length: 9 }, (_, offset) => addDays(TODAY, offset));
+      const workingDays = days.filter((on) => {
+        const weekday = new Date(`${on}T12:00:00Z`).getUTCDay();
+        return weekday !== 0 && weekday !== 6;
+      });
+      const s = snapshot(
+        rows(20, flow).map((row) => ({
+          ...row,
+          windows: workingDays.map((on) => window(on)),
+        })),
+        { days: days.length },
+      );
+      s.config.firstRealOn = "2026-10-20";
+      s.config.dailyFirstLimit = 6;
+      const original = structuredClone(s);
+      const result = plan(s);
+      const expectedCounts = [3, 3, 3, 0, 0, 3, 3, 3, 2];
+      expect(result.days).toEqual(
+        days.map((on, index) => ({
+          day: on,
+          limit: 6,
+          club: flow === "club" ? expectedCounts[index] : 0,
+          altri: flow === "altri" ? expectedCounts[index] : 0,
+        })),
+      );
+      expect(prepared(result).map((row) => row.co)).toEqual(
+        Array.from({ length: 20 }, (_, index) => index + 1),
+      );
+      expect(new Set(prepared(result).map((row) => row.jobId)).size).toBe(20);
+      expect(s).toEqual(original);
+    },
+  );
+  it("con limite sei pianifica tre Club e tre altri nell'ordine globale della coda", () => {
+    const s = snapshot([...rows(4, "altri"), ...rows(4, "club", 20)]);
+    s.config.firstRealOn = "2026-10-20";
+    s.config.dailyFirstLimit = 6;
+    const result = plan(s);
+    expect(prepared(result).map((row) => [row.co, row.plannedAt])).toEqual([
+      [1, "2026-11-04T08:30:00.000Z"],
+      [2, "2026-11-04T08:38:00.000Z"],
+      [3, "2026-11-04T08:46:00.000Z"],
+      [20, "2026-11-04T08:54:00.000Z"],
+      [21, "2026-11-04T09:02:00.000Z"],
+      [22, "2026-11-04T09:10:00.000Z"],
+    ]);
+    expect(result.days[0]).toEqual({ day: TODAY, limit: 6, club: 3, altri: 3 });
+    expect(result.items.filter((row) => row.plannedAt === null).map((row) => row.co)).toEqual([
+      4, 23,
+    ]);
+  });
+  it("dopo otto invii con il limite ridotto a sei riprende dalle quote del giorno successivo", () => {
+    const tomorrow = addDays(TODAY, 1);
+    const s = snapshot(
+      [...rows(4, "altri"), ...rows(4, "club", 20)].map((row) => ({
+        ...row,
+        windows: [window(), window(tomorrow)],
+      })),
+      { todaySent: { club: 4, altri: 4 } },
+    );
+    s.config.firstRealOn = "2026-10-20";
+    s.config.dailyFirstLimit = 6;
+    const result = plan(s);
+    expect(result.days).toEqual([
+      { day: TODAY, limit: 6, club: 0, altri: 0 },
+      { day: tomorrow, limit: 6, club: 3, altri: 3 },
+    ]);
+    expect(prepared(result).every((row) => romeDay(new Date(row.plannedAt!)) === tomorrow)).toBe(
+      true,
+    );
   });
   it("consuma gli invii già fatti, compresi gli incerti nei conteggi SQL, senza ricontarli come previsti", () => {
     const result = plan(
@@ -304,8 +377,8 @@ describe("previsione globale delle prime email", () => {
       expect(result.items[0].explanation).toContain(
         status === "incerto" ? "incerto" : status === "in_invio" ? "in corso" : "già inviata",
       );
-      expect(prepared(result).map((row) => row.co)).toEqual([20, 21, 22, 23]);
-      expect(result.days[0]).toEqual({ day: TODAY, limit: 5, club: 0, altri: 4 });
+      expect(prepared(result).map((row) => row.co)).toEqual([20, 21, 22]);
+      expect(result.days[0]).toEqual({ day: TODAY, limit: 5, club: 0, altri: 3 });
       expect(s).toEqual(original);
     },
   );
@@ -355,21 +428,21 @@ describe("previsione globale delle prime email", () => {
     expect(prepared(result).map((row) => row.co)).toEqual([1, 2, 3]);
     expect(result.items.find((row) => row.co === 20)?.state).toBe("non_prevista");
   });
-  it("presta i posti dopo l'esaurimento reale dell'altro flusso", () => {
+  it("conserva i posti inutilizzati dopo l'esaurimento dell'altro flusso", () => {
     const result = plan(snapshot([...rows(5, "altri"), item(20)]));
-    expect(prepared(result).map((row) => row.co)).toEqual([1, 2, 3, 4, 20]);
-    expect(result.items.find((row) => row.co === 4)?.plannedAt).toBe("2026-11-04T09:02:00.000Z");
+    expect(prepared(result).map((row) => row.co)).toEqual([1, 2, 3, 20]);
+    expect(result.items.find((row) => row.co === 4)?.plannedAt).toBeNull();
   });
-  it("esclude hold dalla previsione e dalla disponibilità del flusso, consentendo il prestito", () => {
+  it("esclude le bozze sospese senza trasferire i loro posti all'altro flusso", () => {
     const held = item(20, { hold: { id: id(90), version: 1, createdAt: NOW } });
     const result = plan(snapshot([...rows(5, "altri"), held]));
-    expect(prepared(result).length).toBe(5);
+    expect(prepared(result).length).toBe(3);
     expect(result.items.find((row) => row.co === 20)).toMatchObject({
       state: "sospesa",
       plannedAt: null,
     });
   });
-  it("non pianifica una revisione manuale fuori contesto e lascia i posti agli altri", () => {
+  it("non pianifica una revisione manuale fuori contesto e conserva la quota degli altri", () => {
     const stale = item(1, { reason: "bozza_manuale_da_rivedere" });
     const result = plan(snapshot([stale, ...rows(5, "altri", 20)]));
     expect(result.items[0]).toMatchObject({
@@ -377,8 +450,8 @@ describe("previsione globale delle prime email", () => {
       plannedAt: null,
       draft: stale.draft,
     });
-    expect(prepared(result).map((row) => row.co)).toEqual([20, 21, 22, 23, 24]);
-    expect(result.days[0]).toEqual({ day: TODAY, limit: 5, club: 0, altri: 5 });
+    expect(prepared(result).map((row) => row.co)).toEqual([20, 21, 22]);
+    expect(result.days[0]).toEqual({ day: TODAY, limit: 5, club: 0, altri: 3 });
   });
   it("rispetta il rank ricevuto e il flusso SQL per i Club che sono anche eventi", () => {
     const result = plan(
@@ -484,7 +557,7 @@ describe("previsione globale delle prime email", () => {
     );
     expect(plan(s).items[0]).toMatchObject({ state: "da_rivedere", plannedAt: null });
   });
-  it("libera la quota quando una ricerca scade a metà giornata, anche senza sue finestre", () => {
+  it("una ricerca che scade a metà giornata non libera posti per l'altro flusso", () => {
     const s = snapshot(
       [
         item(1, { windows: [window(TODAY, "14:30:00", "15:58:30")], flow: "altri" }),
@@ -493,7 +566,7 @@ describe("previsione globale delle prime email", () => {
       { todaySent: { club: 0, altri: 3 } },
     );
     const result = plan(s);
-    expect(result.items[0].plannedAt).toBe("2026-11-04T14:30:00.000Z");
+    expect(result.items[0]).toMatchObject({ state: "non_prevista", plannedAt: null });
     expect(result.items[1]).toMatchObject({ state: "da_rivedere", plannedAt: null });
   });
   it("riusa il controllo reale delle date nel corpo e del cambio proposta degli eventi", () => {
@@ -524,7 +597,7 @@ describe("previsione globale delle prime email", () => {
     s.config.firstRealOn = null;
     const result = plan(s);
     expect(result.days.map((day) => day.limit)).toEqual([5, 5, 5, 5, 5, 5, 5, 10, 10]);
-    expect(result.days[7].club).toBe(10);
+    expect(result.days[7].club).toBe(5);
   });
   it("salta i giorni passati senza consumare quota e non usa l'orologio del processo", () => {
     const s = snapshot([item(1, { windows: [window("2026-11-03"), window()] })], {
@@ -544,6 +617,37 @@ describe("previsione globale delle prime email", () => {
     const result = plan(s);
     expect(romeDay(new Date(result.items[0].plannedAt!))).toBe("2026-11-08");
     expect(result.days[0].club).toBe(1);
+  });
+  it("azzera la quota al cambio di giorno a Roma anche quando UTC è ancora al giorno precedente", () => {
+    const tomorrow = addDays(TODAY, 1);
+    const s = snapshot(
+      rows(4, "club").map((row) => ({
+        ...row,
+        timezone: "Pacific/Guam",
+        country: "Paese sintetico",
+        windows: [
+          { day: TODAY, start: "2026-11-03T23:30:00Z", end: "2026-11-04T00:58:30Z" },
+          { day: tomorrow, start: "2026-11-04T23:30:00Z", end: "2026-11-05T00:58:30Z" },
+        ],
+      })),
+      { generatedAt: "2026-11-03T23:15:00Z", todaySent: { club: 3, altri: 0 } },
+    );
+    s.config.firstRealOn = "2026-10-20";
+    s.config.dailyFirstLimit = 6;
+    const result = plan(s);
+    expect(result.days).toEqual([
+      { day: TODAY, limit: 6, club: 0, altri: 0 },
+      { day: tomorrow, limit: 6, club: 3, altri: 0 },
+    ]);
+    expect(result.items.map((row) => row.plannedAt)).toEqual([
+      "2026-11-04T23:30:00.000Z",
+      "2026-11-04T23:38:00.000Z",
+      "2026-11-04T23:46:00.000Z",
+      null,
+    ]);
+    expect(prepared(result).every((row) => romeDay(new Date(row.plannedAt!)) === tomorrow)).toBe(
+      true,
+    );
   });
   it("accetta finestre SQL con offset diversi dopo il cambio dell'ora", () => {
     const s = snapshot(

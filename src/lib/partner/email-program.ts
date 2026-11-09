@@ -555,14 +555,10 @@ export function forecastPartnerEmails(
       });
       if (snapshot.mail.dayStoppedOn === on || used.club + used.altri >= limit || pool.length === 0)
         break;
-      const available = {
-        club: pool.some((row) => row.flow === "club"),
-        altri: pool.some((row) => row.flow === "altri"),
-      };
       const allowed = (flow: PartnerEmailFlow) =>
         flow === "club"
-          ? !available.altri || used.club < Math.floor(limit / 2)
-          : !available.club || used.altri < limit - Math.floor(limit / 2);
+          ? used.club < Math.floor(limit / 2)
+          : used.altri < limit - Math.floor(limit / 2);
       const open = (row: Row) =>
         row.windows.some(
           (window) =>
@@ -587,7 +583,7 @@ export function forecastPartnerEmails(
       } else {
         let next = end;
         for (const row of pool) {
-          // Anche una ricerca senza finestre oggi può scadere e liberare i posti del suo flusso.
+          // Anche una ricerca senza finestre oggi può scadere prima del giorno successivo.
           const expiry = Date.parse(row.researchAt!) + TTL;
           if (expiry > cursor) next = Math.min(next, expiry);
           if (allowed(row.flow))
