@@ -50,6 +50,10 @@ const HEADER_NAMES = [
   "Content-Type",
   "Auto-Submitted",
   "Return-Path",
+  "To",
+  "Cc",
+  "Bcc",
+  "Reply-To",
 ];
 const MESSAGE_ID = /^<[^<>\s@\x00-\x20\x7f-\uffff]+@[^<>\s@\x00-\x20\x7f-\uffff]+>$/u;
 type FolderState = { path: string; uidValidity: string; uidNext: number; exists: number };
@@ -203,27 +207,135 @@ function headersOf(message: FetchMessageObject): Map<string, string[]> {
   return result;
 }
 
+type EnvelopeField = "from" | "to" | "cc" | "bcc" | "replyTo" | "sender";
+type AddressToken = { group: string } | { address: string };
+const GROUP_HEADERS = { to: "to", cc: "cc", bcc: "bcc", replyTo: "reply-to" } as const;
+const groupName = (value: string) =>
+  value
+    .trim()
+    .replace(/[ \t]+/gu, " ")
+    .toLowerCase();
+
+/** Forma minima verificabile del gruppo RFC 9051: frase ASCII semplice e membri bare addr-spec.
+ * Nomi quoted/encoded, commenti e altre forme non supportate restano incerti. Non scartiamo parti
+ * che non sappiamo leggere. L'ordine include il marker iniziale e tutti i membri, senza end marker. */
+function canonicalAddressList(value: string): AddressToken[] | null {
+  if (!value || /[^\x09\x20-\x7e]/u.test(value)) return null;
+  const result: AddressToken[] = [];
+  let cursor = 0;
+  const space = () => {
+    while (cursor < value.length && /[ \t]/u.test(value[cursor])) cursor++;
+  };
+  const mailbox = (): boolean => {
+    const end = value.slice(cursor).search(/[,;]/u);
+    const until = end < 0 ? value.length : cursor + end;
+    const raw = value.slice(cursor, until).trim();
+    const address = partnerAssistantMailAddress(raw);
+    if (address === null) return false;
+    const [local, domain] = address.split("@");
+    if (
+      local.split(".").some((atom) => atom.length === 0) ||
+      domain.split(".").some((label) => !/^[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?$/u.test(label))
+    )
+      return false;
+    result.push({ address });
+    cursor = until;
+    return true;
+  };
+  space();
+  while (cursor < value.length) {
+    const group = /^([A-Za-z0-9][A-Za-z0-9 _-]{0,199}):/u.exec(value.slice(cursor));
+    if (group) {
+      result.push({ group: groupName(group[1]) });
+      cursor += group[0].length;
+      space();
+      while (value[cursor] !== ";") {
+        if (!mailbox()) return null;
+        if (value[cursor] === ";") break;
+        if (value[cursor] !== ",") return null;
+        cursor++;
+        space();
+        if (value[cursor] === ";") return null;
+      }
+      if (value[cursor] !== ";") return null;
+      cursor++;
+    } else if (!mailbox()) return null;
+    space();
+    if (cursor === value.length) return result;
+    if (value[cursor] !== ",") return null;
+    cursor++;
+    space();
+    if (cursor === value.length) return null;
+  }
+  return null;
+}
+
 function messageReason(
   message: FetchMessageObject,
   input: PartnerAssistantFollowupMailboxInput,
 ): "reply" | "manual" | "ambiguous" | null {
   const envelope = message.envelope;
-  if (!envelope || typeof envelope !== "object") return stop("envelope_invalid");
-  const addresses = (value: unknown): string[] => {
-    if (value === undefined) return [];
-    if (!Array.isArray(value)) return stop("envelope_invalid");
-    return value.map((entry) => {
-      if (!entry || typeof entry.address !== "string") return stop("envelope_invalid");
-      const address = partnerAssistantMailAddress(entry.address);
-      return address ?? stop("envelope_invalid");
-    });
-  };
-  const from = addresses(envelope.from);
-  const to = addresses(envelope.to);
-  const cc = addresses(envelope.cc);
-  const other = [...addresses(envelope.replyTo), ...addresses(envelope.sender)];
-  if (from.length === 0) return stop("envelope_invalid");
+  if (!envelope || typeof envelope !== "object" || Array.isArray(envelope))
+    return stop("envelope_invalid");
   const headers = headersOf(message);
+  const grouped = new Set<EnvelopeField>();
+  const addresses = (field: EnvelopeField): string[] => {
+    const value: unknown = envelope[field];
+    const code = field === "replyTo" ? "reply_to" : field;
+    const invalid = (): never => stop(`envelope_${code}_invalid`);
+    if (value === undefined) return [];
+    if (!Array.isArray(value) || value.length === 0) return invalid();
+    const tokens: AddressToken[] = [];
+    const members: string[] = [];
+    for (const entry of value) {
+      if (!entry || typeof entry !== "object" || Array.isArray(entry)) return invalid();
+      if (Object.keys(entry).some((key) => key !== "name" && key !== "address")) return invalid();
+      if (
+        entry.name !== undefined &&
+        (typeof entry.name !== "string" ||
+          !entry.name.isWellFormed() ||
+          /[\x00-\x1f\x7f-\x9f\u2028\u2029\ufffd]/u.test(entry.name))
+      )
+        return invalid();
+      // ImapFlow 2.4.2 tools.parseEnvelope restituisce address:'' solo per NIL host.
+      // Poiché !host confonde anche host malformati, prima di clear verifichiamo l'header reale.
+      if (entry.address === "" && field !== "from" && field !== "sender") {
+        if (typeof entry.name !== "string" || !entry.name.trim()) return invalid();
+        grouped.add(field);
+        tokens.push({ group: groupName(entry.name) });
+        continue;
+      }
+      if (typeof entry.address !== "string") return invalid();
+      const address = partnerAssistantMailAddress(entry.address);
+      if (address === null) return invalid();
+      tokens.push({ address });
+      members.push(address);
+    }
+    if (grouped.has(field)) {
+      const values = headers.get(GROUP_HEADERS[field as keyof typeof GROUP_HEADERS]) ?? [];
+      const parsed = values.length === 1 ? canonicalAddressList(values[0]) : null;
+      if (parsed === null || JSON.stringify(parsed) !== JSON.stringify(tokens))
+        return stop(`envelope_${code}_group_unverified`);
+    }
+    return members;
+  };
+  const from = addresses("from");
+  const to = addresses("to");
+  const cc = addresses("cc");
+  const bcc = addresses("bcc");
+  const replyTo = addresses("replyTo");
+  const sender = addresses("sender");
+  if (from.length === 0) return stop("envelope_from_invalid");
+  const subject: unknown = envelope.subject;
+  if (
+    subject !== undefined &&
+    subject !== null &&
+    (typeof subject !== "string" ||
+      !subject.isWellFormed() ||
+      subject.length > MAX_HEADERS_BYTES ||
+      /[\x00-\x1f\x7f-\x9f\u2028\u2029]/u.test(subject))
+  )
+    return stop("envelope_subject_invalid");
   const ids = (name: string): string[] => {
     const values = headers.get(name) ?? [];
     return values.flatMap((value) => {
@@ -234,31 +346,41 @@ function messageReason(
   };
   const messageIds = ids("message-id");
   const references = [...ids("in-reply-to"), ...ids("references")];
-  const own = from.length === 1 && from[0] === input.ownAddress;
+  const own = from.includes(input.ownAddress);
   const expected = new Set(input.addresses);
   const known = new Set(input.messageIds);
   if (
     own &&
+    from.length === 1 &&
     messageIds.length === 1 &&
     known.has(messageIds[0]) &&
     to.length > 0 &&
-    [...to, ...cc].every((address) => expected.has(address))
+    [...to, ...cc].every((address) => expected.has(address)) &&
+    bcc.length === 0 &&
+    !headers.has("bcc") &&
+    grouped.size === 0 &&
+    (sender.length === 0 || (sender.length === 1 && sender[0] === input.ownAddress)) &&
+    (replyTo.length === 0 || (replyTo.length === 1 && replyTo[0] === input.ownAddress)) &&
+    (!headers.has("reply-to") ||
+      JSON.stringify(canonicalAddressList((headers.get("reply-to") ?? []).join(","))) ===
+        JSON.stringify([{ address: input.ownAddress }]))
   )
     return null;
   if (
     references.some((id) => known.has(id)) ||
-    [...from, ...to, ...cc, ...other].some((address) => expected.has(address))
+    [...from, ...to, ...cc, ...bcc, ...replyTo, ...sender].some((address) => expected.has(address))
   )
     return own ? "manual" : "reply";
   if (messageIds.some((id) => known.has(id))) return own ? "manual" : "ambiguous";
-  if (typeof envelope.subject !== "string") return stop("envelope_invalid");
-  if (normalizeSubject(envelope.subject) === normalizeSubject(input.subject)) return "ambiguous";
+  if (typeof subject === "string" && normalizeSubject(subject) === normalizeSubject(input.subject))
+    return "ambiguous";
   const report = (headers.get("content-type") ?? []).some((value) =>
     /(?:multipart\/report|message\/delivery-status)/iu.test(value),
   );
   const daemon = from.some((address) => /^(?:mailer-daemon|postmaster)@/iu.test(address));
   const emptyReturnPath = (headers.get("return-path") ?? []).some((value) => value.trim() === "<>");
-  if (to.includes(input.ownAddress) && (report || daemon || emptyReturnPath)) return "ambiguous";
+  if ([...to, ...cc, ...bcc].includes(input.ownAddress) && (report || daemon || emptyReturnPath))
+    return "ambiguous";
   return null;
 }
 
