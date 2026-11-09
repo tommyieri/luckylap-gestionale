@@ -5,6 +5,7 @@ import {
   checkPartnerAssistantDraft,
   partnerAssistantBodyWords,
   partnerAssistantDraftSha256,
+  partnerAssistantHasRetiredSocialProof,
   partnerAssistantSignature,
   type PartnerAssistantCheckCode,
 } from "./checks";
@@ -109,16 +110,92 @@ function bodyOf(words: number): string {
 const twoQuestions = withBody("Vi andrebbe di sentirci?");
 const shortBody = { ...valid, body: bodyOf(40) };
 
-describe("bozze dell'assistente Partner: i casi validi", () => {
-  it.each(EXAMPLES)("l'esempio %s passa", (_, d, porsche) =>
+describe("riferimento commerciale ritirato, condiviso con il preinvio", () => {
+  it.each([
+    "Porsche Club Toscana",
+    "Porsche Club di Toscana",
+    "Porsche Clubs in Tuscany",
+    "Club Porsche de Toscane",
+    "Tuscan Porsche Club",
+    "Porsche-Club-Toskana",
+    "150 magliette",
+    "centocinquanta magliette",
+    "cento-cinquanta magliette dedicate",
+    "one hundred and fifty bespoke T-shirts",
+    "a hundred fifty embroidered shirts",
+    "150 bespoke ones",
+    "one hundred fifty custom-made ones",
+    "hundertfünfzig individuell bestickte T-Shirts",
+    "einhundertfuenfzig Clubshirts",
+    "cent cinquante tee-shirts",
+    "cent-cinquante t-shirts brodés",
+    "ciento cincuenta camisetas bordadas",
+    "150\u00a0T\u2011shirts",
+  ])("rifiuta il frammento sintetico %s", (text) => {
+    expect(partnerAssistantHasRetiredSocialProof(text)).toBe(true);
+    expect(partnerAssistantHasRetiredSocialProof(text)).toBe(true);
+    expect(fails({ ...valid, subject: text })).toContain("parola_vietata");
+  });
+  it.each([
+    "Porsche Club in Italia",
+    "Una collaborazione con alcuni Porsche Club in Italia.",
+    "Il modello 1500 e le magliette del club.",
+    "1150 T-shirts",
+    "1.150 magliette",
+    "1,150 shirts",
+    "La strada numero 150.",
+    "Il 150 anniversario con magliette ricamate.",
+    "150 anni di storia e magliette.",
+    "150 years and T-shirts",
+    "150 Jahre und T-Shirts",
+    "150 ans et t-shirts",
+    "150 años y camisetas",
+    "Il calendario del 15.01.2050.",
+    "Club Sintetico della Toscana",
+    "Porsche Club Toscanaccio",
+  ])("non vieta un numero o una regione fuori dal caso ritirato: %s", (text) =>
+    expect(partnerAssistantHasRetiredSocialProof(text)).toBe(false),
+  );
+  it("ammette il nome ufficiale del destinatario, senza esentare la quantità", () => {
+    const name = "Porsche Club Toscana";
+    expect(partnerAssistantHasRetiredSocialProof(`${name} e LuckyLap`, [name])).toBe(false);
+    expect(partnerAssistantHasRetiredSocialProof(name.toLowerCase(), [name])).toBe(false);
+    expect(partnerAssistantHasRetiredSocialProof(`${name}: 150 magliette`, [name])).toBe(true);
+    expect(fails({ ...valid, subject: `${name} e LuckyLap` }, { names: [name] })).toEqual([]);
+  });
+  it("un nome parziale o un altro destinatario non esenta il vecchio caso", () => {
+    expect(partnerAssistantHasRetiredSocialProof("Porsche Club Toscana", ["Club Sintetico"])).toBe(
+      true,
+    );
     expect(
-      checkPartnerAssistantDraft(d, {
-        porscheCommunity: porsche,
-        currentRulesVersion: 1,
-        phone: PHONE,
-        names: [],
-      }),
-    ).toEqual({ ok: true }),
+      partnerAssistantHasRetiredSocialProof("Porsche Club Toscana", ["Porsche", "Club", "Toscana"]),
+    ).toBe(true);
+  });
+  it("esenta solo il nome ufficiale della scheda, non l'eventuale nome evento", () => {
+    const named = { ...valid, subject: "Porsche Club Toscana e LuckyLap" };
+    expect(fails(named, { names: ["Porsche Club Toscana", "Evento Sintetico"] })).toEqual([]);
+    expect(fails(named, { names: ["Club Sintetico", "Porsche Club Toscana"] })).toEqual([
+      "parola_vietata",
+    ]);
+  });
+});
+
+describe("bozze dell'assistente Partner: esempi storici e regole attuali", () => {
+  it.each(EXAMPLES)(
+    "l'esempio %s rispetta anche il divieto successivo sulla prova sociale",
+    (label, d, porsche) =>
+      expect(
+        checkPartnerAssistantDraft(d, {
+          porscheCommunity: porsche,
+          currentRulesVersion: 1,
+          phone: PHONE,
+          names: [],
+        }),
+      ).toEqual(
+        label.startsWith("stand_evento")
+          ? { ok: true }
+          : { ok: false, failures: ["parola_vietata"] },
+      ),
   );
   it.each(EXAMPLES)("l'esempio %s ha le parole attese", (_, d, __, words) =>
     expect(partnerAssistantBodyWords(d.body)).toBe(words),
@@ -282,9 +359,11 @@ describe("telefono", () => {
   );
   it("una data non è un numero di telefono", () =>
     expect(fails(withBody("… il 2026-11-19 …"))).toEqual([]));
-  it.each(["0000000", "150 magliette in 10 paesi", "1.000.000"])("%s non è un telefono", (w) =>
+  it.each(["0000000", "1.000.000"])("%s non è un telefono", (w) =>
     expect(fails(withBody(`… ${w} …`))).toEqual([]),
   );
+  it("il numero di magliette ritirato è vietato senza essere scambiato per telefono", () =>
+    expect(fails(withBody("150 magliette in diversi paesi"))).toEqual(["parola_vietata"]));
 });
 
 describe("firma", () => {
@@ -347,7 +426,7 @@ describe("modelli Porsche", () => {
   it("anche nell'oggetto", () =>
     expect(
       fails(
-        { ...example(1), subject: "Club Sintetico, the 911 and LuckyLap" },
+        { ...valid, subject: "Club Sintetico, the 911 and LuckyLap" },
         {
           porscheCommunity: true,
         },

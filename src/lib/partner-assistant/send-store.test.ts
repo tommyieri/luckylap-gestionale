@@ -289,6 +289,14 @@ const cases: Case[] = [
     row: { status: "done" },
     value: { status: "done" },
   },
+  {
+    label: "skip riferimento cliente superato",
+    name: "skip_partner_assistant_send",
+    run: (s, signal) => s.skip(lease, id(10), "riferimento_superato", signal),
+    args: { p_lease_token: lease, p_job_id: id(10), p_reason: "riferimento_superato" },
+    row: { status: "done" },
+    value: { status: "done" },
+  },
   leaseLost("skip", "skip_partner_assistant_send", skip, skipArgs),
   {
     label: "prepare pronto",

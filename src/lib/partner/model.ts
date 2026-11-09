@@ -53,7 +53,7 @@ export const PARTNER_SECTION_NOTES: Record<PartnerSection, string> = {
     "Stand, pop-up, presenza da partner o welcome kit per i partecipanti: la proposta è nelle note di ogni contatto.",
   collab:
     "Capsule a doppio marchio, partnership con media e community, club e rally: ogni contatto dice cosa proporre.",
-  club: "Porsche Club fuori dall’Italia, club Ferrari e Mercedes: magliette co-firmate con il logo del club ricamato, come per il Porsche Club Toscana.",
+  club: "Porsche Club fuori dall’Italia, club Ferrari e Mercedes: magliette co-firmate con il logo del club ricamato, come nelle collaborazioni con Porsche Club in Italia.",
 };
 /** Titoletti di «Cosa proporre» per sezione (IDEA_LABEL del sito). */
 export const PARTNER_IDEA_LABELS: Record<PartnerSection, string> = {

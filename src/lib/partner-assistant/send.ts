@@ -1,6 +1,7 @@
 import "server-only";
 import { randomUUID } from "node:crypto";
 import { romeDay } from "../partner/dates";
+import { partnerAssistantHasRetiredSocialProof } from "./checks";
 import { abortable, boundedPhase, safeWorkerReason } from "../shopify/worker-io";
 import type { PartnerAssistantConfig } from "./config";
 import {
@@ -205,6 +206,18 @@ export async function runPartnerAssistantSendStep(
     };
 
     async function round(): Promise<void> {
+      // Vale anche per le bozze già approvate prima dell'aggiornamento editoriale.
+      if (
+        candidate &&
+        partnerAssistantHasRetiredSocialProof(
+          `${candidate.draft.subject}\n${candidate.draft.body}`,
+          [candidate.name],
+        )
+      ) {
+        await skip(candidate.jobId, "riferimento_superato");
+        outcome = "riferimento_superato";
+        candidate = null;
+      }
       // La SQL sceglie i club del modello; prima del giorno concordato un candidato reale
       // con allegato non arriva alla composizione né all'SMTP, neppure con uno store incoerente.
       if (

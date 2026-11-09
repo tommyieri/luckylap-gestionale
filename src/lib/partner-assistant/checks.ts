@@ -69,6 +69,41 @@ export function partnerAssistantBodyWords(body: string): number {
 const B = String.raw`(?<![\p{L}\p{N}])`;
 const E = String.raw`(?![\p{L}\p{N}])`;
 
+const CLUB_SPACE = String.raw`[\s\p{Pd}]*`;
+const PORSCHE_CLUB = String.raw`(?:Porsche${CLUB_SPACE}Clubs?|Clubs?${CLUB_SPACE}Porsche)`;
+const TUSCAN_REGION = String.raw`(?:Toscana|Toscane|Tuscany|Tuscan|Toskana)`;
+const RETIRED_CLUB_NAME = new RegExp(
+  `${B}(?:${PORSCHE_CLUB}${CLUB_SPACE}(?:(?:di|della|in|of|de|du|der|the)\\s+)?${TUSCAN_REGION}|${TUSCAN_REGION}\\s+${PORSCHE_CLUB})${E}`,
+  "iu",
+);
+const RETIRED_QUANTITY = String.raw`(?:150|cento[\s\p{Pd}]*cinquanta|(?:one|a)[\s\p{Pd}]+hundred[\s\p{Pd}]+(?:and[\s\p{Pd}]+)?fifty|(?:ein)?hundertf(?:ü|ue|u)nfzig|cent[\s\p{Pd}]+cinquante|ciento[\s\p{Pd}]+cincuenta)`;
+const RETIRED_SHIRT_COUNT = new RegExp(
+  `(?<![\\p{L}\\p{N}.,])${RETIRED_QUANTITY}${E}\\s+((?:\\p{L}[\\p{L}\\p{M}'’\\p{Pd}]{0,30}\\s+){0,4}?)(?:magliett[ae]|(?:club[\\s\\p{Pd}]*)?(?:t[\\s\\p{Pd}]*shirts?|tee[\\s\\p{Pd}]*shirts?|shirts?)|camisetas?|(?:bespoke|custom[\\s\\p{Pd}]+made)\\s+ones)${E}`,
+  "giu",
+);
+const ANNIVERSARY_WORD =
+  /(?:^|\s)(?:ann[io]|years?|jahre?n?|ans?|años?|anniversari\p{L}*|anniversar\p{L}*|aniversari\p{L}*|jubilä\p{L}*)(?=\s|$)/iu;
+
+/** Il caso commerciale ritirato non va ripreso dalle bozze o dagli esempi storici.
+ * Un nome ufficiale del destinatario puo comparire come identita; la quantita della commessa
+ * resta vietata anche quando quel destinatario e proprio il club nominato. */
+export function partnerAssistantHasRetiredSocialProof(
+  text: string,
+  names: readonly string[] = [],
+): boolean {
+  const normalized = text.normalize("NFKC");
+  const identityFree = withoutNames(
+    [normalized.toLowerCase()],
+    names
+      .map((name) => name.normalize("NFKC").toLowerCase())
+      .filter((name) => RETIRED_CLUB_NAME.test(name)),
+  )[0];
+  return (
+    RETIRED_CLUB_NAME.test(identityFree) ||
+    [...normalized.matchAll(RETIRED_SHIRT_COUNT)].some((match) => !ANNIVERSARY_WORD.test(match[1]))
+  );
+}
+
 // Parole vietate, su oggetto e corpo. Valgono anche dentro una parola più lunga, così si fermano
 // composti e plurali come «Mitgliederrabatt», «handmade in Italy», «Verkaufskommission» e
 // «Rabattcode». Il confine a sinistra c'è solo dove una parola comune finisce con quella vietata
@@ -127,7 +162,7 @@ function anyMatch(patterns: RegExp[], texts: string[]): boolean {
 /** I testi senza le occorrenze esatte dei nomi, dalla più lunga: le regole chiedono il loro nome
  * nell'oggetto, e un club o un evento può avere un modello nel nome. Al posto del nome uno spazio,
  * così le parole intorno restano separate. */
-function withoutNames(texts: string[], names: string[]): string[] {
+function withoutNames(texts: string[], names: readonly string[]): string[] {
   const filled = names.filter((name) => /\S/u.test(name)).sort((a, b) => b.length - a.length);
   return texts.map((text) => filled.reduce((rest, name) => rest.split(name).join(" "), text));
 }
@@ -152,7 +187,8 @@ export function checkPartnerAssistantDraft(
     /** La bozza viene dal testo fisso per i club: firma con il cognome, da 180 a 260 parole, e il
      * nome del club (un dato inserito dal codice) fuori dai controlli sulle parole. */
     template?: boolean;
-    /** Sollecito: cambia solo il numero di parole; firma e controlli del percorso restano uguali. */
+    /** Sollecito: cambia il numero di parole; il wrapper espone il riferimento ritirato come
+     * prova_sociale. Firma e altri controlli del percorso restano uguali. */
     followup?: boolean;
   },
 ): { ok: true } | { ok: false; failures: PartnerAssistantCheckCode[] } {
@@ -167,7 +203,16 @@ export function checkPartnerAssistantDraft(
     : partnerAssistantSignature(draft.language, context.phone);
   const [minWords, maxWords] = context.followup ? [40, 90] : template ? [180, 260] : [110, 160];
   const checks: [PartnerAssistantCheckCode, boolean][] = [
-    ["parola_vietata", anyMatch(FORBIDDEN, texts)],
+    [
+      "parola_vietata",
+      anyMatch(FORBIDDEN, texts) ||
+        // Il wrapper FU espone lo stesso divieto con il suo codice storico prova_sociale.
+        (!context.followup &&
+          partnerAssistantHasRetiredSocialProof(
+            `${draft.subject}\n${draft.body}`,
+            context.names.slice(0, 1),
+          )),
+    ],
     ["segnaposto", anyMatch(PLACEHOLDERS, texts)],
     ["domande", (body.match(/\?/gu) ?? []).length > 1],
     ["esclamativo", anyMatch([/[!¡]/u], texts)],
