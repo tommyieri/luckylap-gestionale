@@ -132,3 +132,45 @@
     flex-direction: column;
   }
 }
+
+.embedded {
+  min-width: 0;
+}
+.embedded .head {
+  margin-bottom: 16px;
+}
+.summary {
+  padding: 16px;
+  background: var(--tint);
+  border-left: 3px solid var(--green);
+  overflow-wrap: anywhere;
+}
+.summary h2 {
+  font-family: var(--f-cond);
+  font-size: var(--text-lg);
+  margin-bottom: 10px;
+}
+.summary p {
+  line-height: 1.6;
+}
+.historyDisclosure > summary {
+  min-height: 44px;
+  align-content: center;
+  font-family: var(--f-cond);
+  font-size: var(--text-xl);
+  cursor: pointer;
+}
+.fullVersion > summary {
+  min-height: 44px;
+  align-content: center;
+  cursor: pointer;
+  font-weight: 600;
+}
+.changes {
+  margin: 12px 0;
+  padding-left: 20px;
+}
+.changes li {
+  border: 0;
+  padding: 4px 0;
+}

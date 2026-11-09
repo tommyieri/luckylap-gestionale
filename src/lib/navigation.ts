@@ -95,11 +95,8 @@ export const SECTIONS: readonly NavSection[] = deepFreeze<NavSection[]>([
     label: "Finance",
     href: "/finance",
     icon: "Wallet",
-    tabs: [
-      { href: "/finance", label: "Panoramica" },
-      { href: "/finance/work", label: "Registrazioni" },
-      { href: "/finance/documents", label: "Documenti" },
-    ],
+    // Finance conserva il contesto di filtri e scheda nelle proprie viste.
+    tabs: [],
     also: ["/auth/area/finance"],
     requires: "finance",
     mobile: "altro",

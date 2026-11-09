@@ -72,6 +72,8 @@ export async function readFinanceWork(supabase: SupabaseClient) {
 const messages: Record<string, string> = {
   finance_access_required:
     "Finance richiede un account abilitato e la password dell’area per questa sessione.",
+  finance_actor_changed:
+    "L’account è cambiato. Rientra con l’account che ha preparato questo movimento prima di registrarlo.",
   invalid_finance_payload:
     "Controlla data, importo, descrizione e conferma che la voce non sia già presente nelle altre fonti.",
   future_finance_entry:
@@ -84,6 +86,7 @@ const messages: Record<string, string> = {
 export async function executeFinanceWork(
   supabase: SupabaseClient,
   value: unknown,
+  expectedActorId?: string,
 ): Promise<FinanceWorkResult> {
   const retry = record(value)?.retry === true;
   const uncertain = (): FinanceWorkResult => ({
@@ -110,6 +113,14 @@ export async function executeFinanceWork(
             status: "rejected",
             code: "finance_access_required",
             message: messages.finance_access_required,
+          };
+    if (expectedActorId !== undefined && access.member.userId !== expectedActorId)
+      return retry
+        ? uncertain()
+        : {
+            status: "rejected",
+            code: "finance_actor_changed",
+            message: messages.finance_actor_changed,
           };
     submitted = true;
     const { data, error } = await supabase.rpc(command.kind, {

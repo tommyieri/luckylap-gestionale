@@ -291,7 +291,7 @@ describe("Finance dashboard, exact movements rather than commercial totals", () 
       future: true,
     });
   });
-  it("keeps all 13 requested categories, preserves unknown labels, and filters account totals", () => {
+  it("keeps all 16 suggested categories, preserves unknown labels, and filters account totals", () => {
     const dashboard = buildFinanceDashboard(
       imports(
         row("a", "0.01", { category: "Custom source" }),
@@ -301,7 +301,7 @@ describe("Finance dashboard, exact movements rather than commercial totals", () 
       today,
     );
     const totals = financeCategoryTotals(dashboard, 2026, ["Revolut Business"]);
-    expect(totals).toHaveLength(14);
+    expect(totals).toHaveLength(17);
     expect(totals.find((c) => c.category === "Fund Raising")?.group).toBe("income");
     expect(totals.find((c) => c.category === "Tasse & Contributi")?.group).toBe("fixed");
     expect(totals.find((c) => c.category === "Custom source")).toMatchObject({

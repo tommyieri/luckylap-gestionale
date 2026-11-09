@@ -2,21 +2,31 @@
 export const FINANCE_CATEGORY_GROUPS = [
   {
     id: "income",
-    label: "Income",
+    label: "Entrate",
     description: "Entrate",
     categories: ["Collab", "Fund Raising", "Others", "Vendite"],
   },
   {
     id: "fixed",
-    label: "Fixed Cost",
+    label: "Costi fissi",
     description: "Costi fissi",
     categories: ["Software", "Stipendi", "Tasse & Contributi"],
   },
   {
     id: "variable",
-    label: "Variable Cost",
+    label: "Costi variabili",
     description: "Costi variabili",
-    categories: ["Attrezzatura", "Eventi", "Marketing", "Produzione", "Spedizioni", "Trasferte"],
+    categories: [
+      "Attrezzatura",
+      "Commissioni",
+      "Eventi",
+      "Marketing",
+      "Packaging",
+      "Produzione",
+      "Servizi e consulenze",
+      "Spedizioni",
+      "Trasferte",
+    ],
   },
 ] as const;
 export const FINANCE_ACCOUNT_SUGGESTIONS = ["Revolut Business", "Cash"] as const;

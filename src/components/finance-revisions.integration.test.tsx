@@ -1,15 +1,8 @@
 import { describe, expect, it, vi } from "vitest";
 import { renderToStaticMarkup } from "react-dom/server";
 import type { ReactNode } from "react";
-const flags = vi.hoisted(() => ({ deleted: false }));
-vi.mock("react", async () => {
-  const actual = await vi.importActual<typeof import("react")>("react");
-  return {
-    ...actual,
-    useState: (value: unknown) =>
-      actual.useState(value === "dated" && flags.deleted ? "deleted" : value),
-  };
-});
+vi.mock("./finance/finance-movement-panel", () => ({ FinanceMovementPanel: () => null }));
+vi.mock("./finance/finance-new-movement", () => ({ FinanceNewMovement: () => null }));
 vi.mock("@/lib/finance/model", () => import("../lib/finance/model"));
 vi.mock("@/lib/finance/dashboard", () => import("../lib/finance/dashboard"));
 vi.mock("@/lib/finance/categories", () => import("../lib/finance/categories"));
@@ -85,10 +78,10 @@ const head: FinanceRevisionRecord = {
 };
 describe("revisioni nei punti effettivi della UI Finance", () => {
   it("usa importo e conto corretti prima di saldi, grafico e categorie", () => {
-    flags.deleted = false;
     const html = renderToStaticMarkup(
       <FinanceImportsView
         snapshot={snapshot}
+        initialParams={{ vista: "movements", periodo: "all" }}
         workSnapshot={work}
         revisionHeads={[head]}
         names={{ [id]: "Membro sintetico" }}
@@ -99,26 +92,24 @@ describe("revisioni nei punti effettivi della UI Finance", () => {
     expect(html).toContain("100,00 €");
     expect(html).not.toContain("12,34 €");
     expect(html).toContain("Revolut Business");
-    expect(html).toContain(">Modificato<");
+    expect(html).toContain("Correzione sintetica");
     expect(html).toContain("Modificato da Membro sintetico · 12 giu 2026");
     expect(html).not.toContain("Corretta");
-    expect(html).toContain(`source_kind=budgetflow&amp;source_id=${id}`);
-    expect(html).toContain("Modifica / storico");
+    expect(html).toContain("Dettagli e modifica di Correzione sintetica");
   });
   it("recupera eliminati anche quando il loro conto non esiste più nei saldi attivi", () => {
-    flags.deleted = true;
     const html = renderToStaticMarkup(
       <FinanceImportsView
         snapshot={snapshot}
+        initialParams={{ vista: "movements", periodo: "all", stato: "deleted" }}
         revisionHeads={[{ ...head, action: "delete", deleted: true }]}
         reportDate="2026-06-15"
         displayName="Sintetico"
       />,
     );
-    expect(html).toContain("Ripristina / storico");
+    expect(html).toContain("Eliminato · recuperabile");
     expect(html).toContain("Eliminato da un membro del team · 12 giu 2026");
     expect(html).toContain("Revolut Business");
-    flags.deleted = false;
   });
   it("recupera un incasso P3 eliminato senza includerlo nei totali attivi", () => {
     const payment = {
@@ -140,7 +131,6 @@ describe("revisioni nei punti effettivi della UI Finance", () => {
       description: "Incasso eliminato sintetico",
       pending: false,
     };
-    flags.deleted = false;
     const active = renderToStaticMarkup(
       <FinanceImportsView
         snapshot={{ batches: [], transactions: [] }}
@@ -151,21 +141,19 @@ describe("revisioni nei punti effettivi della UI Finance", () => {
     );
     expect(active).not.toContain("Incasso eliminato sintetico");
     expect(active).not.toContain("45,00 €");
-    flags.deleted = true;
     const deleted = renderToStaticMarkup(
       <FinanceImportsView
         snapshot={{ batches: [], transactions: [] }}
         deletedShopPayments={[payment]}
+        initialParams={{ vista: "movements", periodo: "all", stato: "deleted" }}
         reportDate="2026-06-15"
         displayName="Sintetico"
       />,
     );
     expect(deleted).toContain("Rettifica");
     expect(deleted).toContain("Eliminato · recuperabile");
-    expect(deleted).toContain(`/finance/incasso/${id}`);
-    expect(deleted).toContain("Ripristina / storico");
+    expect(deleted).toContain("Dettagli e modifica di Incasso eliminato sintetico");
     expect(deleted).toContain("45,00 €");
-    flags.deleted = false;
   });
   it("il registro manuale mostra la versione ripristinata al posto dei campi della vecchia fonte annullata", () => {
     const entries = [

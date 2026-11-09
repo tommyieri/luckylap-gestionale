@@ -335,16 +335,52 @@ describe("Finance", () => {
     }
   });
 
-  it("spiega come si corregge e si ripristina un movimento solo a chi apre Finance", () => {
-    expect(text(html(everyone))).not.toContain("«Modifica / storico»");
+  it("spiega destinazioni, ricerca e significato del saldo solo a chi apre Finance", () => {
+    expect(text(html(everyone))).not.toContain("Panoramica, Movimenti e Da incassare");
     for (const access of [finance, founder]) {
       const copy = text(html(access));
-      expect(copy).toContain("ogni movimento ha «Modifica / storico»");
+      expect(copy).toContain("Finance si apre sulla Panoramica");
+      expect(copy).toContain("non è verificato con la banca");
+      expect(copy).toContain("Voci future e in sospeso sono separate");
+      expect(copy).toContain("«Da attribuire»");
+      expect(copy).toContain("descrizione, categoria, conto o importo");
+      expect(copy).toContain("«Cerca in tutti i periodi»");
+      expect(copy).toContain("Da incassare mostra i residui dei resoconti dei negozi");
+      expect(copy).toContain("«Documenti e fonti»");
+    }
+    for (const href of ["/finance", "/finance/work", "/finance/documents"])
+      expect(TAB_TEXT).not.toHaveProperty(href);
+  });
+
+  it("descrive il modulo breve, la verifica duplicati e il collegamento compatibile", () => {
+    expect(hrefs(html(everyone))).toContain("/finance/work");
+    for (const access of [finance, founder]) {
+      const markup = html(access);
+      const copy = text(markup);
+      expect(hrefs(markup)).toContain("/finance/work");
+      expect(copy).toContain("«Nuovo movimento» apre subito il modulo");
+      expect(copy).toContain("Conto e categoria sono facoltativi");
+      expect(copy).toContain("non può essere futura");
+      expect(copy).toContain("Controlla che il movimento non sia già presente");
+      expect(copy).toContain("solo dopo un salvataggio confermato");
+      expect(copy).toContain("non aggiungere anche un’entrata manuale");
+    }
+  });
+
+  it("spiega come si corregge e si ripristina un movimento dalla scheda", () => {
+    expect(text(html(everyone))).not.toContain("«Salva correzione»");
+    for (const access of [finance, founder]) {
+      const copy = text(html(access));
+      expect(copy).toContain("In Movimenti apri una riga: nella scheda correggi i dati");
       expect(copy).toContain("«Salva correzione»");
       expect(copy).toContain("La motivazione è facoltativa");
       expect(copy).not.toContain("Serve sempre una motivazione");
+      expect(copy).toContain("Chiudendo la scheda ritrovi ricerca e filtri");
       expect(copy).toContain("lo stato «Modificati» mostra i movimenti corretti");
-      expect(copy).toContain("«Eliminati · recuperabili» e premi «Ripristina / storico»");
+      expect(copy).toContain(
+        "«Eliminati · recuperabili», apri la scheda e ripristina una versione",
+      );
+      expect(copy).not.toContain("In Panoramica e in Registrazioni");
     }
   });
 
@@ -457,10 +493,26 @@ describe("i nomi citati esistono davvero", () => {
     ["src/components/today/guide-intro.tsx", ["Prima volta qui?", "Ho capito"]],
     ["src/components/today/today-tiles.tsx", ["Non riesco a leggere"]],
     ["src/components/refresh-button.tsx", ['"Riprova"']],
-    ["src/components/finance-movement-actions.tsx", ["Modifica / storico", "Ripristina / storico"]],
+    [
+      "src/components/finance/finance-workspace.tsx",
+      ["Panoramica", "Movimenti", "Da incassare", "Documenti e fonti", "Nuovo movimento"],
+    ],
+    [
+      "src/components/finance/finance-new-movement.tsx",
+      [
+        "Registra uscita",
+        "Registra entrata",
+        "Registra e aggiungi un’altra",
+        "Da attribuire",
+        "Da classificare",
+      ],
+    ],
     ["src/components/finance-revision-editor.tsx", ["Salva correzione"]],
     ["src/components/finance-shop-payment-editor.tsx", ["Salva correzione"]],
-    ["src/components/finance-imports-view.tsx", ["Eliminati · recuperabili"]],
+    [
+      "src/components/finance/finance-movement-list.tsx",
+      ["Eliminati · recuperabili", "Modificati", "Altri filtri", "Cerca in tutti i periodi"],
+    ],
     [
       "src/components/partner/partner-activity.tsx",
       [

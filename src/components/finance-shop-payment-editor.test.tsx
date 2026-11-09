@@ -226,3 +226,79 @@ describe("editor del singolo pagamento P3", () => {
     expect(mocks.execute).not.toHaveBeenCalled();
   });
 });
+
+it("segnala le modifiche del modulo incorporato e lascia il salvataggio incerto aperto", async () => {
+  const onDirtyChange = vi.fn(),
+    onSaved = vi.fn();
+  const tree = FinanceShopPaymentEditor({
+    history,
+    actorId: id,
+    names: {},
+    embedded: true,
+    onDirtyChange,
+    onSaved,
+  });
+  const form = nodes(tree).find((node) => node.type === "form")!;
+  expect(form.props.onChange).toBeTypeOf("function");
+  (form.props.onChange as () => void)();
+  expect(onDirtyChange).toHaveBeenCalledWith(true);
+  expect(text(tree)).not.toContain("Incasso conto vendita");
+  expect(nodes(tree).some((node) => node.type === "details")).toBe(true);
+  const restore = nodes(tree).find(
+    (node) => node.type === "button" && text(node) === "Ripristina versione  1",
+  )!;
+  (restore.props.onClick as () => void)();
+  await Promise.all(mocks.transitions);
+  expect(onSaved).not.toHaveBeenCalled();
+});
+
+it("notifica onSaved soltanto dopo un successo P3 confermato", async () => {
+  const onSaved = vi.fn(),
+    onDirtyChange = vi.fn();
+  mocks.execute.mockResolvedValue({
+    status: "success",
+    message: "Confermato",
+    target: { paymentId: id },
+  });
+  const tree = FinanceShopPaymentEditor({
+    history,
+    actorId: id,
+    names: {},
+    onSaved,
+    onDirtyChange,
+  });
+  const restore = nodes(tree).find(
+    (node) => node.type === "button" && text(node) === "Ripristina versione  1",
+  )!;
+  (restore.props.onClick as () => void)();
+  expect(onSaved).not.toHaveBeenCalled();
+  await Promise.all(mocks.transitions);
+  expect(onSaved).toHaveBeenCalledTimes(1);
+  expect(onDirtyChange).toHaveBeenLastCalledWith(false);
+  expect(store.size).toBe(0);
+});
+
+it("descrive anche metodo e riferimento cambiati prima della versione completa", () => {
+  const next = { ...current, method: "bank_transfer" as const, reference: "RIF-CORRETTO" };
+  const tree = FinanceShopPaymentEditor({
+    history: { ...history, current: next, revisions: [original, next] },
+    actorId: id,
+    names: {},
+  });
+  const firstVersion = nodes(tree).find((node) => node.type === "li")!;
+  const copy = text(firstVersion).replace(/\s+/g, " ");
+  expect(copy).toContain("Metodo: Contanti → Bonifico");
+  expect(copy).toContain(["Riferimento", "RIF-SINTETICO → RIF-CORRETTO"].join(": "));
+  expect(copy.indexOf("Metodo: Contanti")).toBeLessThan(copy.indexOf("Versione completa"));
+});
+
+it("blocca anche un richiamo diretto al ripristino in sola lettura", async () => {
+  const tree = FinanceShopPaymentEditor({ history, actorId: id, names: {}, readOnly: true });
+  const restore = nodes(tree).find(
+    (node) => node.type === "button" && text(node) === "Ripristina versione  1",
+  )!;
+  expect(restore.props.disabled).toBe(true);
+  (restore.props.onClick as () => void)();
+  await Promise.all(mocks.transitions);
+  expect(mocks.execute).not.toHaveBeenCalled();
+});

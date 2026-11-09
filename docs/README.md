@@ -51,9 +51,10 @@ Alcuni documenti scritti prima del modello attuale chiedono ancora una sessione 
 
 ## Finance
 
+- [Interfaccia Finance: specifica](superpowers/specs/2026-11-09-finance-interfaccia.md) e [piano di implementazione](superpowers/plans/2026-11-09-finance-interfaccia.md): Panoramica iniziale, registro unico, modulo breve, scheda contestuale, grafici verificabili e incassi attesi dai negozi.
 - [Import Finance da BudgetFlow](finance-import.md): import riservato delle righe sorgente, tutte da revisionare, con il contratto di provenienza.
-- [Conti, andamento e categorie](finance-dashboard.md): panoramica `/finance` e regole del calcolo dei saldi.
-- [Fatti collegati e lavoro manuale](finance-work.md): pagina `/finance/work` con fatti delle vendite e registrazioni manuali, correggibili con le revisioni.
+- [Panoramica, movimenti e incassi attesi](finance-dashboard.md): destinazioni di `/finance`, ricerca e filtri nell’indirizzo, saldo dai movimenti, flussi e categorie.
+- [Inserimento, correzioni e fonti collegate](finance-work.md): nuovo movimento diretto, scheda con storico, contratti delle fonti e compatibilità di `/finance/work`.
 - [Nucleo delle revisioni Finance](finance-revisions.md): fonti immutabili, correzioni complete, residui condivisi con Vendite e vecchio conto vendita; in produzione dal 23 ottobre 2026.
 
 ## Conto vendita
