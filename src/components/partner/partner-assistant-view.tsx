@@ -693,7 +693,7 @@ function AssistantSends({
       )}
       <p className={styles.dataLine}>
         {invio
-          ? `Oggi: ${send.firstSentToday} email su ${send.firstLimitToday}`
+          ? `Oggi: ${send.firstSentToday} email su ${send.firstLimitToday} (prime e solleciti)`
           : `Oggi: ${send.testSentToday} email di prova su ${send.testLimit}`}
       </p>
       {invio && (
@@ -765,7 +765,7 @@ function AssistantSends({
 type LimitDraft = { value: string; base: number };
 
 /**
- * Il limite delle prime email al giorno dopo la prima settimana: Tommi lo cambia (da 1 a 15), gli
+ * Il limite delle email automatiche al giorno dopo la prima settimana: Tommi lo cambia (da 1 a 15), gli
  * altri leggono la frase. Nella prima settimana ne partono comunque al massimo 5.
  */
 function AssistantLimit({
@@ -816,7 +816,13 @@ function AssistantLimit({
     <section className={styles.dataSection} aria-labelledby="assistente-limite">
       <h2 id="assistente-limite">Limite</h2>
       <p className={styles.dataLine}>
-        Dopo la prima settimana: al massimo {send.dailyFirstLimit} prime email al giorno.
+        Dopo la prima settimana: al massimo {send.dailyFirstLimit} email automatiche al giorno
+        (prime e solleciti).
+      </p>
+      <p className={styles.hint}>
+        Quote di oggi: al massimo {Math.floor(send.firstLimitToday / 2)} Club e{" "}
+        {Math.ceil(send.firstLimitToday / 2)} altri contatti, contando prime email e solleciti
+        insieme. I posti inutilizzati non si trasferiscono all'altro gruppo.
       </p>
       {lastFirstWeekDay === null ? (
         <p className={styles.hint}>Nei primi 7 giorni dalla prima email ne partono al massimo 5.</p>
@@ -831,7 +837,7 @@ function AssistantLimit({
         <>
           <form className={styles.assistantCredit} onSubmit={save} noValidate>
             <label className={styles.field} htmlFor={fieldId}>
-              Prime email al giorno dopo la prima settimana, da 1 a 15
+              Email automatiche al giorno dopo la prima settimana, da 1 a 15
               <input
                 id={fieldId}
                 name="limite"

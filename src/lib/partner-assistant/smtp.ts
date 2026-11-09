@@ -31,6 +31,9 @@ export type PartnerAssistantSmtp = {
     from: string;
     to: string;
     signal: AbortSignal;
+    /** Solo per i solleciti: nuova lettura della posta e autorizzazione SQL dopo il login,
+     * immediatamente prima di consegnare i byte. Un dubbio impedisce la chiamata send. */
+    beforeSend?: () => Promise<boolean>;
   }): Promise<PartnerAssistantSmtpResult>;
 };
 
@@ -169,7 +172,7 @@ export function createPartnerAssistantSmtp(
     debug: false,
   };
   return {
-    send({ raw, from, to, signal }) {
+    send({ raw, from, to, signal, beforeSend }) {
       const recipient = partnerAssistantMailAddress(to);
       if (recipient === null)
         return Promise.resolve({
@@ -241,12 +244,31 @@ export function createPartnerAssistantSmtp(
                 guarded(() => {
                   if (settled) return;
                   if (error) return fail(error, true);
-                  phase = "send";
-                  connection.send({ from, to: [recipient] }, raw, (error, info) => {
-                    if (settled) return;
-                    if (error) return fail(error, true);
-                    settle(sentOutcome(info, recipient), true);
-                  });
+                  const transmit = () =>
+                    guarded(() => {
+                      if (settled || signal.aborted) return;
+                      phase = "send";
+                      connection.send({ from, to: [recipient] }, raw, (error, info) => {
+                        if (settled) return;
+                        if (error) return fail(error, true);
+                        settle(sentOutcome(info, recipient), true);
+                      });
+                    });
+                  if (!beforeSend) return transmit();
+                  Promise.resolve()
+                    .then(beforeSend)
+                    .then(
+                      (allowed) => {
+                        if (settled) return;
+                        if (allowed !== true)
+                          return settle(
+                            { kind: "non_partito", code: "smtp_verifica_preinvio" },
+                            true,
+                          );
+                        transmit();
+                      },
+                      () => settle({ kind: "non_partito", code: "smtp_verifica_preinvio" }, true),
+                    );
                 }),
               );
             }),

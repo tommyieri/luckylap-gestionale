@@ -152,6 +152,8 @@ export function checkPartnerAssistantDraft(
     /** La bozza viene dal testo fisso per i club: firma con il cognome, da 180 a 260 parole, e il
      * nome del club (un dato inserito dal codice) fuori dai controlli sulle parole. */
     template?: boolean;
+    /** Sollecito: cambia solo il numero di parole; firma e controlli del percorso restano uguali. */
+    followup?: boolean;
   },
 ): { ok: true } | { ok: false; failures: PartnerAssistantCheckCode[] } {
   const template = context.template === true;
@@ -163,7 +165,7 @@ export function checkPartnerAssistantDraft(
   const signature = template
     ? partnerAssistantTemplateSignature(draft.language, context.phone)
     : partnerAssistantSignature(draft.language, context.phone);
-  const [minWords, maxWords] = template ? [180, 260] : [110, 160];
+  const [minWords, maxWords] = context.followup ? [40, 90] : template ? [180, 260] : [110, 160];
   const checks: [PartnerAssistantCheckCode, boolean][] = [
     ["parola_vietata", anyMatch(FORBIDDEN, texts)],
     ["segnaposto", anyMatch(PLACEHOLDERS, texts)],

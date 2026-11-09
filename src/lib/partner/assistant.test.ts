@@ -234,6 +234,19 @@ describe("stato dell'assistente (read_partner_assistant_status)", () => {
 });
 
 describe("stato con l'invio", () => {
+  it("un evento dei solleciti non rende illeggibile lo stato delle prime email", () => {
+    const row = statusRow();
+    row.last_events.unshift({
+      created_at: "2026-10-22T08:59:00+00:00",
+      co: 951,
+      step: "sollecito",
+      outcome: "sollecito_inviato",
+    });
+    expect(partnerAssistantStatusFrom(row).lastEvents[0]).toMatchObject({
+      step: "sollecito",
+      outcome: "sollecito_inviato",
+    });
+  });
   it("un evento d'invio (step «invio») si legge", () => {
     const row = statusRow();
     row.last_events.unshift({
@@ -254,6 +267,7 @@ describe("stato con l'invio", () => {
       "scrittura",
       "controllo",
       "invio",
+      "sollecito",
     ]);
   });
 
@@ -993,6 +1007,18 @@ describe("etichette in italiano", () => {
         "lease_persa",
       ],
       senzaPasso: ["pausa_credito", "pausa_errore_claude"],
+      sollecito: [
+        "bozza_sollecito_salvata",
+        "sollecito_inviato",
+        "sollecito_incerto",
+        "sollecito_respinto",
+        "sollecito_scartato",
+        "reply",
+        "manual",
+        "ambiguous",
+        "risposta_trovata",
+        "risposta_registrata",
+      ],
       // Consegna 2a: gli eventi con step «invio» (comandi del founder e RPC del worker).
       invio: [
         "prova_avviata",

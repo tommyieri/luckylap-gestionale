@@ -151,12 +151,12 @@ function StatusLine({
     send.stopReason === null &&
     send.dayStoppedOn !== today;
   const delivery = active
-    ? "Prime email automatiche attive"
+    ? "Email automatiche attive"
     : status.mode === "prova"
       ? "Invii di prova"
       : status.mode === "invio"
-        ? "Prime email automatiche da verificare"
-        : `Prime email automatiche ferme · ${PARTNER_ASSISTANT_MODE_LABELS[status.mode]}`;
+        ? "Email automatiche da verificare"
+        : `Email automatiche ferme · ${PARTNER_ASSISTANT_MODE_LABELS[status.mode]}`;
   const preparation =
     status.pausedReason === "credito"
       ? "Preparazione in pausa: credito finito"
@@ -169,7 +169,7 @@ function StatusLine({
             : `${status.counts.pronta} ${status.counts.pronta === 1 ? "bozza pronta" : "bozze pronte"}`;
   const counter =
     status.mode === "invio" && send
-      ? `${send.firstSentToday} email oggi su ${send.firstLimitToday}`
+      ? `${send.firstSentToday} email oggi su ${send.firstLimitToday} (prime e solleciti)`
       : status.mode === "prova" && send
         ? `${send.testSentToday} email di prova oggi`
         : null;

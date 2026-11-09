@@ -168,7 +168,7 @@ function tables(extra: Partial<Record<string, Row[]>> = {}): Record<string, Row[
     partner_assistant_notes: a.notes,
     partner_assistant_drafts: a.drafts,
     partner_assistant_rules: a.rules,
-    partner_assistant_messages: a.messages,
+    partner_assistant_messages: a.messages.map((row) => ({ ...row, kind: "primo" })),
     partners: r.partners,
     partner_contacts: r.contacts,
     partner_message_variants: r.variants,
@@ -496,6 +496,7 @@ describe("assistente nella scheda", () => {
     expect(messages.ops).toEqual([
       ["eq", "partner_id", partnerFixtureId(2)],
       ["eq", "mode", "invio"],
+      ["eq", "kind", "primo"],
       ["in", "send_status", ["inviato", "incerto", "respinto"]],
       ["limit", 5],
     ]);
@@ -535,6 +536,7 @@ describe("assistente nella scheda", () => {
     const fake = fakeSupabase(tables());
     const detail = (await loadPartnerDetail(fake.client, 3))!;
     expect(detail.assistant).toEqual({
+      followup: null,
       active: true,
       switchVersion: null,
       sendPriority: 0,
@@ -546,6 +548,71 @@ describe("assistente nella scheda", () => {
     });
     expect(fake.calls.some((call) => call.table === "partner_assistant_notes")).toBe(false);
     expect(fake.calls.some((call) => call.table === "partner_assistant_drafts")).toBe(false);
+  });
+
+  it("metadati solleciti da RPC del solo contatto, senza confondere i solleciti con le prime email", async () => {
+    const data = tables();
+    const first = data.partner_assistant_messages.find((row) => row.mode === "invio")!;
+    data.partner_assistant_messages.push({
+      ...first,
+      id: partnerFixtureId(1999),
+      kind: "sollecito",
+      subject: "Re: Oggetto sintetico",
+      sent_at: "2026-10-22T09:00:00Z",
+      created_at: "2026-10-22T09:00:00Z",
+    });
+    const fake = fakeSupabase(data, {
+      rpc: (name) =>
+        name === "read_partner_followup"
+          ? {
+              data: {
+                id: partnerFixtureId(1951),
+                status: "active",
+                reason: null,
+                version: 2,
+                followups_sent: 1,
+                next_due_on: "2026-10-29",
+                last_checked_at: "2026-10-22T08:00:00Z",
+                next_check_at: "2026-10-22T08:30:00Z",
+                mode: "osserva",
+              },
+              error: null,
+            }
+          : undefined,
+    });
+    const view = (await loadPartnerDetail(fake.client, 6))!
+      .assistant as PartnerAssistantContactView;
+    expect(fake.rpcCalls).toContainEqual({
+      name: "read_partner_followup",
+      args: { p_partner_id: partnerFixtureId(6) },
+    });
+    expect(view.followup).toMatchObject({ status: "active", mode: "osserva", followupsSent: 1 });
+    expect(view.sends).toHaveLength(1);
+    expect(view.sends[0].subject).toBe(first.subject);
+    expect(view.job?.status).toBe("inviata");
+  });
+
+  it("RPC dei solleciti assente, nulla, superata o in errore: la prima email resta leggibile", async () => {
+    const baseline = (await loadPartnerDetail(fakeSupabase(tables()).client, 6))!.assistant;
+    const failures = [
+      { data: null, error: null },
+      {
+        data: null,
+        error: { code: "PGRST202", message: "Could not find public.read_partner_followup" },
+      },
+      { data: null, error: { code: "42501", message: "partner_member_required" } },
+      { data: { mode: "invio", count: 1 }, error: null },
+      new Error("Connessione non disponibile"),
+    ];
+    for (const result of failures) {
+      const fake = fakeSupabase(tables(), { rpc: () => result });
+      const view = (await loadPartnerDetail(fake.client, 6))!
+        .assistant as PartnerAssistantContactView;
+      expect(view.followup).toBeNull();
+      expect(view.sends).toHaveLength(1);
+      expect(view.job?.status).toBe("inviata");
+      expect(view).toEqual(baseline);
+    }
   });
 
   it("errore di lettura sulle tabelle dell'assistente: assistant null, scheda leggibile", async () => {

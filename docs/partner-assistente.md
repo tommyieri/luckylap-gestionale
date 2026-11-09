@@ -20,6 +20,14 @@ Questa decisione supera l'elasticità descritta in «La quota del giorno (storic
 
 Il tetto di **20 bozze Club pronte è un limite di scorta**: regola quante bozze tenere preparate nella coda. Gli invii restano soggetti alla quota di 3 Club al giorno e al tetto complessivo di 6. Il controllo ricorrente che reintegra il lotto approvato riempie questa scorta entro i posti disponibili, senza modificare le quote d'invio o la configurazione.
 
+## Nuova consegna del 9 novembre 2026: solleciti automatici
+
+Il branch `codex/partner-solleciti-automatici` prepara un percorso separato per i quattro solleciti a 7, 17, 45 e 90 giorni. **Questa sezione descrive la nuova consegna e non ne dichiara l'attivazione in produzione.** La modalità iniziale è «osserva»: nessun invio automatico dei solleciti, promemoria manuali di Tommi conservati. Per inviare servono l'attivazione esplicita del founder, una bozza approvata preparata da Codex con ricerca fresca e due controlli della casella, l'ultimo dopo il login SMTP e prima dei byte. Il percorso non chiama Claude e funziona anche con la preparazione Anthropic in pausa per credito.
+
+Prime email e solleciti condividono il tetto di 6 invii totali e le quote rigide di 3 Club e 3 altri. I solleciti sono nello stesso thread, hanno 40–90 parole e non includono PDF o altri allegati. Valgono le indicazioni aggiornate di Luca: nessuna richiesta di telefono, chiamata o appuntamento. Una possibile risposta o un dubbio sulla casella ferma la conversazione; l'assistente non risponde automaticamente. Un fuori ufficio riconosciuto con data di rientro certa, completa di anno, rinvia invece il sollecito a quella data; senza data certa controlla Tommi. Il calendario resta chiuso dopo il 31 gennaio 2027 finché non viene esteso. Dettagli e limiti della verifica in [Solleciti automatici Partner](partner-solleciti-automatici.md).
+
+Le sezioni sulla consegna 2a e sul piano 2b più avanti restano lo storico: descrivevano solleciti ancora manuali e una futura gestione completa delle risposte. Questa nuova consegna non introduce risposte automatiche, riassunti o risposte suggerite alle persone.
+
 ## Stato al 30 ottobre 2026
 
 - Le tre migrazioni della prima consegna sono in produzione dal 28 ottobre 2026 e non si modificano più.

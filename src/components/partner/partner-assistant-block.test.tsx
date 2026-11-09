@@ -97,12 +97,25 @@ import {
   partnerFixtureWorkspace,
 } from "../../lib/partner/fixtures";
 import type { PartnerSummary } from "../../lib/partner/model";
+import type { PartnerFollowupStatus } from "../../lib/partner/followup-status";
 
 type Element = ReactElement<Record<string, unknown>>;
 
 const TODAY = "2026-10-22";
 const OPERATION = "93000000-0000-4000-8000-000000000001";
 const CONTEXT = Symbol.for("react.context");
+const followup = (changes: Partial<PartnerFollowupStatus> = {}): PartnerFollowupStatus => ({
+  id: partnerFixtureId(1951),
+  status: "active",
+  reason: null,
+  version: 1,
+  followupsSent: 1,
+  nextDueOn: "2026-10-29",
+  lastCheckedAt: "2026-10-22T07:41:00Z",
+  nextCheckAt: "2026-10-22T08:11:00Z",
+  mode: "osserva",
+  ...changes,
+});
 const workspace = partnerFixtureWorkspace(TODAY);
 
 function expand(node: unknown): unknown {
@@ -598,6 +611,112 @@ describe("PartnerAssistantBlock", () => {
     });
     expect(words(sent)).toContain("Email inviata dall'assistente il 22 ottobre alle 9:41");
     expect(words(sent)).not.toContain("@");
+  });
+
+  it("osserva: non promette invii e conserva i promemoria di Tommi", () => {
+    const tree = render(6, { assistant: (view) => ({ ...view, followup: followup() }) });
+    expect(words(tree)).toContain(
+      "Osserva: l'invio automatico dei solleciti non è attivo. I promemoria di Tommi restano validi.",
+    );
+    expect(words(tree)).toContain("il sollecito dopo 7 giorni lo manda Tommi");
+    expect(words(tree)).toContain("Solleciti inviati: 1 di 4.");
+    expect(words(tree)).toContain("Prossima scadenza: 29 ottobre");
+    expect(words(tree)).toContain(
+      "Ultima verifica della casella registrata il 22 ottobre alle 9:41.",
+    );
+  });
+
+  it("invio noto: mostra il ciclo automatico e toglie soltanto la vecchia frase sul sollecito manuale", () => {
+    const tree = render(6, {
+      assistant: (view) => ({ ...view, followup: followup({ mode: "invio" }) }),
+    });
+    expect(words(tree)).toContain("Modalità invio dei solleciti attiva");
+    expect(words(tree)).not.toContain("il sollecito dopo 7 giorni lo manda Tommi");
+    expect(words(tree)).toContain(
+      "ogni partenza richiede i controlli della posta e le quote disponibili",
+    );
+  });
+
+  it("verifica incerta su ciclo attivo: l'invio resta in attesa, senza esporre il codice tecnico", () => {
+    const tree = render(6, {
+      assistant: (view) => ({
+        ...view,
+        followup: followup({ mode: "invio", reason: "followup_connection_failed" }),
+      }),
+    });
+    expect(words(tree)).toContain(
+      "Sollecito in attesa di una verifica: nessun invio finché il controllo non è completo.",
+    );
+    expect(words(tree)).not.toContain("followup_connection_failed");
+  });
+  it("fuori ufficio con data certa: rinvio alla data senza descriverlo come verifica incompleta", () => {
+    const tree = render(6, {
+      assistant: (view) => ({
+        ...view,
+        followup: followup({ mode: "invio", reason: "fuori_ufficio", nextDueOn: "2026-10-29" }),
+      }),
+    });
+    expect(words(tree)).toContain("Fuori ufficio: sollecito non prima del 29 ottobre.");
+    expect(words(tree)).not.toContain("nessun invio finché il controllo non è completo");
+    expect(words(tree)).not.toContain("risposta umana");
+  });
+
+  it.each(["held", "replied"] as const)(
+    "%s: possibile risposta, nessuna attribuzione certa a una persona",
+    (status) => {
+      const tree = render(6, {
+        assistant: (view) => ({
+          ...view,
+          followup: followup({ mode: "invio", status, reason: "reply" }),
+        }),
+      });
+      expect(words(tree)).toContain(
+        "Solleciti fermi. Possibile risposta nella posta: Tommi controlla la conversazione.",
+      );
+      expect(words(tree)).toContain("L'assistente non risponde da solo.");
+      expect(words(tree)).not.toContain("Modalità invio dei solleciti attiva");
+      expect(words(tree)).not.toContain("Prossima scadenza");
+      expect(words(tree)).not.toContain("risposta umana");
+    },
+  );
+
+  it("quattro solleciti: ciclo concluso senza promettere altri invii", () => {
+    const tree = render(6, {
+      assistant: (view) => ({
+        ...view,
+        followup: followup({
+          mode: "invio",
+          status: "complete",
+          followupsSent: 4,
+          nextDueOn: null,
+        }),
+      }),
+    });
+    expect(words(tree)).toContain("Solleciti inviati: 4 di 4.");
+    expect(words(tree)).toContain("Ciclo concluso: quattro solleciti inviati");
+    expect(words(tree)).not.toContain("Modalità invio dei solleciti attiva");
+  });
+
+  it("RPC non leggibile: niente automazione presunta e prima email ancora leggibile", () => {
+    const tree = render(6, { assistant: (view) => ({ ...view, followup: null }) });
+    expect(words(tree)).toContain("Verifica dei solleciti non leggibile");
+    expect(words(tree)).toContain("il sollecito dopo 7 giorni lo manda Tommi");
+    expect(words(tree)).not.toContain("Modalità invio dei solleciti attiva");
+    expect(words(render(3, { assistant: (view) => ({ ...view, followup: null }) }))).not.toContain(
+      "Verifica dei solleciti non leggibile",
+    );
+  });
+
+  it("spento e controllo non ancora registrato: lo dice senza inventare l'esito della casella", () => {
+    const tree = render(6, {
+      assistant: (view) => ({
+        ...view,
+        followup: followup({ mode: "spento", lastCheckedAt: null }),
+      }),
+    });
+    expect(words(tree)).toContain("Solleciti automatici spenti");
+    expect(words(tree)).toContain("Nessuna verifica della casella ancora registrata");
+    expect(words(tree)).toContain("il sollecito dopo 7 giorni lo manda Tommi");
   });
 
   it("prima email inviata: accanto all'invio non dice che il contatto non è più «Da contattare»", () => {

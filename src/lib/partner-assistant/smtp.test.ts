@@ -520,6 +520,53 @@ describe("invio SMTP per fasi", () => {
     await smtp.send(input);
     expect(factory).toHaveBeenCalledTimes(2);
   });
+  it("attende la verifica dopo il login prima di consegnare qualunque byte", async () => {
+    let authorize!: (allowed: boolean) => void;
+    const beforeSend = vi.fn(
+      () =>
+        new Promise<boolean>((resolve) => {
+          authorize = resolve;
+        }),
+    );
+    const result = setup().send({ ...input, beforeSend });
+    await vi.waitFor(() => expect(beforeSend).toHaveBeenCalledTimes(1));
+    expect(conn.login).toHaveBeenCalledTimes(1);
+    expect(conn.send).not.toHaveBeenCalled();
+    authorize(true);
+    expect((await result).outcome.kind).toBe("inviato");
+    expect(conn.send).toHaveBeenCalledTimes(1);
+  });
+  it.each(["rifiuto", "errore"])(
+    "una verifica preinvio con %s chiude senza send",
+    async (scenario) => {
+      const beforeSend = vi.fn(async () => {
+        if (scenario === "errore") throw new Error("private synthetic content");
+        return false;
+      });
+      const result = await setup().send({ ...input, beforeSend });
+      expect(result.outcome).toEqual({ kind: "non_partito", code: "smtp_verifica_preinvio" });
+      expect(conn.send).not.toHaveBeenCalled();
+      expect(conn.close).toHaveBeenCalled();
+      expect(JSON.stringify(result)).not.toContain("private");
+    },
+  );
+  it("un abort durante la verifica impedisce invii tardivi anche quando il controllo termina bene", async () => {
+    const controller = new AbortController();
+    let authorize!: (v: boolean) => void;
+    const beforeSend = vi.fn(
+      () =>
+        new Promise<boolean>((resolve) => {
+          authorize = resolve;
+        }),
+    );
+    const result = setup().send({ ...input, signal: controller.signal, beforeSend });
+    await vi.waitFor(() => expect(beforeSend).toHaveBeenCalledTimes(1));
+    controller.abort();
+    expect((await result).outcome.kind).toBe("non_partito");
+    authorize(true);
+    await flush();
+    expect(conn.send).not.toHaveBeenCalled();
+  });
   it("nessun log e nessuna password negli esiti", async () => {
     const results = [
       await setup().send(input),

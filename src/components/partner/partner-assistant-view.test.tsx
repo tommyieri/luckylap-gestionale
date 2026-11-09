@@ -1184,7 +1184,9 @@ describe("PartnerAssistantView", () => {
     const options = { founder: true };
     const tree = render(options, { version: 5 });
     const limite = sectionOf(tree, "Limite");
-    expect(words(limite)).toContain("Dopo la prima settimana: al massimo 10 prime email al giorno");
+    expect(words(limite)).toContain(
+      "Dopo la prima settimana: al massimo 10 email automatiche al giorno (prime e solleciti)",
+    );
     const input = descendants(limite).find(
       (node) => node.type === "input" && node.props.name === "limite",
     )!;
@@ -1194,6 +1196,19 @@ describe("PartnerAssistantView", () => {
     expect(mocks.setSettings).toHaveBeenCalledExactlyOnceWith(
       command("set_partner_assistant_settings", { expected_version: 5, daily_first_limit: 8 }),
     );
+  });
+
+  it("sei invii contano prime email e solleciti con quote rigide tre e tre", () => {
+    const tree = render(
+      {},
+      { mode: "invio" },
+      { dailyFirstLimit: 6, firstLimitToday: 6, firstSentToday: 5 },
+    );
+    expect(words(sectionOf(tree, "Invii"))).toContain("Oggi: 5 email su 6 (prime e solleciti)");
+    const limit = words(sectionOf(tree, "Limite"));
+    expect(limit).toContain("6 email automatiche al giorno (prime e solleciti)");
+    expect(limit).toContain("Quote di oggi: al massimo 3 Club e 3 altri contatti");
+    expect(limit).toContain("I posti inutilizzati non si trasferiscono all'altro gruppo");
   });
 
   it("limite fuori da 1-15: nessun invio e l'errore vicino al campo", () => {
@@ -1211,7 +1226,9 @@ describe("PartnerAssistantView", () => {
   it("limite: chi non è Tommi legge solo la frase; la prima settimana in corso lo dice", () => {
     const tree = render({}, {}, { firstRealSendOn: TODAY });
     const limite = sectionOf(tree, "Limite");
-    expect(words(limite)).toContain("Dopo la prima settimana: al massimo 10 prime email al giorno");
+    expect(words(limite)).toContain(
+      "Dopo la prima settimana: al massimo 10 email automatiche al giorno (prime e solleciti)",
+    );
     expect(words(limite)).toContain("Fino al 28 ottobre ne partono al massimo 5.");
     expect(descendants(limite).some((node) => node.type === "input")).toBe(false);
     expect(buttons(limite)).toEqual([]);

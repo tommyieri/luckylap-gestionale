@@ -33,6 +33,7 @@ import {
   type PartnerDevicePreview,
 } from "./device-file";
 import { followUpConfirmation, readSentFollowUp } from "./follow-up";
+import { parsePartnerFollowupStatus } from "./followup-status";
 import { isPartnerCo, isPartnerId, type PartnerDetail, type PartnerWorkspace } from "./model";
 import { partnerWorkFromRows } from "./work-read";
 import type { PartnerWorkData } from "./work";
@@ -392,7 +393,7 @@ async function readPartnerAssistant(
   supabase: SupabaseClient,
   partnerId: string,
 ): Promise<PartnerAssistantRows | PartnerAssistantInactive> {
-  const [toggle, job, messages] = await Promise.all([
+  const [toggle, job, messages, followup] = await Promise.all([
     supabase
       .from("partner_assistant_contacts")
       .select(ASSISTANT_SWITCH_COLUMNS)
@@ -408,10 +409,23 @@ async function readPartnerAssistant(
       .select(ASSISTANT_MESSAGE_COLUMNS)
       .eq("partner_id", partnerId)
       .eq("mode", "invio")
+      .eq("kind", "primo")
       .in("send_status", [...PARTNER_ASSISTANT_SEND_OUTCOMES])
       .order("created_at", { ascending: false })
       .order("id", { ascending: false })
       .limit(PARTNER_ASSISTANT_SENDS_LIMIT),
+    // Il nuovo stato è indipendente dalle prime email: RPC assente, errori o DTO superati
+    // rendono non leggibili soltanto i metadati dei solleciti.
+    (async () => {
+      try {
+        const { data, error } = await supabase.rpc("read_partner_followup", {
+          p_partner_id: partnerId,
+        });
+        return error ? null : parsePartnerFollowupStatus(data);
+      } catch {
+        return null;
+      }
+    })(),
   ]);
   if (isPartnerAssistantMissing(toggle.error) || isPartnerAssistantMissing(job.error))
     return PARTNER_ASSISTANT_INACTIVE;
@@ -444,7 +458,7 @@ async function readPartnerAssistant(
           })
       : Promise.resolve(null),
   ]);
-  return { switch: toggle.data, job: job.data, notes, draft, messages: sends };
+  return { switch: toggle.data, job: job.data, notes, draft, messages: sends, followup };
 }
 
 /**
