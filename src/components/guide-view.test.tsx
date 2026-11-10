@@ -113,8 +113,18 @@ describe("Oggi", () => {
     expect(TODAY_TILES.filter((tile) => tile.finance).map((tile) => tile.title)).toEqual([
       "Conto vendita da regolare",
     ]);
-    for (const title of ["Agenda", "Contatti e solleciti", "Ordini da preparare", "Magazzino"])
+    for (const title of [
+      "Agenda",
+      "Email automatiche di oggi",
+      "Partner da seguire personalmente",
+      "Ordini da preparare",
+      "Magazzino",
+    ])
       for (const access of [everyone, finance, founder]) expect(part(access)).toContain(title);
+    expect(part(everyone)).toContain("«Vedi destinatari e orari»");
+    expect(part(everyone)).toContain("solleciti manuali");
+    expect(part(everyone)).toContain("Apri il riepilogo per vedere le attività");
+    expect(part(everyone)).not.toContain("Contatti e solleciti");
     expect(part(everyone)).not.toContain("Conto vendita da regolare");
     expect(part(finance)).toContain("Conto vendita da regolare");
     expect(part(founder)).toContain("Conto vendita da regolare");
@@ -236,7 +246,7 @@ describe("Partner", () => {
       "Quando registri «Segna inviato» o «Segna sollecito inviato», si crea per te",
     );
     expect(copy).toContain("Scade dopo 7 giorni");
-    expect(copy).toContain("«Contatti e solleciti»");
+    expect(copy).toContain("«Partner da seguire personalmente»");
     for (const closing of ["«Ha risposto»", "«Accordo fatto»", "«Non interessato»"])
       expect(copy).toContain(closing);
     expect(copy).toContain("un «Contattato» del file crea il sollecito per chi carica il file");

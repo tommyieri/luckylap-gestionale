@@ -73,8 +73,13 @@ const TILES = {
   },
   partner: {
     id: "oggi-partner",
-    title: "Contatti e solleciti",
+    title: "Partner da seguire personalmente",
     link: { href: "/partner", label: "Apri Partner" },
+  },
+  automaticMail: {
+    id: "oggi-email-automatiche",
+    title: "Email automatiche di oggi",
+    link: { href: "/partner/email", label: "Apri il calendario email" },
   },
   preparation: {
     id: "oggi-ordini",
@@ -224,18 +229,43 @@ export async function AgendaTile({
       </TileFrame>
     );
   const { day, events, tasks } = tile.data;
+  return <AgendaContent day={day} events={events} tasks={tasks} />;
+}
+
+export function AgendaContent({
+  day,
+  events,
+  tasks,
+}: {
+  day: string;
+  events: AgendaEvent[];
+  tasks: AgendaTask[];
+}) {
+  const late = tasks.filter((item) => item.late).length;
   return (
     <TileFrame {...TILES.agenda}>
-      {!events.length && <p className={styles.empty}>Nessun appuntamento oggi.</p>}
-      {(events.length > 0 || tasks.length > 0) && (
+      {!events.length && !tasks.length && (
+        <p className={styles.empty}>Nessun impegno da svolgere oggi.</p>
+      )}
+      {events.length > 0 && (
         <ul className={roadbook.list}>
           {events.map((item) => (
             <EventRow key={item.event.id} item={item} day={day} />
           ))}
-          {tasks.map((item) => (
-            <TaskRow key={item.task.id} item={item} />
-          ))}
         </ul>
+      )}
+      {tasks.length > 0 && (
+        <details className={styles.disclosure}>
+          <summary className={styles.disclosureTitle}>
+            {tasks.length} attività da fare
+            {late > 0 && <span className={styles.disclosureMeta}> · {late} in ritardo</span>}
+          </summary>
+          <ul className={roadbook.list}>
+            {tasks.map((item) => (
+              <TaskRow key={item.task.id} item={item} />
+            ))}
+          </ul>
+        </details>
       )}
     </TileFrame>
   );

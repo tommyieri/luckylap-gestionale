@@ -1,4 +1,4 @@
-// test-db: pglite minimo 255
+// test-db: pglite minimo 331
 // Solleciti automatici: prove fresche, quote separate, stato SMTP e arresto nel dubbio.
 // Migrazioni Partner attuali, Auth simulata e dati sintetici, nessun accesso cloud.
 import assert from "node:assert/strict";
@@ -196,10 +196,11 @@ async function sent(n, { club, day = TODAY, kind = "primo", sendStatus = "inviat
     await asOwner(
       `insert into public.partner_assistant_messages(partner_id, draft_id, kind, mode, send_status, message_id,
          to_address, subject, body, raw, sha256, rules_version, lease_token, send_day, sent_at, appended_at,
-         operation_id, created_by, followup_number, flow_template)
+         operation_id, created_by, followup_number, flow_template, created_at)
        values ($1, $2, $11, 'invio', $12, $3, $4, $5, $6, $7, $8, 1, gen_random_uuid(), $9::date,
          $9::date + time '08:40', case when $12='inviato' then $9::date + time '08:41' end, gen_random_uuid(), $10,
-         case when $11='sollecito' then 1 end, case when $11='sollecito' then $13::boolean end)`,
+         case when $11='sollecito' then 1 end, case when $11='sollecito' then $13::boolean end,
+         $9::date + time '08:39')`,
       [
         partner,
         draftIds.get(partner),
@@ -502,9 +503,54 @@ try {
   }
   eq(await value("select mode as v from private.partner_followup_config"), "osserva");
 
+  // Le fixture storiche usano il tempo del caso, non quello del Mac. Il default originale
+  // next_check_at=now() resta installato e viene verificato sul tempo reale del bootstrap.
+  // Si normalizzano soltanto gli id appena creati: attese, backoff e lease preesistenti restano intatti.
+  const initializeFollowupFixtures = async (partnerIds) => {
+    eq(
+      await value(
+        "select count(*)::int as v from public.partner_assistant_followups where partner_id=any($1::uuid[])",
+        [partnerIds],
+      ),
+      0,
+      "fixture nuove, nessuna attesa preesistente",
+    );
+    const beforeWall = Date.parse(await value("select clock_timestamp() as v"));
+    await as("postgres", null, () => db.exec("select private.refresh_partner_followups()"), {
+      now,
+    });
+    const afterWall = Date.parse(await value("select clock_timestamp() as v"));
+    const created = (
+      await db.query(
+        "select id,next_check_at from public.partner_assistant_followups where partner_id=any($1::uuid[])",
+        [partnerIds],
+      )
+    ).rows;
+    eq(created.length, partnerIds.length, "bootstrap completo delle sole fixture nuove");
+    ok(
+      created.every(
+        (row) =>
+          row.next_check_at !== null &&
+          Date.parse(row.next_check_at) >= beforeWall &&
+          Date.parse(row.next_check_at) <= afterWall,
+      ),
+      "default originale nel corretto intervallo reale",
+    );
+    const normalized = await asOwner(
+      "update public.partner_assistant_followups set next_check_at=$2::timestamptz where id=any($1::uuid[]) returning id,next_check_at",
+      [created.map((row) => row.id), now],
+    );
+    ok(
+      normalized.rows.length === created.length &&
+        normalized.rows.every((row) => Date.parse(row.next_check_at) === Date.parse(now)),
+      "normalizzate al tempo del caso solo le fixture appena create",
+    );
+  };
+
   await asOwner("update private.partner_assistant_config set daily_first_limit=6");
   const [club] = await sent(1, { club: true, day: "2026-10-20" });
   await asOwner("update public.partners set stage='contattato' where id=$1", [club]);
+  await initializeFollowupFixtures([club]);
   await asOwner(
     `select private.partner_log($1,$2,'inviato',$3,p_channel=>'email',p_message_kind=>'primo',p_origin=>'assistente',
     p_occurred_at=>'2026-10-20T08:40:00Z'::timestamptz)`,
@@ -668,6 +714,7 @@ try {
   now = MORNING;
   const [other] = await sent(1, { club: false, day: "2026-11-02" });
   await asOwner("update public.partners set stage='contattato' where id=$1", [other]);
+  await initializeFollowupFixtures([other]);
   c = await claim();
   const otherId = c.candidate.id;
   await release();
@@ -697,6 +744,7 @@ try {
   // Una prova incerta non autorizza invio e una bozza non valida torna da preparare.
   const [third] = await sent(1, { club: false, day: "2026-11-02" });
   await asOwner("update public.partners set stage='contattato' where id=$1", [third]);
+  await initializeFollowupFixtures([third]);
   c = await claim();
   const thirdId = c.candidate.id;
   await release();
@@ -744,6 +792,7 @@ try {
     now = MORNING;
     const [partner] = await sent(1, { club: clubFlow, day: "2026-10-20" });
     await asOwner("update public.partners set stage='contattato' where id=$1", [partner]);
+    await initializeFollowupFixtures([partner]);
     let candidate = await claim();
     await release();
     await save(candidate.candidate.id);
@@ -1372,7 +1421,7 @@ try {
   await asOwner("update public.partners set stage='contattato' where id=any($1::uuid[])", [
     [olderDraftlessPartner, olderFuturePartner],
   ]);
-  await asOwner("select private.refresh_partner_followups()");
+  await initializeFollowupFixtures([olderDraftlessPartner, olderFuturePartner]);
   const olderDraftlessId = await value(
     "select id as v from public.partner_assistant_followups where partner_id=$1",
     [olderDraftlessPartner],

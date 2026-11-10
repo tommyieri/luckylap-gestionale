@@ -1,6 +1,6 @@
 import { describe, it, expect, vi } from "vitest";
 import { renderToStaticMarkup } from "react-dom/server";
-import { PartnerWorkTile, PreparationTile } from "./work-tiles";
+import { AutomaticMailTile, PartnerWorkTile, PreparationTile } from "./work-tiles";
 import { loadPartnerWorkTile, loadPreparationTile } from "../../lib/today/work-server";
 vi.mock("next/navigation", () => ({ useRouter: () => ({ refresh: vi.fn() }) }));
 vi.mock("../../lib/today/server", () => ({ loadAgendaTile: vi.fn(), loadStockTile: vi.fn() }));
@@ -9,6 +9,8 @@ vi.mock("../../lib/today/work-server", () => ({
   loadPartnerWorkTile: vi.fn(),
   loadPreparationTile: vi.fn(),
 }));
+vi.mock("../../lib/today/automatic-mail-server", () => ({ loadAutomaticMailTile: vi.fn() }));
+import { loadAutomaticMailTile } from "../../lib/today/automatic-mail-server";
 const db = {} as never;
 const me = "00000000-0000-4000-8000-000000000009";
 const partnerId = "00000000-0000-4000-8000-000000000042";
@@ -51,7 +53,7 @@ describe("Oggi link operativi", () => {
     expect(html).toContain("9 contatti");
     expect(html).toContain("/partner?co=42#lead-42");
     expect(html).toContain("Prime otto");
-    expect(html).toContain("/team/partner");
+    expect(html).not.toContain("Collega un esito Partner");
   });
   it("ogni sollecito ha «Ha risposto», dopo il link della riga", async () => {
     vi.mocked(loadPartnerWorkTile).mockResolvedValue({
@@ -84,6 +86,17 @@ describe("Oggi link operativi", () => {
     expect(html.match(/>Ha risposto</g)).toHaveLength(1);
     expect(html).toContain("CO 42</span></button>");
     expect(html.indexOf("Sollecito · Partner sintetico")).toBeLessThan(html.indexOf("Ha risposto"));
-    expect(html).toContain("2 solleciti in scadenza o in ritardo");
+    expect(html).toContain("2 solleciti manuali");
+    expect(html).toContain("<details");
+    expect(html).not.toMatch(/<details[^>]*\bopen(?:[ =>])/);
+    expect(loadPartnerWorkTile).toHaveBeenLastCalledWith(db, expect.any(Date), me);
+  });
+
+  it("non trasforma un errore del piano automatico in zero invii", async () => {
+    vi.mocked(loadAutomaticMailTile).mockResolvedValue({ status: "error" });
+    const html = renderToStaticMarkup(await AutomaticMailTile({ supabase: db, now: new Date() }));
+    expect(html).toContain("Non riesco a leggere gli invii di oggi");
+    expect(html).toContain("/partner/email");
+    expect(html).not.toContain("Nessuna email");
   });
 });

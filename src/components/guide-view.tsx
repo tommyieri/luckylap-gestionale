@@ -34,7 +34,7 @@ const ICONS: Record<IconName, LucideIcon> = {
 
 /** Una frase per ogni sezione descritta nella guida. */
 export const SECTION_TEXT: Partial<Record<SectionId, string>> = {
-  oggi: "Il lavoro del giorno: agenda, contatti e solleciti, ordini da preparare e magazzino.",
+  oggi: "Il lavoro del giorno: agenda, email automatiche, Partner da seguire, ordini da preparare e magazzino.",
   vendite: "Le vendite di LuckyLap, dirette e nei negozi.",
   magazzino:
     "Le magliette che abbiamo, quelle nei negozi, quelle da correggere, i riordini e il materiale per spedire.",
@@ -179,11 +179,15 @@ export const OPERATIONS: { title: string; href: string; text: string; who?: stri
 export const TODAY_TILES: { title: string; text: string; finance?: true }[] = [
   {
     title: "Agenda",
-    text: "Gli appuntamenti di oggi e le tue attività in scadenza oggi o in ritardo. I solleciti Partner non sono qui: stanno nel riquadro accanto.",
+    text: "Gli appuntamenti di oggi e il numero delle tue attività in scadenza oggi o in ritardo. Apri il riepilogo per vedere le attività.",
   },
   {
-    title: "Contatti e solleciti",
-    text: "I contatti Partner da sentire: quelli a cui scrivere entro il mese prossimo, più quelli con la prossima azione di oggi o già passata. Sotto, i tuoi solleciti di oggi o in ritardo, ognuno con «Ha risposto». Apri una scheda per vedere fase, bozza e registro.",
+    title: "Email automatiche di oggi",
+    text: "Le email già inviate e quelle programmate oggi dal gestionale, separate fra altri contatti, Club e solleciti. Apri «Vedi destinatari e orari» per il dettaglio.",
+  },
+  {
+    title: "Partner da seguire personalmente",
+    text: "I contatti e i solleciti manuali che richiedono il tuo intervento. Apri il riepilogo per vedere le schede e i solleciti con «Ha risposto». Le email automatiche sono nel riquadro «Email automatiche di oggi».",
   },
   {
     title: "Ordini da preparare",
@@ -431,8 +435,8 @@ export function GuideView({ access, preview = false }: { access: GuideAccess; pr
               <li>
                 Quando registri «Segna inviato» o «Segna sollecito inviato», si crea per te
                 un’attività «Sollecito · nome del contatto». Scade dopo 7 giorni: la conferma ti
-                dice il giorno. La trovi in Oggi, in «Contatti e solleciti», e tra le attività del
-                Team.
+                dice il giorno. La trovi in Oggi, in «Partner da seguire personalmente», e tra le
+                attività del Team.
               </li>
               <li>
                 Il sollecito si chiude quando registri la risposta, anche con «Ha risposto» in Oggi,
