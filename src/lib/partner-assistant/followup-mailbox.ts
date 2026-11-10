@@ -51,6 +51,9 @@ const HEADER_NAMES = [
   "Content-Type",
   "Auto-Submitted",
   "Return-Path",
+  "From",
+  "Sender",
+  "Subject",
   "To",
   "Cc",
   "Bcc",
@@ -165,11 +168,15 @@ function validatedInput(
   return { ...input, ownAddress, addresses };
 }
 
-function folderPaths(entries: Awaited<ReturnType<ImapFlow["list"]>>): string[] {
+function folderSelection(entries: Awaited<ReturnType<ImapFlow["list"]>>): {
+  paths: string[];
+  sentPath: string;
+} {
   if (!Array.isArray(entries)) return stop("folders_invalid");
   const paths: string[] = [];
   let inbox = 0;
   let sent = 0;
+  let sentPath = "";
   let junk = 0;
   for (const entry of entries) {
     if (
@@ -190,14 +197,17 @@ function folderPaths(entries: Awaited<ReturnType<ImapFlow["list"]>>): string[] {
     if ((flags.has("\\sent") || use === "\\sent") && (flags.has("\\junk") || use === "\\junk"))
       return stop("folders_invalid");
     if (entry.path.toLowerCase() === "inbox") inbox++;
-    if (flags.has("\\sent") || use === "\\sent") sent++;
+    if (flags.has("\\sent") || use === "\\sent") {
+      sent++;
+      sentPath = entry.path;
+    }
     if (flags.has("\\junk") || use === "\\junk") junk++;
     paths.push(entry.path);
   }
   if (paths.length > MAX_FOLDERS) return stop("folder_limit");
   if (inbox !== 1 || sent !== 1 || junk !== 1) return stop("folders_missing");
   if (new Set(paths).size !== paths.length) return stop("folders_invalid");
-  return paths.sort();
+  return { paths: paths.sort(), sentPath };
 }
 
 function folderState(client: ImapFlow, path: string): FolderState {
@@ -301,10 +311,7 @@ function canonicalAddressList(value: string): AddressToken[] | null {
   return null;
 }
 
-function messageReason(
-  message: FetchMessageObject,
-  input: PartnerAssistantFollowupMailboxInput,
-): "reply" | "manual" | "ambiguous" | null {
+function messageData(message: FetchMessageObject) {
   const envelope = message.envelope;
   if (!envelope || typeof envelope !== "object" || Array.isArray(envelope))
     return stop("envelope_invalid");
@@ -377,6 +384,16 @@ function messageReason(
   };
   const messageIds = ids("message-id");
   const references = [...ids("in-reply-to"), ...ids("references")];
+  return { headers, grouped, from, to, cc, bcc, replyTo, sender, subject, messageIds, references };
+}
+type MessageData = ReturnType<typeof messageData>;
+
+function messageReason(
+  data: MessageData,
+  input: PartnerAssistantFollowupMailboxInput,
+): "reply" | "manual" | "ambiguous" | null {
+  const { headers, grouped, from, to, cc, bcc, replyTo, sender, subject, messageIds, references } =
+    data;
   const own = from.includes(input.ownAddress);
   const expected = new Set(input.addresses);
   const known = new Set(input.messageIds);
@@ -413,6 +430,160 @@ function messageReason(
   if ([...to, ...cc, ...bcc].includes(input.ownAddress) && (report || daemon || emptyReturnPath))
     return "ambiguous";
   return null;
+}
+
+/** L'esenzione riguarda soltanto un autoresponder collegato a un altro invio presente
+ * nella cartella Sent. Un Return-Path vuoto, da solo, continua a essere ambiguo. */
+function singleHeaderId(data: MessageData, name: string): string | null {
+  const values = data.headers.get(name) ?? [];
+  const id = values.length === 1 ? values[0].trim() : "";
+  return id.length <= 254 && MESSAGE_ID.test(id) ? id : null;
+}
+
+function singleHeaderAddress(data: MessageData, name: string): string | null {
+  const values = data.headers.get(name) ?? [];
+  if (values.length !== 1) return null;
+  const value = values[0].trim();
+  // Forma volutamente limitata: un solo mailbox ASCII, eventualmente con un nome.
+  // Gruppi, commenti, encoded-word e forme non riconosciute non autorizzano l'esenzione.
+  if (/[^\x20-\x7e]/u.test(value)) return null;
+  const bracketed = /^(?:(?:"[^"\\]*"|[A-Za-z0-9 _|.'-]+)\s*)?<([^<>]+)>$/u.exec(value);
+  return partnerAssistantMailAddress(bracketed ? bracketed[1] : value);
+}
+
+function simpleParties(data: MessageData, from: string, to: string): boolean {
+  const optional = (field: "sender" | "replyTo", header: string) => {
+    const same = data[field].length === 1 && data[field][0] === from;
+    // ENVELOPE può riportare From come default di Sender/Reply-To assenti (RFC 9051).
+    return data.headers.has(header)
+      ? same && singleHeaderAddress(data, header) === from
+      : data[field].length === 0 || same;
+  };
+  return (
+    data.grouped.size === 0 &&
+    data.from.length === 1 &&
+    data.from[0] === from &&
+    data.to.length === 1 &&
+    data.to[0] === to &&
+    data.cc.length === 0 &&
+    data.bcc.length === 0 &&
+    !data.headers.has("cc") &&
+    !data.headers.has("bcc") &&
+    singleHeaderAddress(data, "from") === from &&
+    singleHeaderAddress(data, "to") === to &&
+    optional("sender", "sender") &&
+    optional("replyTo", "reply-to")
+  );
+}
+
+function plainSubject(data: MessageData): string | null {
+  const values = data.headers.get("subject") ?? [];
+  return typeof data.subject === "string" &&
+    /^[\x20-\x7e]+$/u.test(data.subject) &&
+    values.length === 1 &&
+    values[0] === data.subject
+    ? data.subject
+    : null;
+}
+
+function internalTime(message: FetchMessageObject, since: number, now: number): number | null {
+  if (!(message.internalDate instanceof Date)) return null;
+  const at = message.internalDate.getTime();
+  return Number.isFinite(at) && at >= since && at <= now ? at : null;
+}
+
+type OtherThreadMessage = {
+  messageId: string;
+  peer: string;
+  subject: string;
+  at: number;
+  headersSha256: string;
+};
+type SentThreadMessage = {
+  count: number;
+  path: string;
+  uid: number;
+  original: OtherThreadMessage | null;
+};
+function threadMessage(
+  message: FetchMessageObject,
+  data: MessageData,
+  peer: string,
+  subject: string,
+  since: number,
+  now: number,
+): OtherThreadMessage | null {
+  const messageId = singleHeaderId(data, "message-id");
+  const at = internalTime(message, since, now);
+  if (messageId === null || at === null) return null;
+  return {
+    messageId,
+    peer,
+    subject: normalizeSubject(subject),
+    at,
+    headersSha256: createHash("sha256").update(message.headers!).digest("hex"),
+  };
+}
+
+function otherThreadOriginal(
+  message: FetchMessageObject,
+  data: MessageData,
+  own: string,
+  since: number,
+  now: number,
+): OtherThreadMessage | null {
+  const peer = data.to.length === 1 ? data.to[0] : null;
+  const subject = plainSubject(data);
+  if (peer === null || peer === own || subject === null || !simpleParties(data, own, peer))
+    return null;
+  return threadMessage(message, data, peer, subject, since, now);
+}
+
+function otherThreadAutoReply(
+  message: FetchMessageObject,
+  data: MessageData,
+  input: PartnerAssistantFollowupMailboxInput,
+  since: number,
+  now: number,
+): (OtherThreadMessage & { originalId: string }) | null {
+  const peer = data.from.length === 1 ? data.from[0] : null;
+  const subject = plainSubject(data);
+  const auto = data.headers.get("auto-submitted") ?? [];
+  const returnPath = data.headers.get("return-path") ?? [];
+  const type = data.headers.get("content-type") ?? [];
+  const originalId = singleHeaderId(data, "in-reply-to");
+  const references = singleHeaderId(data, "references");
+  if (
+    peer === null ||
+    peer === input.ownAddress ||
+    input.addresses.includes(peer) ||
+    /^(?:mailer-daemon|postmaster)@/iu.test(peer) ||
+    subject === null ||
+    !simpleParties(data, peer, input.ownAddress) ||
+    auto.length !== 1 ||
+    !/^(?:auto-generated|auto-replied)$/iu.test(auto[0].trim()) ||
+    returnPath.length !== 1 ||
+    returnPath[0].trim() !== "<>" ||
+    type.length !== 1 ||
+    !/^(?:text\/(?:plain|html)|multipart\/alternative)(?:\s*;|$)/iu.test(type[0].trim()) ||
+    originalId === null ||
+    originalId !== references ||
+    input.messageIds.includes(originalId)
+  )
+    return null;
+  const stripped =
+    /^(?:automatic reply|auto(?:matic)?[- ]reply|risposta automatica|automatische antwort|r[eé]ponse automatique|respuesta autom[aá]tica)\s*:\s*(.+)$/iu.exec(
+      subject,
+    );
+  if (!stripped || normalizeSubject(stripped[1]) === normalizeSubject(input.subject)) return null;
+  const reply = threadMessage(message, data, peer, stripped[1], since, now);
+  if (
+    reply === null ||
+    reply.messageId === originalId ||
+    input.messageIds.includes(reply.messageId)
+  )
+    return null;
+  return { ...reply, originalId };
 }
 
 /** Lettura completa della casella: un risultato incerto non autorizza mai un sollecito. */
@@ -478,9 +649,16 @@ export async function checkPartnerAssistantFollowupMailbox(
       close();
     });
     await call(() => box.connect());
-    const paths = folderPaths(await call(() => box.list()));
+    const selection = folderSelection(await call(() => box.list()));
+    const { paths, sentPath } = selection;
     const states: (FolderState & { uids: number[] })[] = [];
     const datedReplies: { path: string; uid: number; resumeOn: string; sha256: string }[] = [];
+    const pendingReplies: (OtherThreadMessage & {
+      path: string;
+      uid: number;
+      originalId: string;
+    })[] = [];
+    const sentMessages = new Map<string, SentThreadMessage>();
     const today = recipientDay(now(), value.timezone);
     let resumeOn: string | null = null;
     let messageCount = 0;
@@ -523,9 +701,36 @@ export async function checkPartnerAssistantFollowupMailbox(
         )
           stop("fetch_incomplete");
         for (const message of messages) {
-          const reason = messageReason(message, value);
+          const data = messageData(message);
+          if (path === sentPath) {
+            const original = otherThreadOriginal(
+              message,
+              data,
+              value.ownAddress,
+              since.getTime(),
+              now(),
+            );
+            // Anche una seconda copia incoerente con lo stesso ID impedisce l'esenzione.
+            for (const id of new Set(data.messageIds)) {
+              const previous = sentMessages.get(id);
+              sentMessages.set(id, {
+                count: (previous?.count ?? 0) + 1,
+                path,
+                uid: message.uid,
+                original,
+              });
+            }
+          }
+          const reason = messageReason(data, value);
           if (!reason) continue;
-          const headers = headersOf(message);
+          const headers = data.headers;
+          if (reason === "ambiguous") {
+            const unrelated = otherThreadAutoReply(message, data, value, since.getTime(), now());
+            if (unrelated !== null) {
+              pendingReplies.push({ ...unrelated, path, uid: message.uid });
+              continue;
+            }
+          }
           const auto = headers.get("auto-submitted") ?? [];
           const collision = (headers.get("message-id") ?? []).some((id) =>
             value.messageIds.includes(id.trim()),
@@ -604,15 +809,43 @@ export async function checkPartnerAssistantFollowupMailbox(
         lock.release();
       }
     }
-    const finalPaths = folderPaths(await call(() => box.list()));
-    if (JSON.stringify(paths) !== JSON.stringify(finalPaths)) stop("folders_changed");
+    const finalSelection = folderSelection(await call(() => box.list()));
+    if (JSON.stringify(selection) !== JSON.stringify(finalSelection)) stop("folders_changed");
     await call(() => box.noop());
     if (box.usable !== true) stop("connection_failed");
+    const otherThreadReplies: {
+      reply: (typeof pendingReplies)[number];
+      original: SentThreadMessage;
+    }[] = [];
+    for (const reply of pendingReplies) {
+      const matched = sentMessages.get(reply.originalId);
+      const original = matched?.original;
+      if (
+        matched?.count !== 1 ||
+        !original ||
+        original.messageId !== reply.originalId ||
+        original.peer !== reply.peer ||
+        original.subject !== reply.subject ||
+        original.at > reply.at
+      )
+        return { status: "found", reason: "ambiguous", checkedAt: new Date(now()).toISOString() };
+      otherThreadReplies.push({ reply, original: matched });
+    }
     const checkedAt = new Date(now()).toISOString();
     const complete = {
       checkedAt,
       proofSha256: createHash("sha256")
-        .update(JSON.stringify({ version: 2, input: value, states, datedReplies, checkedAt }))
+        .update(
+          JSON.stringify({
+            version: 3,
+            input: value,
+            selection,
+            states,
+            datedReplies,
+            otherThreadReplies,
+            checkedAt,
+          }),
+        )
         .digest("hex"),
       folderCount: paths.length,
       messageCount,
