@@ -10,6 +10,8 @@ Alcuni documenti scritti prima del modello attuale chiedono ancora una sessione 
 
 ## Piano e aggiornamenti
 
+- [Oggi: invii automatici e attività personali](oggi-invii-automatici.md): un solo riepilogo delle email del giorno, destinatari e orari apribili, attività manuali compatte e filtri conservativi sui vecchi promemoria.
+
 - [P4–P6: specifica](superpowers/specs/2026-10-22-p4-p6-design.md) e [piano Codex](superpowers/plans/2026-10-22-p4-p6-implementation.md): Finance modificabile, collegamenti e Oggi, feed CEO. Rilasciati con la pull request #3 il 23 ottobre 2026: in parte superati, lo stato attuale è nei documenti delle aree.
 
 - [Piano approvato, versione 0.3](2026-10-21-piano-gestionale-luckylap.md): decisioni iniziali del founder, 21 ottobre 2026. In parte superato: vendite e Shopify sono attivi dal 21 ottobre e l'app è pubblicata su Vercel Hobby. Stato attuale in [deployment.md](deployment.md).

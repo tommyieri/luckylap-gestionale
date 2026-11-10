@@ -9,7 +9,11 @@ vi.mock("./today-tiles", () => ({
   StockTile: () => null,
   TileFallback: () => null,
 }));
-vi.mock("./work-tiles", () => ({ PartnerWorkTile: () => null, PreparationTile: () => null }));
+vi.mock("./work-tiles", () => ({
+  AutomaticMailTile: () => null,
+  PartnerWorkTile: () => null,
+  PreparationTile: () => null,
+}));
 vi.mock("./consignment-tile", () => ({ ConsignmentTile: () => null }));
 import { TodaySheet } from "./today-sheet";
 import { GuideIntro } from "./guide-intro";
