@@ -176,6 +176,46 @@ function autoReply(uid = 1, body = "I am out of the office. I will return on 202
   });
 }
 
+const otherPeer = "office@other-partner.example.test";
+const otherSentId = "<other-outbound@brand.example.test>";
+const otherSubject = "Progetto distinto";
+function otherThread() {
+  const original = message(7, {
+    internalDate: new Date("2026-11-03T10:00:00Z"),
+    envelope: realEnvelope({
+      from: [rawAddress(own, "Nome sintetico")],
+      to: [rawAddress(otherPeer)],
+      subject: otherSubject,
+    }),
+    headers: Buffer.from(
+      `From: "Nome sintetico" <${own}>\r\nTo: ${otherPeer}\r\nSubject: ${otherSubject}\r\nMessage-ID: ${otherSentId}\r\nContent-Type: text/plain; charset=utf-8\r\n`,
+    ),
+  });
+  const replySubject = `Risposta automatica: ${otherSubject}`;
+  const reply = message(8, {
+    internalDate: new Date("2026-11-04T10:01:00Z"),
+    envelope: realEnvelope({
+      from: [rawAddress(otherPeer, "Ufficio sintetico")],
+      to: [rawAddress(own, "Nome sintetico")],
+      subject: replySubject,
+    }),
+    headers: Buffer.from(
+      `Return-Path: <>\r\nFrom: Ufficio sintetico <${otherPeer}>\r\nTo: Nome sintetico <${own}>\r\nSubject: ${replySubject}\r\nMessage-ID: <other-automatic@other-partner.example.test>\r\nIn-Reply-To: ${otherSentId}\r\nReferences: ${otherSentId}\r\nAuto-Submitted: auto-generated\r\nContent-Type: multipart/alternative; boundary="synthetic"\r\n`,
+    ),
+  });
+  return { original, reply };
+}
+function replaceHeader(message: FetchMessageObject, name: string, value: string | null) {
+  const lines = message.headers!.toString().split("\r\n");
+  message.headers = Buffer.from(
+    lines
+      .filter((line) => !line.toLowerCase().startsWith(`${name.toLowerCase()}:`))
+      .filter(Boolean)
+      .concat(value === null ? [] : [`${name}: ${value}`])
+      .join("\r\n") + "\r\n",
+  );
+}
+
 describe("verifica della casella prima dei solleciti", () => {
   it("legge tutte le cartelle in sola lettura, ricontrolla gli UID e chiude sempre il socket", async () => {
     const f = fixture({ Archive: [message(5)] });
@@ -326,6 +366,196 @@ describe("verifica della casella prima dei solleciti", () => {
       ],
     });
     expect(await f.run()).toMatchObject({ status: "found", reason: "ambiguous" });
+  });
+  it("distingue un autoresponder di un altro thread solo dalla copia originale in Sent e dopo la lettura completa", async () => {
+    const { original, reply } = otherThread();
+    const f = fixture({ INBOX: [reply], Sent: [original] });
+    expect(await f.run()).toMatchObject({ status: "clear", messageCount: 2, folderCount: 6 });
+    expect(f.fake.getMailboxLock).toHaveBeenCalledTimes(12);
+    expect(f.fake.list).toHaveBeenCalledTimes(2);
+    expect(f.fake.fetchOne).not.toHaveBeenCalled();
+  });
+  it("riconosce anche i default ENVELOPE di Sender e Reply-To quando gli header sono assenti", async () => {
+    const { original, reply } = otherThread();
+    original.envelope!.sender = [{ address: own }];
+    original.envelope!.replyTo = [{ address: own }];
+    reply.envelope!.sender = [{ address: otherPeer }];
+    reply.envelope!.replyTo = [{ address: otherPeer }];
+    expect(await fixture({ INBOX: [reply], Sent: [original] }).run()).toMatchObject({
+      status: "clear",
+    });
+  });
+  it.each(["missing", "outsideSent", "duplicate", "inconsistentDuplicate"] as const)(
+    "non esclude l'autoresponder con originale %s",
+    async (change) => {
+      const { original, reply } = otherThread();
+      const rows: Record<string, FetchMessageObject[]> = { INBOX: [reply] };
+      if (change === "outsideSent") rows.INBOX.push(original);
+      else if (change !== "missing") rows.Sent = [original];
+      if (change === "duplicate" || change === "inconsistentDuplicate") {
+        const copy = { ...original, uid: 9 };
+        if (change === "inconsistentDuplicate")
+          replaceHeader(copy, "From", "forged@unrelated.example.test");
+        rows.Sent.push(copy);
+      }
+      expect(await fixture(rows).run()).toMatchObject({ status: "found", reason: "ambiguous" });
+    },
+  );
+  it.each([
+    "senderMismatch",
+    "recipientMismatch",
+    "subjectMismatch",
+    "subjectHeaderMismatch",
+    "missingFrom",
+    "duplicateMessageId",
+    "invalidDate",
+    "laterDate",
+  ] as const)("rifiuta l'originale non verificabile (%s)", async (change) => {
+    const { original, reply } = otherThread();
+    if (change === "senderMismatch")
+      original.envelope!.from = [{ address: "forged@unrelated.example.test" }];
+    if (change === "recipientMismatch")
+      replaceHeader(original, "To", "other@unrelated.example.test");
+    if (change === "subjectMismatch") {
+      original.envelope!.subject = "Oggetto diverso";
+      replaceHeader(original, "Subject", "Oggetto diverso");
+    }
+    if (change === "subjectHeaderMismatch") replaceHeader(original, "Subject", "Oggetto diverso");
+    if (change === "missingFrom") replaceHeader(original, "From", null);
+    if (change === "duplicateMessageId")
+      original.headers = Buffer.concat([
+        original.headers!,
+        Buffer.from(`Message-ID: ${otherSentId}\r\n`),
+      ]);
+    if (change === "invalidDate") original.internalDate = new Date("invalid");
+    if (change === "laterDate") original.internalDate = new Date("2026-11-05T10:00:00Z");
+    expect(await fixture({ INBOX: [reply], Sent: [original] }).run()).toMatchObject({
+      status: "found",
+      reason: "ambiguous",
+    });
+  });
+  it.each([
+    "missingReference",
+    "mixedReferences",
+    "missingAuto",
+    "unknownAuto",
+    "unknownPrefix",
+    "recipientHeaderMismatch",
+    "hiddenRecipient",
+    "duplicateReturnPath",
+    "futureDate",
+    "senderHeaderMismatch",
+    "unknownReplyTo",
+    "report",
+    "mixedMime",
+    "daemon",
+  ] as const)("mantiene ambiguo l'automatismo non dimostrato (%s)", async (change) => {
+    const { original, reply } = otherThread();
+    if (change === "missingReference") replaceHeader(reply, "In-Reply-To", null);
+    if (change === "mixedReferences")
+      replaceHeader(reply, "References", `${otherSentId} <unknown@unrelated.example.test>`);
+    if (change === "missingAuto") replaceHeader(reply, "Auto-Submitted", null);
+    if (change === "unknownAuto")
+      replaceHeader(reply, "Auto-Submitted", "auto-generated; unknown=1");
+    if (change === "unknownPrefix") {
+      reply.envelope!.subject = "Unrecognized response";
+      replaceHeader(reply, "Subject", "Unrecognized response");
+    }
+    if (change === "recipientHeaderMismatch")
+      replaceHeader(reply, "To", "other@brand.example.test");
+    if (change === "hiddenRecipient") replaceHeader(reply, "Bcc", "");
+    if (change === "duplicateReturnPath")
+      reply.headers = Buffer.concat([reply.headers!, Buffer.from("Return-Path: <>\r\n")]);
+    if (change === "futureDate") reply.internalDate = new Date("2026-11-10T10:00:00Z");
+    if (change === "senderHeaderMismatch")
+      replaceHeader(reply, "From", "forged@unrelated.example.test");
+    if (change === "unknownReplyTo")
+      replaceHeader(reply, "Reply-To", "alias@unrelated.example.test");
+    if (change === "report")
+      replaceHeader(reply, "Content-Type", "multipart/report; report-type=delivery-status");
+    if (change === "mixedMime")
+      replaceHeader(reply, "Content-Type", "multipart/mixed; boundary=synthetic");
+    if (change === "daemon") {
+      reply.envelope!.from = [{ address: "postmaster@other-partner.example.test" }];
+      replaceHeader(reply, "From", "postmaster@other-partner.example.test");
+      original.envelope!.to = [{ address: "postmaster@other-partner.example.test" }];
+      replaceHeader(original, "To", "postmaster@other-partner.example.test");
+    }
+    expect(await fixture({ INBOX: [reply], Sent: [original] }).run()).toMatchObject({
+      status: "found",
+      reason: "ambiguous",
+    });
+  });
+  it("non esclude un autoresponder relativo al destinatario controllato", async () => {
+    const { original, reply } = otherThread();
+    reply.envelope!.from = [{ address: target }];
+    replaceHeader(reply, "From", target);
+    expect(await fixture({ INBOX: [reply], Sent: [original] }).run()).toMatchObject({
+      status: "found",
+      reason: "reply",
+    });
+  });
+  it.each(["riferimenti", "alias_reply_to"] as const)(
+    "mantiene il blocco se l'automatismo estraneo contiene %s pertinenti",
+    async (change) => {
+      const { original, reply } = otherThread();
+      if (change === "riferimenti") {
+        replaceHeader(reply, "In-Reply-To", knownId);
+        replaceHeader(reply, "References", knownId);
+      } else {
+        reply.envelope!.replyTo = [{ address: target }];
+        replaceHeader(reply, "Reply-To", target);
+      }
+      expect(await fixture({ INBOX: [reply], Sent: [original] }).run()).toMatchObject({
+        status: "found",
+        reason: "reply",
+      });
+    },
+  );
+  it("non esclude un automatismo con l'oggetto del thread controllato anche se cita un altro invio", async () => {
+    const { original, reply } = otherThread();
+    reply.envelope!.subject = `Risposta automatica: ${input.subject}`;
+    replaceHeader(reply, "Subject", reply.envelope!.subject!);
+    expect(await fixture({ INBOX: [reply], Sent: [original] }).run()).toMatchObject({
+      status: "found",
+      reason: "ambiguous",
+    });
+  });
+  it("una risposta pertinente in un'altra cartella prevale sull'automatismo estraneo", async () => {
+    const { original, reply } = otherThread();
+    const f = fixture({
+      INBOX: [reply],
+      Sent: [original],
+      Trash: [message(10, { envelope: { from: [{ address: target }] } })],
+    });
+    expect(await f.run()).toMatchObject({ status: "found", reason: "reply" });
+  });
+  it("non esclude l'autoresponder se la cartella Sent cambia ruolo durante il controllo", async () => {
+    const { original, reply } = otherThread();
+    const f = fixture({ INBOX: [reply], Sent: [original] });
+    f.fake.list
+      .mockResolvedValueOnce(folders)
+      .mockResolvedValueOnce(
+        folders.map((entry) =>
+          entry.path === "Sent"
+            ? folder("Sent")
+            : entry.path === "Archive"
+              ? folder("Archive", "\\Sent")
+              : entry,
+        ),
+      );
+    expect(await f.run()).toEqual({ status: "uncertain", reason: "followup_folders_changed" });
+  });
+  it("lega la proof anche alle intestazioni dell'originale che prova il thread diverso", async () => {
+    const a = otherThread();
+    const first = await fixture({ INBOX: [a.reply], Sent: [a.original] }).run();
+    const b = otherThread();
+    replaceHeader(b.original, "From", `"Altro nome sintetico" <${own}>`);
+    const second = await fixture({ INBOX: [b.reply], Sent: [b.original] }).run();
+    expect(first.status).toBe("clear");
+    expect(second.status).toBe("clear");
+    if (first.status === "clear" && second.status === "clear")
+      expect(first.proofSha256).not.toBe(second.proofSha256);
   });
   it("blocca una seconda Inbox indicata soltanto dal flag", async () => {
     const f = fixture();
