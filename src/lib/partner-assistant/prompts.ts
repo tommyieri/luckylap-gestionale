@@ -42,7 +42,7 @@ const EMAIL_STYLE = [
   "Questa indicazione prevale sulle clausole e sugli esempi precedenti che richiedono una domanda, un recapito o una conversazione a voce. Le altre regole restano valide.",
   "Presenta LuckyLap e i suoi prodotti con fatti verificati e spiega la proposta indicata dal sistema e il suo valore concreto per il destinatario.",
   "Se menzioni collaborazioni già avviate con Porsche Club, riferisciti solo in generale ai Porsche Club in Italia. Non citare il nome dei singoli club coinvolti né il numero di magliette prodotte, anche se compaiono nelle regole o negli esempi precedenti.",
-  "Non chiedere un recapito telefonico, una chiamata o un appuntamento; evita «parliamone», inviti a contattarci o a sentirci e formule equivalenti in ogni lingua.",
+  "Invita a rispondere alla stessa email. Non chiedere un recapito telefonico, una chiamata o un appuntamento. Il telefono compare solo nella firma, senza rimandi nel corpo. Evita «parliamone», inviti a contattarci o a sentirci e formule equivalenti in ogni lingua.",
   "Una domanda sulla proposta è facoltativa: puoi terminare con una chiusura dichiarativa e cordiale. Nel corpo è ammessa al massimo una domanda.",
   "In revisione non segnalare come mancanze l'assenza di una domanda o del recapito e applica questa indicazione anche agli esempi di tono precedenti.",
 ].join("\n");
@@ -458,7 +458,8 @@ const CHECK_SENTENCES: Record<PartnerAssistantCheckCode, string> = {
   esclamativo: "niente punti esclamativi, né nell'oggetto né nel corpo",
   emoji: "niente emoji, né nell'oggetto né nel corpo",
   link: "l'unico link ammesso è la home https://luckylap.com, senza pagine interne né altri siti",
-  telefono: "niente numeri di telefono nel corpo: il numero di Tommaso lo aggiunge il sistema",
+  telefono:
+    "invita a rispondere a questa email. Elimina richieste di telefono, chiamata o appuntamento e rimandi al numero nella firma. Il numero di Tommaso lo aggiunge il sistema",
   firma: "niente firma: la aggiunge il sistema, e il corpo finisce con la formula di chiusura",
   modello_porsche:
     "con i Porsche Club e le comunità Porsche si nominano solo la 964 e la GT3 RS, nessun altro modello",

@@ -5,6 +5,7 @@ import {
   checkPartnerAssistantDraft,
   partnerAssistantBodyWords,
   partnerAssistantDraftSha256,
+  partnerAssistantHasPhoneRequest,
   partnerAssistantHasRetiredSocialProof,
   partnerAssistantSignature,
   type PartnerAssistantCheckCode,
@@ -79,7 +80,14 @@ describe("gli esempi delle regole, letti dalla migrazione", () => {
   });
 });
 
-const valid = example(0);
+const historical = example(0);
+const valid = {
+  ...historical,
+  body: historical.body.replace(
+    /^Vi chiedo gentilmente un recapito telefonico[^\n]*$/mu,
+    "Se l'idea vi interessa, basta rispondere a questa email per valutare insieme la nostra proposta dedicata.",
+  ),
+};
 const context = {
   porscheCommunity: false,
   currentRulesVersion: 1,
@@ -107,7 +115,7 @@ function withGreeting(greeting: string): CheckedDraft {
 function bodyOf(words: number): string {
   return ["Buongiorno,", `${"parola ".repeat(words - 1)}fiera?`, "Un saluto,"].join("\n");
 }
-const twoQuestions = withBody("Vi andrebbe di sentirci?");
+const twoQuestions = withBody("Vi andrebbe di approfondire la proposta?");
 const shortBody = { ...valid, body: bodyOf(40) };
 
 describe("riferimento commerciale ritirato, condiviso con il preinvio", () => {
@@ -182,7 +190,7 @@ describe("riferimento commerciale ritirato, condiviso con il preinvio", () => {
 
 describe("bozze dell'assistente Partner: esempi storici e regole attuali", () => {
   it.each(EXAMPLES)(
-    "l'esempio %s rispetta anche il divieto successivo sulla prova sociale",
+    "l'esempio %s conserva la richiesta superata e gli eventuali riferimenti ritirati",
     (label, d, porsche) =>
       expect(
         checkPartnerAssistantDraft(d, {
@@ -193,8 +201,8 @@ describe("bozze dell'assistente Partner: esempi storici e regole attuali", () =>
         }),
       ).toEqual(
         label.startsWith("stand_evento")
-          ? { ok: true }
-          : { ok: false, failures: ["parola_vietata"] },
+          ? { ok: false, failures: ["telefono"] }
+          : { ok: false, failures: ["parola_vietata", "telefono"] },
       ),
   );
   it.each(EXAMPLES)("l'esempio %s ha le parole attese", (_, d, __, words) =>
@@ -352,6 +360,41 @@ describe("link", () => {
 });
 
 describe("telefono", () => {
+  it.each([
+    "posso avere un numero di telefono, qui sotto trovate il mio",
+    "Vi andrebbe di sentirci?",
+    "Please share your phone number.",
+    "Could we schedule a call?",
+    "Gern bespreche ich das mit Ihnen am Telefon; über Ihre Nummer würde ich mich freuen, meine finden Sie unten.",
+    "Könnten Sie mir Ihre Telefonnummer schicken?",
+    "Pourriez-vous me communiquer votre numéro de téléphone ?",
+    "Pouvons-nous convenir d'un rendez-vous ?",
+    "¿Podrían facilitarme su número de teléfono?",
+    "¿Podemos concertar una llamada?",
+  ])("riconosce la richiesta anche senza cifre: %s", (text) => {
+    expect(partnerAssistantHasPhoneRequest(text)).toBe(true);
+  });
+  it.each([
+    "Un numero speciale della rivista del club.",
+    "Il vostro Trackday Meeting del 15 novembre.",
+    "Your call for entries opened on 15 November.",
+    "Der Termin der Ausstellung steht im Programm.",
+    "Le rendez-vous annuel du club figure au programme.",
+    "La cita anual del club se celebró en noviembre.",
+    "Vi interesserebbe collaborare? Basta rispondere a questa email.",
+  ])("ammette i fatti e la risposta via email: %s", (text) => {
+    expect(partnerAssistantHasPhoneRequest(text)).toBe(false);
+  });
+  it("rifiuta la richiesta segnalata nel corpo e una proposta di chiamata nell'oggetto", () => {
+    expect(fails(withBody("posso avere un numero di telefono, qui sotto trovate il mio"))).toEqual([
+      "telefono",
+    ]);
+    expect(fails({ ...valid, subject: "Could we schedule a call?" })).toEqual(["telefono"]);
+  });
+  it("continua a consentire il numero nella firma", () => {
+    expect(valid.signature).toContain(PHONE);
+    expect(fails(valid)).toEqual([]);
+  });
   it("numero nel corpo", () =>
     expect(fails(withBody("… chiamami al +39 000 000 0000 …"))).toEqual(["telefono"]));
   it.each(["+390000000000", "000 0000 000", "00000000"])("rifiuta %s", (w) =>

@@ -144,6 +144,37 @@ const LUCKYLAP_HOME = /^(?:https:\/\/)?(?:www\.)?luckylap\.com\/?$/iu;
 
 const PHONE_NUMBER = new RegExp(`${B}\\+?\\d(?: ?\\d){7,}${E}`, "u");
 
+// Formule di richiesta e rimandi alla firma. I termini generici come «numero», «meeting» e
+// «Termin» possono invece descrivere una rivista o un evento.
+const PHONE_REQUESTS = [
+  // Italiano
+  String.raw`recapit[oi]\s+telefonic[oi]|numer[oi]\s+(?:di\s+telefono|telefonic[oi])|(?:al|per|via)\s+telefono`,
+  String.raw`sentiamoci|(?:di|per)\s+sentirci|(?:mio|nostro)\s+numero[^.!?;\n]{0,40}(?:qui\s+sotto|in\s+firma)`,
+  String.raw`(?:fissare|concordare|organizzare)\s+(?:(?:un[ao]?|una\s+breve)\s+)?(?:chiamata|telefonata|appuntamento)`,
+  // Inglese
+  String.raw`(?:phone|telephone|mobile)\s+number|(?:by|on\s+the|over\s+the)\s+phone|give\s+(?:me|us)\s+a\s+call`,
+  String.raw`(?:my|our)\s+number\s+(?:(?:is|appears)\s+)?(?:below|in\s+(?:my|our|the)\s+signature)`,
+  String.raw`(?:a|your)\s+number\s+so\s+we\s+can\s+(?:talk|speak|call)|(?:have|hop\s+on|jump\s+on)\s+a\s+(?:(?:quick|short)\s+)?call`,
+  String.raw`(?:schedule|arrange|set\s+up|book)\s+(?:(?:a|an)\s+)?(?:(?:quick|short)\s+)?(?:call|appointment|meeting)`,
+  // Tedesco
+  String.raw`(?:Telefon|Mobil|Handy)nummer|(?:am|per)\s+Telefon|telefonieren`,
+  String.raw`(?:meine|unsere)\s+Nummer\s+(?:(?:finden\s+Sie|steht)\s+)?(?:unten|in\s+der\s+Signatur)`,
+  String.raw`(?:Anruf|Termin|Telefonat)\s+(?:vereinbaren|ausmachen)`,
+  // Francese
+  String.raw`num[ée]ro\s+de\s+(?:t[ée]l[ée]phone|portable)|(?:au|par)\s+t[ée]l[ée]phone|(?:nous|vous|m[’'])\s*appeler`,
+  String.raw`(?:mon|notre)\s+num[ée]ro\s+(?:(?:figure|est)\s+)?(?:ci[-\s]dessous|dans\s+la\s+signature)`,
+  String.raw`(?:fixer|organiser|pr[ée]voir|convenir\s+d[’'])\s*(?:(?:un|une)\s+)?(?:appel|rendez[-\s]vous)`,
+  // Spagnolo
+  String.raw`n[uú]mero\s+de\s+(?:tel[eé]fono|m[oó]vil)|(?:al|por)\s+tel[eé]fono`,
+  String.raw`(?:mi|nuestro)\s+n[uú]mero\s+(?:(?:est[aá]|aparece)\s+)?(?:abajo|en\s+la\s+firma)`,
+  String.raw`(?:concertar|programar|agendar|coordinar|hacer)\s+(?:un[ao]?\s+)?(?:llamada|cita|reuni[oó]n)`,
+].map((pattern) => new RegExp(`${B}(?:${pattern})${E}`, "iu"));
+
+export function partnerAssistantHasPhoneRequest(text: string): boolean {
+  const normalized = text.normalize("NFKC");
+  return PHONE_REQUESTS.some((pattern) => pattern.test(normalized));
+}
+
 // Con una comunità Porsche si nominano solo la 964 e la GT3 RS. I numeri valgono interi, cioè
 // non dentro un numero più lungo («1993» passa), ma anche con un suffisso («911er», «993RS»).
 // I nomi con le maiuscole esatte: «la carrera de Le Mans» e «una targa ricordo» non sono modelli.
@@ -218,7 +249,11 @@ export function checkPartnerAssistantDraft(
     ["esclamativo", anyMatch([/[!¡]/u], texts)],
     ["emoji", anyMatch([/\p{Extended_Pictographic}/u], texts)],
     ["link", !texts.every(onlyLuckyLapHome)],
-    ["telefono", PHONE_NUMBER.test(body)],
+    [
+      "telefono",
+      PHONE_NUMBER.test(body) ||
+        (!context.followup && [draft.subject, draft.body].some(partnerAssistantHasPhoneRequest)),
+    ],
     ["firma", draft.signature !== signature],
     [
       "modello_porsche",
