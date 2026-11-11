@@ -557,6 +557,40 @@ describe("passo d'invio dell'assistente Partner", () => {
     expect(calls).toContain("finish:inviato");
     expect(calls).not.toContain("skip:riferimento_superato");
   });
+  it("la richiesta di telefono in una prima bozza già approvata ferma l'invio prima della posta", async () => {
+    await runSend({
+      candidate: withBody(
+        "Gentile segreteria,\nposso avere un numero di telefono, qui sotto trovate il mio\nUn saluto,",
+      ),
+    });
+    expect(calls).toEqual(["claim", "skip:riferimento_superato", "release"]);
+    expect(state.recorded.skip).toEqual([
+      { jobId: candidate.jobId, reason: "riferimento_superato" },
+    ]);
+    expect(state.recorded.prepare).toHaveLength(0);
+    expect(state.recorded.smtp).toHaveLength(0);
+    expect(released()?.outcome).toBe("riferimento_superato");
+  });
+  it("una prova che propone una chiamata nell'oggetto si ferma prima della posta", async () => {
+    const test = testCandidate(0);
+    await runSend({
+      candidate: { ...test, draft: { ...test.draft, subject: "Could we schedule a call?" } },
+    });
+    expect(calls).toEqual(["claim", "skip:riferimento_superato", "release"]);
+    expect(state.recorded.smtp).toHaveLength(0);
+  });
+  it("manda l'invito a rispondere via email e conserva il numero nella firma", async () => {
+    await runSend({
+      candidate: withBody(
+        "Gentile segreteria,\nAbbiamo letto del vostro Trackday Meeting e del numero speciale della rivista.\nVi interesserebbe collaborare? Basta rispondere a questa email.\nUn saluto,",
+      ),
+    });
+    expect(calls).toContain("finish:inviato");
+    expect(state.recorded.smtp).toHaveLength(1);
+    expect(state.recorded.prepare[0]?.text).toContain("Basta rispondere a questa email.");
+    expect(state.recorded.prepare[0]?.text).toContain(candidate.draft.signature);
+    expect(state.recorded.prepare[0]?.text).toContain(config.phone);
+  });
   it("bozza scaduta (data del corpo passata): skip bozza_scaduta, casella non aperta senza appends", async () => {
     expect(
       await runSend({
