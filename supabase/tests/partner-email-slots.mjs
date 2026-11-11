@@ -1,4 +1,4 @@
-// test-db: pglite minimo 96
+// test-db: pglite minimo 112
 // Piano effettivo: quote, snapshot, finestre locali e scadenze senza recuperi a raffica.
 // Migrazioni Partner attuali, Auth simulata e dati sintetici, nessun accesso cloud.
 import assert from "node:assert/strict";
@@ -313,6 +313,7 @@ try {
   await db.exec(migration("_partner_calendario_2027.sql"));
   await db.exec(migration("_partner_invii_distribuiti.sql"));
   await db.exec(migration("_partner_piano_prestazioni.sql"));
+  await db.exec(migration("_partner_solleciti_controlli_imap.sql"));
   let now = "2026-11-10T07:00:00Z";
   const service = (fn, args = []) =>
     as(
@@ -517,13 +518,37 @@ try {
       role === "authenticated",
     );
   }
-  // Uno slot FU dovuto deve prevalere sul timer di osservazione, anche con prime future.
-  let dueFu = rows.find((x) => x.kind === "sollecito");
-  now = new Date(new Date(dueFu.planned_at).getTime() + 1000).toISOString();
-  await asOwner(
-    "update public.partner_assistant_followups set next_check_at=$1::timestamptz+interval '2 hours'",
-    [now],
+  const fuSlots = rows.filter((x) => x.kind === "sollecito");
+  const [dueFu, failedFu, repliedFu] = fuSlots;
+  const postponeChecks = () =>
+    asOwner(
+      "update public.partner_assistant_followups set next_check_at=$1::timestamptz+interval '2 hours'",
+      [now],
+    );
+  const slotState = (id) =>
+    one("select status, reason from private.partner_send_slots where id=$1", [id]);
+  // Una verifica di osservazione fallisce dopo l'apertura ma prima dell'orario del sollecito.
+  now = new Date(new Date(dueFu.planned_at).getTime() - 60_000).toISOString();
+  await postponeChecks();
+  await wake(dueFu.conversation_id);
+  const observation = await claim();
+  eq(observation.candidate.id, dueFu.conversation_id);
+  eq(observation.candidate.send_allowed, false);
+  eq((await check(observation, "uncertain", "followup_imap_failed")).status, "retry");
+  eq((await conv(dueFu.conversation_id)).draft_id, dueFu.draft_id);
+  await release();
+  await refresh();
+  eq(
+    (await slots())
+      .filter((x) => x.kind === "sollecito")
+      .map((x) => [x.id, new Date(x.planned_at).toISOString()]),
+    fuSlots.map((x) => [x.id, new Date(x.planned_at).toISOString()]),
+    "un errore prima dell'orario lascia intatta la griglia già aperta",
   );
+
+  // Uno slot FU dovuto deve prevalere sul timer di osservazione, anche con prime future.
+  now = new Date(new Date(dueFu.planned_at).getTime() + 1000).toISOString();
+  await postponeChecks();
   const firstIdle = await service("claim_partner_assistant_send", [WORKER, 300, 0]);
   eq(firstIdle.status, "idle");
   let claimed = await claim();
@@ -546,6 +571,27 @@ try {
   );
   eq(await followupSent(), 1);
   eq(await firstSent(), 0);
+  await release();
+
+  now = new Date(new Date(failedFu.planned_at).getTime() + 1000).toISOString();
+  const attempted = await claim();
+  eq(attempted.candidate.id, failedFu.conversation_id);
+  eq(attempted.candidate.send_allowed, true);
+  eq((await check(attempted, "uncertain", "followup_imap_failed")).status, "retry");
+  eq(await slotState(failedFu.id), { status: "skipped", reason: "followup_imap_failed" });
+  eq((await conv(failedFu.conversation_id)).draft_id, failedFu.draft_id);
+  await release();
+
+  now = new Date(new Date(repliedFu.planned_at).getTime() - 60_000).toISOString();
+  await postponeChecks();
+  await wake(repliedFu.conversation_id);
+  const replying = await claim();
+  eq(replying.candidate.id, repliedFu.conversation_id);
+  eq(replying.candidate.send_allowed, false);
+  eq((await check(replying, "found", "reply")).status, "blocked");
+  eq(await slotState(repliedFu.id), { status: "skipped", reason: "reply" });
+  eq((await conv(repliedFu.conversation_id)).status, "held");
+  eq((await conv(repliedFu.conversation_id)).draft_id, null);
   await release();
 
   const resetPlan = async () => {
