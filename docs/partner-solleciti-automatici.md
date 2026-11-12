@@ -11,10 +11,18 @@ La nuova configurazione dei solleciti è separata da quella delle prime email e 
 | Modalità | Comportamento |
 | --- | --- |
 | Spento | Il percorso dei solleciti non prende conversazioni. |
-| Osserva | Controlla la posta e segnala i casi da verificare. Nessun sollecito parte; i promemoria manuali di Tommi restano validi. |
+| Osserva | Registra le risposte riconosciute e segnala i casi da verificare. I solleciti restano manuali. |
 | Invio | Può inviare un sollecito dovuto con bozza valida, dopo i due controlli della casella e l'autorizzazione finale del database. La modalità generale dell'assistente deve essere «Invio». |
 
-La preparazione Anthropic può restare in pausa per credito: questo percorso non chiama Claude e non usa credito Anthropic. Una risposta o un altro segnale dubbio ferma i solleciti su quella conversazione e richiede il controllo di Tommi. L'assistente **non risponde automaticamente alle persone**. «Possibile risposta» comprende anche messaggi ambigui e scambi che non si riescono ad attribuire con certezza.
+La preparazione Anthropic può restare in pausa per credito: questo percorso non chiama Claude e non usa credito Anthropic. Una risposta certa chiude il sollecito. Un segnale dubbio sospende la conversazione e richiede il controllo di Tommi. Le risposte da mandare alle persone restano a cura del team.
+
+## Registrazione delle risposte
+
+La verifica periodica della casella usa le conversazioni avviate dall'assistente. Per registrare una risposta serve un mittente associato al contatto, un riferimento univoco a un invio della conversazione e un messaggio che superi i controlli sulle risposte automatiche e sui rimbalzi. Un oggetto uguale o un indirizzo presente in copia possono fermare un sollecito in attesa di verifica, ma da soli non aggiornano il Registro.
+
+Il Registro mostra la data di ricezione, l'oggetto se presente e la provenienza «dalla casella». Il testo del messaggio e gli allegati si consultano nella posta. L'identificativo del messaggio evita duplicati anche se l'email si trova in più cartelle o il worker ripete un giro. La risposta chiude il sollecito e porta il contatto a «Risposto» se era in «Da contattare» o «Contattato». Una risposta già annotata dal team nel ciclo conserva la sua voce nel Registro.
+
+Le conversazioni sospese per una possibile risposta hanno anche un ricontrollo dedicato. Una corrispondenza certa può chiuderle come «Risposto»; la rilettura non può rimetterle in coda di invio. Per le email inviate fuori dall'assistente resta disponibile «Registra una risposta» nella scheda Partner.
 
 Per la decisione di Tommi del 9 novembre, un messaggio fuori ufficio riconosciuto dalle intestazioni di risposta automatica e con **data di rientro certa, completa di anno**, rinvia il sollecito a quella data e mantiene il ciclo attivo. Il riconoscimento copre italiano, inglese, tedesco, francese e spagnolo; non interpreta una data generica del testo come rientro. Sono riconosciuti solo messaggi completi in testo semplice con struttura supportata: altri formati o contenuti non compresi richiedono il controllo di Tommi. Alla ripresa valgono comunque tutti i controlli della posta, le quote e il calendario. Una data assente, impossibile o ambigua lascia il caso fermo per Tommi. Un fuori ufficio riconosciuto con rientro già raggiunto non blocca da solo il ciclo; la scansione continua a cercare eventuali altre risposte. Una risposta umana non viene ignorata perché contiene anche una data.
 
@@ -42,7 +50,7 @@ Il percorso usa la stessa lease della casella e lo stesso intervallo tra gli inv
 2. Un risultato completo e senza segnali da controllare produce una prova breve nel database. Il database la lega a lease, conversazione, versione e bozza. Solo allora si prepara il MIME immutabile del sollecito.
 3. Dopo il login SMTP, **prima della chiamata che consegna i byte**, lo scanner rilegge completamente la casella. Questa seconda prova deve essere nuova, successiva alla preparazione e legata anche a quel MIME. La prima prova non può sostituirla.
 4. L'autorizzazione finale ricontrolla prova ancora valida, contatto, recapito e relative versioni, regole, stato del ciclo, modalità, data dovuta, finestre, intervallo e quote. Una prova dura 30 secondi; dati o contesti superati impediscono la partenza.
-5. Dopo l'esito, il database registra una sola volta invio e numero del sollecito. Solo un invio riuscito chiude i promemoria manuali del ciclo. Dopo il quarto il ciclo termina. Gli stessi byte del MIME vengono copiati nella posta inviata dal percorso ordinario.
+5. Dopo l'esito, il database registra una sola volta invio e numero del sollecito. Un invio riuscito o una risposta registrata chiudono i promemoria manuali del ciclo. Dopo il quarto invio il ciclo termina. Gli stessi byte del MIME vengono copiati nella posta inviata dal percorso ordinario.
 
 Cartella mancante o cambiata durante la lettura, limite di scansione superato, ricerca interrotta, connessione dubbia, risposta possibile, stop, rimbalzo o invio manuale impediscono l'invio automatico. Il solo fuori ufficio con data certa segue il rinvio descritto sopra. Contatto assegnato al team, prossima azione, stato commerciale diverso, assistente fermato, «Non contattare», recapito cambiato o cancellato bloccano il ciclo. Una bozza con contesto o ricerca superati deve essere preparata di nuovo.
 
@@ -60,7 +68,7 @@ La successiva consegna degli invii distribuiti estende la finestra a **9:00–16
 
 Il blocco «Assistente» conserva la prima email e mostra separatamente i metadati del ciclo: modalità, solleciti inviati su quattro, prossima scadenza e ultima verifica della casella registrata. La data dell'ultimo controllo non certifica che l'esito fosse completo e senza risposte. Un ciclo fermo invita Tommi a controllare la conversazione, senza dichiarare che una persona abbia certamente risposto. Il rinvio certo mostra «Fuori ufficio: sollecito non prima del …»; una verifica incerta resta distinta da questo rinvio.
 
-In «osserva» e «spento» il promemoria manuale resta visibile. Solo quando il nuovo stato è leggibile e la modalità dei solleciti è «invio» scompare la vecchia frase «il sollecito dopo 7 giorni lo manda Tommi». RPC assente, DTO superato o lettura fallita mostrano «Verifica dei solleciti non leggibile», senza nascondere la prima email o presumere un'automazione attiva. Il contatore «Prime email oggi» e il limite modificabile della pagina Assistente riguardano soltanto le prime email. Una nota indica i sei solleciti aggiuntivi e la necessità di attivarli; non viene mostrato un totale giornaliero dei solleciti, non presente nella risposta della RPC. Il Programma email e le viste delle prime email filtrano `kind=primo`, sia nello storico sia nei conteggi delle quote.
+In «osserva» e «spento» il promemoria manuale resta visibile mentre il ciclo è attivo. Una risposta registrata chiude il promemoria anche in «osserva». RPC assente, DTO superato o lettura fallita mostrano «Verifica dei solleciti non leggibile», senza nascondere la prima email o presumere un'automazione attiva. Il contatore «Prime email oggi» e il limite modificabile della pagina Assistente riguardano soltanto le prime email. Una nota indica i sei solleciti aggiuntivi e la necessità di attivarli; non viene mostrato un totale giornaliero dei solleciti, non presente nella risposta della RPC. Il Programma email e le viste delle prime email filtrano `kind=primo`, sia nello storico sia nei conteggi delle quote.
 
 ## Confini della verifica e configurazione
 
@@ -68,4 +76,6 @@ La verifica riguarda la casella configurata e i messaggi ancora disponibili nell
 
 Non servono nuove variabili d'ambiente: si riusano la configurazione server dell'assistente e della posta. Nessun segreto o recapito entra in questa documentazione. Una modalità salvata nel database è distinta dall'effettiva autorizzazione SMTP, che viene ricontrollata per ogni messaggio.
 
-Il codice principale è in `src/lib/partner-assistant/followup.ts`, `followup-store.ts`, `followup-mailbox.ts` e `followup-compose.ts`; le RPC e le prove sono nella migrazione `20261109104133_partner_solleciti_automatici.sql`. Lo stato della scheda passa da `read_partner_followup` al parser `src/lib/partner/followup-status.ts`. I test usano dati sintetici, caselle simulate e database locali; non attestano un rilascio o un invio reale.
+Il codice principale è in `src/lib/partner-assistant/followup.ts`, `followup-store.ts`, `followup-mailbox.ts` e `followup-compose.ts`. La migrazione `20261112190830_partner_risposte_solleciti.sql` aggiunge la registrazione delle risposte alle RPC esistenti. Se la registrazione non è disponibile, il worker conserva il blocco già previsto per una possibile risposta. Lo stato della scheda passa da `read_partner_followup` al parser `src/lib/partner/followup-status.ts`.
+
+Per la verifica dopo il rilascio si possono confrontare i giri dello scheduler, gli esiti di lettura e le attività «Risposta registrata automaticamente dalla casella» con conversazioni già note. I test usano messaggi sintetici, caselle simulate e database locali, comprese la risposta arrivata tra le due scansioni e la rilettura di una conversazione sospesa.

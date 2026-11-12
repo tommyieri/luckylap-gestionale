@@ -220,6 +220,20 @@ describe("PartnerActivityLog", () => {
     }
   });
 
+  it("attribuisce la registrazione alla casella e distingue l'oggetto dal testo", () => {
+    const tree = render(3, false, (detail) => ({
+      ...detail,
+      activities: detail.activities.map((activity) =>
+        activity.kind === "risposta"
+          ? { ...activity, origin: "assistente", channel: "email", body: "Disponibilità di prova" }
+          : activity,
+      ),
+    }));
+    expect(text(tree)).toContain("Risposta registrata automaticamente dalla casella");
+    expect(text(tree)).toContain("Oggetto della risposta: Disponibilità di prova");
+    expect(text(tree)).not.toContain("dall'assistente · Ha risposto");
+  });
+
   it("«Segna sollecito inviato» registra un invio di tipo sollecito", () => {
     registra(1, "Segna sollecito inviato");
     expect(mocks.record).toHaveBeenCalledExactlyOnceWith({

@@ -36,6 +36,8 @@ import type { StoreResult } from "./types";
 /** Un giro di posta con due scansioni complete e un solo SMTP; nessuna chiamata a modelli. */
 export const PARTNER_FOLLOWUP_BUDGET_MS = 150_000;
 export const PARTNER_FOLLOWUP_SCAN_MS = 30_000;
+const REPLY_REVIEW_PERIOD_MS = 10 * 60_000;
+const ASSISTANT_TICK_MS = 2 * 60_000;
 export type PartnerFollowupRun = { status: "idle" | "observed" | "complete" | "uncertain" };
 export type PartnerFollowupDependencies = {
   store?: PartnerFollowupStore;
@@ -115,6 +117,7 @@ export async function runPartnerAssistantFollowup(
   let imapLogin: string | null = null;
   let smtpLogin: string | null = null;
   let outcome = "sollecito_osservato";
+  let registeredReply = false;
   async function db<T>(
     task: (signal: AbortSignal) => Promise<StoreResult<T>>,
     record = false,
@@ -158,6 +161,10 @@ export async function runPartnerAssistantFollowup(
     candidate: PartnerFollowupCandidate,
     result: PartnerAssistantFollowupMailboxResult,
   ): Promise<PartnerFollowupCheck | null> {
+    if (await recordConfirmedReply(candidate, result))
+      return { status: "blocked", reason: "risposta_registrata" };
+
+    // Una risposta resta un blocco anche con la migrazione assente o un errore di scrittura.
     const checkedAt =
       result.status === "uncertain" ? new Date(now()).toISOString() : result.checkedAt;
     const complete = result.status === "clear" || result.status === "deferred";
@@ -186,7 +193,47 @@ export async function runPartnerAssistantFollowup(
     }
     return saved.value;
   }
+  async function recordConfirmedReply(
+    candidate: PartnerFollowupCandidate,
+    result: PartnerAssistantFollowupMailboxResult,
+  ): Promise<boolean> {
+    if (result.status !== "found" || result.reason !== "reply" || !result.reply) return false;
+    const reply = result.reply;
+    const saved = await db(
+      (signal) =>
+        store.recordReply(
+          lease!,
+          candidate,
+          {
+            message_id: reply.messageId,
+            references: reply.references,
+            from_address: reply.from,
+            received_at: reply.receivedAt,
+            subject: reply.subject,
+          },
+          signal,
+        ),
+      true,
+    );
+    registeredReply = saved.ok && saved.value.status !== "stale";
+    if (registeredReply) outcome = "sollecito_risposta_registrata";
+    return registeredReply;
+  }
   try {
+    // I cicli già sospesi hanno una verifica separata e non rientrano mai in coda di invio.
+    // Diamo loro un giro ogni dieci minuti anche quando la coda ordinaria non è mai vuota.
+    const review =
+      now() % REPLY_REVIEW_PERIOD_MS < ASSISTANT_TICK_MS
+        ? await db((signal) => store.claimReplyReview(uuid(), 300, signal))
+        : null;
+    if (review?.ok && review.value.status === "claimed") {
+      lease = review.value.lease_token;
+      const c = review.value.candidate;
+      const result = await scan(c);
+      imapLogin = result.status === "uncertain" ? "imap_verifica_incompleta" : "ok";
+      await recordConfirmedReply(c, result);
+      return { status: "observed" };
+    }
     const claimed = await db((signal) => store.claim(uuid(), 300, signal));
     if (!claimed.ok) return { status: "uncertain" };
     if (claimed.value.status === "idle") return { status: "idle" };
@@ -358,7 +405,7 @@ export async function runPartnerAssistantFollowup(
     }
     if (result.outcome.kind === "credenziali")
       await db((signal) => sendStore.pause(lease!, signal), true);
-    outcome = `sollecito_${input.outcome}`;
+    if (!registeredReply) outcome = `sollecito_${input.outcome}`;
     // Il giro ordinario copia anche questi MIME immutabili in Posta inviata, con lo stesso APPEND.
     return { status: input.outcome === "incerto" ? "uncertain" : "complete" };
   } catch {

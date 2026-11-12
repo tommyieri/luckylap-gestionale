@@ -1,4 +1,4 @@
-// test-db: pglite minimo 331
+// test-db: pglite minimo 387
 // Solleciti automatici: prove fresche, quote separate, stato SMTP e arresto nel dubbio.
 // Migrazioni Partner attuali, Auth simulata e dati sintetici, nessun accesso cloud.
 import assert from "node:assert/strict";
@@ -1461,6 +1461,216 @@ try {
   eq(c.candidate.send_allowed, false);
   await release();
   await asOwner("update private.partner_followup_config set mode='invio'");
+
+  // Un mittente del thread ferma un sollecito anche se il MIME è già pronto.
+  c = await fresh();
+  const replyCandidate = c.candidate;
+  const replyProof = await check(c);
+  const replyPending = await prepare(c, replyProof);
+  eq(replyPending.status, "pronto");
+  for (const suffix of [
+    "_partner_calendario_2027.sql",
+    "_partner_invii_distribuiti.sql",
+    "_partner_piano_prestazioni.sql",
+    "_partner_riferimenti_generici.sql",
+    "_partner_solleciti_controlli_imap.sql",
+    "_partner_risposte_solleciti.sql",
+  ])
+    await db.exec(migration(suffix));
+  const reply = {
+    message_id: "<risposta-sintetica@peer.example.test>",
+    references: replyCandidate.message_ids,
+    from_address: replyCandidate.address,
+    received_at: "2026-11-10T08:55:00.000Z",
+    subject: "Re: Proposta sintetica",
+  };
+  const registerReply = (payload = reply, expected = replyCandidate.version) =>
+    service("record_partner_followup_reply", [
+      c.lease_token,
+      replyCandidate.id,
+      expected,
+      JSON.stringify(payload),
+    ]);
+  for (const fn of [
+    "record_partner_followup_reply(uuid,uuid,bigint,jsonb)",
+    "claim_partner_followup_reply_review(uuid,integer)",
+  ]) {
+    for (const role of ["anon", "authenticated", "service_role"]) {
+      eq(
+        await value("select has_function_privilege($1,$2,'execute') as v", [role, `public.${fn}`]),
+        role === "service_role",
+      );
+    }
+  }
+  const [foreignPartner] = await sent(1, { club: false, day: "2026-11-02" });
+  const foreignMessageId = await value(
+    "select message_id as v from public.partner_assistant_messages where partner_id=$1",
+    [foreignPartner],
+  );
+  eq(
+    (await registerReply({ ...reply, from_address: "estraneo@peer.example.test" })).status,
+    "stale",
+  );
+  eq(
+    (await registerReply({ ...reply, references: [foreignMessageId, ...reply.references] })).status,
+    "stale",
+  );
+  await assert.rejects(() => registerReply({ ...reply, references: [reply.message_id] }), {
+    code: "22023",
+  });
+  checks++;
+  await assert.rejects(
+    () => registerReply({ ...reply, references: [...reply.references, ...reply.references] }),
+    {
+      code: "22023",
+    },
+  );
+  checks++;
+  eq((await registerReply(reply, replyCandidate.version + 1)).status, "stale");
+  await asOwner(
+    `select private.partner_log(gen_random_uuid(),$1,'inviato',$2,p_channel=>'email',p_message_kind=>'primo',
+      p_origin=>'assistente',p_occurred_at=>timestamptz '2026-10-20T08:40:00Z')`,
+    [replyCandidate.partner_id, assistant],
+  );
+  eq((await registerReply()).status, "registered");
+  eq((await registerReply()).status, "already_recorded");
+  const recordedReply = await value(
+    `select jsonb_agg(jsonb_build_object('origin',origin,'body',body,'channel',channel,
+      'stage_after',stage_after)) as v from public.partner_activities where partner_id=$1 and kind='risposta'`,
+    [replyCandidate.partner_id],
+  );
+  eq(recordedReply, [
+    { origin: "assistente", body: reply.subject, channel: "email", stage_after: "risposto" },
+  ]);
+  eq((await conv(replyCandidate.id)).status, "replied");
+  eq((await conv(replyCandidate.id)).reason, "risposta_registrata");
+  eq(
+    await value(
+      `select t.status as v from public.partner_work_links l join public.tasks t on t.id=l.task_id
+        where l.partner_id=$1 and l.kind='follow_up'`,
+      [replyCandidate.partner_id],
+    ),
+    "done",
+  );
+  eq(
+    await value("select send_status as v from public.partner_assistant_messages where id=$1", [
+      replyPending.message_row_id,
+    ]),
+    "scartato",
+  );
+  eq((await finish(c, replyPending, "scartato")).status, "done");
+  await release();
+
+  // Una possibile risposta già fermata resta fuori dalla coda SMTP, anche durante il recupero.
+  const [historicalPartner] = await sent(1, { club: false, day: "2026-11-02" });
+  await asOwner("update public.partners set stage='contattato' where id=$1", [historicalPartner]);
+  await initializeFollowupFixtures([historicalPartner]);
+  c = await claim();
+  eq(c.candidate.partner_id, historicalPartner);
+  eq((await check(c, "found", "ambiguous")).status, "blocked");
+  const historicalId = c.candidate.id;
+  await release();
+  await asOwner("update public.partners set stage='trattativa' where id=$1", [historicalPartner]);
+  now = "2026-11-10T10:00:00Z";
+  const reviewHistoricalReply = () => service("claim_partner_followup_reply_review", [WORKER, 300]);
+  const slotPartner = await ready(9001, { club: false });
+  const upcomingSlot = await value(
+    `with w as (
+       insert into private.partner_send_windows(opens_at,grid_end_at,latest_start_at,local_day)
+       values ('2026-11-10T10:01:00Z','2026-11-10T15:55:00Z','2026-11-10T15:58:30Z','2026-11-10') returning id
+     ) insert into private.partner_send_slots(window_id,partner_id,kind,draft_id,job_id,flow_template,
+       snapshot,timezone,local_day,quota_day,planned_at,expires_at)
+     select w.id,j.partner_id,'primo',j.draft_id,j.id,false,'{}','Europe/Rome','2026-11-10','2026-11-10',
+       '2026-11-10T10:02:00Z','2026-11-10T10:07:00Z' from w cross join public.partner_assistant_jobs j
+     where j.partner_id=$1 returning id as v`,
+    [slotPartner],
+  );
+  eq(await reviewHistoricalReply(), { status: "idle", reason: "intervallo" });
+  eq((await conv(historicalId)).reply_review_attempts, 0);
+  await asOwner("update private.partner_send_slots set status='skipped' where id=$1", [
+    upcomingSlot,
+  ]);
+  const historicalReview = await reviewHistoricalReply();
+  eq(historicalReview.status, "claimed");
+  eq(historicalReview.mode, "osserva");
+  eq(historicalReview.candidate.id, historicalId);
+  eq(historicalReview.candidate.draft, null);
+  eq(historicalReview.candidate.send_allowed, false);
+  eq((await conv(historicalId)).status, "held");
+  const recordedHistorical = await service("record_partner_followup_reply", [
+    historicalReview.lease_token,
+    historicalId,
+    historicalReview.candidate.version,
+    JSON.stringify({
+      ...reply,
+      message_id: "<storica-sintetica@peer.example.test>",
+      references: historicalReview.candidate.message_ids,
+      from_address: historicalReview.candidate.address,
+    }),
+  ]);
+  eq(recordedHistorical.status, "registered");
+  eq((await conv(historicalId)).status, "replied");
+  eq(
+    await value("select stage as v from public.partners where id=$1", [historicalPartner]),
+    "trattativa",
+  );
+  eq(
+    await value("select status as v from public.tasks where description=$1", [
+      `Partner CO ${historicalReview.candidate.co} · ambiguous`,
+    ]),
+    "done",
+  );
+  await release();
+  eq((await reviewHistoricalReply()).status, "idle");
+
+  // Se il team ha già registrato la risposta nel frattempo, il recupero non crea un duplicato.
+  const [manualPartner] = await sent(1, { club: false, day: "2026-11-02" });
+  await asOwner("update public.partners set stage='contattato' where id=$1", [manualPartner]);
+  await initializeFollowupFixtures([manualPartner]);
+  c = await claim();
+  eq(c.candidate.partner_id, manualPartner);
+  eq((await check(c, "found", "reply")).status, "blocked");
+  await release();
+  const manualActivity = await value(
+    `select private.partner_log(gen_random_uuid(),$1,'risposta',$2,p_channel=>'email',
+      p_body=>'Nota sintetica del team',p_occurred_at=>timestamptz '2026-11-10T08:56:00Z') as v`,
+    [manualPartner, founder],
+  );
+  now = "2026-11-10T11:00:00Z";
+  const interruptedReview = await reviewHistoricalReply();
+  eq(interruptedReview.candidate.partner_id, manualPartner);
+  await release();
+  eq((await reviewHistoricalReply()).status, "idle");
+  now = "2026-11-11T11:00:00Z";
+  const manualReview = await reviewHistoricalReply();
+  eq(manualReview.candidate.partner_id, manualPartner);
+  eq((await conv(manualReview.candidate.id)).reply_review_attempts, 2);
+  const manualReply = {
+    ...reply,
+    message_id: "<gia-registrata@peer.example.test>",
+    references: manualReview.candidate.message_ids,
+    from_address: manualReview.candidate.address,
+  };
+  eq(
+    (
+      await service("record_partner_followup_reply", [
+        manualReview.lease_token,
+        manualReview.candidate.id,
+        manualReview.candidate.version,
+        JSON.stringify(manualReply),
+      ])
+    ).status,
+    "already_recorded",
+  );
+  eq(
+    await value(
+      "select jsonb_agg(id) as v from public.partner_activities where partner_id=$1 and kind='risposta'",
+      [manualPartner],
+    ),
+    [manualActivity],
+  );
+  eq((await conv(manualReview.candidate.id)).status, "replied");
+  await release();
 
   console.log(`PASS ${checks} controlli`);
 } catch (error) {

@@ -72,6 +72,18 @@ const clear = (): PartnerAssistantFollowupMailboxResult => ({
   folderCount: 6,
   messageCount: 40,
 });
+const reply = (c: PartnerFollowupCandidate): PartnerAssistantFollowupMailboxResult => ({
+  status: "found",
+  reason: "reply",
+  checkedAt: new Date(NOW).toISOString(),
+  reply: {
+    messageId: "<risposta-sintetica@example.test>",
+    references: c.message_ids,
+    from: c.address,
+    receivedAt: "2026-11-04T09:00:00Z",
+    subject: "Re: Club Sintetico e LuckyLap",
+  },
+});
 
 function setup(c = candidate(), mode: "invio" | "osserva" = "invio") {
   const events: string[] = [];
@@ -81,6 +93,8 @@ function setup(c = candidate(), mode: "invio" | "osserva" = "invio") {
     claim: vi.fn(async () =>
       yes({ status: "claimed" as const, lease_token: id(6), mode, candidate: c }),
     ),
+    claimReplyReview: vi.fn(async () => yes({ status: "idle" as const, reason: "vuota" })),
+    recordReply: vi.fn(async () => yes({ status: "registered" as const })),
     recordCheck: vi.fn(async (_lease, _candidate, payload) => {
       events.push(`record:${payload.result}`);
       checks++;
@@ -144,6 +158,78 @@ function setup(c = candidate(), mode: "invio" | "osserva" = "invio") {
 }
 
 describe("solleciti: scansioni complete e autorizzazione prima dei byte SMTP", () => {
+  it("registra la risposta certa con i soli metadati e chiude il giro prima di SMTP", async () => {
+    const t = setup();
+    t.checkMailbox.mockResolvedValueOnce(reply(t.c));
+
+    expect(await t.run()).toEqual({ status: "observed" });
+    expect(t.store.recordReply).toHaveBeenCalledWith(
+      id(6),
+      t.c,
+      {
+        message_id: "<risposta-sintetica@example.test>",
+        references: t.c.message_ids,
+        from_address: t.c.address,
+        received_at: "2026-11-04T09:00:00Z",
+        subject: "Re: Club Sintetico e LuckyLap",
+      },
+      expect.any(AbortSignal),
+    );
+    expect(t.store.recordCheck).not.toHaveBeenCalled();
+    expect(t.store.prepare).not.toHaveBeenCalled();
+    expect(t.smtp.send).not.toHaveBeenCalled();
+  });
+
+  it("una risposta arrivata tra le due scansioni ferma DATA anche se è già registrata", async () => {
+    const t = setup();
+    t.checkMailbox.mockResolvedValueOnce(clear()).mockResolvedValueOnce(reply(t.c));
+    vi.mocked(t.store.recordReply).mockResolvedValueOnce(yes({ status: "already_recorded" }));
+
+    await t.run();
+    expect(t.store.recordReply).toHaveBeenCalledOnce();
+    expect(t.store.finish).toHaveBeenCalledWith(
+      id(6),
+      expect.any(String),
+      expect.objectContaining({ outcome: "scartato", reason: "verifica_preinvio" }),
+      expect.any(AbortSignal),
+    );
+    expect(t.store.start).not.toHaveBeenCalled();
+    expect(t.events).not.toContain("smtp:bytes");
+  });
+
+  it("se la RPC di registrazione non è disponibile blocca il ciclo come possibile risposta", async () => {
+    const t = setup();
+    t.checkMailbox.mockResolvedValueOnce(reply(t.c));
+    vi.mocked(t.store.recordReply).mockResolvedValueOnce({ ok: false });
+
+    expect(await t.run()).toEqual({ status: "observed" });
+    expect(t.store.recordCheck).toHaveBeenCalledWith(
+      id(6),
+      t.c,
+      expect.objectContaining({ result: "found", reason: "reply" }),
+      expect.any(AbortSignal),
+    );
+    expect(t.smtp.send).not.toHaveBeenCalled();
+  });
+
+  it.each([true, false])(
+    "ricontrolla un ciclo sospeso senza riaprirlo, risposta=%s",
+    async (found) => {
+      const t = setup();
+      const c = { ...t.c, send_allowed: false, send_not_after: undefined, draft: null };
+      vi.mocked(t.store.claimReplyReview).mockResolvedValueOnce(
+        yes({ status: "claimed", mode: "osserva", lease_token: id(6), candidate: c }),
+      );
+      t.checkMailbox.mockResolvedValueOnce(found ? reply(c) : clear());
+
+      expect(await t.run()).toEqual({ status: "observed" });
+      expect(t.store.claim).not.toHaveBeenCalled();
+      expect(t.store.recordReply).toHaveBeenCalledTimes(Number(found));
+      expect(t.store.recordCheck).not.toHaveBeenCalled();
+      expect(t.smtp.send).not.toHaveBeenCalled();
+    },
+  );
+
   it.each([true, false])(
     "attende start pendente dopo chiusura SMTP, esito certo=%s",
     async (certain) => {

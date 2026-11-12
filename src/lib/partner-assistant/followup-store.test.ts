@@ -67,6 +67,11 @@ function candidate(): PartnerFollowupCandidate {
     },
   };
 }
+function reviewCandidate(): PartnerFollowupCandidate {
+  const c = candidate();
+  delete c.send_not_after;
+  return { ...c, send_allowed: false, draft: null };
+}
 const checkInput = {
   result: "clear" as const,
   reason: null,
@@ -86,6 +91,13 @@ const prepareInput = {
   raw: "Message-ID: <synthetic@brand.example.test>\r\n\r\nTesto sintetico\r\n",
   message_id: messageId(21),
   proof_id: proofId,
+};
+const replyInput = {
+  message_id: messageId(22),
+  references: [messageId(20)],
+  from_address: "info@partner.example.test",
+  received_at: "2026-11-04T10:00:00Z",
+  subject: "Re: Progetto sintetico",
 };
 const finishInput = {
   messageRowId: rowId,
@@ -114,6 +126,28 @@ const cases: { name: string; run: Run; args: unknown; response: unknown }[] = [
       p_payload: checkInput,
     },
     response: { status: "clear", proof_id: proofId, expires_at: "2026-11-09T10:00:30Z" },
+  },
+  {
+    name: "claim_partner_followup_reply_review",
+    run: (store, s) => store.claimReplyReview(id(30), 300, s),
+    args: { p_worker_id: id(30), p_lease_seconds: 300 },
+    response: {
+      status: "claimed",
+      lease_token: lease,
+      mode: "osserva",
+      candidate: reviewCandidate(),
+    },
+  },
+  {
+    name: "record_partner_followup_reply",
+    run: (store, s) => store.recordReply(lease, candidate(), replyInput, s),
+    args: {
+      p_lease_token: lease,
+      p_conversation_id: id(10),
+      p_expected_version: 3,
+      p_reply: replyInput,
+    },
+    response: { status: "registered" },
   },
   {
     name: "prepare_partner_followup_send",

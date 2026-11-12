@@ -216,6 +216,155 @@ function replaceHeader(message: FetchMessageObject, name: string, value: string 
   );
 }
 
+function humanReply(uid = 31) {
+  const replyId = "<confirmed-synthetic@partner.example.test>";
+  const subject = "Re: Progetto sintetico";
+  const receivedAt = "2026-11-07T12:00:00.000Z";
+  return {
+    reply: { messageId: replyId, references: [knownId], from: target, receivedAt, subject },
+    row: message(uid, {
+      internalDate: new Date(receivedAt),
+      envelope: {
+        from: [{ address: target }],
+        to: [{ address: own }],
+        subject,
+        messageId: replyId,
+      },
+      headers: Buffer.from(
+        `From: Partner sintetico <${target}>\r\nTo: ${own}\r\nSubject: ${subject}\r\nMessage-ID: ${replyId}\r\nIn-Reply-To: ${knownId}\r\nReferences: ${knownId}\r\nContent-Type: text/plain\r\n`,
+      ),
+    }),
+  };
+}
+
+describe("risposta attribuita alla conversazione Partner", () => {
+  it("riconosce una risposta precisa anche dopo un blocco ambiguo di un altro messaggio", async () => {
+    const { row, reply } = humanReply();
+    const ambiguous = message(12, {
+      envelope: { from: [{ address: "other@unrelated.example.test" }], subject: input.subject },
+    });
+    const f = fixture({ Archive: [ambiguous], INBOX: [row] });
+    expect(await f.run()).toEqual({
+      status: "found",
+      reason: "reply",
+      checkedAt: new Date(NOW).toISOString(),
+      reply,
+    });
+    expect(f.fake.fetchOne).not.toHaveBeenCalled();
+  });
+
+  it("accetta gli spazi legacy prima dei due punti e una References ripiegata", async () => {
+    const { row, reply } = humanReply();
+    row.headers = Buffer.from(
+      row.headers!.toString().replace(`References: ${knownId}`, `References \t:\r\n\t${knownId}`),
+    );
+    expect(await fixture({ INBOX: [row] }).run()).toMatchObject({
+      status: "found",
+      reason: "reply",
+      reply,
+    });
+  });
+
+  it("legge i commenti RFC intorno agli ID senza scambiare quelli nei commenti per riferimenti", async () => {
+    const { row, reply } = humanReply();
+    replaceHeader(row, "Message-ID", `(copia) ${reply.messageId} (originale)`);
+    replaceHeader(row, "References", `(nota <estraneo@unrelated.example.test>) ${knownId} (a (b))`);
+    row.envelope!.inReplyTo = `(ripiegata)\r\n\t${knownId}`;
+    expect(await fixture({ INBOX: [row] }).run()).toMatchObject({
+      status: "found",
+      reason: "reply",
+      reply,
+    });
+    replaceHeader(row, "In-Reply-To", `(soltanto testo ${knownId})`);
+    replaceHeader(row, "References", null);
+    expect(await fixture({ INBOX: [row] }).run()).toMatchObject({ status: "found" });
+    expect(await fixture({ INBOX: [row] }).run()).not.toHaveProperty("reply");
+  });
+
+  it("un ID astrale non può essere attribuito né entrare nei riferimenti in input", async () => {
+    const badId = "<astrale-😀@partner.example.test>";
+    const { row } = humanReply();
+    replaceHeader(row, "Message-ID", badId);
+    row.envelope!.messageId = badId;
+    const observed = await fixture({ INBOX: [row] }).run();
+    expect(observed).toMatchObject({ status: "found" });
+    expect(observed).not.toHaveProperty("reply");
+    expect(await fixture().run({ ...input, messageIds: [badId] })).toEqual({
+      status: "uncertain",
+      reason: "followup_invalid_input",
+    });
+  });
+
+  it("legge un Return-Path legacy con lo stesso significato dell'intestazione corrente", async () => {
+    const row = message(1, {
+      headers: Buffer.from("rEtUrN-pAtH \t: <>\r\nSubject \t: Avviso sintetico indipendente\r\n"),
+    });
+    expect(await fixture({ INBOX: [row] }).run()).toMatchObject({
+      status: "found",
+      reason: "ambiguous",
+    });
+  });
+
+  it.each([
+    ["References", "<other@unrelated.example.test>"],
+    ["In-Reply-To", `${knownId} <other@unrelated.example.test>`],
+    ["From", "Different sender <other@unrelated.example.test>"],
+    ["Auto-Submitted", "auto-generated"],
+    ["X-Autoreply", "yes"],
+    ["Return-Path", "<>"],
+    ["Content-Type", "multipart/report; report-type=delivery-status"],
+    ["Subject", "Automatic reply: =?UTF-8?Q?Avviso?="],
+    ["Message-ID", knownId],
+  ])("ferma senza attribuire intestazione %s non coerente", async (name, value) => {
+    const { row } = humanReply();
+    replaceHeader(row, name, value);
+    const found = await fixture({ INBOX: [row] }).run();
+    expect(found.status).toBe("found");
+    expect(found).not.toHaveProperty("reply");
+  });
+
+  it("non attribuisce un ID duplicato fra cartelle o una collisione col riferimento", async () => {
+    const { row } = humanReply();
+    for (const other of [
+      humanReply(32).row,
+      message(32, { headers: Buffer.from(`Message-ID: ${knownId}\r\n`) }),
+    ]) {
+      const found = await fixture({ Archive: [row], INBOX: [other] }).run();
+      expect(found.status).toBe("found");
+      expect(found).not.toHaveProperty("reply");
+    }
+  });
+
+  it("non attribuisce una risposta se la casella cambia prima del controllo finale", async () => {
+    const f = fixture({ INBOX: [humanReply().row] });
+    f.fake.onLock = (path, count) => {
+      if (path === "INBOX" && count === 2 && f.fake.mailbox) f.fake.mailbox.uidNext++;
+    };
+    const result = await f.run();
+    expect(result.status).not.toBe("clear");
+    expect(result).not.toHaveProperty("reply");
+  });
+
+  it.each([
+    [undefined, "followup_headers_missing"],
+    [Buffer.alloc(65_537), "followup_headers_size"],
+    [
+      Buffer.concat([Buffer.from("Subject: "), Buffer.from([0xff]), Buffer.from("\r\n")]),
+      "followup_headers_encoding",
+    ],
+    [Buffer.from("Separatore assente\r\n"), "followup_headers_syntax"],
+    [Buffer.from("References: identificatore non leggibile\r\n"), "followup_headers_id_invalid"],
+  ])(
+    "mantiene incerta una intestazione invalida con causa sanificata %#",
+    async (headers, reason) => {
+      expect(await fixture({ INBOX: [message(1, { headers })] }).run()).toEqual({
+        status: "uncertain",
+        reason,
+      });
+    },
+  );
+});
+
 describe("verifica della casella prima dei solleciti", () => {
   it("legge tutte le cartelle in sola lettura, ricontrolla gli UID e chiude sempre il socket", async () => {
     const f = fixture({ Archive: [message(5)] });
