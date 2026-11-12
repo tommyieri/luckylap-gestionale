@@ -1,102 +1,104 @@
 "use client";
 
-import { useEffect, useMemo, useRef, useState, useTransition } from "react";
+import {
+  Suspense,
+  use,
+  useCallback,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+  type MouseEvent as ReactMouseEvent,
+} from "react";
 import Link from "next/link";
-import { useRouter } from "next/navigation";
 import { Download, Plus, Search, X } from "lucide-react";
-import {
-  DEFAULT_PARTNER_VIEW,
-  PARTNER_QUERY_MAX,
-  PARTNER_STATUS_FILTERS,
-  PARTNER_STATUS_FILTER_LABELS,
-  PARTNER_VIEW_SECTIONS,
-  agreedCount,
-  buildPartnerIndex,
-  filterPartners,
-  parsePartnerView,
-  partnerMatches,
-  partnerViewQuery,
-  periodCounts,
-  readRememberedView,
-  rememberView,
-  sectionCounts,
-  totalsLine,
-  viewShowing,
-  withoutFilters,
-  type PartnerFilterContext,
-  type PartnerStatusFilter,
-  type PartnerView,
-  type PartnerViewSection,
-} from "../../lib/partner/filters";
-import {
-  PARTNER_ASSISTANT_PATH,
-  PARTNER_DATA_PATH,
-  PARTNER_PATH,
-  PARTNER_RULES_PATH,
-  coFromLeadHash,
-  partnerLookbookHref,
-} from "../../lib/partner/links";
-import { PARTNER_LOOKBOOK_CODES, partnerLookbookTitle } from "../../lib/partner/lookbook";
-import {
-  PARTNER_PREVIEW_NOTICE,
-  PARTNER_SECTION_LABELS,
-  PARTNER_SECTION_NOTES,
-  isReviewableDifference,
-  researchImportLine,
-  type PartnerDetail,
-  type PartnerSection,
-  type PartnerWorkspace as PartnerWorkspaceData,
-} from "../../lib/partner/model";
-import { partnerPeriod, partnerPeriods, type PartnerPeriodNumber } from "../../lib/partner/periods";
 import type {
   PartnerAssistantInactive,
   PartnerAssistantSendStatus,
   PartnerAssistantStatus,
 } from "../../lib/partner/assistant";
+import {
+  buildPartnerDatabaseRows,
+  partnerCountryName,
+  partnerDatabaseFormatLabel,
+  type PartnerDatabaseEstimate,
+  type PartnerDatabaseRow,
+} from "../../lib/partner/database";
+import {
+  buildPartnerCalendarItems,
+  partnerDatabaseKpis,
+} from "../../lib/partner/database-activity";
+import {
+  filterPartnerDatabase,
+  parsePartnerDatabaseView,
+  PARTNER_DATABASE_ORDERS,
+  PARTNER_DATABASE_PHASE_FILTERS,
+  PARTNER_DATABASE_VIEWS,
+  PARTNER_DATABASE_WORK_FILTERS,
+  partnerDatabaseHref,
+  type PartnerDatabaseView,
+} from "../../lib/partner/database-view";
+import { PARTNER_EMAIL_PATH } from "../../lib/partner/email-edit";
+import { PARTNER_QUERY_MAX, PARTNER_VIEW_SECTIONS, sectionCounts } from "../../lib/partner/filters";
+import {
+  coFromLeadHash,
+  PARTNER_ASSISTANT_PATH,
+  PARTNER_DATA_PATH,
+  PARTNER_RULES_PATH,
+  partnerLookbookHref,
+} from "../../lib/partner/links";
+import { PARTNER_LOOKBOOK_CODES, partnerLookbookTitle } from "../../lib/partner/lookbook";
+import {
+  isReviewableDifference,
+  PARTNER_PREVIEW_NOTICE,
+  PARTNER_PRIORITIES,
+  PARTNER_PRIORITY_LABELS,
+  PARTNER_SECTION_LABELS,
+  researchImportLine,
+  type PartnerActivity,
+  type PartnerDetail,
+  type PartnerWorkspace as WorkspaceData,
+} from "../../lib/partner/model";
+import { partnerPeriods, type PartnerPeriodNumber } from "../../lib/partner/periods";
 import { PartnerAssistantStrip } from "./partner-assistant-strip";
-import { PartnerCardForm } from "./partner-card-form";
+import { PartnerDatabaseCreate } from "./partner-database-create";
 import { PartnerPendingRecovery } from "./partner-command";
 import { PartnerProvider, usePartnerContext } from "./partner-context";
-import { PartnerRow } from "./partner-row";
-import { partnerWorkView } from "../../lib/partner/work";
-import { PARTNER_EMAIL_PATH } from "../../lib/partner/email-edit";
-import styles from "./partner.module.css";
+import { PartnerDatabaseCalendar } from "./partner-database-calendar";
+import { PartnerDatabaseDrawer } from "./partner-database-drawer";
+import { PartnerDatabaseInsights } from "./partner-database-insights";
+import { PartnerDatabaseList } from "./partner-database-list";
+import { PartnerDatabaseMap } from "./partner-database-map";
+import { PartnerDatabasePipeline } from "./partner-database-pipeline";
+import styles from "./partner-database.module.css";
 
-export const UNSAVED_MESSAGE = "Hai modifiche non salvate. Salvale o annullale.";
-const SECTION_BUTTON_LABELS: Record<PartnerViewSection, string> = {
-  tutti: "Tutti",
-  ...PARTNER_SECTION_LABELS,
-};
+const unsaved = "Salva o annulla le modifiche prima di continuare.";
+const sections = { tutti: "Tutti", ...PARTNER_SECTION_LABELS };
+const rank = { alta: 0, media: 1, bassa: 2 };
+const percentage = new Intl.NumberFormat("it-IT", { style: "percent", maximumFractionDigits: 1 });
+type Detail = PartnerDetail & { latestReply?: PartnerActivity | null };
+type ReadDetail = { co: number; detail: Detail | null; failed: boolean };
 
 export type PartnerWorkspaceProps = {
-  workspace: PartnerWorkspaceData;
-  /** Dettaglio del contatto `co` dell'indirizzo, letto dal server. */
-  detail: PartnerDetail | null;
-  /**
-   * Stato dell'assistente per la striscia in cima; `null` se non è leggibile,
-   * PARTNER_ASSISTANT_INACTIVE (niente striscia) senza le sue migrazioni.
-   */
+  workspace: WorkspaceData;
+  detail: Detail | null;
   assistant: PartnerAssistantStatus | PartnerAssistantInactive | null;
-  /** Stato dell'invio per la striscia (consegna 2a); `null` se non è leggibile. */
   send: PartnerAssistantSendStatus | null;
-  /** La posta dell'assistente è configurata sul server: solo l'esito, mai i valori. */
   mailConfigured: boolean;
-  /** Chi guarda è Tommi (ruolo founder): «Manda per primo» nella scheda. */
   founder: boolean;
-  /** Giorno di Roma, dal server. */
   today: string;
-  /** Membro della sessione, per «Seguiti da me». */
   memberId: string | null;
-  /** Anteprima locale: dati sintetici e salvataggio spento. */
   preview: boolean;
-  /** Parametri dell'indirizzo letti dal server (primo valore di ciascuno). */
   query: Record<string, string>;
+  estimates?: PartnerDatabaseEstimate[] | null;
+  forecast?: Promise<PartnerDatabaseEstimate[] | null>;
+  defaultOwnerId?: string | null;
 };
 
-/** Il roadbook di Partner: sezioni, periodi, filtri nell'indirizzo, lista e dettagli. */
 export function PartnerWorkspace(props: PartnerWorkspaceProps) {
   return (
     <PartnerProvider
+      key={props.memberId}
       preview={props.preview}
       userId={props.preview ? null : props.memberId}
       founder={props.founder}
@@ -104,37 +106,45 @@ export function PartnerWorkspace(props: PartnerWorkspaceProps) {
       members={props.workspace.members}
       partners={props.workspace.partners}
     >
-      <WorkspaceBody {...props} />
+      <Workspace {...props} />
     </PartnerProvider>
   );
 }
 
-/**
- * Il server ha risposto alla richiesta di questo contatto senza il suo dettaglio: il contatto non
- * c'è più. Una risposta per un altro indirizzo (Indietro del browser, navigazione in corso) no.
- */
-export function partnerDetailGone(state: {
-  navigating: boolean;
-  /** Contatto aperto nella pagina. */
-  viewCo: number | null;
-  /** Contatto chiesto dall'indirizzo a cui il server ha risposto. */
-  queryCo: number | null;
-  /** Contatto del dettaglio arrivato dal server. */
-  detailCo: number | null;
-}): boolean {
-  return (
-    !state.navigating &&
-    state.viewCo !== null &&
-    state.queryCo === state.viewCo &&
-    state.detailCo !== state.viewCo
-  );
+function selectOrder(rows: PartnerDatabaseRow[], order: PartnerDatabaseView["order"]) {
+  return rows.sort((left, right) => {
+    let result: number;
+    if (order === "nome") result = left.partner.name.localeCompare(right.partner.name, "it");
+    else if (order === "priorita")
+      result = rank[left.partner.priority] - rank[right.partner.priority];
+    else if (order === "attivita")
+      result = (right.lastActivity ?? "").localeCompare(left.lastActivity ?? "");
+    else
+      result =
+        left.work.sortPriority - right.work.sortPriority ||
+        (left.next.day ?? "9999").localeCompare(right.next.day ?? "9999");
+    return result || left.partner.co - right.partner.co;
+  });
 }
 
-const normalizedQuery = (text: string) =>
-  [...text.replace(/\s+/g, " ").trim()].slice(0, PARTNER_QUERY_MAX).join("").trim();
-const urlOf = (view: PartnerView) => `${PARTNER_PATH}?${partnerViewQuery(view)}`;
+function Forecast({
+  source,
+  onRead,
+}: {
+  source: Promise<PartnerDatabaseEstimate[] | null>;
+  onRead: (value: {
+    source: Promise<PartnerDatabaseEstimate[] | null>;
+    estimates: PartnerDatabaseEstimate[] | null;
+  }) => void;
+}) {
+  const estimates = use(source);
+  useEffect(() => {
+    onRead({ source, estimates });
+  }, [source, estimates, onRead]);
+  return null;
+}
 
-function WorkspaceBody({
+function Workspace({
   workspace,
   detail,
   assistant,
@@ -144,599 +154,707 @@ function WorkspaceBody({
   memberId,
   preview,
   query,
+  estimates: initialEstimates,
+  forecast,
+  defaultOwnerId,
 }: PartnerWorkspaceProps) {
-  const router = useRouter();
   const { hasDirty } = usePartnerContext();
-  const index = useMemo(() => buildPartnerIndex(workspace), [workspace]);
-  const workViews = useMemo(
-    () =>
-      new Map(
-        workspace.partners.map((partner) => [
-          partner.id,
-          partnerWorkView(partner, {
-            today,
-            work: workspace.work,
-            contacts: index.contacts.get(partner.id) ?? [],
-            block: index.blocks.get(partner.id) ?? null,
-            members: workspace.members,
-          }),
-        ]),
-      ),
-    [workspace, index, today],
-  );
-  const context: PartnerFilterContext = useMemo(
-    () => ({ index, today, memberId, work: workspace.work, workViews }),
-    [index, today, memberId, workspace.work, workViews],
-  );
-  const byCo = useMemo(
-    () => new Map(workspace.partners.map((partner) => [partner.co, partner])),
-    [workspace.partners],
-  );
-  const memberIds = useMemo(() => workspace.members.map((member) => member.id), [workspace]);
-  const parsed = useMemo(() => parsePartnerView(query, { memberIds }), [query, memberIds]);
-  const [view, setView] = useState<PartnerView>(() => {
-    const initial = parsed.view;
-    if (initial.co === null) return initial;
-    const partner = byCo.get(initial.co);
-    return partner ? viewShowing(initial, partner, context) : { ...initial, co: null };
-  });
-  const workView = view.accordi ? "accordi" : (view.lavoro ?? "tutti");
-  const [queryText, setQueryText] = useState(view.q);
-  const [navigating, startNavigation] = useTransition();
+  const memberIds = useMemo(() => workspace.members.map(({ id }) => id), [workspace.members]);
+  const [view, setView] = useState(() => parsePartnerDatabaseView(query, today, memberIds));
+  const current = useRef(view);
+  const previousWorkspace = useRef(workspace);
+  const previousQuery = useRef(query);
   const [guard, setGuard] = useState<string | null>(null);
   const [adding, setAdding] = useState(false);
-  const [missing, setMissing] = useState(false);
-  const barRef = useRef<HTMLDivElement>(null);
-  const scrolledTo = useRef<number | null>(null);
-  const queryCo = parsed.view.co;
-  const answeredCo = useRef(queryCo);
+  const [read, setRead] = useState<ReadDetail | null>(null);
+  const [retryDetail, setRetryDetail] = useState(0);
+  const [openByClick, setOpenByClick] = useState(false);
+  const [forecastRead, setForecastRead] = useState<{
+    source: Promise<PartnerDatabaseEstimate[] | null>;
+    estimates: PartnerDatabaseEstimate[] | null;
+  } | null>(null);
+  const estimates =
+    forecastRead && forecastRead.source === forecast ? forecastRead.estimates : initialEstimates;
+  const estimatesLoading = Boolean(forecast && estimates === undefined);
+  const rows = useMemo(
+    () => buildPartnerDatabaseRows(workspace, today, estimates ?? [], defaultOwnerId),
+    [workspace, today, estimates, defaultOwnerId],
+  );
+  const differences = useMemo(
+    () =>
+      new Set(workspace.differences.filter(isReviewableDifference).map((item) => item.partnerId)),
+    [workspace.differences],
+  );
+  const mapRows = useMemo(
+    () => filterPartnerDatabase(rows, { ...view, country: "" }, today, memberId, differences),
+    [rows, view, today, memberId, differences],
+  );
+  const visible = selectOrder(
+    mapRows.filter((row) => !view.country || (row.countryCode ?? "sconosciuto") === view.country),
+    view.order,
+  );
+  const mapItems = useMemo(
+    () => buildPartnerCalendarItems(mapRows, workspace.work, estimates ?? [], today),
+    [mapRows, workspace.work, estimates, today],
+  );
+  const visibleIds = new Set(visible.map(({ partner }) => partner.id));
+  const items = view.country ? mapItems.filter((item) => visibleIds.has(item.partnerId)) : mapItems;
+  const kpis = partnerDatabaseKpis(visible, items, today);
+  const workAvailable = Boolean(workspace.work);
+  const estimatesAvailable = estimates !== null && estimates !== undefined;
+  const defaultOwnerName = workspace.members.find((member) => member.id === defaultOwnerId)?.name;
+  const defaultOwnerLabel = defaultOwnerName ? `${defaultOwnerName} (predefinito)` : "Predefinito";
+  const selected = rows.find((row) => row.partner.co === view.co) ?? null;
+  const pageDetail = detail?.partner.co === view.co && !openByClick ? detail : null;
+  const readDetail = read?.co === view.co ? read : null;
+  // Dopo un comando, il refresh della pagina porta la nuova versione con lo stesso CO.
+  const opened = pageDetail ?? readDetail?.detail ?? null;
 
-  const periods = useMemo(() => partnerPeriods(today), [today]);
-  // Le celle contano sempre la vista dei periodi, anche mentre «Ci siamo» è scelto.
-  const counts = periodCounts(workspace.partners, { ...view, accordi: false }, context);
-  const sections = sectionCounts(workspace.partners);
-  const agreed = agreedCount(workspace.partners);
-  const visible = filterPartners(workspace.partners, view, context);
-  const period = periods[view.periodo - 1];
-  const openDetail = detail && view.co !== null && detail.partner.co === view.co ? detail : null;
-
-  function replaceUrl(next: PartnerView) {
-    try {
-      window.history.replaceState(null, "", urlOf(next));
-    } catch {
-      // Indirizzo non aggiornabile: la vista resta valida in questa pagina.
-    }
-  }
-
-  /** Filtri, periodo, sezione e ricerca: nel browser, con l'indirizzo aggiornato. */
-  function changeView(patch: Partial<PartnerView>): boolean {
-    if (view.co !== null && hasDirty()) {
-      setGuard(UNSAVED_MESSAGE);
+  function change(patch: Partial<PartnerDatabaseView>, replace = false) {
+    if (hasDirty()) {
+      setGuard(unsaved);
       return false;
     }
-    setGuard(null);
-    const next = { ...view, ...patch, co: null };
+    const next = { ...current.current, ...patch };
+    const href = partnerDatabaseHref(next);
+    if (next.co !== current.current.co) {
+      setRead(null);
+      setOpenByClick(next.co !== null);
+    }
+    current.current = next;
     setView(next);
-    replaceUrl(next);
+    setGuard(null);
+    if (
+      typeof window !== "undefined" &&
+      window.location.pathname + window.location.search + window.location.hash !== href
+    )
+      window.history[replace ? "replaceState" : "pushState"](null, "", href);
     return true;
   }
+  function open(co: number) {
+    change({ co });
+  }
+  function internalLink(
+    event: ReactMouseEvent<HTMLAnchorElement>,
+    patch: Partial<PartnerDatabaseView>,
+  ) {
+    if (event.metaKey || event.ctrlKey || event.shiftKey || event.altKey || event.button !== 0)
+      return;
+    event.preventDefault();
+    change(patch);
+  }
 
-  /** Aprire i dettagli è una navigazione vera: il server legge il dettaglio di quel contatto. */
-  function openCo(co: number, base: PartnerView = view) {
+  const readBrowserView = useCallback(() => {
+    const next = parsePartnerDatabaseView(
+      new URLSearchParams(window.location.search),
+      today,
+      memberIds,
+    );
+    if (partnerDatabaseHref(next) === partnerDatabaseHref(current.current)) return;
+    if (next.co !== current.current.co) {
+      setRead(null);
+      setOpenByClick(next.co !== null);
+    }
+    current.current = next;
+    setView(next);
     setGuard(null);
-    setMissing(false);
-    const next = { ...base, co };
-    setView(next);
-    startNavigation(() => router.push(urlOf(next), { scroll: false }));
-  }
+  }, [today, memberIds]);
 
-  function toggle(co: number) {
-    if (view.co !== null && hasDirty()) {
-      setGuard(UNSAVED_MESSAGE);
-      return;
-    }
-    if (view.co === co) {
-      setGuard(null);
-      const next = { ...view, co: null };
-      setView(next);
-      replaceUrl(next);
-      return;
-    }
-    openCo(co);
-  }
-
-  // Al primo caricamento: ultimo periodo e ultima sezione del browser, oppure il contatto
-  // dell'ancora #lead-12 (link del Controllo CEO senza «co»).
   useEffect(() => {
-    if (view.co !== null) return;
-    const fromHash = coFromLeadHash(window.location.hash);
-    const partner = fromHash !== null ? byCo.get(fromHash) : undefined;
-    if (partner) {
-      openCo(partner.co, viewShowing(view, partner, context));
-      return;
+    if (previousQuery.current !== query) {
+      previousQuery.current = query;
+      readBrowserView();
     }
-    if (parsed.explicit.periodo && parsed.explicit.sezione) return;
-    let remembered: ReturnType<typeof readRememberedView> = {};
-    try {
-      remembered = readRememberedView(window.localStorage);
-    } catch {
-      remembered = {};
+  }, [query, readBrowserView]);
+
+  // L'ancora storica del feed CEO continua ad aprire la scheda.
+  useEffect(() => {
+    if (current.current.co === null) {
+      const co = coFromLeadHash(window.location.hash);
+      if (co !== null) change({ co }, true);
     }
-    const next = {
-      ...view,
-      ...(parsed.explicit.periodo || remembered.periodo === undefined
-        ? {}
-        : { periodo: remembered.periodo }),
-      ...(parsed.explicit.sezione || remembered.sezione === undefined
-        ? {}
-        : { sezione: remembered.sezione }),
-    };
-    if (next.periodo !== view.periodo || next.sezione !== view.sezione) {
-      setView(next);
-      replaceUrl(next);
-    }
-    // Solo al primo caricamento.
   }, []);
-
   useEffect(() => {
-    try {
-      rememberView(window.localStorage, view);
-    } catch {
-      // Storage non disponibile: la vista resta solo nell'indirizzo.
-    }
-  }, [view.periodo, view.sezione]);
-
-  // Il contatto aperto resta sempre visibile: un contatto nuovo o cambiato di periodo porta la
-  // vista dove si trova, senza toccare gli altri filtri più del necessario.
-  useEffect(() => {
-    if (view.co === null) return;
-    const partner = byCo.get(view.co);
-    if (!partner || partnerMatches(partner, view, context)) return;
-    const next = viewShowing(view, partner, context);
-    setView(next);
-    replaceUrl(next);
-  }, [byCo, context, view]);
-
-  // Indietro e Avanti del browser: il server risponde per un altro indirizzo e il contatto aperto
-  // segue quello che l'indirizzo chiede, senza avvisi. Lo stato della pagina invece resta.
-  useEffect(() => {
-    if (answeredCo.current === queryCo) return;
-    answeredCo.current = queryCo;
-    const partner = queryCo === null ? undefined : byCo.get(queryCo);
-    setMissing(false);
-    setView((current) => {
-      if (current.co === (partner?.co ?? null)) return current;
-      return partner
-        ? viewShowing({ ...current, co: partner.co }, partner, context)
-        : { ...current, co: null };
-    });
-  }, [queryCo, byCo, context]);
-
-  // Il server ha risposto per questo contatto senza dettaglio: il contatto non c'è più.
-  useEffect(() => {
-    if (
-      partnerDetailGone({
-        navigating,
-        viewCo: view.co,
-        queryCo,
-        detailCo: detail?.partner.co ?? null,
-      })
-    ) {
-      setMissing(true);
-      setView((current) => ({ ...current, co: null }));
-    }
-  }, [navigating, view.co, queryCo, detail]);
-
-  // Dettaglio arrivato: la riga si porta in vista sotto la barra dei periodi.
-  useEffect(() => {
-    const co = openDetail?.partner.co ?? null;
-    if (co === null) {
-      scrolledTo.current = null;
-      return;
-    }
-    if (scrolledTo.current === co) return;
-    scrolledTo.current = co;
-    const row = document.getElementById(`lead-${co}`);
-    if (!row) return;
-    const barBottom = barRef.current?.getBoundingClientRect().bottom ?? 0;
-    row.scrollIntoView({
-      block: row.getBoundingClientRect().top < barBottom ? "start" : "nearest",
-    });
-  }, [openDetail]);
-
-  useEffect(() => {
-    const warn = (event: BeforeUnloadEvent) => {
-      if (!hasDirty()) return;
-      event.preventDefault();
-      event.returnValue = "";
+    const pop = () => {
+      if (hasDirty()) {
+        window.history.pushState(null, "", partnerDatabaseHref(current.current));
+        setGuard(unsaved);
+        return;
+      }
+      readBrowserView();
     };
-    window.addEventListener("beforeunload", warn);
-    return () => window.removeEventListener("beforeunload", warn);
-  }, [hasDirty]);
+    const unload = (event: BeforeUnloadEvent) => {
+      if (hasDirty()) {
+        event.preventDefault();
+        event.returnValue = "";
+      }
+    };
+    const guardLinks = (event: MouseEvent) => {
+      if (
+        !hasDirty() ||
+        event.button !== 0 ||
+        event.metaKey ||
+        event.ctrlKey ||
+        event.altKey ||
+        event.shiftKey
+      )
+        return;
+      const link = event.target instanceof Element ? event.target.closest("a[href]") : null;
+      const href = link?.getAttribute("href");
+      if (
+        !href ||
+        href.startsWith("#") ||
+        href.startsWith("mailto:") ||
+        href.startsWith("tel:") ||
+        link?.hasAttribute("download") ||
+        link?.getAttribute("target") === "_blank"
+      )
+        return;
+      event.preventDefault();
+      event.stopPropagation();
+      setGuard(unsaved);
+    };
+    window.addEventListener("popstate", pop);
+    window.addEventListener("beforeunload", unload);
+    document.addEventListener("click", guardLinks, true);
+    return () => {
+      window.removeEventListener("popstate", pop);
+      window.removeEventListener("beforeunload", unload);
+      document.removeEventListener("click", guardLinks, true);
+    };
+  }, [hasDirty, readBrowserView]);
+  useEffect(() => {
+    // Una risposta della pagina su questo CO (anche dopo un comando) sostituisce la lettura locale.
+    if (detail?.partner.co === current.current.co) {
+      setOpenByClick(false);
+      setRead(null);
+    } else if (previousWorkspace.current !== workspace) {
+      setRead(null);
+    }
+    previousWorkspace.current = workspace;
+  }, [detail, workspace]);
+  useEffect(() => {
+    const co = view.co;
+    if (co === null || pageDetail) return;
+    const abort = new AbortController();
+    const params = new URLSearchParams({ co: String(co), utente: memberId ?? "" });
+    void fetch(`/partner/scheda?${params}`, { cache: "no-store", signal: abort.signal })
+      .then(async (response) => {
+        if (!response.ok) throw new Error("Scheda non disponibile");
+        const data: { detail: Detail | null } = await response.json();
+        if (!abort.signal.aborted)
+          setRead({
+            co,
+            detail: data.detail?.partner.co === co ? data.detail : null,
+            failed: false,
+          });
+      })
+      .catch(() => {
+        if (!abort.signal.aborted) setRead({ co, detail: null, failed: true });
+      });
+    return () => abort.abort();
+  }, [view.co, pageDetail, memberId, retryDetail, workspace]);
 
-  // Senza le differenze sui testi dei vecchi «Messaggi pronti»: non c'è più dove risolverle.
-  const differences = workspace.differences.filter(isReviewableDifference).length;
-  const nothingImported = workspace.partners.length === 0;
-
+  const counts = sectionCounts(
+    filterPartnerDatabase(rows, { ...view, section: "tutti" }, today, memberId, differences).map(
+      ({ partner }) => partner,
+    ),
+  );
+  const countries = [...new Set(rows.map((row) => row.countryCode ?? "sconosciuto"))].sort((a, b) =>
+    countryLabel(a).localeCompare(countryLabel(b), "it"),
+  );
+  const formats = [...new Set(rows.flatMap((row) => (row.format ? [row.format] : [])))].sort();
+  const subtypes = [
+    ...new Set(
+      rows.flatMap((row) =>
+        (row.subtype ?? row.partner.typeLabel) ? [row.subtype ?? row.partner.typeLabel] : [],
+      ),
+    ),
+  ].sort();
+  function clearFilters() {
+    change({
+      section: "tutti",
+      phase: "tutti",
+      work: "tutti",
+      period: null,
+      owner: "tutti",
+      country: "",
+      priority: "",
+      format: "",
+      subtype: "",
+      query: "",
+    });
+  }
+  function breakdown(dimension: string, value: string) {
+    const patch: Partial<PartnerDatabaseView> = { screen: "elenco" };
+    if (dimension === "sezione") patch.section = value as PartnerDatabaseView["section"];
+    if (dimension === "paese") patch.country = value;
+    if (dimension === "fase") patch.phase = value as PartnerDatabaseView["phase"];
+    if (dimension === "formato") patch.format = value;
+    if (dimension === "responsabile") patch.owner = value === "predefinito" ? "nessuno" : value;
+    if (dimension === "priorita") patch.priority = value as PartnerDatabaseView["priority"];
+    if (dimension === "sottotipo") patch.subtype = value;
+    change(patch);
+  }
+  const filtersActive =
+    view.section !== "tutti" ||
+    view.phase !== "tutti" ||
+    view.work !== "tutti" ||
+    view.period !== null ||
+    view.owner !== "tutti" ||
+    Boolean(view.country || view.priority || view.query || view.format || view.subtype);
+  const mapProps = {
+    rows: mapRows,
+    items: mapItems,
+    today,
+    selected: view.country,
+    onCountry: (code: string) => change({ country: code }),
+    onOpen: open,
+    workAvailable,
+  };
+  const metrics = [
+    ["Contatti", kpis.contacts, `${kpis.toContact} da contattare`],
+    [
+      "Prime email · 30 giorni",
+      workAvailable ? kpis.firstEmails30 : "—",
+      workspace.work?.assistantStatus === "ready"
+        ? `${kpis.ready} ${kpis.ready === 1 ? "bozza pronta" : "bozze pronte"}`
+        : null,
+    ],
+    [
+      "Tasso di risposta",
+      workAvailable && kpis.replyRate !== null ? percentage.format(kpis.replyRate) : "—",
+      workAvailable && kpis.sent ? `${kpis.replied} su ${kpis.sent} contattati` : null,
+    ],
+    [
+      "Prossimi 7 giorni",
+      workAvailable ? kpis.next7 : "—",
+      estimatesAvailable ? "Azioni, solleciti e stime" : "Azioni e solleciti registrati",
+    ],
+    ["Accordi fatti", kpis.deals, `${kpis.inConversation} in conversazione`],
+  ] as const;
   return (
     <div className={styles.workspace}>
+      {forecast && (
+        <Suspense fallback={null}>
+          <Forecast source={forecast} onRead={setForecastRead} />
+        </Suspense>
+      )}
       <header className={styles.heading}>
         <h1>Partner</h1>
-        <p className={styles.totals}>{totalsLine(sections)}</p>
-        <Link
-          href={`${PARTNER_EMAIL_PATH}?sezione=${view.sezione}`}
-          className="button button-secondary"
-          onClick={(event) => {
-            if (hasDirty()) {
-              event.preventDefault();
-              setGuard(UNSAVED_MESSAGE);
-            }
-          }}
-        >
-          Calendario email
-        </Link>
+        <div className={styles.headingActions}>
+          <Link
+            href={`${PARTNER_EMAIL_PATH}?sezione=${view.section}`}
+            prefetch={false}
+            className="button button-secondary"
+          >
+            Programma email
+          </Link>
+          <button
+            type="button"
+            className="button button-primary"
+            onClick={() => {
+              if (hasDirty()) {
+                setGuard(unsaved);
+                return;
+              }
+              setAdding(true);
+            }}
+            aria-expanded={adding}
+          >
+            <Plus size={18} aria-hidden="true" /> Aggiungi un contatto
+          </button>
+        </div>
       </header>
       {preview && (
-        <p className={styles.previewNotice} role="note">
+        <p className={styles.notice} role="note">
           {PARTNER_PREVIEW_NOTICE}
         </p>
       )}
       <PartnerPendingRecovery />
-
-      <nav className={styles.sections} aria-label="Sezioni">
-        {PARTNER_VIEW_SECTIONS.map((section) => (
-          <button
-            key={section}
-            type="button"
-            className={styles.sectionTab}
-            aria-pressed={view.sezione === section}
-            onClick={() => changeView({ sezione: section })}
-          >
-            {SECTION_BUTTON_LABELS[section]}
-            <span className={styles.sectionCount}>{sections[section]}</span>
-          </button>
-        ))}
-      </nav>
-
-      <nav className={styles.workViews} aria-label="Viste di lavoro">
-        {(
-          [
-            ["da_seguire", "Da seguire"],
-            ["risposte", "Risposte"],
-            ["tutti", "Tutti i contatti"],
-            ["accordi", "Accordi fatti"],
-          ] as const
-        ).map(([key, label]) => (
-          <button
-            key={key}
-            type="button"
-            aria-pressed={workView === key}
-            onClick={() => {
-              if (
-                changeView({
-                  lavoro: key === "accordi" ? "tutti" : key,
-                  accordi: key === "accordi",
-                  stato: key === "da_seguire" ? "da_fare" : "tutti",
-                  chi: "tutti",
-                  q: "",
-                })
-              )
-                setQueryText("");
-            }}
-          >
-            {label}
-            {key === "accordi" && <span className={styles.sectionCount}>{agreed}</span>}
-          </button>
-        ))}
-      </nav>
-      <PartnerAssistantStrip status={assistant} send={send} mailConfigured={mailConfigured} />
-      {workspace.work === null && (
-        <p role="alert" className={styles.noteAmber}>
-          Il lavoro Partner non è leggibile. Ricarica la pagina per aggiornare fasi, risposte e
-          solleciti; le schede restano disponibili.
-        </p>
+      {adding && (
+        <PartnerDatabaseCreate
+          guard={guard}
+          onClose={() => setAdding(false)}
+          onDone={(co) => {
+            setAdding(false);
+            if (co !== null) change({ co });
+          }}
+        />
       )}
-      {workspace.work?.assistantStatus === "error" && (
-        <p role="alert" className={styles.noteAmber}>
-          Il lavoro dell’assistente non è leggibile. Ricarica la pagina; i comandi nella scheda e
-          nella pagina Assistente restano disponibili.
-        </p>
-      )}
-
-      {workView === "tutti" && (
-        <div className={styles.periodBar} ref={barRef}>
-          <div className={styles.periods} role="group" aria-label="Quando contattare">
-            {periods.map((item) => (
-              <button
-                key={item.number}
-                type="button"
-                className={styles.period}
-                data-now={item.number === 1 || undefined}
-                aria-pressed={!view.accordi && view.periodo === item.number}
-                onClick={() =>
-                  changeView({ periodo: item.number as PartnerPeriodNumber, accordi: false })
-                }
-              >
-                <span className={styles.periodLabel}>{item.cell}</span>
-                <span className={styles.periodCount}>
-                  {counts[item.number]}
-                  <small>{counts[item.number] === 1 ? "contatto" : "contatti"}</small>
-                </span>
-              </button>
-            ))}
+      <div className={styles.kpis} aria-label="Numeri principali">
+        {metrics.map(([label, value, note]) => (
+          <div key={label}>
+            <span>{label}</span>
+            <strong>{value}</strong>
+            {note && <small>{note}</small>}
           </div>
-        </div>
-      )}
-
-      <div className={styles.toolbar}>
-        <label className={styles.search}>
-          <Search size={18} strokeWidth={1.6} aria-hidden />
-          <span className="sr-only">Cerca</span>
-          <input
-            type="search"
-            value={queryText}
-            placeholder="Cerca nome, città o CO"
-            autoComplete="off"
-            enterKeyHint="search"
-            maxLength={PARTNER_QUERY_MAX + 20}
-            onChange={(event) => {
-              // Con un testo non salvato nei dettagli la ricerca resta com'era.
-              if (changeView({ q: normalizedQuery(event.target.value) }))
-                setQueryText(event.target.value);
-            }}
-          />
-          {queryText && (
-            <button
-              type="button"
-              className={styles.searchClear}
-              aria-label="Togli la ricerca"
-              onClick={() => {
-                if (changeView({ q: "" })) setQueryText("");
-              }}
+        ))}
+      </div>
+      <nav className={styles.views} aria-label="Viste Partner">
+        {Object.entries(PARTNER_DATABASE_VIEWS).map(([screen, label]) => {
+          const patch = { screen: screen as PartnerDatabaseView["screen"] };
+          return (
+            <Link
+              key={screen}
+              href={partnerDatabaseHref({ ...view, ...patch, co: null })}
+              prefetch={false}
+              aria-current={view.screen === screen ? "page" : undefined}
+              onClick={(event) => internalLink(event, patch)}
             >
-              <X size={18} strokeWidth={1.6} aria-hidden />
+              {label}
+            </Link>
+          );
+        })}
+      </nav>
+      <div className={styles.filters} aria-label="Filtri Partner">
+        <div className={styles.sections} role="group" aria-label="Sezioni Partner">
+          {PARTNER_VIEW_SECTIONS.map((section) => (
+            <button
+              key={section}
+              type="button"
+              aria-pressed={section === view.section}
+              onClick={() => change({ section })}
+            >
+              {sections[section]} <span>{counts[section]}</span>
             </button>
-          )}
-        </label>
-        {workView !== "risposte" && workView !== "accordi" && (
-          <label className={styles.filter}>
-            <span>Stato</span>
+          ))}
+        </div>
+        <div className={styles.filterGrid}>
+          <label className={styles.search}>
+            <Search size={18} aria-hidden="true" />
+            <span className="sr-only">Cerca contatti</span>
+            <input
+              type="search"
+              value={view.query}
+              onChange={(event) => change({ query: event.target.value }, true)}
+              placeholder="Nome, città, paese o CO"
+              maxLength={PARTNER_QUERY_MAX}
+              autoComplete="off"
+            />
+            {view.query && (
+              <button
+                type="button"
+                aria-label="Togli la ricerca"
+                onClick={() => change({ query: "" }, true)}
+              >
+                <X size={17} aria-hidden="true" />
+              </button>
+            )}
+          </label>
+          <label className={styles.field}>
+            Fase
             <select
-              value={view.stato}
+              value={view.phase}
               onChange={(event) =>
-                changeView({ stato: event.target.value as PartnerStatusFilter, accordi: false })
+                change({ phase: event.target.value as PartnerDatabaseView["phase"] })
               }
             >
-              {PARTNER_STATUS_FILTERS.map((status) => (
-                <option key={status} value={status}>
-                  {PARTNER_STATUS_FILTER_LABELS[status]}
+              {Object.entries(PARTNER_DATABASE_PHASE_FILTERS).map(([key, label]) => (
+                <option key={key} value={key}>
+                  {label}
                 </option>
               ))}
             </select>
           </label>
-        )}
-        <label className={styles.filter}>
-          <span>Seguito da</span>
-          <select
-            value={view.chi === memberId ? "io" : view.chi}
-            onChange={(event) => changeView({ chi: event.target.value })}
-          >
-            <option value="tutti">Tutti</option>
-            {memberId && <option value="io">Me</option>}
-            <option value="nessuno">Nessuno</option>
-            {workspace.members
-              .filter(
-                (member) => member.id !== memberId && (member.active || member.id === view.chi),
-              )
-              .map((member) => (
-                <option key={member.id} value={member.id}>
-                  {member.name}
+          <label className={styles.field}>
+            Responsabile
+            <select value={view.owner} onChange={(event) => change({ owner: event.target.value })}>
+              <option value="tutti">Tutti</option>
+              {memberId && <option value="io">Io</option>}
+              <option value="nessuno">Senza assegnazione esplicita</option>
+              {workspace.members
+                .filter((member) => member.active || view.owner === member.id)
+                .map((member) => (
+                  <option key={member.id} value={member.id}>
+                    {member.name}
+                  </option>
+                ))}
+            </select>
+          </label>
+          <label className={styles.field}>
+            Paese
+            <select
+              value={view.country}
+              onChange={(event) => change({ country: event.target.value })}
+            >
+              <option value="">Tutti</option>
+              {[...new Set([...countries, ...(view.country ? [view.country] : [])])].map((code) => (
+                <option key={code} value={code}>
+                  {countryLabel(code)}
                 </option>
               ))}
-          </select>
-        </label>
-      </div>
-
-      {differences > 0 && view.stato !== "da_controllare" && (
-        <p className={styles.differencesNote}>
-          <span>
-            {differences === 1
-              ? "1 differenza dalla ricerca o dai file da controllare"
-              : `${differences} differenze dalla ricerca o dai file da controllare`}
-          </span>
-          <button
-            type="button"
-            className={`${styles.act} ${styles.actMini}`}
-            onClick={() => {
-              if (
-                changeView({
-                  lavoro: "da_seguire",
-                  accordi: false,
-                  stato: "da_controllare",
-                  sezione: "tutti",
-                  chi: "tutti",
-                  q: "",
-                })
-              )
-                setQueryText("");
-            }}
+            </select>
+          </label>
+        </div>
+        <div className={styles.filterFooter}>
+          <details
+            className={styles.moreFilters}
+            open={
+              Boolean(
+                view.priority ||
+                view.period ||
+                view.work !== "tutti" ||
+                view.format ||
+                view.subtype,
+              ) || undefined
+            }
           >
-            Mostrale
-          </button>
+            <summary>Altri filtri</summary>
+            <div className={styles.extraFilters}>
+              <label className={styles.field}>
+                Lavoro
+                <select
+                  value={view.work}
+                  onChange={(event) =>
+                    change({ work: event.target.value as PartnerDatabaseView["work"] })
+                  }
+                >
+                  {Object.entries(PARTNER_DATABASE_WORK_FILTERS).map(([key, label]) => (
+                    <option key={key} value={key}>
+                      {label}
+                    </option>
+                  ))}
+                </select>
+              </label>
+              <label className={styles.field}>
+                Priorità
+                <select
+                  value={view.priority}
+                  onChange={(event) =>
+                    change({ priority: event.target.value as PartnerDatabaseView["priority"] })
+                  }
+                >
+                  <option value="">Tutte</option>
+                  {PARTNER_PRIORITIES.map((priority) => (
+                    <option key={priority} value={priority}>
+                      {PARTNER_PRIORITY_LABELS[priority]}
+                    </option>
+                  ))}
+                </select>
+              </label>
+              <label className={styles.field}>
+                Periodo di contatto
+                <select
+                  value={view.period ?? ""}
+                  onChange={(event) =>
+                    change({
+                      period: event.target.value
+                        ? (Number(event.target.value) as PartnerPeriodNumber)
+                        : null,
+                    })
+                  }
+                >
+                  <option value="">Tutti</option>
+                  {partnerPeriods(today).map((period) => (
+                    <option key={period.number} value={period.number}>
+                      {period.cell}
+                    </option>
+                  ))}
+                </select>
+              </label>
+              {(formats.length > 0 || view.format) && (
+                <label className={styles.field}>
+                  Formato email
+                  <select
+                    value={view.format}
+                    onChange={(event) => change({ format: event.target.value })}
+                  >
+                    <option value="">Tutti</option>
+                    <option value="sconosciuto">Da definire</option>
+                    {formats.map((format) => (
+                      <option key={format} value={format}>
+                        {partnerDatabaseFormatLabel(format)}
+                      </option>
+                    ))}
+                  </select>
+                </label>
+              )}
+              {(subtypes.length > 0 || view.subtype) && (
+                <label className={styles.field}>
+                  Tipo
+                  <select
+                    value={view.subtype}
+                    onChange={(event) => change({ subtype: event.target.value })}
+                  >
+                    <option value="">Tutti</option>
+                    <option value="sconosciuto">Da definire</option>
+                    {subtypes.map((subtype) => (
+                      <option key={subtype} value={subtype}>
+                        {subtype.replaceAll("_", " ")}
+                      </option>
+                    ))}
+                  </select>
+                </label>
+              )}
+            </div>
+          </details>
+          {filtersActive && (
+            <button type="button" className="text-button" onClick={clearFilters}>
+              Togli i filtri
+            </button>
+          )}
+          {differences.size > 0 && view.work !== "da_controllare" && (
+            <button
+              type="button"
+              className="text-button"
+              onClick={() =>
+                change({ screen: "elenco", work: "da_controllare", phase: "tutti", period: null })
+              }
+            >
+              Differenze da controllare
+            </button>
+          )}
+        </div>
+      </div>
+      {workspace.work === null && (
+        <p className={styles.notice} role="alert">
+          Attività e solleciti non sono disponibili. Puoi consultare le schede dei contatti.
         </p>
       )}
-      {guard && view.co === null && (
-        <p role="alert" className={styles.feedbackError}>
+      {workspace.work?.assistantStatus === "error" && (
+        <p className={styles.notice} role="alert">
+          Stato dell’assistente non disponibile. Ricarica la pagina per aggiornarlo.
+        </p>
+      )}
+      {!view.co && guard && (
+        <p className={styles.notice} role="alert">
           {guard}
         </p>
       )}
-      {missing && (
-        <p role="alert" className={styles.feedbackError}>
-          Questo contatto non c’è più. Ricarica la pagina per vedere l’elenco aggiornato.
-        </p>
-      )}
-
-      <div className={styles.periodHead}>
-        {view.accordi ? (
+      <div className={styles.content}>
+        {view.screen === "elenco" && (
           <>
-            <h2>Accordi fatti</h2>
-            <p className={styles.periodNote}>
-              Accordi fatti: eventi, collab e negozi dove ci saremo davvero. Prima gli eventi in
-              arrivo; le loro date sono nel calendario del team.
-            </p>
-            <p>
-              <Link href="/team#calendario" prefetch={false} className="text-button">
-                Apri il calendario del team
-              </Link>
-            </p>
-          </>
-        ) : workView === "risposte" ? (
-          <>
-            <h2>Risposte</h2>
-            <p className={styles.periodNote}>
-              Tutti i periodi. Qui trovi le risposte registrate nel gestionale, anche per gli
-              accordi fatti. La casella non è ancora sincronizzata: puoi registrare una risposta dal
-              Registro della scheda. Approvazione e invio delle risposte arriveranno nelle prossime
-              consegne.
-            </p>
-          </>
-        ) : workView === "da_seguire" ? (
-          <>
-            <h2>Da seguire</h2>
-            <p className={styles.periodNote}>
-              Prima le verifiche, le risposte e le azioni in scadenza, poi le email da preparare o
-              già pronte. Tutti i periodi.
-            </p>
-          </>
-        ) : (
-          <>
-            <h2>{period.title}</h2>
-            <p className={styles.periodNote}>{period.note}</p>
+            <div className={styles.viewHeading}>
+              <p role="status">
+                {visible.length} {visible.length === 1 ? "contatto" : "contatti"}
+              </p>
+              <label className={styles.field}>
+                Ordina per
+                <select
+                  value={view.order}
+                  onChange={(event) =>
+                    change({ order: event.target.value as PartnerDatabaseView["order"] })
+                  }
+                >
+                  {Object.entries(PARTNER_DATABASE_ORDERS).map(([key, label]) => (
+                    <option key={key} value={key}>
+                      {label}
+                    </option>
+                  ))}
+                </select>
+              </label>
+            </div>
+            {visible.length ? (
+              <PartnerDatabaseList
+                rows={visible}
+                today={today}
+                onOpen={open}
+                defaultOwnerLabel={defaultOwnerLabel}
+              />
+            ) : (
+              <div className={styles.empty}>
+                <h2>
+                  {workspace.partners.length
+                    ? "Nessun contatto con questi filtri"
+                    : "Nessun contatto nel database"}
+                </h2>
+                {workspace.partners.length ? (
+                  <button type="button" className="button button-secondary" onClick={clearFilters}>
+                    Togli i filtri
+                  </button>
+                ) : (
+                  <Link href={PARTNER_DATA_PATH} prefetch={false}>
+                    Apri Dati Partner
+                  </Link>
+                )}
+              </div>
+            )}
           </>
         )}
-        {!view.accordi && view.sezione !== "tutti" && (
-          <p className={styles.sectionNote}>
-            {PARTNER_SECTION_NOTES[view.sezione as PartnerSection]}
-          </p>
+        {view.screen === "pipeline" && (
+          <PartnerDatabasePipeline rows={visible} today={today} preview={preview} onOpen={open} />
         )}
-      </div>
-
-      {nothingImported ? (
-        <div className={styles.empty}>
-          <p>La ricerca Partner non è ancora stata importata.</p>
-          <p className={styles.emptyActions}>
-            <Link href={PARTNER_DATA_PATH} prefetch={false} className="button button-secondary">
-              Dati, import e lookbook
-            </Link>
-            <button
-              type="button"
-              className="button button-secondary"
-              onClick={() => setAdding(true)}
-            >
-              Aggiungi un contatto
-            </button>
-          </p>
-        </div>
-      ) : visible.length === 0 && view.accordi ? (
-        <div className={styles.empty}>
-          <p>
-            Nessun accordo fatto con questi filtri. Quando un contatto dice sì, scegli «Accordo
-            fatto» nello stato: le sue date entrano nel calendario del team.
-          </p>
-        </div>
-      ) : visible.length === 0 ? (
-        <div className={styles.empty}>
-          <p>
-            {workView === "risposte"
-              ? "Nessuna risposta registrata in questa sezione con questi filtri. Le risposte ancora nella casella non compaiono qui."
-              : "Nessun contatto qui con questi filtri. Prova un’altra sezione o togli i filtri; in Tutti i contatti trovi anche i periodi futuri."}
-          </p>
-          {(view.stato !== DEFAULT_PARTNER_VIEW.stato ||
-            view.chi !== DEFAULT_PARTNER_VIEW.chi ||
-            view.q !== "") && (
-            <p className={styles.emptyActions}>
-              <button
-                type="button"
-                className="button button-secondary"
-                onClick={() => {
-                  if (changeView(withoutFilters(view))) setQueryText("");
-                }}
-              >
-                Togli i filtri
-              </button>
-            </p>
-          )}
-        </div>
-      ) : (
-        <ol className={styles.list} data-has-open={view.co !== null || undefined}>
-          {visible.map((partner) => (
-            <PartnerRow
-              key={partner.id}
-              partner={partner}
-              work={workViews.get(partner.id)}
-              replies={(workspace.work?.replies ?? []).filter(
-                (reply) => reply.partnerId === partner.id,
-              )}
-              showReplies={workView === "risposte"}
-              contacts={index.contacts.get(partner.id) ?? []}
-              differences={index.differences.get(partner.id)?.length ?? 0}
-              block={index.blocks.get(partner.id) ?? null}
-              period={partnerPeriod(partner, today)}
-              section={view.sezione}
-              open={view.co === partner.co}
-              dimmed={view.co !== null && view.co !== partner.co}
-              detail={view.co === partner.co ? openDetail : null}
-              onToggle={() => toggle(partner.co)}
-              guard={view.co === partner.co ? guard : null}
-            />
-          ))}
-        </ol>
-      )}
-
-      <footer className={styles.colophon}>
-        <div className={styles.colophonActions}>
-          <button
-            type="button"
-            className="button button-secondary"
-            aria-expanded={adding}
-            onClick={() => setAdding((value) => !value)}
-          >
-            <Plus size={16} strokeWidth={1.8} aria-hidden />
-            Aggiungi un contatto
-          </button>
-          <Link href={PARTNER_DATA_PATH} prefetch={false} className="text-button">
-            Dati, import e lookbook
-          </Link>
-          <Link href={PARTNER_RULES_PATH} prefetch={false} className="text-button">
-            Regole per scrivere i messaggi
-          </Link>
-          <Link href={PARTNER_ASSISTANT_PATH} prefetch={false} className="text-button">
-            Assistente
-          </Link>
-        </div>
-        {adding && (
-          <PartnerCardForm
-            target={null}
-            onDone={(co) => {
-              setAdding(false);
-              if (co !== null) openCo(co);
-            }}
-            onCancel={() => setAdding(false)}
+        {view.screen === "calendario" && (
+          <PartnerDatabaseCalendar
+            items={items}
+            today={today}
+            month={view.month}
+            mode={view.calendarMode}
+            allHistory={view.allHistory}
+            estimatesAvailable={estimatesAvailable}
+            estimatesLoading={estimatesLoading}
+            workAvailable={workAvailable}
+            onOpen={open}
+            onChange={(patch) =>
+              change({
+                ...(patch.month === undefined ? {} : { month: patch.month }),
+                ...(patch.mode === undefined ? {} : { calendarMode: patch.mode }),
+                ...(patch.allHistory === undefined ? {} : { allHistory: patch.allHistory }),
+              })
+            }
           />
         )}
-        <p className={styles.lookbooks}>
-          <span>Lookbook da allegare:</span>
-          {PARTNER_LOOKBOOK_CODES.map((code) => (
-            <a key={code} href={partnerLookbookHref(code)} download className={styles.lookbookLink}>
-              <Download size={14} strokeWidth={1.8} aria-hidden />
-              {partnerLookbookTitle(code)}
-            </a>
-          ))}
-        </p>
-        {workspace.lastImport && (
-          <p className={styles.importLine}>{researchImportLine(workspace.lastImport, today)}</p>
+        {view.screen === "mappa" && <PartnerDatabaseMap {...mapProps} />}
+        {view.screen === "andamento" && (
+          <PartnerDatabaseInsights
+            rows={visible}
+            items={items}
+            today={today}
+            workAvailable={workAvailable}
+            estimatesAvailable={estimatesAvailable}
+            estimatesLoading={estimatesLoading}
+            onBreakdown={breakdown}
+            heatMap={<PartnerDatabaseMap {...mapProps} heat />}
+          />
         )}
+      </div>
+      <footer className={styles.footer}>
+        <details className={styles.moreFilters}>
+          <summary>Assistente e strumenti</summary>
+          <PartnerAssistantStrip status={assistant} send={send} mailConfigured={mailConfigured} />
+          <nav aria-label="Strumenti Partner">
+            <Link href={PARTNER_ASSISTANT_PATH} prefetch={false}>
+              Assistente
+            </Link>
+            <Link href={PARTNER_RULES_PATH} prefetch={false}>
+              Regole per scrivere
+            </Link>
+            <Link href={PARTNER_DATA_PATH} prefetch={false}>
+              Dati Partner
+            </Link>
+            {PARTNER_LOOKBOOK_CODES.map((code) => (
+              <a key={code} href={partnerLookbookHref(code)} download>
+                <Download size={15} aria-hidden="true" />
+                {partnerLookbookTitle(code)}
+              </a>
+            ))}
+          </nav>
+          {workspace.lastImport && <p>{researchImportLine(workspace.lastImport, today)}</p>}
+        </details>
       </footer>
+      {view.co !== null && (
+        <PartnerDatabaseDrawer
+          key={view.co}
+          targetCo={view.co}
+          detail={opened}
+          row={selected}
+          loading={!opened && !readDetail}
+          missing={Boolean(readDetail && !readDetail.failed && !opened)}
+          readError={readDetail?.failed}
+          onRetry={() => {
+            setRead(null);
+            setRetryDetail((value) => value + 1);
+          }}
+          guard={guard}
+          defaultOwnerLabel={defaultOwnerLabel}
+          onClose={() => change({ co: null }, true)}
+        />
+      )}
     </div>
   );
+}
+
+function countryLabel(code: string) {
+  return partnerCountryName(code === "sconosciuto" ? null : code);
 }

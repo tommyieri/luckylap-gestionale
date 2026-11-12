@@ -932,6 +932,21 @@
   padding: 12px;
   background: var(--tint);
 }
+.strip[data-drawer] {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+.strip[data-drawer] > label {
+  min-width: 0;
+}
+.strip[data-drawer] .stripFeedback {
+  grid-column: 1 / -1;
+}
+.strip[data-drawer] .stripActions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
 .stripGrow {
   min-width: 0;
 }

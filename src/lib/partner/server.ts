@@ -34,7 +34,14 @@ import {
 } from "./device-file";
 import { followUpConfirmation, readSentFollowUp } from "./follow-up";
 import { parsePartnerFollowupStatus } from "./followup-status";
-import { isPartnerCo, isPartnerId, type PartnerDetail, type PartnerWorkspace } from "./model";
+import {
+  isPartnerCo,
+  isPartnerId,
+  parsePartnerActivity,
+  type PartnerActivity,
+  type PartnerDetail,
+  type PartnerWorkspace,
+} from "./model";
 import { partnerWorkFromRows } from "./work-read";
 import type { PartnerWorkData } from "./work";
 import {
@@ -169,11 +176,16 @@ async function guarded<T>(load: () => Promise<T>): Promise<T> {
   }
 }
 
-function readMembers(supabase: SupabaseClient) {
+function readMembers(supabase: SupabaseClient, includeRole = false) {
   const read = reader(supabase);
   return Promise.all([
     read("profiles", "user_id,display_name", [], "user_id"),
-    read("memberships", "user_id,active", [["eq", "active", true]], "user_id"),
+    read(
+      "memberships",
+      includeRole ? "user_id,active,role" : "user_id,active",
+      [["eq", "active", true]],
+      "user_id",
+    ),
   ]);
 }
 
@@ -181,19 +193,24 @@ function readMembers(supabase: SupabaseClient) {
  * Tutto ciò che serve alla lista di /partner: contatti (colonne di sintesi), recapiti non
  * cancellati, indice delle varianti, differenze aperte, blocchi attivi, membri, ultimo import.
  */
-export async function loadPartnerWorkspace(supabase: SupabaseClient): Promise<PartnerWorkspace> {
+export async function loadPartnerWorkspace(
+  supabase: SupabaseClient,
+  options: { compact?: boolean } = {},
+): Promise<PartnerWorkspace & { defaultOwnerId?: string | null }> {
   return guarded(async () => {
     const read = reader(supabase);
     const [partners, contacts, variants, differences, blocks, [profiles, memberships], imports] =
       await Promise.all([
         read("partners", PARTNER_SUMMARY_COLUMNS),
         read("partner_contacts", PARTNER_CONTACT_LINK_COLUMNS, [["is", "erased_at", null]]),
-        read("partner_message_variants", PARTNER_VARIANT_SUMMARY_COLUMNS),
+        options.compact
+          ? Promise.resolve([])
+          : read("partner_message_variants", PARTNER_VARIANT_SUMMARY_COLUMNS),
         read("partner_import_differences", PARTNER_OPEN_DIFFERENCE_COLUMNS, [
           ["eq", "status", "open"],
         ]),
         read("partner_do_not_contact", PARTNER_BLOCK_COLUMNS, [["eq", "active", true]]),
-        readMembers(supabase),
+        readMembers(supabase, options.compact),
         supabase
           .from("partner_research_imports")
           .select(PARTNER_IMPORT_COLUMNS)
@@ -216,8 +233,17 @@ export async function loadPartnerWorkspace(supabase: SupabaseClient): Promise<Pa
     workspace.work = await readPartnerWork(
       supabase,
       workspace.partners.map((p) => p.id),
+      options.compact === true,
     ).catch(() => null);
-    return workspace;
+    if (!options.compact) return workspace;
+    // Il passaggio è configurabile solo verso un founder attivo. Con più candidati
+    // il responsabile effettivo resta sconosciuto e l'interfaccia mostra «Predefinito».
+    const founders = memberships
+      .map((value) => value as Record<string, unknown>)
+      .filter((member) => member.active === true && member.role === "founder");
+    const defaultOwnerId =
+      founders.length === 1 && isPartnerId(founders[0].user_id) ? founders[0].user_id : null;
+    return { ...workspace, defaultOwnerId };
   });
 }
 
@@ -225,12 +251,15 @@ export async function loadPartnerWorkspace(supabase: SupabaseClient): Promise<Pa
 async function readPartnerWork(
   supabase: SupabaseClient,
   partnerIds: readonly string[],
+  compact: boolean,
 ): Promise<PartnerWorkData> {
   const read = reader(supabase);
-  const activityColumns = "id,partner_id,kind,origin,occurred_at,channel,created_by";
+  const activityColumns = "id,partner_id,kind,origin,occurred_at,channel,created_by,message_kind";
   const [activities, replies, links, assistant] = await Promise.all([
     read("partner_activities", activityColumns),
-    read("partner_activities", `${activityColumns},body`, [["eq", "kind", "risposta"]]),
+    compact
+      ? Promise.resolve([])
+      : read("partner_activities", `${activityColumns},body`, [["eq", "kind", "risposta"]]),
     read("partner_work_links", "id,partner_id,kind,task_id,activity_id", [
       ["eq", "kind", "follow_up"],
     ]),
@@ -248,18 +277,45 @@ async function readPartnerWork(
   const taskIds = [
     ...new Set(links.map((link) => (link as Record<string, unknown>).task_id).filter(isPartnerId)),
   ];
-  const tasks: unknown[] = [];
-  // Evita URL grandi: nessuna lettura delle attività del team estranee a Partner.
-  for (let start = 0; start < taskIds.length; start += 100)
-    tasks.push(
-      ...(await read("tasks", "id,due_at,assigned_to,status", [
-        ["in", "id", taskIds.slice(start, start + 100)],
-      ])),
-    );
+  const jobs = assistant[0].status === "fulfilled" ? assistant[0].value : [];
+  const choiceIds =
+    compact && assistantStatus === "ready"
+      ? [
+          ...new Set(
+            jobs.map((job) => (job as Record<string, unknown>).choice_note_id).filter(isPartnerId),
+          ),
+        ]
+      : [];
+  async function readByIds(
+    table: string,
+    columns: string,
+    ids: readonly string[],
+    filters: Filter[] = [],
+  ) {
+    const rows: unknown[] = [];
+    // URL brevi, soltanto righe referenziate dal workspace.
+    for (let start = 0; start < ids.length; start += 100)
+      rows.push(
+        ...(await read(table, columns, [["in", "id", ids.slice(start, start + 100)], ...filters])),
+      );
+    return rows;
+  }
+  const [tasks, choices] = await Promise.all([
+    readByIds("tasks", "id,due_at,assigned_to,status", taskIds),
+    compact
+      ? readByIds(
+          "partner_assistant_notes",
+          "id,partner_id,format:content->>formato,subtype:content->>sottotipo",
+          choiceIds,
+          [["eq", "kind", "scelta"]],
+        ).catch(() => [])
+      : Promise.resolve(undefined),
+  ]);
   return partnerWorkFromRows(
     {
       assistantStatus,
-      jobs: assistant[0].status === "fulfilled" ? assistant[0].value : [],
+      jobs,
+      choices,
       toggles: assistant[1].status === "fulfilled" ? assistant[1].value : [],
       activities,
       replies,
@@ -267,6 +323,7 @@ async function readPartnerWork(
       tasks,
     },
     partnerIds,
+    { withoutReplyBodies: compact },
   );
 }
 
@@ -278,7 +335,8 @@ async function readPartnerWork(
 export async function loadPartnerDetail(
   supabase: SupabaseClient,
   co: number,
-): Promise<PartnerDetail | null> {
+  options: { latestReply?: boolean } = {},
+): Promise<(PartnerDetail & { latestReply?: PartnerActivity | null }) | null> {
   if (!isPartnerCo(co)) return null;
   return guarded(async () => {
     const found = await supabase.from("partners").select(DETAIL_COLUMNS).eq("co", co).maybeSingle();
@@ -320,7 +378,11 @@ export async function loadPartnerDetail(
       "operation_id",
     );
     const importIds = ids(differences, "device_import_id");
-    const [domainBlocks, revisions, byOperation, byId] = await Promise.all([
+    const outsideHistory =
+      options.latestReply &&
+      activities.count > PARTNER_DETAIL_ACTIVITY_LIMIT &&
+      !activities.rows.some((row) => field(row, "kind") === "risposta");
+    const [domainBlocks, revisions, byOperation, byId, replyBeforeHistory] = await Promise.all([
       domains.length
         ? read("partner_do_not_contact", PARTNER_BLOCK_COLUMNS, [
             ["eq", "active", true],
@@ -351,6 +413,23 @@ export async function loadPartnerDetail(
       importIds.length
         ? read("partner_device_imports", DEVICE_IMPORT_COLUMNS, [["in", "id", importIds]])
         : Promise.resolve([]),
+      outsideHistory
+        ? supabase
+            .from("partner_activities")
+            .select(ACTIVITY_COLUMNS, { count: "exact" })
+            .eq("partner_id", partnerId)
+            .eq("kind", "risposta")
+            .order("occurred_at", { ascending: false })
+            .order("id", { ascending: false })
+            .limit(1)
+            .then((result) => {
+              const row = limited(result, 1).rows[0];
+              if (!row) return null;
+              const reply = parsePartnerActivity(row);
+              ensure(reply.partnerId === partnerId && reply.kind === "risposta");
+              return reply;
+            })
+        : Promise.resolve(null),
     ]);
     // La revisione in uso è di solito l'ultima; se è più vecchia delle ultime 10 si legge a parte.
     const missing = variants
@@ -367,7 +446,7 @@ export async function loadPartnerDetail(
     for (const row of [...byOperation, ...byId]) deviceImports.set(field(row, "id"), row);
     const blocks = new Map<unknown, unknown>();
     for (const row of [...ownBlocks, ...domainBlocks]) blocks.set(field(row, "id"), row);
-    return partnerDetailFromRows(co, {
+    const detail = partnerDetailFromRows(co, {
       partner: found.data,
       contacts,
       variants,
@@ -380,6 +459,13 @@ export async function loadPartnerDetail(
       deviceImports: [...deviceImports.values()],
       assistant,
     });
+    return options.latestReply
+      ? {
+          ...detail,
+          latestReply:
+            detail.activities.find((row) => row.kind === "risposta") ?? replyBeforeHistory,
+        }
+      : detail;
   });
 }
 

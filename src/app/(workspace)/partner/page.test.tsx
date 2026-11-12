@@ -8,6 +8,7 @@ const mocks = vi.hoisted(() => ({
   detail: vi.fn(),
   status: vi.fn(),
   send: vi.fn(),
+  forecast: vi.fn(),
 }));
 vi.mock("server-only", () => ({}));
 vi.mock("next/navigation", () => ({ useRouter: () => ({ refresh: vi.fn(), push: vi.fn() }) }));
@@ -23,6 +24,8 @@ vi.mock(
   "@/lib/partner-assistant/mail-config",
   () => import("../../../lib/partner-assistant/mail-config"),
 );
+vi.mock("@/lib/partner/dates", () => import("../../../lib/partner/dates"));
+vi.mock("@/lib/partner/email-program-server", () => ({ loadPartnerEmailProgram: mocks.forecast }));
 vi.mock("@/lib/partner/model", () => import("../../../lib/partner/model"));
 vi.mock("@/lib/partner/periods", () => import("../../../lib/partner/periods"));
 vi.mock("@/lib/partner/server", () => ({
@@ -60,6 +63,7 @@ function signedIn(role = "consultant") {
   mocks.detail.mockResolvedValue(partnerFixtureDetail(2, TODAY));
   mocks.status.mockResolvedValue(partnerAssistantFixture(TODAY).status);
   mocks.send.mockResolvedValue(partnerAssistantFixture(TODAY).send);
+  mocks.forecast.mockResolvedValue({ forecast: { items: [] } });
 }
 
 /** La posta dell'assistente con valori sintetici. */
@@ -119,7 +123,23 @@ describe("/partner", () => {
     });
     expect(mocks.status).toHaveBeenCalledExactlyOnceWith(supabase);
     expect(mocks.send).toHaveBeenCalledExactlyOnceWith(supabase);
-    expect(mocks.detail).toHaveBeenCalledWith(supabase, 2);
+    expect(mocks.detail).toHaveBeenCalledWith(supabase, 2, { latestReply: true });
+    expect(mocks.workspace).toHaveBeenCalledWith(supabase, { compact: true });
+  });
+
+  it("mostra l’elenco prima che il simulatore termini", async () => {
+    signedIn();
+    let finish!: (value: { forecast: { items: [] } }) => void;
+    mocks.forecast.mockReturnValue(
+      new Promise((resolve) => {
+        finish = resolve;
+      }),
+    );
+    const page = await open();
+    expect(page.type).toBe(PartnerWorkspace);
+    expect(mocks.detail).not.toHaveBeenCalled();
+    finish({ forecast: { items: [] } });
+    await expect(page.props.forecast).resolves.toEqual([]);
   });
 
   it("stato dell'assistente non leggibile: la pagina Partner si vede lo stesso", async () => {

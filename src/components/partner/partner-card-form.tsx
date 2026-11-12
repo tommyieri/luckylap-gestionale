@@ -5,6 +5,7 @@ import {
   partnerCardPayload,
   type PartnerCardField,
   type PartnerCardInput,
+  type PartnerCommandSuccess,
 } from "../../lib/partner/commands";
 import {
   PARTNER_CHANNELS,
@@ -71,6 +72,11 @@ export function PartnerCardForm({
   const set = <K extends keyof PartnerCardInput>(key: K, value: PartnerCardInput[K]) =>
     setInput((current) => ({ ...current, [key]: value }));
 
+  function saved(result: PartnerCommandSuccess) {
+    if (!target) setInput(inputFrom(null, today));
+    onDone?.(target ? null : result.co);
+  }
+
   function submit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     if (preview || command.busy) return;
@@ -83,10 +89,7 @@ export function PartnerCardForm({
       return;
     }
     setErrors({});
-    command.run("save_partner", result.payload, (success) => {
-      if (!target) setInput(inputFrom(null, today));
-      onDone?.(target ? null : success.co);
-    });
+    command.run("save_partner", result.payload, saved);
   }
 
   const field = (name: PartnerCardField) => ({
@@ -263,7 +266,7 @@ export function PartnerCardForm({
           </button>
         )}
       </div>
-      <CommandFeedback command={command} />
+      <CommandFeedback command={command} onRetry={() => command.retry(saved)} />
     </form>
   );
 }

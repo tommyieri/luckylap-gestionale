@@ -252,12 +252,30 @@ describe("Partner", () => {
     expect(copy).toContain("un «Contattato» del file crea il sollecito per chi carica il file");
     expect(copy).toContain("la conferma ti dice il giorno");
     expect(copy).toContain("«Registra una risposta» nel «Registro»");
-    expect(copy).toContain("il riquadro «Esito»");
+    expect(copy).toContain("da «In breve» premi «Apri in Partner nel Team»");
   });
 
-  it("porta a Partner, alla pagina dell'assistente e a «Partner nel Team» per tutti", () => {
+  it("spiega dove trovare le cinque viste, le risposte e gli accordi", () => {
+    const copy = text(part(everyone));
+    expect(copy).toContain("Partner si apre su «Elenco»");
+    for (const view of ["Pipeline", "Calendario", "Mappa", "Andamento"])
+      expect(copy).toContain(`«${view}»`);
+    expect(copy).toContain("Eventi, Collab, Vendita e Club");
+    expect(copy).toContain("«Risposte registrate»");
+    expect(copy).toContain("«Accordo fatto» in «Fase»");
+    expect(copy).toContain("Le prime email previste sono stime");
+    expect(copy).toContain("Le registrazioni del vecchio sito riportano la data del file");
+    expect(copy).toContain("scheda laterale");
+  });
+
+  it("porta a Partner, al Programma email, all'assistente e a «Partner nel Team» per tutti", () => {
     for (const access of [everyone, finance, founder]) {
-      expect(hrefs(part(access))).toEqual(["/partner", "/partner/assistente", "/team/partner"]);
+      expect(hrefs(part(access))).toEqual([
+        "/partner",
+        "/partner/email",
+        "/partner/assistente",
+        "/team/partner",
+      ]);
       expect(text(part(access))).toContain("«Partner nel Team»");
       expect(text(part(access))).toContain("Apri l'assistente");
     }
@@ -265,9 +283,9 @@ describe("Partner", () => {
 
   it("dice dove sono la striscia, la pagina e il blocco dell'assistente", () => {
     const copy = text(part(everyone));
-    expect(copy).toContain("In cima a Partner c’è la striscia dell’assistente");
+    expect(copy).toContain("In «Assistente e strumenti» la striscia dell’assistente");
     expect(copy).toContain("«Apri l'assistente» porta alla sua pagina");
-    expect(copy).toContain("Nella scheda del contatto la bozza è visibile prima della ricerca");
+    expect(copy).toContain("Nella scheda del contatto, apri «Email» per la bozza");
   });
 
   it("dice quando l'assistente manda le email, con la prova di Tommi prima", () => {
@@ -332,7 +350,7 @@ describe("Partner", () => {
     const copy = text(part(everyone));
     expect(copy).toContain("Le regole con cui scrive sono nella sua pagina, in «Regole»");
     expect(copy).toContain("«Scrivi una nuova versione»");
-    expect(copy).toContain("l’assistente non le usa");
+    expect(copy).toContain("apre il contesto importato con la ricerca, destinato al team");
   });
 });
 
@@ -534,7 +552,11 @@ describe("i nomi citati esistono davvero", () => {
       ],
     ],
     ["src/components/partner/partner-details.tsx", ["Metti tra i non contattare"]],
-    ["src/components/partner/partner-outcome-panel.tsx", [">Esito<", "Apri in Partner nel Team"]],
+    [
+      "src/components/partner/partner-database-drawer.tsx",
+      ["In breve", "Apri in Partner nel Team"],
+    ],
+    ["src/components/partner/partner-database-controls.tsx", ["Concluso…", "Conferma fase"]],
     ["src/components/today/today-reply-button.tsx", ['"Ha risposto"']],
     ["src/components/partner-work-links.tsx", ["Collega l’evento"]],
     ["src/lib/partner/model.ts", ['"Accordo fatto"', '"Non interessato"']],
@@ -579,7 +601,14 @@ describe("i nomi citati esistono davvero", () => {
       "src/lib/partner/assistant.ts",
       ['spento: "Spento"', 'prepara: "Prepara"', 'prova: "Prova"', 'invio: "Invio"'],
     ],
-    ["src/components/partner/partner-workspace.tsx", ["Regole per scrivere i messaggi"]],
+    [
+      "src/components/partner/partner-workspace.tsx",
+      ["Programma email", "Assistente e strumenti", "Regole per scrivere"],
+    ],
+    [
+      "src/lib/partner/database-view.ts",
+      ["Elenco", "Pipeline", "Calendario", "Mappa", "Andamento"],
+    ],
   ];
 
   it("ogni pulsante, riquadro e stato citato è nel suo componente", () => {

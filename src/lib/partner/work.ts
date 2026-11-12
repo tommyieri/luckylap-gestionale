@@ -21,8 +21,10 @@ export type PartnerWorkActivity = {
   createdBy: string;
   origin: "team" | "file" | "assistente";
   channel: PartnerActivityChannel | null;
+  /** Primo contatto o sollecito. Assente negli snapshot precedenti. */
+  messageKind?: "primo" | "sollecito" | null;
 };
-export type PartnerWorkReply = PartnerWorkActivity & { kind: "risposta"; body: string };
+export type PartnerWorkReply = PartnerWorkActivity & { kind: "risposta"; body?: string };
 export type PartnerWorkData = {
   assistantStatus: "ready" | "inactive" | "error";
   jobs: {
@@ -33,11 +35,13 @@ export type PartnerWorkData = {
     writeOn: string | null;
     updatedAt: string;
     draftId: string | null;
+    format?: string | null;
+    subtype?: string | null;
   }[];
   toggles: { partnerId: string; active: boolean }[];
   /** Tutte le attività, senza testi: solo inviato/risposta decidono a chi tocca. */
   activities: PartnerWorkActivity[];
-  /** Solo le attività di tipo risposta hanno il testo. Non sono messaggi importati dalla posta. */
+  /** Risposte registrate. Il testo è presente solo nella lettura precedente della lista. */
   replies: PartnerWorkReply[];
   /** Solleciti realmente aperti, collegati a task esistenti; mai scadenze ricostruite. */
   followUps: { id: string; partnerId: string; dueAt: string | null; assignedTo: string | null }[];
