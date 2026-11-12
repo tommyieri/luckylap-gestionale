@@ -1,14 +1,14 @@
 # Partner nel gestionale
 
-`/partner` è il roadbook del progetto Partner dentro il gestionale: negozi, eventi, club, media e brand, nelle sezioni permanenti Eventi, Collab, Vendita e Club. In ogni sezione le viste Da seguire, Risposte, Tutti i contatti e Accordi fatti mostrano il lavoro da fare, la fase, la prossima azione e il registro. Le prime email le scrive l'assistente ([partner-assistente.md](partner-assistente.md)). Tutti e cinque i membri vedono e fanno tutto (decisione del founder del 21 ottobre 2026).
+`/partner` raccoglie negozi, eventi, club, media e brand nelle quattro sezioni Eventi, Collab, Vendita e Club. Si apre su **Elenco** e permette di passare a **Pipeline**, **Calendario**, **Mappa** e **Andamento** con gli stessi filtri. La scheda di ogni contatto si apre a lato. **Programma email** porta alla pagina dedicata alle prime email. Tutti e cinque i membri possono consultare i contatti e usare i comandi Partner, secondo la decisione del founder del 21 ottobre 2026. Le modalità e i permessi specifici degli invii sono descritti in [Assistente Partner](partner-assistente.md).
 
 I dati stanno nel database e li leggono solo i membri attivi. Ogni scrittura passa da un comando con `operation_id`, ricevuta e, dove serve, controllo di versione. La ricerca arriva dal repository `luckylap-partner` con un import preparato offline. Per gli stati e i testi salvati sui dispositivi c'è l'import dei file «Esporta» del vecchio sito, che però nessuno ha usato: il sito è spento dal 28 ottobre 2026 (vedi «GitHub Pages»).
 
-Questo documento conserva le consegne di P2 e descrive il riordino della Tappa 1 approvato il 2 novembre 2026: [progetto](superpowers/specs/2026-11-02-partner-riordino.md) e [piano](superpowers/plans/2026-11-02-partner-riordino-tappa-1.md). Per la base del modulo restano le fonti storiche: spec `02-partner.md` e correzioni di `00-sequenza.md` (§2, §4 P2, §5).
+Il nuovo impianto riprende il prototipo di Luca e usa i dati e i comandi già presenti nel gestionale. Le pagine qui sotto descrivono il comportamento attuale. Restano come riferimenti storici il riordino approvato il 2 novembre 2026, la spec `02-partner.md` e le correzioni di `00-sequenza.md` (§2, §4 P2, §5). [Progetto del riordino](superpowers/specs/2026-11-02-partner-riordino.md) e [piano della Tappa 1](superpowers/plans/2026-11-02-partner-riordino-tappa-1.md).
 
 ## Riordino: Tappa 1
 
-Questa consegna riordina i dati e i comandi esistenti, senza migrazioni, nuove dipendenze o cambiamenti al worker d'invio. «Risposte» raccoglie solo le attività di risposta già registrate dal team: non importa ancora la posta. Non introduce approvazioni, editor per nuove risposte, invii di risposta o creazione automatica di contatti segnalati. Le prime email automatiche mantengono controlli, limiti e finestra attuali.
+Nel riordino del 2 novembre 2026, «Risposte» raccoglieva le attività di risposta già registrate dal team. La Tappa 1 usava i dati e i comandi esistenti e lasciava al worker d’invio i controlli, i limiti e la finestra delle prime email. Le viste correnti sono descritte in «Pagine».
 
 La fase operativa è calcolata da stato commerciale, blocchi e lavoro dell'assistente; non aggiunge stati nel database. Le etichette commerciali sono «Scritto» (`contattato`), «Risposto» (`risposto`), «Primi contatti avviati» (`trattativa`), «Accordo fatto» (`chiuso`) e «Non interessato» (`no`). Per chi è ancora da contattare compaiono anche «Da verificare», «Fermo» con il motivo, «Serve Tommi», «Pronta», «In preparazione» e «Da scrivere», con la data quando disponibile. «Non contattare» precede tutte le altre fasi; un invio incerto conserva un avviso separato anche con una fase commerciale successiva.
 
@@ -27,23 +27,33 @@ La fase operativa è calcolata da stato commerciale, blocchi e lavoro dell'assis
 
 ### `/partner`
 
-`src/app/(workspace)/partner/page.tsx`, componenti in `src/components/partner/`. Dall'alto:
+La testata offre «Programma email» e «Aggiungi un contatto». I numeri iniziali seguono i contatti selezionati dai filtri e mostrano il totale, le prime email registrate negli ultimi 30 giorni, il tasso di risposta, i contatti con un prossimo passo nei prossimi 7 giorni e gli accordi fatti. Le cinque viste condividono le sezioni Tutti, Vendita, Eventi, Collab e Club. «Assistente e strumenti» apre la striscia dell’assistente, i collegamenti ad Assistente, Regole per scrivere e Dati Partner, i cinque lookbook e la data dell’ultimo import. Costi e configurazione sono in `/partner/assistente`.
 
-1. `h1` «Partner» e la riga dei totali per sezione.
-2. Sezioni Tutti, Vendita, Eventi, Collab e Club con il conteggio, sempre accessibili anche sul telefono.
-3. Viste «Da seguire», «Risposte», «Tutti i contatti» e «Accordi fatti», poi la striscia operativa dell'assistente. La spesa resta nella pagina `/partner/assistente`.
-4. In «Tutti i contatti», barra dei cinque periodi ferma in alto con `top: var(--ws-sticky-top)`. Ricerca, «Stato» e «Seguito da» completano i filtri disponibili; «Risposte» ignora il filtro di stato.
-5. Avviso ambra delle differenze da controllare, con «Mostrale» (senza quelle sui testi dei vecchi messaggi, vedi sotto).
-6. Titolo e nota della vista. «Da seguire» ordina per necessità d'intervento e data, poi CO; «Risposte» e «Tutti i contatti» per CO; «Accordi fatti» mette prima gli eventi in arrivo. Ogni riga conserva l'ancora `id="lead-{co}"`.
-7. Piede: «Aggiungi un contatto», i cinque lookbook, i link a `/partner/dati` e `/partner/regole`, la riga dell'ultimo import letta dal database («Ricerca del 21 ottobre 2026, importata il … (commit f6ad90c).»).
+| Vista | Cosa mostra |
+| --- | --- |
+| **Elenco** | Il contatto con CO, luogo e sezioni, fase, prossimo passo, proposta e responsabile. Si ordina per prossimo passo, priorità, ultima attività o nome. «Mostra altri contatti» aggiunge altre righe. |
+| **Pipeline** | Le colonne Da contattare, Inviato, Risposto, In conversazione e Concluso. Le schede in «Non contattare» stanno in un gruppo separato. Trascinare una scheda apre una conferma. Il selettore «Fase» della scheda offre lo stesso cambio. |
+| **Calendario** | Mese, Settimana e Lista dei fatti registrati e del lavoro in arrivo. In Lista si può scegliere un mese oppure tutto lo storico. |
+| **Mappa** | Contatti per paese con selezione del paese e accesso alle schede. «Vedi i numeri per paese» offre la stessa consultazione tramite tabella. |
+| **Andamento** | Invii e risposte registrati su 8 settimane, 6 mesi o 12 mesi, conteggi per fase, tempi di risposta, prossimi 14 giorni e ripartizioni filtrabili, con mappa di calore. |
 
-La riga mette in evidenza nome, tipo, motivo, fase, a chi tocca e per quando. CO, sezioni, date e avvisi restano disponibili, insieme ai pulsanti del canale preferito e al cambio di stato che salva subito. Un contatto bloccato non ha pulsanti di contatto.
+#### Fasi, esiti e classificazioni
 
-I dettagli si aprono con `?co=N` (navigazione vera: il server legge il dettaglio di quel contatto). Mostrano prima contesto, avvisi, responsabile e prossima azione, ultima risposta registrata e bozza dell'assistente visibile. Seguono «Esito» (solo con «Accordo fatto», vedi «Oggi, solleciti ed esiti»), registro e sezioni apribili per ricerca, recapiti e fonti. Scheda modificabile e «Non contattare» restano disponibili.
+Le cinque fasi sono etichette di lettura sopra gli stati già salvati. «Inviato» corrisponde a `contattato`, «In conversazione» a `trattativa`. «Concluso» comprende gli esiti esistenti **Accordo fatto** (`chiuso`) e **Non interessato** (`no`). La conferma richiede di sceglierne uno e usa `set_partner_state` con la versione della scheda. In «Da contattare» i gruppi Serve intervento, Invio programmato e Serve una data descrivono il lavoro corrente dell’assistente e le stime disponibili. Il blocco «Non contattare» ha precedenza sulla fase e mantiene i suoi comandi.
 
-Registro: «Segna inviato», «Segna sollecito inviato», «Registra una risposta», «Chiamata», «Incontro», «Nota», con giorno, canale e testo. I due invii registrano `kind = 'inviato'` con `message_kind` `primo` o `sollecito`, lo stesso comando `record_partner_activity` che usavano i pulsanti del vecchio blocco «Messaggi pronti», con l'approccio scelto della scheda. Con il contatto in «Non contattare» invii, chiamate e incontri sono spenti. Se il registro ha un invio dello stesso tipo degli ultimi 10 minuti la pagina chiede conferma. La conferma usa le nuove etichette di stato, per esempio «Scritto», e indica quando scade il sollecito se presente. Mostra le attività dalla più recente, le prime 20 e poi «Mostra tutte»; il dettaglio ne legge al massimo 100. Le attività dell'assistente indicano «dall'assistente» (vedi «Oggi, solleciti ed esiti»).
+Il prototipo presenta classificazioni ed esiti propri. Il gestionale usa le sezioni, la priorità e il tipo della scheda, oltre a formato email e sottotipo quando disponibili nella scelta dell’assistente associata a quel contatto. Il filtro Tipo usa il tipo della scheda quando manca il sottotipo. Un dato mancante resta da definire. Le nuove etichette e i gruppi sono calcolati in lettura. Questa consegna usa lo schema esistente e non applica migrazioni o riclassificazioni ai contatti storici.
 
-Registrare una risposta con il comando del Registro, oppure con «Ha risposto» in Oggi, chiude il sollecito collegato. Scegliere soltanto «Risposto» dalla tendina cambia lo stato, senza registrare la risposta né chiudere il sollecito. Il testo delle risposte registrate appare come testo semplice nella vista «Risposte» e nella scheda, anche quando il contatto è già in trattativa, con accordo o non interessato.
+Una scheda senza assegnazione esplicita mostra il nome con «(predefinito)» se c’è un solo founder attivo. Se manca un nome univoco mostra «Predefinito». È una lettura, quindi `owner_id` resta vuoto finché un membro non assegna la scheda. I filtri «Io» e per nome usano il responsabile effettivo. «Senza assegnazione esplicita» usa il valore salvato e comprende i contatti col riferimento predefinito. I destinatari dei solleciti e la selezione dell’assistente continuano a seguire i loro dati salvati.
+
+#### Scheda laterale
+
+Aprendo un contatto l’indirizzo prende `co=N`, mentre la vista e i filtri restano consultabili al ritorno. Le schede interne sono **In breve**, **Email**, **Registro**, **Ricerca**, **Recapiti** e **Dati e tag**. In breve mostra il prossimo passo, il responsabile, la prossima azione modificabile e l’ultima risposta registrata. Email contiene lo stato e la bozza dell’assistente. Registro raccoglie i comandi per annotare attività. Ricerca conserva fonti e contesto, Recapiti permette di modificare i canali e gestire «Non contattare», Dati e tag contiene il modulo della scheda e le differenze da controllare. Con «Accordo fatto», «Apri in Partner nel Team» è disponibile in In breve.
+
+L’elenco legge una proiezione dei dati operativi. Il dettaglio, con testi e recapiti completi, viene letto all’apertura da `/partner/scheda` o dalla pagina server con `co` già nell’indirizzo. La route verifica la membership attiva e la corrispondenza della sessione e usa una risposta privata senza cache. Per cambiare scheda o uscire da un modulo con modifiche pendenti occorre prima salvarle o annullarle. Conferma, versioni, ricevute e recupero riusano i comandi Partner.
+
+Registro: «Segna inviato», «Segna sollecito inviato», «Registra una risposta», «Chiamata», «Incontro», «Nota», con giorno, canale e testo. I due invii registrano `kind = 'inviato'` con `message_kind` `primo` o `sollecito`, lo stesso comando `record_partner_activity` che usavano i pulsanti del vecchio blocco «Messaggi pronti», con l'approccio scelto della scheda. Con il contatto in «Non contattare» invii, chiamate e incontri sono spenti. Se il registro ha un invio dello stesso tipo degli ultimi 10 minuti la pagina chiede conferma. La conferma del Registro indica quando scade il sollecito, se presente. Mostra le attività dalla più recente, le prime 20 e poi «Mostra tutte»; il dettaglio ne legge al massimo 100. Le attività dell'assistente indicano «dall'assistente» (vedi «Oggi, solleciti ed esiti»).
+
+Registrare una risposta con il comando del Registro, oppure con «Ha risposto» in Oggi, chiude il sollecito collegato. Il cambio di fase in «Risposto» agisce sullo stato. Il testo delle risposte registrate appare come testo semplice nella scheda, anche quando il contatto è già in conversazione, con accordo o non interessato. Il filtro «Risposte registrate» trova i contatti che hanno una risposta nel registro.
 
 **Niente più «Messaggi pronti»** (31 ottobre 2026, decisione di Tommi). La scheda aveva il blocco «Messaggi pronti»: le 218 varianti della ricerca di ottobre, tutte firmate «Tommi», con conto vendita e lookbook allegato. Tommi le ha scambiate due volte per email che stavano per partire. Le prime email le scrive e le manda l'assistente: è la «Bozza dell'email» del blocco «Assistente» ([partner-assistente.md](partner-assistente.md)). Quindi:
 
@@ -57,6 +67,18 @@ Registrare una risposta con il comando del Registro, oppure con «Ha risposto» 
 - testi, storico, comandi e import delle varianti non cambiano: i dati restano nel database.
 
 Il sollecito dopo 7 giorni lo scrive Tommi, partendo dalla «Bozza dell'email» mandata, che resta nella scheda. Poi lo segna con «Segna sollecito inviato». Il progetto delle risposte e dei solleciti automatici resta fuori dalla Tappa 1.
+
+#### Calendario Partner e Programma email
+
+Il Calendario di Partner raggruppa per giorno di Roma invii e risposte del Registro, solleciti aperti, azioni del team, eventi con accordo e scadenze di candidatura dei contatti aperti. Gli eventi su più giorni compaiono nell’intervallo della scheda. Le voci registrate o importate restano consultabili nella lista «Tutto lo storico». Per le registrazioni dal vecchio sito vale la data del file e compare la dicitura «vecchio sito». La data può rappresentare un’esportazione anziché il momento effettivo dello scambio. Uno stato impostato da solo non aggiunge una voce al Registro.
+
+Le prime email future sono voci «Prima email prevista · stima». Arrivano dalle previsioni disponibili del Programma email per i contatti ancora da contattare, con i controlli del programma. L’interfaccia segnala quando le stime o i dati del Registro sono indisponibili. Il pulsante **Programma email** apre `/partner/email` con la sezione corrente. Lì si consultano motivazioni, bozze e orari e si rivede il testo con i comandi esistenti. Gli impegni effettivi del Team seguono la regola di «Accordo fatto e calendario» qui sotto. [Programma email Partner](partner-programma-email.md).
+
+#### Mappa e Andamento
+
+La mappa usa `public/partner/confini.json`, ricavato esclusivamente dall’asset cartografico allegato da Luca. L’allegato indica Natural Earth come fonte dei confini, senza indicare la versione del dataset. Il file contiene 185 forme con identificatori univoci, tracciati e centri, con Cipro riunita sotto `CY`. L’asset contiene soltanto geometria. I conteggi arrivano dai contatti visibili al membro attivo e raggruppano i nomi di paese riconosciuti. I valori non riconosciuti restano consultabili come «Paese da verificare». La tabella per paese resta disponibile anche se i confini non si caricano. [Condizioni d’uso di Natural Earth](https://www.naturalearthdata.com/about/terms-of-use/).
+
+Andamento usa le voci registrate e il perimetro dei filtri. Il tasso di risposta conta i contatti con almeno una risposta successiva a un invio sul totale dei contatti con invii registrati. In assenza di invii il tasso è indisponibile. I tempi di risposta usano le coppie invio e risposta con ordine verificabile e lasciano fuori le date importate dai file. La previsione dei prossimi 14 giorni distingue prime email stimate, solleciti e azioni del team. Selezionando una ripartizione si apre l’Elenco con il relativo filtro. I grafici hanno una tabella di valori.
 
 ### `/partner/dati`
 
@@ -82,36 +104,35 @@ Il sollecito dopo 7 giorni lo scrive Tommi, partendo dalla «Bozza dell'email» 
 ### Stati, titoli e anteprima
 
 - `metadata.title`: «Partner», «Dati Partner», «Regole per scrivere».
-- Stati comuni con `AccessPanel` e `WorkspacePanel`. Lettura non riuscita: «Partner non disponibile. Ricarica la pagina tra poco; nessun dato parziale viene mostrato.» con «Ricarica». Le letture sono complete o non c'è nulla: `readTeamPages`, conteggi esatti verificati.
+- Stati comuni con `AccessPanel` e `WorkspacePanel`. La lettura anagrafica usa `readTeamPages` con conteggi esatti. Se fallisce, la pagina mostra «Partner non disponibile» con «Ricarica». Attività, assistente e stime hanno avvisi propri quando indisponibili.
 - Le tre pagine hanno il loro `loading.tsx` con le righe scheletro.
 - Errori dei comandi accanto al controllo, con i testi di spec 02 §5.11 (`src/lib/partner/commands.ts`, `PARTNER_ERROR_MESSAGES`). Esito incerto: «Salvataggio non confermato. Verifica prima di riprovare.»; il tentativo resta in `sessionStorage` (chiave `luckylap.partner.pending:<utente>:…`) e «Verifica» lo ripete con lo stesso `operation_id`, mostrato con `src/components/pending-attempt.tsx`.
 - **Anteprima locale** (`npm run dev`, `isLocalPreviewEnabled()`): le tre pagine leggono i sei contatti sintetici di `src/lib/partner/fixtures.ts`, con le date calcolate da oggi, e mostrano «Anteprima locale: dati sintetici, salvataggio disattivato.». Le Server Action rispondono «Anteprima locale: salvataggio disattivato.» senza chiamare Supabase. Mai su Vercel né con `NODE_ENV=production` (`src/lib/partner/read.test.ts`).
 
 ## Periodi, filtri e indirizzo
 
-`src/lib/partner/periods.ts`, `dates.ts`, `filters.ts`. Oggi è il giorno di Roma, calcolato sul server e passato al client.
+L’apertura predefinita è Elenco, con tutte le sezioni, tutte le fasi e tutti i periodi. Fase, Responsabile e Paese sono accanto alla ricerca. «Altri filtri» raccoglie Lavoro, Priorità, Periodo di contatto, Formato email e Tipo, con le opzioni ricavate dai dati disponibili. In Lavoro si trovano «Da seguire», «Risposte registrate», «Differenze da controllare» e «Contatti aperti». I filtri si combinano. «Togli i filtri» ripristina l’insieme completo nella vista corrente. I conteggi di sezione tengono conto degli altri filtri e un contatto con più sezioni compare nel conteggio di ciascuna.
 
-«Da seguire», predefinita all'apertura senza un periodo esplicito, ignora il periodo e usa la necessità d'intervento calcolata dai dati operativi. Con il filtro predefinito include anche accordi e non interessati che richiedono una verifica o hanno ricevuto una risposta; uno stato scelto esplicitamente continua a restringere la lista. «Da controllare» include le differenze aperte anche senza altre azioni urgenti: «Mostrale» le apre in Da seguire, fuori dai periodi e senza filtri nascosti. «Risposte» ignora periodo e stato e include solo le schede con almeno una risposta registrata. Entrambe rispettano sezione, responsabile e ricerca. «Tutti i contatti» applica anche periodo e stato. «Accordi fatti» usa lo stato `chiuso` di ogni periodo, rispettando la sezione scelta.
+Il giorno corrente è quello di Roma, calcolato sul server e passato al client. I cinque periodi di contatto restano disponibili in `src/lib/partner/periods.ts`.
 
 - Mese pianificato = mese di `next_action_on` se c'è, altrimenti `contact_month`. `k` = mesi dal mese corrente.
 - Periodo 1 `k ≤ 1` (compresi i mesi passati), 2 `2–3`, 3 `4–5`, 4 `6–8`, 5 `k ≥ 9`.
 - Celle e titoli seguono il mese: il 22 ottobre 2026 «Adesso», «Dic – Gen», «Feb – Mar», «Apr – Giu», «Da lug 2027»; il 10 dicembre 2026 «Adesso», «Feb – Mar», «Apr – Mag», «Giu – Ago», «Da set 2027», con il titolo «Adesso, entro gennaio».
 - Mezzanotte di Roma: `2026-10-31T23:30:00Z` è già novembre.
-- I conteggi delle celle applicano tutti i filtri tranne il periodo.
-
-Indirizzo: `/partner?periodo=1&sezione=eventi&vista=da_seguire&stato=da_fare&chi=io&q=porsche&co=12`.
-
 | Parametro | Valori | Predefinito |
 | --- | --- | --- |
-| `periodo` | 1–5 | 1, o l'ultimo usato nel browser |
-| `sezione` | `tutti`, `vendita`, `eventi`, `collab`, `club` | `tutti`, o l'ultima usata |
-| `stato` | `da_fare` (nell'archivio esclude Accordo fatto e Non interessato; in Da seguire vale la necessità d'intervento), `tutti`, uno dei 6 stati, `non_contattare`, `da_controllare`; ignorato in Risposte | `da_fare` |
-| `chi` | `tutti`, `io`, `nessuno`, id di un membro | `tutti` |
-| `q` | al massimo 80 caratteri: nome, città, paese, tipo, CO («12», «CO 12», «CO012») | vuoto |
-| `co` | contatto con i dettagli aperti | nessuno |
-| `vista` | `da_seguire`, `risposte`, `tutti`; `ci_siamo` conserva il link storico agli accordi fatti | `da_seguire`; un vecchio link con `periodo` esplicito apre `tutti` |
+| `vista` | `elenco`, `pipeline`, `calendario`, `mappa`, `andamento` | `elenco` |
+| `sezione` | `tutti`, `vendita`, `eventi`, `collab`, `club` | `tutti` |
+| `fase`, `lavoro` | Fasi, gruppi e filtri di lavoro definiti in `database-view.ts` | `tutti` |
+| `periodo` | 1–5 | Tutti |
+| `chi` | `tutti`, `io`, `nessuno` o id di un membro | `tutti` |
+| `paese`, `priorita`, `formato`, `sottotipo` | Paese per codice, priorità, formato email e tipo disponibili | Vuoti |
+| `q` | Fino a 80 caratteri. Nome, città, paese, tipo o CO | Vuoto |
+| `ordine` | `passo`, `priorita`, `attivita`, `nome` | `passo` |
+| `mese`, `calendario`, `storico` | Mese `AAAA-MM`, modalità `mese`, `settimana` o `lista`, storico `tutto` | Mese corrente e modalità `mese` |
+| `co` | Numero della scheda aperta | Nessuno |
 
-Valori non validi tornano ai predefiniti, senza errore. Filtri, periodo, sezione e ricerca lavorano nel browser e aggiornano l'indirizzo. Le query generate scrivono sempre `vista`, anche per Da seguire: il periodo conservato nell'URL non cambia la vista al ricaricamento. Ultimo periodo e ultima sezione, soltanto questi, restano in `localStorage` (`luckylap.partner.vista.v1`) quando l'indirizzo non li indica. Un link `#lead-12` senza `co` apre il contatto 12. Il link canonico è `partnerHref({ co })` di `src/lib/partner/links.ts`: `/partner?co=12#lead-12`. Un link diretto rimuove i filtri che nasconderebbero la scheda; se la scheda non appartiene a Risposte o Da seguire passa a Tutti i contatti.
+`parsePartnerDatabaseView` legge lo stato dall’indirizzo e `partnerDatabaseHref` lo riscrive quando cambia. La navigazione del browser ripristina il contesto. Il vecchio `vista=ci_siamo` apre Elenco con fase Accordo fatto. `vista=da_seguire`, `vista=risposte` e il precedente `stato` vengono letti come filtri compatibili. Il collegamento `/partner?co=12#lead-12` continua ad aprire la scheda. Funziona anche la sola ancora `#lead-12` usata dai link storici, e l’apertura della scheda conserva i filtri dell’indirizzo.
 
 ## Accordo fatto e calendario
 
@@ -123,7 +144,7 @@ Decisione di Tommi del 23 ottobre 2026: nel calendario del team e nell'agenda di
 - **Pulizia in produzione**: alla fine la migrazione ripassa ogni scheda con un collegamento `dates`. Gli appuntamenti automatici delle schede senza accordo, non toccati e senza vendite, si cancellano: il 23 ottobre 2026 erano 54, creati dal backfill di `20261023091627_partner_work_links`. Nel Controllo CEO risultano eliminati da «Il sistema».
 - Cambi di stato: «Accordo fatto» con date future crea l'appuntamento; togliere l'accordo lo cancella, salvo vendite o modifiche del team (allora «Scelta richiesta»). Un accordo su un evento già passato non crea niente.
 - «Collega l'evento» in `/team/partner` è attivo solo con «Accordo fatto»; il comando rifiuta le altre schede con `partner_work_not_agreed` («Prima segna l’accordo fatto nella scheda Partner: in calendario vanno solo gli eventi a cui partecipiamo.») e le schede senza date con `partner_work_date_required` («Mancano le date dell’evento: aggiungile nella scheda Partner.»). Dal 23 ottobre 2026 (`20261023140414_partner_oggi_fixes`) crea l'appuntamento anche se l'evento è già passato, così le vendite si possono collegare; la sincronizzazione automatica continua a saltare le date passate senza appuntamento. «Usa date Partner» su una scheda senza accordo toglie l'appuntamento, o si ferma con `partner_work_event_has_sales` se ha vendite.
-- **«Accordi fatti»** (`/partner?vista=ci_siamo`, URL storico conservato): gli accordi fatti di ogni periodo, nella sezione scelta; valgono «Seguito da» e ricerca, mentre lo stato scelto non restringe l'elenco. Prima gli eventi non ancora finiti, per data d'inizio, poi gli altri per CO. Cambiare sezione mantiene la vista Accordi fatti. Sulla riga di un accordo con date in arrivo l'etichetta verde «Nel calendario del team».
+- **Accordi fatti**. In Elenco o Pipeline scegli «Accordo fatto» in Fase. L’URL storico `/partner?vista=ci_siamo` apre Elenco con questo filtro. Da In breve puoi aprire la scheda corrispondente in Partner nel Team.
 - Verifiche: `supabase/tests/partner-dates-agreed.mjs` (PGlite, 76 controlli: stato di produzione con la regola vecchia, pulizia, cambi di stato, comandi, firme e permessi); `finance-ecosystem-integration.mjs` segna «Accordo fatto» prima di collegare la vendita all'evento. `partner-work-links.mjs` applica anche questa migrazione e `20261023140414_partner_oggi_fixes`; `partner-work-concurrency.mjs` prova ancora la sola migrazione P5.
 
 ## Sezione Club
@@ -131,7 +152,7 @@ Decisione di Tommi del 23 ottobre 2026: nel calendario del team e nell'agenda di
 Decisione di Tommi del 30 ottobre 2026: una sezione per i club di appassionati, a cui proporre magliette co-firmate con il logo del club ricamato. Nell'esempio operativo si citano soltanto le collaborazioni con Porsche Club in Italia, senza nomi dei singoli club né quantità delle commesse precedenti.
 
 - **Chi c'è.** Porsche Club, registri e community Porsche fuori dall'Italia (in Italia Tommi ha già i contatti); club Ferrari e Mercedes-Benz in Italia e all'estero. Anche i cinque club della ricerca del 21 ottobre (Ferrari Owners' Club GB, TIPEC, Gull Wing Group, Porsche Club GB, Porsche Club Deutschland) stanno in Club, oltre che nelle loro sezioni.
-- **Interfaccia.** Pulsante «Club» dopo Collab, con il conteggio; `/partner?sezione=club`; «· N Club» nella riga dei totali; casella «Club» nella scheda modificabile; nota del periodo e titoletto «Al club» in «Cosa proporre». La guida, parte Partner, lo dice al team.
+- **Interfaccia.** Pulsante «Club» con il conteggio accanto alle altre sezioni, disponibile in tutte le viste. L’indirizzo `/partner?sezione=club` apre l’Elenco filtrato. La casella «Club» si modifica in «Dati e tag» nella scheda.
 - **Database.** Migrazione additiva `supabase/migrations/20261031180505_partner_sezione_club.sql`: il vincolo `partners_sections_check` ammette `club` e fino a quattro sezioni distinte; `private.partner_sections` (comandi del team e import della ricerca) le rimette nell'ordine canonico vendita, eventi, collab, club. Stessa firma e stessi permessi: nessun ruolo client la esegue. I contatti esistenti non cambiano. In produzione dal 31 ottobre 2026, dopo il merge della pull request #27 (esiti in [verification.md](verification.md), «Sezione Club, 31 ottobre 2026»).
 - **Ricerca.** Nel repository Partner, `research/2026-10-30_club.json`, letto da `tools/build_data.py` (`add_clubs`). Entrano i verdetti «includi» e «borderline» (questi con priorità Riserva e il motivo nelle note); gli «escludi» restano solo nel file, con il motivo: fornitore o partner di abbigliamento dichiarato, merchandising obbligatorio della casa, club inattivo, nessun recapito. Un'email entra solo se la verifica l'ha trovata scritta su una fonte ufficiale del club. Un club già nel piano (stesso sito o stesso nome) prende la sezione Club senza diventare un contatto nuovo. L'import segue «In produzione, passo per passo»: fatto il 31 ottobre 2026 con 647 club (esiti in «Import dei club, 31 ottobre 2026»).
 - **Assistente.** Per un club l'assistente sceglie già la proposta `merch_cobranding` («magliette co-firmate, con il loro logo ricamato accanto alle nostre auto, come nelle collaborazioni con Porsche Club in Italia») e con i Porsche Club usa solo 964 e GT3 RS. Ogni club importato con un'email entra nella sua coda come gli altri contatti «Da contattare»: va deciso prima dell'import se lasciarli all'assistente, con la spesa e i limiti d'invio di [partner-assistente.md](partner-assistente.md).
@@ -359,6 +380,8 @@ Il sito Partner su GitHub Pages mostrava contatti, recapiti e messaggi a chiunqu
 
 ## Test
 
+Le verifiche della nuova interfaccia coprono la proiezione di fasi, esiti e assegnazioni, i filtri e i collegamenti precedenti, l’origine delle voci del calendario e i calcoli di Andamento. I test della guida verificano i nomi delle viste, il Programma email e i comandi della scheda. L’anteprima locale usa contatti sintetici e scritture disattivate.
+
 - **Vitest** (`npm test`): 168 test in 14 file; la suite passa da 948 a 1116.
   - `src/lib/partner/`: `periods` (11), `filters` (15), `model` (15), `contacts` (16), `device-file` (23), `lookbook` (7), `commands` (21), `pending` (6), `read` (8, anteprima compresa), `rules` (3), `server` (18).
   - `src/app/(workspace)/partner/`: `actions.test.ts` (6), `lookbook/[code]/route.test.ts` (5).
@@ -385,15 +408,19 @@ Correzioni di 00-sequenza §5 e scelte di questa tappa:
 - Minimo dell'harness 343, il numero reale dei controlli (regola del runner), al posto di 155 (02-13); senza il gruppo Storage.
 - Barra dei periodi con `--ws-sticky-top` (02-6); casella CO in `src/components/partner/` (02-7); titoli «Partner», «Dati Partner», «Regole per scrivere» (02-5); riga del piede letta dal database (02-12).
 
+## Lettura dell’elenco
+
+Nel confronto con le sei schede sintetiche del test server, lo snapshot della lista passa da 13 a 12 letture e da 15.383 a 13.228 byte di JSON. La misura esclude dettaglio, stato generale dell’assistente e previsioni. I corpi delle risposte e l’indice delle varianti sono letti nella scheda. Il Programma email calcola le stime sulla coda intera e le consegna alla pagina quando sono pronte.
+
 ## Oggi, solleciti ed esiti
 
 Correzioni del 23 ottobre 2026 ai collegamenti di P5 ([verifiche](verification.md), «Problemi noti dopo P4-P6», punti 5, 6, 7, 8 e 11). Migrazione additiva `supabase/migrations/20261023140414_partner_oggi_fixes.sql`.
 
-- **Contatti da fare in Oggi** (`private.partner_today`, decisione 33): la regola di «Adesso». Mese pianificato (mese della prossima azione, altrimenti mese di contatto) entro il mese prossimo e stato «Da contattare», più i contatti non chiusi e non «Non interessato» con la prossima azione di oggi o già passata. Fuori i contatti da non contattare e quelli tolti dalla ricerca. La stessa regola in TypeScript è `partnerDueToday` (`src/lib/partner/periods.ts`, con `partnerPeriod`). I contatti sintetici di `supabase/tests/fixtures/partner-today/adesso.json` danno 7 sia in `read_partner_today` (harness `partner-oggi-fixes.mjs`) sia in `partnerDueToday` (`periods.test.ts`); con la regola di prima erano 5. Tutti e 7 sono nella vista «Tutti i contatti», periodo «Adesso», che con lo stato «Da fare» ne mostra 11: comprende anche i contatti già sentiti che aspettano una risposta (hanno il loro sollecito) e quelli da non contattare.
+- **Contatti da fare in Oggi** (`private.partner_today`, decisione 33): la regola di «Adesso». Mese pianificato (mese della prossima azione, altrimenti mese di contatto) entro il mese prossimo e stato «Da contattare», più i contatti non chiusi e non «Non interessato» con la prossima azione di oggi o già passata. Fuori i contatti da non contattare e quelli tolti dalla ricerca. La stessa regola in TypeScript è `partnerDueToday` (`src/lib/partner/periods.ts`, con `partnerPeriod`). I contatti sintetici di `supabase/tests/fixtures/partner-today/adesso.json` danno 7 sia in `read_partner_today` (harness `partner-oggi-fixes.mjs`) sia in `partnerDueToday` (`periods.test.ts`). Il confronto precedente con 11 contatti si riferiva alla vista «Tutti i contatti» della Tappa 1 con periodo «Adesso» e stato «Da fare».
 - **Solleciti in Oggi**: solo in «Contatti e solleciti», non più anche in «Agenda» (decisione 9, 05-11). L'agenda legge `partner_work_links` (`kind = 'follow_up'`) per le sue attività e toglie i solleciti (`src/lib/today/server.ts`). Ogni sollecito ha «Ha risposto» (`src/components/today/today-reply-button.tsx`): chiama `recordPartnerActivity` con `kind = 'risposta'`, il trigger chiude il sollecito, poi «Risposta registrata. Sollecito chiuso.». Esito incerto: «Verifica lo stesso invio», con lo stesso `operation_id` in `sessionStorage` (chiave `luckylap.partner.pending:<utente>:oggi-risposta-…`, che `/partner` ritrova). I comandi Partner che aprono o chiudono solleciti rileggono anche `/` e `/team`.
 - **Prime email dell'assistente** (consegna 2a, migrazione `_assistente_partner_invio.sql`, [partner-assistente.md](partner-assistente.md)): quando l'assistente manda una prima email vera, la scheda passa a «Scritto» (chiave `contattato`) e il registro ha una riga `inviato` con origine `assistente`, canale email, autore il profilo dell'assistente. Il trigger dei solleciti accetta anche questa origine: nasce «Sollecito · <nome>» a 7 giorni, come dopo «Segna inviato», assegnato a Tommi (`handoff_to` della configurazione dell'assistente), con l'assistente come autore del compito e del collegamento. Il sollecito lo manda Tommi: lo trova nella sua Oggi, in «Contatti e solleciti», lo scrive partendo dalla «Bozza dell'email» mandata (finché non lo farà l'assistente, consegna 2b) e lo segna con «Segna sollecito inviato» nel Registro. Per «invio o risposta più recente» l'origine `assistente` conta come `team`; le regole di chiusura non cambiano. «Segna inviato» chiede conferma anche dopo un invio dell'assistente degli ultimi 10 minuti, con «dall'assistente» al posto del nome. Le prove dell'assistente non toccano la scheda né il registro.
 - **Data nella conferma**: dopo «Segna inviato» e «Segna sollecito inviato» il server rilegge il sollecito nato da quell'attività (`src/lib/partner/follow-up.ts`) e aggiunge «Sollecito per te giovedì 29 ottobre.». Senza sollecito (contatto chiuso o da non contattare) o con la lettura non riuscita, la conferma resta quella, senza data.
-- **«Esito»** (`src/components/partner/partner-outcome-panel.tsx`): con «Accordo fatto» la scheda mostra «Accordo fatto. Portalo nel lavoro del team…» e «Apri in Partner nel Team», che porta a `/team/partner?co=N` con il contatto già scelto (`partnerTeamWorkHref` in `src/lib/partner/links.ts`). Lì si crea il lavoro: evento in calendario, progetto per Produzione, attività di apertura del conto vendita.
+- **Accordo fatto e lavoro del team**. «Apri in Partner nel Team» nella scheda In breve porta a `/team/partner?co=N` con il contatto già scelto (`partnerTeamWorkHref` in `src/lib/partner/links.ts`). Da lì si crea un evento in calendario, un progetto per Produzione o un’attività per aprire un conto vendita.
 - **«Collega l'evento» con date passate**: vedi «Accordo fatto e calendario».
 
 ## Collegamenti con le altre tappe

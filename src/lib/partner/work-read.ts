@@ -1,5 +1,9 @@
 // Proiezioni operative lette sotto RLS: i testi restano limitati alle risposte registrate.
-import { PARTNER_ASSISTANT_JOB_STATUSES, PARTNER_ASSISTANT_STEPS } from "./assistant";
+import {
+  PARTNER_ASSISTANT_FORMAT_LABELS,
+  PARTNER_ASSISTANT_JOB_STATUSES,
+  PARTNER_ASSISTANT_STEPS,
+} from "./assistant";
 import { isCalendarDay } from "./dates";
 import {
   PartnerReadError,
@@ -13,6 +17,7 @@ import type { PartnerWorkActivity, PartnerWorkData, PartnerWorkReply } from "./w
 export type PartnerWorkRows = {
   assistantStatus: PartnerWorkData["assistantStatus"];
   jobs: readonly unknown[];
+  choices?: readonly unknown[];
   toggles: readonly unknown[];
   activities: readonly unknown[];
   replies: readonly unknown[];
@@ -48,6 +53,7 @@ const text = (value: unknown, max: number): string => {
 export function partnerWorkFromRows(
   rows: PartnerWorkRows,
   partnerIds: readonly string[],
+  options: { withoutReplyBodies?: boolean } = {},
 ): PartnerWorkData {
   const known = new Set(partnerIds);
   const own = (value: unknown): string => {
@@ -60,6 +66,12 @@ export function partnerWorkFromRows(
     ensure(isPartnerActivityKind(r.kind));
     ensure(r.origin === "team" || r.origin === "file" || r.origin === "assistente");
     ensure(r.channel === null || isPartnerActivityChannel(r.channel));
+    const messageKind = r.message_kind;
+    ensure(
+      messageKind === undefined ||
+        messageKind === null ||
+        (r.kind === "inviato" && (messageKind === "primo" || messageKind === "sollecito")),
+    );
     return {
       id: id(r.id),
       partnerId: own(r.partner_id),
@@ -68,27 +80,34 @@ export function partnerWorkFromRows(
       channel: r.channel,
       occurredAt: instant(r.occurred_at),
       createdBy: id(r.created_by),
+      ...(messageKind === undefined ? {} : { messageKind }),
     };
   };
   const activities = unique(rows.activities.map(activity), (a) => a.id);
   const byActivity = new Map(activities.map((a) => [a.id, a]));
-  const replies = unique(
-    rows.replies.map((value): PartnerWorkReply => {
-      const r = row(value);
-      const parsed = activity(value);
-      ensure(parsed.kind === "risposta");
-      const summary = byActivity.get(parsed.id);
-      ensure(
-        summary &&
-          Object.entries(parsed).every(
-            ([key, value]) => summary[key as keyof PartnerWorkActivity] === value,
-          ),
+  const replyActivities = activities.filter((activity) => activity.kind === "risposta");
+  const replies: PartnerWorkReply[] = options.withoutReplyBodies
+    ? []
+    : unique(
+        rows.replies.map((value): PartnerWorkReply => {
+          const r = row(value);
+          const parsed = activity(value);
+          ensure(parsed.kind === "risposta");
+          const summary = byActivity.get(parsed.id);
+          ensure(
+            summary &&
+              Object.entries(parsed).every(
+                ([key, value]) => summary[key as keyof PartnerWorkActivity] === value,
+              ),
+          );
+          return { ...parsed, kind: "risposta", body: text(r.body, 4000) };
+        }),
+        (a) => a.id,
       );
-      return { ...parsed, kind: "risposta", body: text(r.body, 4000) };
-    }),
-    (a) => a.id,
-  ).sort((a, b) => Date.parse(b.occurredAt) - Date.parse(a.occurredAt) || b.id.localeCompare(a.id));
-  ensure(activities.filter((a) => a.kind === "risposta").length === replies.length);
+  replies.sort(
+    (a, b) => Date.parse(b.occurredAt) - Date.parse(a.occurredAt) || b.id.localeCompare(a.id),
+  );
+  if (!options.withoutReplyBodies) ensure(replyActivities.length === replies.length);
   const tasks = unique(
     rows.tasks.map((value) => {
       const r = row(value);
@@ -117,11 +136,13 @@ export function partnerWorkFromRows(
     links.filter((a) => a.taskId !== null),
     (a) => a.taskId,
   );
-  ensure(tasks.every((task) => links.some((link) => link.taskId === task.id)));
+  const linkedTaskIds = new Set(links.map((link) => link.taskId));
+  ensure(tasks.every((task) => linkedTaskIds.has(task.id)));
+  const tasksById = new Map(tasks.map((task) => [task.id, task]));
   const followUps: PartnerWorkData["followUps"] = [];
   for (const link of links) {
     if (link.taskId === null) continue;
-    const task = tasks.find((t) => t.id === link.taskId);
+    const task = tasksById.get(link.taskId);
     ensure(task);
     if (task.status !== "done")
       followUps.push({
@@ -136,12 +157,22 @@ export function partnerWorkFromRows(
   let toggles: PartnerWorkData["toggles"] = [];
   if (assistantStatus === "ready") {
     try {
+      const choices = new Map(
+        (rows.choices ?? []).map((value) => {
+          const choice = row(value);
+          return [choice.id, choice] as const;
+        }),
+      );
       jobs = unique(
         rows.jobs.map((value) => {
           const r = row(value);
           ensure(PARTNER_ASSISTANT_JOB_STATUSES.includes(r.status as never));
           ensure(PARTNER_ASSISTANT_STEPS.includes(r.step as never));
           ensure(r.write_on === null || isCalendarDay(r.write_on));
+          const choice = choices.get(r.choice_note_id);
+          const ownsChoice = choice?.partner_id === r.partner_id;
+          const format = ownsChoice ? choice?.format : null;
+          const subtype = ownsChoice ? choice?.subtype : null;
           return {
             partnerId: own(r.partner_id),
             status: r.status as PartnerWorkData["jobs"][number]["status"],
@@ -150,6 +181,19 @@ export function partnerWorkFromRows(
             writeOn: r.write_on as string | null,
             updatedAt: instant(r.updated_at),
             draftId: nullableId(r.draft_id),
+            ...(rows.choices
+              ? {
+                  format:
+                    typeof format === "string" &&
+                    (format === "club" || Object.hasOwn(PARTNER_ASSISTANT_FORMAT_LABELS, format))
+                      ? format
+                      : null,
+                  subtype:
+                    typeof subtype === "string" && /^[a-z][a-z0-9_]{0,79}$/.test(subtype)
+                      ? subtype
+                      : null,
+                }
+              : {}),
           };
         }),
         (a) => a.partnerId,

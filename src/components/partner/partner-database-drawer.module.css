@@ -1,0 +1,189 @@
+.dialog {
+  position: fixed;
+  inset: 0 0 0 auto;
+  width: min(640px, 100vw);
+  max-width: 100vw;
+  height: 100dvh;
+  max-height: 100dvh;
+  margin: 0;
+  padding: 0;
+  overflow: auto;
+  overscroll-behavior: contain;
+  border: 0;
+  border-left: 1px solid var(--rule);
+  background: var(--paper);
+  color: var(--ink);
+}
+.dialog::backdrop {
+  background: rgb(20 25 19 / 48%);
+}
+.sheet {
+  min-height: 100%;
+  min-width: 0;
+}
+.header {
+  position: sticky;
+  top: 0;
+  z-index: 1;
+  padding: 20px 24px 0;
+  border-bottom: 1px solid var(--rule);
+  background: var(--paper);
+}
+.titleRow {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+}
+.titleRow > div {
+  min-width: 0;
+}
+.titleRow h2 {
+  margin: 4px 0;
+  font-family: var(--f-cond);
+  font-size: var(--text-title);
+  line-height: 1.05;
+  overflow-wrap: anywhere;
+}
+.kicker,
+.meta {
+  margin: 0;
+  color: var(--ink-2);
+  font-size: var(--text-sm);
+  overflow-wrap: anywhere;
+}
+.close {
+  display: grid;
+  place-items: center;
+  flex: 0 0 var(--tap);
+  width: var(--tap);
+  min-height: var(--tap);
+  border: 1px solid var(--rule);
+  color: var(--ink);
+}
+.stages {
+  display: grid;
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+  gap: 3px;
+  margin: 12px 0 8px;
+  padding: 0;
+  list-style: none;
+}
+.stages li {
+  min-width: 0;
+  border-top: 3px solid var(--rule);
+  padding: 5px 3px 0;
+  color: var(--ink-2);
+  font: 600 14px/1.1 var(--f-cond);
+  overflow-wrap: anywhere;
+}
+.stages li[aria-current="step"] {
+  border-color: var(--green);
+  color: var(--green-dark);
+  background: var(--green-wash);
+}
+.phase {
+  width: fit-content;
+  margin: 12px 0 8px;
+  padding: 3px 8px;
+  background: var(--green-wash);
+  color: var(--green-dark);
+  font-size: var(--text-sm);
+  font-weight: 600;
+}
+.phase[data-blocked] {
+  background: var(--amber-wash);
+  color: var(--ink);
+}
+.tabs {
+  display: flex;
+  gap: 16px;
+  overflow-x: auto;
+  scrollbar-width: thin;
+  overscroll-behavior-inline: contain;
+}
+.tabs button {
+  min-height: var(--tap);
+  padding: 0 3px;
+  border-bottom: 3px solid transparent;
+  color: var(--ink-2);
+  white-space: nowrap;
+}
+.tabs button[aria-selected="true"] {
+  border-bottom-color: var(--green);
+  color: var(--ink);
+  font-weight: 600;
+}
+.body {
+  padding: 20px 24px 32px;
+  overflow-wrap: anywhere;
+}
+.body dl dt {
+  font-weight: 600;
+}
+.body dl dd {
+  margin-inline-start: 0;
+}
+.body dl dd + dt {
+  margin-top: 12px;
+}
+.quick {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+.quick > * {
+  white-space: normal;
+}
+.moreActions {
+  margin-block: 8px 12px;
+}
+.moreActions > summary {
+  min-height: var(--tap);
+  align-content: center;
+  color: var(--green);
+  cursor: pointer;
+  font-weight: 600;
+}
+.moreActions .quick {
+  margin-block: 8px;
+}
+.brief {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(140px, 100%), 1fr));
+  gap: 12px;
+  margin: 12px 0;
+}
+.brief > div {
+  padding: 12px;
+  border: 1px solid var(--rule);
+}
+.brief dd {
+  margin: 4px 0 0;
+}
+.warning {
+  margin-block: 0 12px;
+  padding: 12px;
+  border-inline-start: 3px solid var(--amber);
+  background: var(--amber-wash);
+}
+.warning p {
+  margin: 0 0 8px;
+}
+.recent {
+  padding-left: 20px;
+}
+@media (max-width: 600px) {
+  .dialog {
+    border: 0;
+  }
+  .header {
+    padding: 14px 16px 0;
+  }
+  .body {
+    padding: 16px 16px max(24px, env(safe-area-inset-bottom));
+  }
+  .titleRow h2 {
+    font-size: var(--text-xl);
+  }
+}

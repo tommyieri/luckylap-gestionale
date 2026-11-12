@@ -185,6 +185,40 @@ function tables(extra: Partial<Record<string, Row[]>> = {}): Record<string, Row[
 }
 
 describe("lettura della lista", () => {
+  it("la lettura compatta conserva i tipi di invio e le risposte senza leggere i testi", async () => {
+    const data = tables();
+    data.memberships = data.memberships.map((row) => ({
+      ...row,
+      role: row.user_id === MEMBER ? "founder" : "member",
+    }));
+    const job = data.partner_assistant_jobs.find((row) => row.choice_note_id)!;
+    const note = data.partner_assistant_notes.find((row) => row.id === job.choice_note_id)!;
+    note.content = { ...(note.content as Row), formato: "brand", sottotipo: "accessori_auto" };
+    const fake = fakeSupabase(data);
+    const workspace = await loadPartnerWorkspace(fake.client, { compact: true });
+    expect(workspace.defaultOwnerId).toBe(MEMBER);
+    expect(workspace.work?.replies).toEqual([]);
+    expect(workspace.work?.activities.filter((row) => row.kind === "risposta")).toHaveLength(
+      data.partner_activities.filter((row) => row.kind === "risposta").length,
+    );
+    expect(workspace.variants).toEqual([]);
+    expect(fake.calls.some((call) => call.table === "partner_message_variants")).toBe(false);
+    expect(workspace.work?.activities.find((row) => row.kind === "inviato")?.messageKind).toBe(
+      "primo",
+    );
+    expect(workspace.work?.jobs.find((row) => row.partnerId === job.partner_id)).toMatchObject({
+      format: "brand",
+      subtype: "accessori_auto",
+    });
+    const activities = fake.calls.filter((call) => call.table === "partner_activities");
+    expect(activities).toHaveLength(1);
+    expect(activities[0].columns).not.toContain("body");
+    expect(
+      fake.calls
+        .filter((call) => call.table === "partner_assistant_notes")
+        .every((call) => !call.columns.split(",").includes("content")),
+    ).toBe(true);
+  });
   it("legge attività senza testi, risposte registrate con testo e solleciti realmente aperti", async () => {
     const data = tables();
     const p = data.partners[0];
@@ -444,6 +478,33 @@ describe("dettaglio di un contatto", () => {
     await expect(
       loadPartnerDetail(fakeSupabase(tables(), { truncate: "partner_activities" }).client, 1),
     ).rejects.toThrow(PartnerUnavailableError);
+  });
+
+  it("legge l’ultima risposta anche quando è fuori dalle attività del dettaglio", async () => {
+    const data = tables();
+    const reply = data.partner_activities.find((row) => row.kind === "risposta")!;
+    data.partner_activities = [
+      { ...reply, occurred_at: "2026-10-20T11:00:00Z" },
+      ...Array.from({ length: PARTNER_DETAIL_ACTIVITY_LIMIT }, (_, index) => ({
+        ...reply,
+        id: partnerFixtureId(8510 + index),
+        operation_id: partnerFixtureId(9010 + index),
+        kind: "nota",
+        origin: "team",
+        occurred_at: "2026-10-22T11:00:00Z",
+        message_kind: null,
+      })),
+    ];
+    const fake = fakeSupabase(data);
+    const detail = await loadPartnerDetail(fake.client, Number(reply.partner_co), {
+      latestReply: true,
+    });
+    expect(detail?.activities).toHaveLength(PARTNER_DETAIL_ACTIVITY_LIMIT);
+    expect(detail?.activities.every((row) => row.kind !== "risposta")).toBe(true);
+    expect(detail?.latestReply).toMatchObject({ id: reply.id, body: reply.body });
+    expect(
+      fake.calls.filter((call) => call.table === "partner_activities").at(-1)?.ops,
+    ).toContainEqual(["eq", "kind", "risposta"]);
   });
 });
 

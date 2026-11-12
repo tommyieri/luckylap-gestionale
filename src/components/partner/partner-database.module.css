@@ -1,0 +1,656 @@
+.workspace {
+  min-width: 0;
+  color: var(--ink);
+}
+.heading,
+.headingActions,
+.viewHeading,
+.filterFooter,
+.showMore {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 8px 16px;
+}
+.heading,
+.viewHeading,
+.showMore {
+  justify-content: space-between;
+}
+.heading h1,
+.viewHeading h2,
+.viewHeading p {
+  margin: 0;
+}
+.heading {
+  margin-bottom: 20px;
+}
+.headingActions > * {
+  gap: 8px;
+}
+.kpis {
+  display: grid;
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+  background: var(--paper);
+  border-block: 1px solid var(--rule);
+}
+.kpis > div {
+  display: flex;
+  flex-direction: column;
+  align-items: start;
+  gap: 5px;
+  padding: 12px 16px;
+  min-width: 0;
+}
+.kpis > div + div {
+  border-inline-start: 1px solid var(--rule-soft);
+}
+.kpis span {
+  font-size: var(--text-sm);
+  font-weight: 600;
+  overflow-wrap: anywhere;
+}
+.kpis strong {
+  font: 600 38px/1 var(--f-cond);
+  font-variant-numeric: tabular-nums;
+  color: var(--green-dark);
+}
+.kpis small,
+.viewHeading p,
+.showMore span,
+.step small,
+.listRow p,
+.cardOwner,
+.boardEmpty,
+.mapLegend,
+.footer p {
+  color: var(--muted);
+  font-size: var(--text-sm);
+}
+.views {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0 22px;
+  border-bottom: 1px solid var(--rule);
+  margin: 16px 0 16px;
+}
+.views a {
+  display: inline-flex;
+  align-items: center;
+  min-height: 48px;
+  border-bottom: 3px solid transparent;
+  color: var(--ink-2);
+  text-decoration: none;
+  font: 600 19px/1 var(--f-cond);
+}
+.views a[aria-current="page"] {
+  color: var(--green-dark);
+  border-color: var(--green);
+}
+.filters {
+  background: var(--tint);
+  border: 1px solid var(--rule-soft);
+  padding: 12px;
+  margin-bottom: 20px;
+}
+.sections,
+.mapTools,
+.footer nav {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 7px;
+}
+.sections button,
+.mapTools button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: var(--tap);
+  min-width: var(--tap);
+  padding: 8px 12px;
+  border: 1px solid var(--rule);
+  border-radius: 2px;
+  background: var(--paper);
+  color: var(--ink);
+  gap: 6px;
+  font-size: var(--text-sm);
+  font-weight: 600;
+}
+.sections button[aria-pressed="true"],
+.mapTools button[aria-pressed="true"] {
+  background: var(--green);
+  color: var(--on-green);
+  border-color: var(--green);
+}
+.sections button span {
+  font-family: var(--f-cond);
+  font-variant-numeric: tabular-nums;
+}
+.filterGrid,
+.extraFilters {
+  display: grid;
+  grid-template-columns: minmax(180px, 1.3fr) repeat(3, minmax(0, 1fr));
+  gap: 10px;
+  align-items: end;
+  margin: 12px 0 0;
+}
+.field {
+  display: grid;
+  gap: 4px;
+  font-size: var(--text-sm);
+  font-weight: 600;
+  min-width: 0;
+}
+.field select,
+.search {
+  border: 1px solid var(--rule);
+  background: var(--paper);
+  border-radius: 2px;
+  width: 100%;
+  min-height: var(--tap);
+  color: var(--ink);
+  font: 400 16px/1.35 var(--f-body);
+}
+.field select {
+  padding: 8px 10px;
+}
+.search {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding-inline: 10px;
+  min-width: 0;
+}
+.search input {
+  flex: 1 1 0;
+  width: 0;
+  min-width: 0;
+  border: 0;
+  background: transparent;
+  font: 400 16px/1.35 var(--f-body);
+  color: inherit;
+  min-height: var(--tap);
+}
+.search:focus-within {
+  outline: 2px solid var(--green);
+  outline-offset: 2px;
+}
+.search input:focus-visible {
+  outline: none;
+}
+.search button {
+  display: grid;
+  place-items: center;
+  min-width: var(--tap);
+  min-height: var(--tap);
+  margin-inline-end: -8px;
+}
+.moreFilters summary {
+  min-height: var(--tap);
+  padding-block: 10px;
+  cursor: pointer;
+  font-weight: 600;
+  color: var(--green-dark);
+}
+.extraFilters {
+  margin: 0 0 8px;
+}
+.filterFooter {
+  align-items: start;
+}
+.filterFooter > details[open] {
+  flex-basis: 100%;
+}
+.filterFooter > button {
+  min-height: var(--tap);
+}
+.notice {
+  margin: 12px 0;
+  padding: 12px 16px;
+  background: var(--tint);
+  border-inline-start: 3px solid var(--green);
+}
+.notice[role="alert"] {
+  background: var(--amber-wash);
+  border-color: var(--amber);
+}
+.content {
+  min-width: 0;
+}
+.viewHeading {
+  margin: 0 0 12px;
+}
+.viewHeading > .field {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.viewHeading > .field select {
+  width: auto;
+}
+.viewHeading h2,
+.mapAside h3 {
+  font-family: var(--f-cond);
+  font-weight: 600;
+}
+.list {
+  border-block: 1px solid var(--rule);
+}
+.list > ul,
+.boardCards,
+.mapAside ol,
+.mapAside ul {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+}
+.listHead,
+.listRow {
+  display: grid;
+  grid-template-columns:
+    minmax(155px, 1.35fr) minmax(95px, 0.65fr) minmax(150px, 1.05fr) minmax(110px, 0.85fr)
+    minmax(142px, 0.95fr);
+  align-items: start;
+  gap: 10px 14px;
+}
+.listHead {
+  padding: 10px 12px;
+  background: var(--tint);
+  color: var(--ink-2);
+  font-size: var(--text-sm);
+  font-weight: 600;
+}
+.listRow {
+  padding: 10px 12px;
+  border-top: 1px solid var(--rule-soft);
+  scroll-margin-top: 64px;
+}
+.listRow > *,
+.contactCell button > span,
+.step {
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+.listRow:hover {
+  background: var(--tint);
+}
+.contactCell button,
+.boardCards button {
+  display: flex;
+  width: 100%;
+  justify-content: space-between;
+  align-items: center;
+  gap: 5px;
+  min-height: var(--tap);
+  text-align: left;
+}
+.contactCell small,
+.boardCards button small {
+  display: block;
+  color: var(--green-dark);
+  font: 600 13px/1.2 var(--f-cond);
+  font-variant-numeric: tabular-nums;
+}
+.contactCell strong {
+  display: block;
+  font: 600 19px/1.15 var(--f-cond);
+}
+.contactCell p {
+  margin: 3px 0 6px;
+}
+.contactCell svg {
+  flex: 0 0 16px;
+  color: var(--green);
+}
+.sectionTags {
+  display: flex;
+  gap: 4px;
+  flex-wrap: wrap;
+}
+.sectionTags span,
+.phase {
+  border-radius: 2px;
+  background: var(--green-wash);
+  color: var(--green-dark);
+}
+.sectionTags span {
+  font-size: var(--text-xs);
+  padding: 2px 6px;
+}
+.phase,
+.step {
+  display: grid;
+  gap: 3px;
+  width: fit-content;
+  font-size: var(--text-sm);
+}
+.phase {
+  padding: 5px 8px;
+}
+.phase[data-phase="bloccato"] {
+  background: var(--amber-wash);
+  color: var(--amber);
+}
+.phase[data-phase="chiuso"] {
+  background: var(--tint);
+  color: var(--ink-2);
+}
+.phase small {
+  line-height: 1.3;
+}
+.step strong {
+  font-weight: 600;
+}
+.step .rowWarning {
+  color: var(--amber);
+}
+.proposalCell {
+  font-size: var(--text-sm);
+}
+.mobileLabel {
+  display: none;
+}
+.showMore {
+  border-top: 1px solid var(--rule);
+  padding: 10px 12px;
+}
+.empty {
+  padding: 28px 16px;
+  border-block: 1px solid var(--rule);
+  text-align: center;
+}
+.empty h2 {
+  font: 600 24px/1.1 var(--f-cond);
+  margin: 0 0 12px;
+}
+.board {
+  display: grid;
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+  gap: 10px;
+  align-items: start;
+}
+.column {
+  min-width: 0;
+  border: 1px solid var(--rule);
+  border-top: 3px solid var(--green);
+  background: var(--tint);
+  padding: 0 8px 8px;
+}
+.column[data-drop] {
+  outline: 2px solid var(--green);
+  outline-offset: 2px;
+}
+.column > summary,
+.columnGroup > summary {
+  min-height: var(--tap);
+  padding: 10px 0;
+  cursor: pointer;
+  overflow-wrap: anywhere;
+}
+.column > summary {
+  font: 600 19px/1.1 var(--f-cond);
+}
+.columnGroup > summary {
+  font-size: var(--text-sm);
+  font-weight: 600;
+}
+.column summary span {
+  color: var(--muted);
+  margin-inline-start: 4px;
+}
+.columnGroup {
+  border-top: 1px solid var(--rule-soft);
+}
+.boardCards {
+  display: grid;
+  gap: 7px;
+}
+.boardCards > li {
+  background: var(--paper);
+  border: 1px solid var(--rule-soft);
+  padding: 8px;
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+.boardCards > li[draggable="true"] {
+  cursor: grab;
+}
+.boardCards button {
+  display: grid;
+  gap: 2px;
+}
+.boardCards button strong {
+  font-size: var(--text-md);
+}
+.cardOwner {
+  display: block;
+  margin-top: 8px;
+}
+.boardMore {
+  text-decoration: underline;
+  color: var(--green-dark);
+  font-size: var(--text-sm);
+  min-height: var(--tap);
+}
+.boardEmpty {
+  padding: 6px 0;
+  margin: 0;
+}
+.mapLayout {
+  display: grid;
+  grid-template-columns: minmax(0, 3fr) minmax(170px, 1fr);
+  gap: 16px;
+}
+.mapMain {
+  min-width: 0;
+}
+.mapTools {
+  margin-bottom: 8px;
+}
+.mapGraphic {
+  display: block;
+  width: 100%;
+  aspect-ratio: 1000 / 520;
+  background: var(--tint);
+  border: 1px solid var(--rule);
+  touch-action: pan-y;
+  user-select: none;
+  cursor: grab;
+}
+.mapGraphic:active {
+  cursor: grabbing;
+}
+.mapGraphic path {
+  stroke: var(--paper);
+  stroke-width: 0.7px;
+  vector-effect: non-scaling-stroke;
+}
+.mapGraphic [data-selectable="true"] {
+  cursor: pointer;
+}
+.mapGraphic path[data-selected="true"] {
+  stroke: var(--ink);
+  stroke-width: 2px;
+}
+.mapGraphic circle {
+  fill: var(--green-dark);
+  stroke: var(--paper);
+  stroke-width: 1px;
+  vector-effect: non-scaling-stroke;
+}
+.mapGraphic text {
+  fill: var(--paper);
+  text-anchor: middle;
+  dominant-baseline: central;
+  font-weight: 600;
+  pointer-events: none;
+}
+.mapLegend {
+  margin: 6px 0;
+}
+.mapAside {
+  background: var(--tint);
+  border-top: 2px solid var(--green);
+  padding: 12px;
+}
+.mapAside h3 {
+  margin: 0;
+}
+.mapAside button,
+.mapTable button {
+  min-height: var(--tap);
+  color: var(--green-dark);
+  text-align: left;
+  overflow-wrap: anywhere;
+}
+.mapAside ol button,
+.mapAside dl > div {
+  display: flex;
+  justify-content: space-between;
+  gap: 8px;
+  width: 100%;
+}
+.mapAside li {
+  border-top: 1px solid var(--rule-soft);
+}
+.mapAside dd {
+  margin: 0;
+}
+.mapTable {
+  width: 100%;
+  border-collapse: collapse;
+  text-align: left;
+}
+.mapTable th,
+.mapTable td {
+  padding: 4px 8px;
+  border-bottom: 1px solid var(--rule-soft);
+}
+.mapTable td {
+  font-variant-numeric: tabular-nums;
+}
+.footer {
+  border-top: 1px solid var(--rule);
+  margin-top: 24px;
+  padding-bottom: 8px;
+}
+.footer nav {
+  margin-top: 10px;
+}
+.footer nav a {
+  color: var(--green-dark);
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  min-height: var(--tap);
+  padding: 4px 8px;
+}
+@media (max-width: 1120px) {
+  .listHead,
+  .listRow {
+    grid-template-columns: minmax(0, 1.15fr) minmax(90px, 0.7fr) minmax(0, 1fr) minmax(128px, 0.9fr);
+  }
+  .listHead span:nth-child(4) {
+    display: none;
+  }
+  .proposalCell {
+    grid-column: 1 / -1;
+    grid-row: 2;
+  }
+  .mobileLabel {
+    display: inline;
+    margin-inline-end: 6px;
+    color: var(--muted);
+  }
+  .board {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+}
+@media (max-width: 760px) {
+  .kpis {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+  .kpis > div:nth-child(n + 4) {
+    border-top: 1px solid var(--rule-soft);
+  }
+  .kpis > div:nth-child(4) {
+    border-inline-start: 0;
+  }
+  .kpis strong {
+    font-size: 30px;
+  }
+  .filterGrid,
+  .extraFilters {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+  .listHead {
+    display: none;
+  }
+  .listRow {
+    grid-template-columns: minmax(0, 1fr) minmax(0, 0.75fr);
+    gap: 6px 10px;
+  }
+  .proposalCell {
+    grid-column: 1;
+    grid-row: 3;
+  }
+  .stepCell {
+    grid-column: 1;
+    grid-row: 2;
+  }
+  .ownerCell {
+    grid-column: 2;
+    grid-row: 2 / span 2;
+  }
+  .mapLayout {
+    grid-template-columns: minmax(0, 1fr);
+  }
+  .board {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+@media (max-width: 440px) {
+  .headingActions {
+    width: 100%;
+  }
+  .headingActions > * {
+    flex: 1 1 auto;
+  }
+  .views {
+    gap: 0 15px;
+  }
+  .views a {
+    font-size: 17px;
+  }
+  .kpis > div {
+    padding: 10px 8px;
+  }
+  .search {
+    grid-column: 1 / -1;
+  }
+  .board {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+
+.createDialog {
+  width: min(640px, 100vw);
+  max-width: 100vw;
+  max-height: calc(100dvh - 24px);
+  padding: 0;
+  border: 1px solid var(--rule);
+  background: var(--paper);
+  color: var(--ink);
+}
+.createDialog::backdrop {
+  background: rgb(18 21 18 / 45%);
+}
+.createBody {
+  padding: 20px;
+}
+.closeCreate {
+  display: grid;
+  place-items: center;
+  min-width: var(--tap);
+  min-height: var(--tap);
+}

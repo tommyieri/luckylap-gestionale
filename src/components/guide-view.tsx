@@ -405,32 +405,41 @@ export function GuideView({ access, preview = false }: { access: GuideAccess; pr
           <Part id="guida-partner">
             <ul className={styles.points}>
               <li>
-                Eventi, Collab, Vendita e Club restano sempre visibili, anche sul telefono. Ogni
-                riga è un contatto, con nome, numero CO, fase e prossima azione. In Club ci sono i
-                Porsche Club fuori dall’Italia e i club Ferrari e Mercedes.
+                Partner si apre su «Elenco». Le sezioni Eventi, Collab, Vendita e Club restano
+                disponibili in tutte le viste, anche sul telefono. Ogni riga mostra nome, numero CO,
+                fase, prossimo passo, proposta e responsabile. In Club ci sono i Porsche Club fuori
+                dall’Italia e i club Ferrari e Mercedes.
               </li>
               <li>
-                In ogni sezione scegli «Da seguire», «Risposte», «Tutti i contatti» o «Accordi
-                fatti». «Da seguire» mette prima il lavoro da gestire e non dipende dal periodo. In
-                «Tutti i contatti» puoi cercare anche per CO e filtrare per periodo.
+                Cerca per nome, città, paese o CO. In «Altri filtri», sotto «Lavoro», trovi «Da
+                seguire» e «Risposte registrate». Per vedere gli accordi scegli «Accordo fatto» in
+                «Fase». Puoi combinare questi filtri con il periodo e ritrovarli dallo stesso
+                indirizzo.
               </li>
               <li>
-                «Risposte» raccoglie le risposte già registrate dal team, anche fuori dal periodo
-                selezionato. Non legge ancora la casella: apri la posta, poi registra la risposta
-                nella scheda. L’approvazione e l’invio delle risposte dal gestionale non sono ancora
-                disponibili.
+                Usa «Pipeline» per vedere i contatti per fase, «Mappa» per esplorarli per paese e
+                «Andamento» per leggere i numeri degli invii e delle risposte registrati. Cambia la
+                fase dalla scheda o trascina una scheda nella Pipeline e conferma. Per «Concluso…»
+                scegli «Accordo fatto» o «Non interessato».
               </li>
               <li>
-                Tocca un contatto per aprirlo. Quando gli scrivi tu, dalla tua email o dal tuo
-                telefono, nel «Registro» premi «Segna inviato», poi «Registra». Quando mandi il
-                sollecito, premi «Segna sollecito inviato», poi «Registra».
+                In «Calendario» scegli «Mese», «Settimana» o «Lista» per vedere invii e risposte
+                registrati, solleciti, azioni, eventi e scadenze. Le prime email previste sono
+                stime. Le registrazioni del vecchio sito riportano la data del file. Apri «Programma
+                email» per consultare gli orari e le bozze delle prime email.
+              </li>
+              <li>
+                Tocca un contatto per aprire la scheda laterale. «In breve» mostra il prossimo
+                passo. Le altre schede sono «Email», «Registro», «Ricerca», «Recapiti» e «Dati e
+                tag». Quando gli scrivi tu, nel «Registro» premi «Segna inviato», poi «Registra».
+                Quando mandi il sollecito, premi «Segna sollecito inviato», poi «Registra».
               </li>
               <li>
                 Quando ti risponde, premi «Registra una risposta» nel «Registro», poi «Registra». In
-                Oggi trovi anche «Ha risposto». Cambiare soltanto lo stato in «Risposto» dalla
-                tendina non registra la risposta e non chiude il sollecito. Le fasi «Scritto»,
-                «Risposto», «Primi contatti avviati» e «Accordo fatto» descrivono il rapporto; il
-                lavoro dell’assistente compare accanto con l’eventuale motivo del fermo.
+                Oggi trovi anche «Ha risposto». Usa il Registro per annotare la risposta e chiudere
+                il sollecito anche quando la fase è già «Risposto». «Inviato», «Risposto», «In
+                conversazione» e «Concluso» descrivono il rapporto. Il prossimo passo riporta il
+                lavoro dell’assistente e il motivo di un eventuale fermo.
               </li>
               <li>
                 Quando registri «Segna inviato» o «Segna sollecito inviato», si crea per te
@@ -448,21 +457,24 @@ export function GuideView({ access, preview = false }: { access: GuideAccess; pr
               </li>
               <li>
                 Quando una scheda passa ad «Accordo fatto», le sue date di evento e candidatura
-                compaiono da sole nel calendario del Team, come giornate intere. Senza accordo non
-                ci sono: in calendario va solo dove ci saremo. «Accordi fatti» in Partner mostra
-                questi contatti.
+                possono comparire nel calendario del Team come giornate intere. Il Calendario di
+                Partner mostra anche scadenze e stime di lavoro, da consultare prima dell’accordo.
               </li>
               <li>
                 In Team, «Partner nel Team» porta un contatto nel lavoro del team: l’evento nel
                 calendario, un progetto per Produzione, l’attività per aprire un conto vendita e le
-                vendite fatte all’evento. Con «Accordo fatto» la scheda ha il riquadro «Esito»:
-                «Apri in Partner nel Team» apre quel contatto. «Collega l’evento» funziona anche se
-                l’evento è già passato.
+                vendite fatte all’evento. Con «Accordo fatto», da «In breve» premi «Apri in Partner
+                nel Team» per aprire quel contatto. «Collega l’evento» funziona anche se l’evento è
+                già passato.
               </li>
-              <li>Tutti vedono e possono fare tutto. «Seguito da» dice chi se ne occupa.</li>
               <li>
-                In fondo alla pagina ci sono i lookbook da allegare, le regole per scrivere i
-                messaggi e l’assistente.
+                Tutti vedono e possono fare tutto. «Seguito da» indica chi se ne occupa. Il nome
+                seguito da «(predefinito)» è il riferimento mostrato per i contatti senza
+                assegnazione esplicita.
+              </li>
+              <li>
+                Apri «Assistente e strumenti» per la striscia dell’assistente, i lookbook, le regole
+                importate con la ricerca e «Dati Partner».
               </li>
             </ul>
             <h3 className={styles.subTitle}>L’assistente</h3>
@@ -484,9 +496,9 @@ export function GuideView({ access, preview = false }: { access: GuideAccess; pr
                 feriali tra le 9 e le 16 dell’ora del contatto. Il piano del giorno distribuisce gli
                 invii fra le 9:00 e le 15:55; un piano nato dopo le 9 usa il tempo rimasto e con un
                 solo invio usa il centro dell’intervallo disponibile. Gli orari si leggono nel
-                Calendario email e nella pagina Assistente, sia locali sia di Roma. Un orario
-                mancato non viene recuperato con una raffica di email. Le quote si contano sul
-                giorno di Roma: al massimo 6 prime email, 3 Club e 3 altri, senza trasferire i posti
+                Programma email e nella pagina Assistente, sia locali sia di Roma. Un orario mancato
+                non viene recuperato con una raffica di email. Le quote si contano sul giorno di
+                Roma: al massimo 6 prime email, 3 Club e 3 altri, senza trasferire i posti
                 inutilizzati, più 6 solleciti con un limite separato. Stessa data locale e stessa
                 finestra UTC formano un gruppo, anche con fusi di nomi diversi: per esempio Roma,
                 Parigi e Berlino quando gli orari coincidono.
@@ -506,15 +518,14 @@ export function GuideView({ access, preview = false }: { access: GuideAccess; pr
                 «Registro» preme «Segna sollecito inviato», poi «Registra».
               </li>
               <li>
-                In cima a Partner c’è la striscia dell’assistente: dice cosa sta facendo, quante
-                bozze sono pronte o quante email ha mandato oggi. «Apri l'assistente» porta alla sua
-                pagina, con modalità, costi, regole e verifiche.
+                In «Assistente e strumenti» la striscia dell’assistente dice cosa sta facendo,
+                quante bozze sono pronte o quante email ha mandato oggi. «Apri l'assistente» porta
+                alla sua pagina, con modalità, costi, regole e verifiche.
               </li>
               <li>
-                Nella scheda del contatto la bozza è visibile prima della ricerca e dello storico.
-                L’email che l’assistente manda è la «Bozza dell'email» nella scheda. Se non è più
-                valida, resta leggibile con il motivo; il contatto aspetta una nuova bozza valida.
-                Ricerca, fonti e dati estesi si aprono quando servono.
+                Nella scheda del contatto, apri «Email» per la bozza. L’email che l’assistente manda
+                è la «Bozza dell'email» nella scheda. Quando la bozza perde validità, resta
+                leggibile con il motivo e il contatto aspetta una nuova bozza valida.
               </li>
               <li>
                 Per fermarlo del tutto premi «Ferma l'assistente» nella striscia, oppure «Spento»
@@ -538,13 +549,16 @@ export function GuideView({ access, preview = false }: { access: GuideAccess; pr
               </li>
               <li>
                 Le regole con cui scrive sono nella sua pagina, in «Regole»: si cambiano con «Scrivi
-                una nuova versione». Le «Regole per scrivere i messaggi» in fondo a Partner sono
-                quelle importate con la ricerca: l’assistente non le usa.
+                una nuova versione». «Regole per scrivere» in «Assistente e strumenti» apre il
+                contesto importato con la ricerca, destinato al team.
               </li>
             </ul>
             <p className={styles.actions}>
               <Link href="/partner" prefetch={false} className="button button-secondary">
                 Apri Partner
+              </Link>
+              <Link href="/partner/email" prefetch={false} className="button button-secondary">
+                Apri il Programma email
               </Link>
               <Link href="/partner/assistente" prefetch={false} className="button button-secondary">
                 Apri l'assistente

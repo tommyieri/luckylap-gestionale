@@ -79,6 +79,9 @@ vi.mock("../../app/(workspace)/partner/dati/actions", () => ({
 }));
 
 import { PartnerDetails } from "./partner-details";
+import { PartnerCardForm } from "./partner-card-form";
+import { PartnerDatabaseDrawer } from "./partner-database-drawer";
+import { PartnerDatabaseOwner, PartnerDatabaseStageChange } from "./partner-database-controls";
 import { PartnerProvider } from "./partner-context";
 import {
   PARTNER_FIXTURE_MEMBER_ID,
@@ -382,4 +385,253 @@ it("mantiene registro, modifica e blocco anche se lo stato dell'assistente non �
   expect(words(visible(tree))).toContain("Registro");
   expect(disclosure(tree, "Modifica la scheda")).toBeDefined();
   expect(disclosure(tree, "Metti tra i non contattare")).toBeDefined();
+});
+
+function renderDatabase(children: ReactElement, preview = false) {
+  mocks.index = 0;
+  mocks.contexts = [];
+  return expand(
+    <PartnerProvider
+      preview={preview}
+      userId={preview ? null : PARTNER_FIXTURE_MEMBER_ID}
+      today={TODAY}
+      members={workspace.members}
+      partners={workspace.partners}
+    >
+      {children}
+    </PartnerProvider>,
+  );
+}
+function buttonByText(tree: unknown, label: string) {
+  return descendants(tree).find(
+    (element) => element.type === "button" && words(element) === label,
+  )!;
+}
+
+it("apre una sola scheda con i comandi originali del Registro e inoltra Escape al guard", () => {
+  const onClose = vi.fn();
+  const tree = renderDatabase(
+    <PartnerDatabaseDrawer
+      targetCo={2}
+      detail={partnerFixtureDetail(2, TODAY)}
+      row={null}
+      onClose={onClose}
+      initialTab="registro"
+    />,
+  );
+  const dialogs = descendants(tree).filter((element) => element.type === "dialog");
+  expect(dialogs).toHaveLength(1);
+  expect(
+    descendants(tree)
+      .filter((element) => element.props.role === "tab")
+      .map(words),
+  ).toEqual(["In breve", "Email", "Registro", "Ricerca", "Recapiti", "Dati e tag"]);
+  for (const label of ["Segna inviato", "Segna sollecito inviato", "Registra una risposta"])
+    expect(buttonByText(tree, label)).toBeDefined();
+  const preventDefault = vi.fn();
+  (dialogs[0].props.onCancel as (event: unknown) => void)({ preventDefault });
+  expect(preventDefault).toHaveBeenCalledTimes(1);
+  expect(onClose).toHaveBeenCalledTimes(1);
+  expect(dialogs[0].props.open).toBeUndefined();
+});
+
+it("non mostra dati o comandi del contatto precedente durante il cambio di scheda", () => {
+  const tree = renderDatabase(
+    <PartnerDatabaseDrawer
+      targetCo={3}
+      detail={partnerFixtureDetail(2, TODAY)}
+      row={null}
+      onClose={() => {}}
+      loading
+      initialTab="email"
+    />,
+  );
+  expect(words(tree)).toContain("Caricamento scheda");
+  expect(words(tree)).not.toContain("Raduno Sintetico Due");
+  expect(descendants(tree).some((element) => element.props.role === "tabpanel")).toBe(false);
+});
+
+it("richiede l’esito di Concluso e manda Non interessato con la versione letta", () => {
+  const partner = partnerFixtureDetail(2, TODAY)!.partner;
+  const onCancel = vi.fn();
+  const renderStage = () =>
+    renderDatabase(
+      <PartnerDatabaseStageChange partner={partner} target="concluso" onCancel={onCancel} />,
+    );
+  let tree = renderStage();
+  expect(buttonByText(tree, "Conferma fase").props.disabled).toBe(true);
+  expect(mocks.setState).not.toHaveBeenCalled();
+  const select = descendants(tree).find((element) => element.type === "select")!;
+  (select.props.onChange as (event: unknown) => void)({ currentTarget: { value: "no" } });
+  tree = renderStage();
+  expect(buttonByText(tree, "Conferma fase").props.disabled).toBe(false);
+  (buttonByText(tree, "Conferma fase").props.onClick as () => void)();
+  expect(mocks.setState).toHaveBeenCalledWith(
+    expect.objectContaining({
+      kind: "set_partner_state",
+      payload: {
+        schema_version: 1,
+        partner_id: partner.id,
+        expected_version: partner.version,
+        stage: "no",
+      },
+    }),
+  );
+});
+
+it("non sovrascrive una fase cambiata dopo l’apertura della conferma", () => {
+  const partner = partnerFixtureDetail(2, TODAY)!.partner;
+  renderDatabase(
+    <PartnerDatabaseStageChange partner={partner} target="chiuso" onCancel={() => {}} />,
+  );
+  const tree = renderDatabase(
+    <PartnerDatabaseStageChange
+      partner={{ ...partner, version: partner.version + 1 }}
+      target="chiuso"
+      onCancel={() => {}}
+    />,
+  );
+  expect(words(tree)).toContain("La scheda è cambiata");
+  expect(buttonByText(tree, "Conferma fase").props.disabled).toBe(true);
+  (buttonByText(tree, "Conferma fase").props.onClick as () => void)();
+  expect(mocks.setState).not.toHaveBeenCalled();
+});
+
+it("rimuove l’assegnazione esplicita soltanto alla conferma e lascia gli altri campi invariati", () => {
+  const partner = {
+    ...partnerFixtureDetail(2, TODAY)!.partner,
+    ownerId: PARTNER_FIXTURE_MEMBER_ID,
+  };
+  const renderOwner = () =>
+    renderDatabase(
+      <PartnerDatabaseOwner partner={partner} defaultOwnerLabel="Responsabile predefinito" />,
+    );
+  const select = descendants(renderOwner()).find((element) => element.type === "select")!;
+  (select.props.onChange as (event: unknown) => void)({ currentTarget: { value: "" } });
+  expect(mocks.setState).not.toHaveBeenCalled();
+  const tree = renderOwner();
+  expect(words(tree)).toContain("Rimuovi l’assegnazione esplicita");
+  (buttonByText(tree, "Conferma responsabile").props.onClick as () => void)();
+  expect(mocks.setState).toHaveBeenCalledWith(
+    expect.objectContaining({
+      kind: "set_partner_state",
+      payload: {
+        schema_version: 1,
+        partner_id: partner.id,
+        expected_version: partner.version,
+        owner_id: null,
+      },
+    }),
+  );
+});
+
+it("blocca anche un richiamo diretto dei comandi di fase in anteprima", () => {
+  const partner = partnerFixtureDetail(2, TODAY)!.partner;
+  const tree = renderDatabase(
+    <PartnerDatabaseStageChange partner={partner} target="chiuso" onCancel={() => {}} />,
+    true,
+  );
+  expect(buttonByText(tree, "Conferma fase").props.disabled).toBe(true);
+  (buttonByText(tree, "Conferma fase").props.onClick as () => void)();
+  expect(mocks.setState).not.toHaveBeenCalled();
+});
+
+it("distingue un errore di lettura da un contatto mancante e permette di riprovare", () => {
+  const onRetry = vi.fn();
+  const tree = renderDatabase(
+    <PartnerDatabaseDrawer
+      targetCo={2}
+      detail={null}
+      row={null}
+      readError
+      onRetry={onRetry}
+      onClose={() => {}}
+    />,
+  );
+  expect(words(tree)).toContain("Non riesco a leggere la scheda");
+  expect(words(tree)).not.toContain("Questo contatto non è più disponibile");
+  expect(words(tree)).not.toContain("Annulla le modifiche del modulo");
+  (buttonByText(tree, "Riprova").props.onClick as () => void)();
+  expect(onRetry).toHaveBeenCalledTimes(1);
+});
+
+it("mostra una sola assegnazione prima dei dati In breve", () => {
+  const tree = renderDatabase(
+    <PartnerDatabaseDrawer
+      targetCo={2}
+      detail={partnerFixtureDetail(2, TODAY)}
+      row={null}
+      onClose={() => {}}
+    />,
+  );
+  const labels = descendants(tree).filter(
+    (element) => element.type === "span" && words(element) === "Seguito da",
+  );
+  expect(labels).toHaveLength(1);
+  expect(words(tree).indexOf("Seguito da")).toBeLessThan(words(tree).indexOf("Chi sono"));
+});
+
+it("protegge una bozza Dati e tag quando la versione della scheda cambia", () => {
+  const detail = partnerFixtureDetail(2, TODAY)!;
+  const renderForm = (version: number) =>
+    renderDatabase(
+      <PartnerDetails
+        detail={detail}
+        summary={{ ...detail.partner, version }}
+        block={null}
+        tab="dati"
+      />,
+    );
+  const wrapper = (tree: unknown) =>
+    descendants(tree).find(
+      (element) => element.type === "div" && typeof element.props.onSubmitCapture === "function",
+    )!;
+  let tree = renderForm(detail.partner.version);
+  expect(words(tree)).not.toContain("La scheda è cambiata");
+  (wrapper(tree).props.onChangeCapture as () => void)();
+  tree = renderForm(detail.partner.version + 1);
+  expect(words(tree)).toContain("La scheda è cambiata");
+  const preventDefault = vi.fn(),
+    stopPropagation = vi.fn();
+  (wrapper(tree).props.onSubmitCapture as (event: unknown) => void)({
+    preventDefault,
+    stopPropagation,
+  });
+  expect(preventDefault).toHaveBeenCalledTimes(1);
+  expect(stopPropagation).toHaveBeenCalledTimes(1);
+  expect(mocks.other).not.toHaveBeenCalled();
+});
+
+it("chiude la creazione con la ricevuta recuperata e non lascia i dati pronti per un secondo invio", async () => {
+  const onDone = vi.fn();
+  const renderForm = () => renderDatabase(<PartnerCardForm target={null} onDone={onDone} />);
+  mocks.other
+    .mockResolvedValueOnce({ status: "uncertain", message: "Esito da verificare" })
+    .mockResolvedValueOnce({
+      status: "success",
+      kind: "save_partner",
+      operationId: OPERATION,
+      co: 42,
+      message: "Contatto aggiunto.",
+      replayed: true,
+    });
+  let tree = renderForm();
+  change(field(tree, "Nome"), "Contatto sintetico da recuperare");
+  const section = descendants(tree).find(
+    (element) => element.type === "input" && element.props.type === "checkbox",
+  )!;
+  (section.props.onChange as (event: unknown) => void)({ target: { checked: true } });
+  tree = renderForm();
+  const form = descendants(tree).find((element) => element.type === "form")!;
+  (form.props.onSubmit as (event: unknown) => void)({ preventDefault() {} });
+  await Promise.all(mocks.transitions);
+  expect(onDone).not.toHaveBeenCalled();
+  tree = renderForm();
+  (buttonByText(tree, "Verifica lo stesso invio").props.onClick as () => void)();
+  await Promise.all(mocks.transitions);
+  expect(mocks.other).toHaveBeenCalledTimes(2);
+  expect(mocks.other.mock.calls[1][0]).toEqual({ ...mocks.other.mock.calls[0][0], retry: true });
+  expect(crypto.randomUUID).toHaveBeenCalledTimes(1);
+  expect(onDone).toHaveBeenCalledExactlyOnceWith(42);
+  expect(field(renderForm(), "Nome").props.value).toBe("");
 });
