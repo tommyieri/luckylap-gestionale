@@ -470,7 +470,7 @@ function LatestResponse({
   co,
   onOpenRegister,
 }: {
-  response: Pick<PartnerWorkReply, "occurredAt" | "body"> | null;
+  response: Pick<PartnerWorkReply, "occurredAt" | "body" | "origin"> | null;
   co: number;
   onOpenRegister?: MouseEventHandler<HTMLAnchorElement>;
 }) {
@@ -478,20 +478,31 @@ function LatestResponse({
   if (response === null) return null;
   const day = instantDay(response.occurredAt);
   const text = response.body?.trim() ?? "";
+  const fromMailbox = response.origin === "assistente";
   return (
     <section className={styles.detailBlock} aria-label="Ultima risposta registrata">
       <h4>Ultima risposta registrata</h4>
       {day && <p>{longDay(day, today)}</p>}
-      {text && (
-        <p className={styles.preText}>
-          {text.length > 240 ? `${text.slice(0, 240).trimEnd()}…` : text}
-        </p>
-      )}
-      {text.length > 240 && (
-        <details className={styles.disclosure}>
-          <summary>Leggi risposta completa</summary>
-          <p className={styles.preText}>{response.body}</p>
-        </details>
+      {fromMailbox ? (
+        <>
+          <p>Registrata automaticamente dalla casella.</p>
+          {text && <p>Oggetto della risposta: {text}</p>}
+          <p className={styles.hint}>Il testo della risposta resta nella posta.</p>
+        </>
+      ) : (
+        <>
+          {text && (
+            <p className={styles.preText}>
+              {text.length > 240 ? `${text.slice(0, 240).trimEnd()}…` : text}
+            </p>
+          )}
+          {text.length > 240 && (
+            <details className={styles.disclosure}>
+              <summary>Leggi risposta completa</summary>
+              <p className={styles.preText}>{response.body}</p>
+            </details>
+          )}
+        </>
       )}
       <a className={styles.act} href={`#registro-${co}`} onClick={onOpenRegister}>
         Leggi nel registro
@@ -572,7 +583,7 @@ export function PartnerDetails({
   summary: PartnerSummary;
   block: PartnerBlock | null;
   /** Ultima risposta dalla vista completa; senza questa proprietà vale il registro caricato. */
-  latestReply?: Pick<PartnerWorkReply, "occurredAt" | "body"> | null;
+  latestReply?: Pick<PartnerWorkReply, "occurredAt" | "body" | "origin"> | null;
   tab?: PartnerDatabaseTab;
   briefActions?: ReactNode;
   briefWork?: ReactNode;

@@ -1,4 +1,4 @@
-// test-db: postgres minimo 70
+// test-db: postgres minimo 79
 // Solleciti: lease unica, risposta prima di start, proof monouso, CAS e scadenza dopo un lock.
 // PostgreSQL 17 locale con connessioni distinte, Auth e dati sintetici; nessun SMTP/IMAP/cloud.
 import assert from "node:assert/strict";
@@ -661,6 +661,54 @@ try {
     0,
   );
   await release(c5.lease_token);
+
+  // 6. Una risposta importata dopo la composizione vince contro uno start concorrente.
+  await owner.query(
+    "update public.partner_assistant_followups set next_check_at=$1::timestamptz+interval '1 day' where status='active'",
+    [AT],
+  );
+  const c6Id = await fixture(7005);
+  const c6 = await as(a, () => claim(a));
+  eq(c6.candidate.id, c6Id);
+  const p6 = await check(c6);
+  const m6 = await as(a, () => prepare(a, c6, p6));
+  eq(m6.status, "pronto");
+  const second6 = await check(c6);
+  for (const suffix of [
+    "_partner_calendario_2027.sql",
+    "_partner_invii_distribuiti.sql",
+    "_partner_piano_prestazioni.sql",
+    "_partner_riferimenti_generici.sql",
+    "_partner_solleciti_controlli_imap.sql",
+    "_partner_risposte_solleciti.sql",
+  ]) {
+    const found = names.filter((name) => name.endsWith(suffix));
+    assert.equal(found.length, 1, `Una migrazione ${suffix}`);
+    await owner.query(readFileSync(new URL(found[0], directoryUrl), "utf8"));
+  }
+  await begin(a);
+  const autoReply = await rpc(a, "record_partner_followup_reply", [
+    c6.lease_token,
+    c6.candidate.id,
+    c6.candidate.version,
+    JSON.stringify({
+      message_id: "<risposta-concorrente@peer.example.test>",
+      references: c6.candidate.message_ids,
+      from_address: c6.candidate.address,
+      received_at: "2026-11-10T08:59:00.000Z",
+      subject: "Risposta sintetica concorrente",
+    }),
+  ]);
+  eq(autoReply.status, "registered");
+  await begin(b);
+  const blockedByAutoReply = capture(start(b, c6, m6, second6));
+  await waitBlocked(pids.b, pids.a);
+  await a.query("commit");
+  ok((await successful(blockedByAutoReply)).status !== "in_invio");
+  await b.query("commit");
+  eq(await state(m6.message_row_id), "scartato");
+  eq((await conversation(c6Id)).status, "replied");
+  await release(c6.lease_token);
   console.log(`PASS ${checks} solleciti concurrent checks; PostgreSQL 17 locale, dati sintetici.`);
 } finally {
   for (const client of clients)

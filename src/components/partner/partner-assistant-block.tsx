@@ -196,7 +196,16 @@ export function PartnerAssistantBlock({
   return (
     <section className={styles.detailBlock} aria-labelledby={titleId}>
       <h4 id={titleId}>Assistente</h4>
-      <JobState job={job} held={held} automaticFollowup={assistant.followup?.mode === "invio"} />
+      <JobState
+        job={job}
+        held={held}
+        manualFollowup={
+          assistant.followup == null ||
+          (assistant.followup.mode !== "invio" &&
+            assistant.followup.status === "active" &&
+            assistant.followup.reason === null)
+        }
+      />
       {assistant.sends.map((send, index) => (
         <p key={index}>{sendLine(send, today)}</p>
       ))}
@@ -284,21 +293,25 @@ function FollowupState({
 }) {
   if (followup === undefined || (!firstSent && followup === null)) return null;
   if (followup === null) return <p className={styles.noteAmber}>{PARTNER_FOLLOWUP_UNREADABLE}</p>;
+  const active = followup.status === "active";
   const stopped = followup.status === "held" || followup.status === "replied";
   const complete = followup.status === "complete";
+  const closedForReply = followup.status === "replied" && followup.reason === "risposta_registrata";
+  const incomplete =
+    followup.reason?.startsWith("followup_") || followup.reason === "controllo_incerto";
   return (
     <section aria-label="Solleciti automatici">
       <h5>Solleciti automatici</h5>
       {followup.mode === "osserva" && (
         <p>
           Osserva: l'invio automatico dei solleciti non è attivo.
-          {!complete && " I promemoria di Tommi restano validi."}
+          {active && " I promemoria di Tommi restano validi."}
         </p>
       )}
       {followup.mode === "spento" && (
-        <p>Solleciti automatici spenti.{!complete && " I promemoria di Tommi restano validi."}</p>
+        <p>Solleciti automatici spenti.{active && " I promemoria di Tommi restano validi."}</p>
       )}
-      {followup.mode === "invio" && !stopped && !complete && (
+      {followup.mode === "invio" && active && (
         <p>
           Modalità invio dei solleciti attiva: ogni partenza richiede i controlli della posta e le
           quote disponibili.
@@ -313,16 +326,19 @@ function FollowupState({
             : `sollecito non prima del ${longDay(followup.nextDueOn, today)}.`}
         </p>
       )}
-      {followup.status === "active" &&
-        followup.reason !== null &&
-        followup.reason !== "fuori_ufficio" && (
-          <p className={styles.noteAmber}>
-            Sollecito in attesa di una verifica: nessun invio finché il controllo non è completo.
-          </p>
-        )}
-      {stopped && (
+      {active && followup.reason !== null && followup.reason !== "fuori_ufficio" && (
         <p className={styles.noteAmber}>
-          Solleciti fermi.{" "}
+          {followup.reason.startsWith("followup_headers_")
+            ? "Verifica incompleta: alcune intestazioni della posta non sono leggibili."
+            : incomplete
+              ? "Verifica incompleta: il controllo della casella non è riuscito."
+              : "Sollecito in attesa di una verifica."}{" "}
+          Nessun sollecito automatico prima di un controllo completo.
+        </p>
+      )}
+      {stopped && (
+        <p className={closedForReply ? undefined : styles.noteAmber}>
+          {closedForReply ? "Solleciti chiusi." : "Solleciti fermi."}{" "}
           {partnerFollowupReasonLabel(followup.reason) ||
             "Tommi controlla la conversazione nella posta."}{" "}
           L'assistente non risponde da solo.
@@ -342,8 +358,13 @@ function FollowupState({
       <p>
         {followup.lastCheckedAt === null
           ? "Nessuna verifica della casella ancora registrata per questo ciclo."
-          : `Ultima verifica della casella registrata ${sentOn(followup.lastCheckedAt, today)}.`}
+          : incomplete
+            ? `Ultimo tentativo di verifica ${sentOn(followup.lastCheckedAt, today)}.`
+            : `Ultima verifica della casella registrata ${sentOn(followup.lastCheckedAt, today)}.`}
       </p>
+      {active && followup.mode !== "spento" && (
+        <p>Prossima verifica prevista {sentOn(followup.nextCheckAt, today)} (ora di Roma).</p>
+      )}
     </section>
   );
 }
@@ -355,12 +376,12 @@ function FollowupState({
 function JobState({
   job,
   held,
-  automaticFollowup,
+  manualFollowup,
 }: {
   job: PartnerAssistantContactView["job"];
   /** Perché l'assistente non lo prende: «è fermato dal team», «è seguito da Ada»… */
   held: readonly string[];
-  automaticFollowup: boolean;
+  manualFollowup: boolean;
 }) {
   const { today } = usePartnerContext();
   if (job === null) return <p>Nessun lavoro dell'assistente su questo contatto.</p>;
@@ -385,9 +406,9 @@ function JobState({
     case "inviata":
       return (
         <p>
-          {automaticFollowup
-            ? "Prima email inviata dall'assistente."
-            : "Prima email inviata dall'assistente: il sollecito dopo 7 giorni lo manda Tommi."}
+          {manualFollowup
+            ? "Prima email inviata dall'assistente: il sollecito dopo 7 giorni lo manda Tommi."
+            : "Prima email inviata dall'assistente."}
         </p>
       );
     case "attesa":

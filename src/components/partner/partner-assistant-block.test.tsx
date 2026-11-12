@@ -645,10 +645,46 @@ describe("PartnerAssistantBlock", () => {
       }),
     });
     expect(words(tree)).toContain(
-      "Sollecito in attesa di una verifica: nessun invio finché il controllo non è completo.",
+      "Verifica incompleta: il controllo della casella non è riuscito.",
     );
     expect(words(tree)).not.toContain("followup_connection_failed");
   });
+  it.each(["followup_headers_invalid", "followup_headers_encoding"])(
+    "intestazioni non leggibili (%s): spiega il controllo incompleto e la prossima verifica",
+    (reason) => {
+      const tree = render(6, {
+        assistant: (view) => ({
+          ...view,
+          followup: followup({ reason }),
+        }),
+      });
+      expect(words(tree)).toContain(
+        "Verifica incompleta: alcune intestazioni della posta non sono leggibili.",
+      );
+      expect(words(tree)).toContain("Nessun sollecito automatico prima di un controllo completo.");
+      expect(words(tree)).toContain(
+        "Prossima verifica prevista il 22 ottobre alle 10:11 (ora di Roma).",
+      );
+      expect(words(tree)).not.toContain(reason);
+    },
+  );
+
+  it("risposta registrata: in Osserva chiude i solleciti senza proporre l'invio manuale", () => {
+    const tree = render(6, {
+      assistant: (view) => ({
+        ...view,
+        followup: followup({ status: "replied", reason: "risposta_registrata" }),
+      }),
+    });
+    expect(words(tree)).toContain(
+      "Solleciti chiusi. Una risposta è stata registrata nel gestionale.",
+    );
+    expect(words(tree)).not.toContain("Possibile risposta");
+    expect(words(tree)).not.toContain("il sollecito dopo 7 giorni lo manda Tommi");
+    expect(words(tree)).not.toContain("I promemoria di Tommi restano validi");
+    expect(words(tree)).not.toContain("Prossima verifica prevista");
+  });
+
   it("fuori ufficio con data certa: rinvio alla data senza descriverlo come verifica incompleta", () => {
     const tree = render(6, {
       assistant: (view) => ({
@@ -657,7 +693,7 @@ describe("PartnerAssistantBlock", () => {
       }),
     });
     expect(words(tree)).toContain("Fuori ufficio: sollecito non prima del 29 ottobre.");
-    expect(words(tree)).not.toContain("nessun invio finché il controllo non è completo");
+    expect(words(tree)).not.toContain("Verifica incompleta");
     expect(words(tree)).not.toContain("risposta umana");
   });
 
@@ -673,9 +709,11 @@ describe("PartnerAssistantBlock", () => {
       expect(words(tree)).toContain(
         "Solleciti fermi. Possibile risposta nella posta: Tommi controlla la conversazione.",
       );
+      expect(words(tree)).toContain("Il controllo non ha registrato una risposta.");
       expect(words(tree)).toContain("L'assistente non risponde da solo.");
       expect(words(tree)).not.toContain("Modalità invio dei solleciti attiva");
       expect(words(tree)).not.toContain("Prossima scadenza");
+      expect(words(tree)).not.toContain("Prossima verifica prevista");
       expect(words(tree)).not.toContain("risposta umana");
     },
   );
@@ -716,6 +754,7 @@ describe("PartnerAssistantBlock", () => {
     });
     expect(words(tree)).toContain("Solleciti automatici spenti");
     expect(words(tree)).toContain("Nessuna verifica della casella ancora registrata");
+    expect(words(tree)).not.toContain("Prossima verifica prevista");
     expect(words(tree)).toContain("il sollecito dopo 7 giorni lo manda Tommi");
   });
 

@@ -17,6 +17,14 @@ export type PartnerAssistantFollowupMailboxInput = {
   timezone: string;
 };
 
+export type PartnerAssistantFollowupMailboxReply = {
+  messageId: string;
+  references: string[];
+  from: string;
+  receivedAt: string;
+  subject: string;
+};
+
 export type PartnerAssistantFollowupMailboxResult =
   | {
       status: "clear";
@@ -33,7 +41,12 @@ export type PartnerAssistantFollowupMailboxResult =
       folderCount: number;
       messageCount: number;
     }
-  | { status: "found"; reason: "reply" | "manual" | "ambiguous"; checkedAt: string }
+  | {
+      status: "found";
+      reason: "reply" | "manual" | "ambiguous";
+      checkedAt: string;
+      reply?: PartnerAssistantFollowupMailboxReply;
+    }
   | { status: "uncertain"; reason: string };
 
 export type PartnerAssistantFollowupMailboxDependencies = {
@@ -50,6 +63,11 @@ const HEADER_NAMES = [
   "In-Reply-To",
   "Content-Type",
   "Auto-Submitted",
+  "X-Autoreply",
+  "X-Autorespond",
+  "Precedence",
+  "List-Id",
+  "List-Unsubscribe",
   "Return-Path",
   "From",
   "Sender",
@@ -59,7 +77,7 @@ const HEADER_NAMES = [
   "Bcc",
   "Reply-To",
 ];
-const MESSAGE_ID = /^<[^<>\s@\x00-\x20\x7f-\uffff]+@[^<>\s@\x00-\x20\x7f-\uffff]+>$/u;
+const MESSAGE_ID = /^<[\x21-\x3b\x3d\x3f\x41-\x7e]+@[\x21-\x3b\x3d\x3f\x41-\x7e]+>$/u;
 type FolderState = { path: string; uidValidity: string; uidNext: number; exists: number };
 
 class MailboxUncertain extends Error {
@@ -233,15 +251,18 @@ function folderState(client: ImapFlow, path: string): FolderState {
 }
 
 function headersOf(message: FetchMessageObject): Map<string, string[]> {
-  if (!Buffer.isBuffer(message.headers) || message.headers.byteLength > MAX_HEADERS_BYTES)
-    return stop("headers_invalid");
+  if (!Buffer.isBuffer(message.headers)) return stop("headers_missing");
+  if (message.headers.byteLength > MAX_HEADERS_BYTES) return stop("headers_size");
   const text = message.headers.toString("utf8");
-  if (/[\x00-\x08\x0b\x0c\x0e-\x1f\x7f\ufffd]/u.test(text)) return stop("headers_invalid");
+  if (/[\x00-\x08\x0b\x0c\x0e-\x1f\x7f\u2028\u2029\ufffd]/u.test(text))
+    return stop("headers_encoding");
   const result = new Map<string, string[]>();
-  for (const line of text.replace(/\r?\n[ \t]+/gu, " ").split(/\r?\n/u)) {
-    if (line === "") continue;
-    const match = /^([!#$%&'*+\-.^_`|~\da-z]+):[ \t]*(.*)$/iu.exec(line);
-    if (!match) return stop("headers_invalid");
+  const unfolded = text.replace(/(?:\r?\n)+$/u, "").replace(/\r?\n[ \t]+/gu, " ");
+  if (unfolded === "") return result;
+  for (const line of unfolded.split(/\r?\n/u)) {
+    // RFC 5322 §§3.6.8, 4.5: nomi ASCII stampabili e WSP prima dei due punti nelle forme obsolete.
+    const match = /^([\x21-\x39\x3b-\x7e]+)[ \t]*:[ \t]*([^\r\n]*)$/u.exec(line);
+    if (!match) return stop("headers_syntax");
     const name = match[1].toLowerCase();
     result.set(name, [...(result.get(name) ?? []), match[2]]);
   }
@@ -378,7 +399,7 @@ function messageData(message: FetchMessageObject) {
     const values = headers.get(name) ?? [];
     return values.flatMap((value) => {
       const matched = value.match(/<[^<>\s@]+@[^<>\s@]+>/gu) ?? [];
-      if (value.trim() && matched.length === 0) return stop("headers_invalid");
+      if (value.trim() && matched.length === 0) return stop("headers_id_invalid");
       return matched;
     });
   };
@@ -451,12 +472,17 @@ function singleHeaderAddress(data: MessageData, name: string): string | null {
   return partnerAssistantMailAddress(bracketed ? bracketed[1] : value);
 }
 
-function simpleParties(data: MessageData, from: string, to: string): boolean {
+function simpleParties(
+  data: MessageData,
+  from: string,
+  to: string,
+  addressOf = singleHeaderAddress,
+): boolean {
   const optional = (field: "sender" | "replyTo", header: string) => {
     const same = data[field].length === 1 && data[field][0] === from;
     // ENVELOPE può riportare From come default di Sender/Reply-To assenti (RFC 9051).
     return data.headers.has(header)
-      ? same && singleHeaderAddress(data, header) === from
+      ? same && addressOf(data, header) === from
       : data[field].length === 0 || same;
   };
   return (
@@ -469,11 +495,138 @@ function simpleParties(data: MessageData, from: string, to: string): boolean {
     data.bcc.length === 0 &&
     !data.headers.has("cc") &&
     !data.headers.has("bcc") &&
-    singleHeaderAddress(data, "from") === from &&
-    singleHeaderAddress(data, "to") === to &&
+    addressOf(data, "from") === from &&
+    addressOf(data, "to") === to &&
     optional("sender", "sender") &&
     optional("replyTo", "reply-to")
   );
+}
+
+/** Un solo indirizzo anche con il nome visualizzato UTF-8 o MIME. Il nome non prova l'identità. */
+function singleReplyAddress(data: MessageData, name: string): string | null {
+  const values = data.headers.get(name) ?? [];
+  if (values.length !== 1) return null;
+  const value = values[0].trim();
+  const bracketed = /^(?:(?:"[^"\\]*"|[^<>()",;:@\\\[\]]+)\s*)?<([^<>]+)>$/u.exec(value);
+  return partnerAssistantMailAddress(bracketed ? bracketed[1] : value);
+}
+
+/** RFC 5322 §3.6.4: i commenti e gli spazi possono circondare gli ID. Un ID scritto nel
+ * commento non è un riferimento. Forme ambigue restano segnali di blocco senza attribuzione. */
+function replyIds(input: unknown): string[] | null {
+  if (typeof input !== "string" || input.length > MAX_HEADERS_BYTES) return null;
+  const value = input.replace(/\r\n[ \t]+/gu, " ");
+  if (/[^\x09\x20-\x7e]/u.test(value)) return null;
+  const ids = new Set<string>();
+  let cursor = 0;
+  while (cursor < value.length) {
+    const character = value[cursor];
+    if (character === " " || character === "\t") {
+      cursor++;
+    } else if (character === "(") {
+      let depth = 1;
+      for (cursor++; cursor < value.length && depth > 0; cursor++) {
+        if (value[cursor] === "\\") cursor++;
+        else if (value[cursor] === "(") depth++;
+        else if (value[cursor] === ")") depth--;
+      }
+      if (depth !== 0) return null;
+    } else if (character === "<") {
+      const end = value.indexOf(">", cursor + 1);
+      if (end < 0 || end - cursor >= 254) return null;
+      const id = value.slice(cursor, end + 1);
+      if (!MESSAGE_ID.test(id) || ids.has(id) || ids.size >= 64) return null;
+      ids.add(id);
+      cursor = end + 1;
+    } else return null;
+  }
+  return ids.size > 0 ? [...ids] : null;
+}
+
+function replyReferences(data: MessageData, name: string): string[] | null {
+  const values = data.headers.get(name) ?? [];
+  return values.length === 0 ? [] : values.length === 1 ? replyIds(values[0]) : null;
+}
+
+function confirmedReply(
+  message: FetchMessageObject,
+  data: MessageData,
+  input: PartnerAssistantFollowupMailboxInput,
+  now: number,
+): PartnerAssistantFollowupMailboxReply | null {
+  const from = data.from[0];
+  if (
+    !input.addresses.includes(from) ||
+    !simpleParties(data, from, input.ownAddress, singleReplyAddress)
+  )
+    return null;
+  const { headers } = data;
+  const ids = replyReferences(data, "message-id");
+  const id = ids?.length === 1 ? ids[0] : null;
+  const envelopeId = message.envelope?.messageId;
+  const envelopeParent = message.envelope?.inReplyTo;
+  const parent = replyReferences(data, "in-reply-to");
+  const references = replyReferences(data, "references");
+  if (
+    id === null ||
+    input.messageIds.includes(id) ||
+    (envelopeId !== undefined && JSON.stringify(replyIds(envelopeId)) !== JSON.stringify(ids)) ||
+    parent === null ||
+    parent.length > 1 ||
+    (envelopeParent !== undefined &&
+      JSON.stringify(replyIds(envelopeParent)) !== JSON.stringify(parent)) ||
+    references === null ||
+    (parent.length && references.length && references.at(-1) !== parent[0])
+  )
+    return null;
+  const thread = references.length > 0 ? references : parent;
+  if (thread.length === 0 || thread.some((reference) => !input.messageIds.includes(reference)))
+    return null;
+
+  const auto = headers.get("auto-submitted") ?? [];
+  const returnPath = headers.get("return-path") ?? [];
+  const contentType = headers.get("content-type") ?? [];
+  const precedence = headers.get("precedence") ?? [];
+  const subjectFields = headers.get("subject") ?? [];
+  const subject = typeof data.subject === "string" ? data.subject.trim() : "";
+  const rawSubject = subjectFields[0]?.trim() ?? "";
+  const encodedSubject = /=\?[^?\s]+\?[bq]\?[^?]+\?=/iu.test(rawSubject);
+  const automaticSubject =
+    /^(?:automatic reply|auto(?:matic)?[- ]reply|out of (?:the )?office|risposta automatica|fuori ufficio|automatische antwort|abwesenheitsnotiz|r[eé]ponse automatique|respuesta autom[aá]tica|undeliverable|delivery status notification|mancata consegna)\b/iu;
+  if (
+    (auto.length > 0 && (auto.length !== 1 || auto[0].trim().toLowerCase() !== "no")) ||
+    ["x-autoreply", "x-autorespond", "list-id", "list-unsubscribe"].some((name) =>
+      headers.has(name),
+    ) ||
+    (precedence.length > 0 &&
+      (precedence.length !== 1 || !/^normal$/iu.test(precedence[0].trim()))) ||
+    /^(?:mailer-daemon|postmaster)@/iu.test(from) ||
+    returnPath.length > 1 ||
+    (returnPath.length === 1 && !/^<[^<>\s]+@[^<>\s]+>$/u.test(returnPath[0].trim())) ||
+    contentType.length > 1 ||
+    (contentType.length === 1 &&
+      !/^(?:text\/(?:plain|html)|multipart\/(?:alternative|mixed|related))(?:\s*;|$)/iu.test(
+        contentType[0].trim(),
+      )) ||
+    subjectFields.length > 1 ||
+    subject.length > 300 ||
+    /[\ufffd\x00-\x1f\x7f-\x9f\u2028\u2029]/u.test(subject) ||
+    (!encodedSubject && rawSubject !== subject) ||
+    (encodedSubject && (!subject || subject.includes("=?"))) ||
+    automaticSubject.test(normalizeSubject(subject)) ||
+    automaticSubject.test(normalizeSubject(rawSubject))
+  )
+    return null;
+
+  const at = internalTime(message, Date.parse(input.firstSentAt), now);
+  if (at === null) return null;
+  return {
+    messageId: id,
+    references: thread,
+    from,
+    receivedAt: new Date(at).toISOString(),
+    subject,
+  };
 }
 
 function plainSubject(data: MessageData): string | null {
@@ -626,6 +779,8 @@ export async function checkPartnerAssistantFollowupMailbox(
     }
   }
   let result: PartnerAssistantFollowupMailboxResult;
+  let firstFound:
+    Extract<PartnerAssistantFollowupMailboxResult, { status: "found" }>["reason"] | null = null;
   signal.addEventListener("abort", close, { once: true });
   try {
     active();
@@ -659,6 +814,9 @@ export async function checkPartnerAssistantFollowupMailbox(
       originalId: string;
     })[] = [];
     const sentMessages = new Map<string, SentThreadMessage>();
+    const seenMessageIds = new Map<string, number>();
+    const collidingThreadIds = new Set<string>();
+    const replies: PartnerAssistantFollowupMailboxReply[] = [];
     const today = recipientDay(now(), value.timezone);
     let resumeOn: string | null = null;
     let messageCount = 0;
@@ -702,6 +860,16 @@ export async function checkPartnerAssistantFollowupMailbox(
           stop("fetch_incomplete");
         for (const message of messages) {
           const data = messageData(message);
+          if (data.messageIds.length > 64) stop("headers_id_invalid");
+          const envelopeId = message.envelope?.messageId;
+          const ids = new Set(data.messageIds);
+          if (
+            typeof envelopeId === "string" &&
+            envelopeId.length <= 254 &&
+            MESSAGE_ID.test(envelopeId)
+          )
+            ids.add(envelopeId);
+          for (const id of ids) seenMessageIds.set(id, (seenMessageIds.get(id) ?? 0) + 1);
           if (path === sentPath) {
             const original = otherThreadOriginal(
               message,
@@ -721,8 +889,13 @@ export async function checkPartnerAssistantFollowupMailbox(
               });
             }
           }
-          const reason = messageReason(data, value);
+          const envelopeConflict =
+            typeof envelopeId === "string" &&
+            value.messageIds.includes(envelopeId) &&
+            !data.messageIds.includes(envelopeId);
+          const reason = messageReason(data, value) ?? (envelopeConflict ? "ambiguous" : null);
           if (!reason) continue;
+          for (const id of ids) if (value.messageIds.includes(id)) collidingThreadIds.add(id);
           const headers = data.headers;
           if (reason === "ambiguous") {
             const unrelated = otherThreadAutoReply(message, data, value, since.getTime(), now());
@@ -764,19 +937,15 @@ export async function checkPartnerAssistantFollowupMailbox(
               !Buffer.isBuffer(source) ||
               source.byteLength !== full.size ||
               source.byteLength > PARTNER_FOLLOWUP_AUTO_REPLY_MAX_BYTES
-            )
-              return {
-                status: "found",
-                reason: "ambiguous",
-                checkedAt: new Date(now()).toISOString(),
-              };
+            ) {
+              firstFound ??= "ambiguous";
+              continue;
+            }
             const automatic = readPartnerFollowupAutoReply(source);
-            if (automatic.status !== "dated" || automatic.resumeOn > addDays(today, 366))
-              return {
-                status: "found",
-                reason: "ambiguous",
-                checkedAt: new Date(now()).toISOString(),
-              };
+            if (automatic.status !== "dated" || automatic.resumeOn > addDays(today, 366)) {
+              firstFound ??= "ambiguous";
+              continue;
+            }
             datedReplies.push({
               path,
               uid: message.uid,
@@ -789,7 +958,11 @@ export async function checkPartnerAssistantFollowupMailbox(
             // cartella prevale sul rinvio; un errore successivo rende tutto incerto.
             continue;
           }
-          return { status: "found", reason, checkedAt: new Date(now()).toISOString() };
+          firstFound ??= reason;
+          if (reason === "reply" && path !== sentPath) {
+            const reply = confirmedReply(message, data, value, now());
+            if (reply) replies.push(reply);
+          }
         }
         if (JSON.stringify(folderState(box, path)) !== JSON.stringify(before))
           stop("mailbox_changed");
@@ -827,39 +1000,63 @@ export async function checkPartnerAssistantFollowupMailbox(
         original.peer !== reply.peer ||
         original.subject !== reply.subject ||
         original.at > reply.at
-      )
-        return { status: "found", reason: "ambiguous", checkedAt: new Date(now()).toISOString() };
+      ) {
+        firstFound ??= "ambiguous";
+        continue;
+      }
       otherThreadReplies.push({ reply, original: matched });
     }
     const checkedAt = new Date(now()).toISOString();
-    const complete = {
-      checkedAt,
-      proofSha256: createHash("sha256")
-        .update(
-          JSON.stringify({
-            version: 3,
-            input: value,
-            selection,
-            states,
-            datedReplies,
-            otherThreadReplies,
-            checkedAt,
-          }),
+    if (firstFound) {
+      // Una risposta attribuita richiede anche che tutte le cartelle siano rimaste stabili.
+      // Un altro messaggio dubbio ferma comunque l'invio, ma non nasconde la risposta certa.
+      const reply = replies
+        .sort(
+          (a, b) =>
+            a.receivedAt.localeCompare(b.receivedAt) || a.messageId.localeCompare(b.messageId),
         )
-        .digest("hex"),
-      folderCount: paths.length,
-      messageCount,
-    };
-    result =
-      resumeOn === null
-        ? { status: "clear", ...complete }
-        : { status: "deferred", resumeOn, ...complete };
+        .find(
+          (candidate) =>
+            seenMessageIds.get(candidate.messageId) === 1 &&
+            candidate.references.every(
+              (id) => !collidingThreadIds.has(id) && (seenMessageIds.get(id) ?? 0) <= 1,
+            ),
+        );
+      result = reply
+        ? { status: "found", reason: "reply", checkedAt, reply }
+        : { status: "found", reason: firstFound, checkedAt };
+    } else {
+      const complete = {
+        checkedAt,
+        proofSha256: createHash("sha256")
+          .update(
+            JSON.stringify({
+              version: 4,
+              input: value,
+              selection,
+              states,
+              datedReplies,
+              otherThreadReplies,
+              checkedAt,
+            }),
+          )
+          .digest("hex"),
+        folderCount: paths.length,
+        messageCount,
+      };
+      result =
+        resumeOn === null
+          ? { status: "clear", ...complete }
+          : { status: "deferred", resumeOn, ...complete };
+    }
   } catch (error) {
     close();
-    result = {
-      status: "uncertain",
-      reason: error instanceof MailboxUncertain ? error.reason : "followup_imap_failed",
-    };
+    result = firstFound
+      ? { status: "found", reason: firstFound, checkedAt: new Date(now()).toISOString() }
+      : {
+          status: "uncertain",
+          reason: error instanceof MailboxUncertain ? error.reason : "followup_imap_failed",
+        };
   } finally {
     if (client?.usable && !signal.aborted && !socketFailed) {
       try {

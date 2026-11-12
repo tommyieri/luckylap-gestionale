@@ -80,12 +80,15 @@ export function parsePartnerFollowupStatus(value: unknown): PartnerFollowupStatu
   };
 }
 
+const POSSIBLE_REPLY =
+  "Possibile risposta nella posta: Tommi controlla la conversazione. Il controllo non ha registrato una risposta.";
 const REASONS: Record<string, string> = {
   fuori_ufficio: "Fuori ufficio: la data di rientro richiede una verifica di Tommi.",
-  reply: "Possibile risposta nella posta: Tommi controlla la conversazione.",
+  reply: POSSIBLE_REPLY,
   manual: "Possibile invio manuale nella conversazione: Tommi controlla la posta.",
   ambiguous: "Un messaggio non è attribuibile con certezza: Tommi controlla la conversazione.",
-  risposta_trovata: "Possibile risposta nella posta: Tommi controlla la conversazione.",
+  risposta_trovata: POSSIBLE_REPLY,
+  risposta_possibile: POSSIBLE_REPLY,
   risposta_registrata: "Una risposta è stata registrata nel gestionale.",
   attivita_team: "Il team ha preso in carico o lavorato questo contatto.",
   non_contattare: "Il contatto non è più contattabile automaticamente.",

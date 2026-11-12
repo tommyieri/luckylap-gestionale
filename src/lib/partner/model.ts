@@ -510,7 +510,7 @@ export type PartnerActivity = {
   partnerName: string;
   partnerCo: number;
   kind: PartnerActivityKind;
-  /** `assistente`: la prima email mandata dall'assistente Partner (consegna 2a). */
+  /** `assistente`: invio dell'assistente o risposta registrata dalla casella. */
   origin: "team" | "file" | "assistente";
   occurredAt: string;
   messageKind: PartnerMessageKind | null;
@@ -1022,6 +1022,8 @@ export function partnerActivityText(
   const stage = activity.stageAfter ? PARTNER_STAGE_LABELS[activity.stageAfter] : null;
   if (activity.origin === "file" && stage && activity.stageBefore !== activity.stageAfter)
     return stage;
+  if (activity.origin === "assistente" && activity.kind === "risposta")
+    return "Risposta registrata automaticamente dalla casella";
   switch (activity.kind) {
     case "inviato":
       return `${activity.messageKind === "sollecito" ? "Sollecito inviato" : "Inviato"}${channel}${approach}`;
@@ -1069,7 +1071,9 @@ export function partnerActivityLine(
         ? `dal file del ${activity.device}`
         : "da un file"
       : activity.origin === "assistente"
-        ? "dall'assistente"
+        ? activity.kind === "risposta"
+          ? ""
+          : "dall'assistente"
         : memberName(members, activity.createdBy);
   return [when, who, partnerActivityText(activity, members)].filter(Boolean).join(" · ");
 }

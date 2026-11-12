@@ -253,7 +253,13 @@ export function PartnerActivityLog({
           {shown.map((activity) => (
             <li key={activity.id}>
               <span>{partnerActivityLine(activity, members)}</span>
-              {activity.body && <span className={styles.logBody}>{activity.body}</span>}
+              {activity.body && (
+                <span className={styles.logBody}>
+                  {activity.origin === "assistente" && activity.kind === "risposta"
+                    ? `Oggetto della risposta: ${activity.body}`
+                    : activity.body}
+                </span>
+              )}
             </li>
           ))}
         </ol>

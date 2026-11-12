@@ -71,6 +71,14 @@ export type PartnerFollowupCheck =
   | { status: "deferred"; resume_on: string }
   | { status: "blocked" | "retry"; reason: string }
   | { status: "lease_persa" };
+export type PartnerFollowupReplyInput = {
+  message_id: string;
+  references: string[];
+  from_address: string;
+  received_at: string;
+  subject: string;
+};
+type PartnerFollowupReply = { status: "registered" | "already_recorded" | "stale" };
 type Lost = { status: "lease_persa" };
 type Stopped = { status: "stop"; reason: string };
 export type PartnerFollowupPrepared =
@@ -94,6 +102,17 @@ export type PartnerFollowupStore = {
     seconds: number,
     signal: AbortSignal,
   ): Promise<StoreResult<PartnerFollowupClaim>>;
+  claimReplyReview(
+    workerId: string,
+    seconds: number,
+    signal: AbortSignal,
+  ): Promise<StoreResult<PartnerFollowupClaim>>;
+  recordReply(
+    lease: string,
+    candidate: Pick<PartnerFollowupCandidate, "id" | "version">,
+    input: PartnerFollowupReplyInput,
+    signal: AbortSignal,
+  ): Promise<StoreResult<PartnerFollowupReply>>;
   recordCheck(
     lease: string,
     candidate: Pick<PartnerFollowupCandidate, "id" | "version">,
@@ -146,6 +165,8 @@ const messageId = (v: unknown): v is string =>
   typeof v === "string" &&
   /^<[A-Za-z0-9.!#$%&'*+/=?^_`{|}~-]+@[A-Za-z0-9.-]+>$/.test(v) &&
   v.length <= 200;
+const replyMessageId = (v: unknown): v is string =>
+  typeof v === "string" && v.length <= 254 && /^[!-~]+$/u.test(v) && /^<[^<>@]+@[^<>@]+>$/u.test(v);
 const code = (v: unknown): v is string => typeof v === "string" && safeWorkerReason(v);
 const exact = (v: Record<string, unknown>, keys: string[]) =>
   Object.keys(v).sort().join("|") === keys.sort().join("|");
@@ -286,6 +307,22 @@ function readClaim(value: unknown): PartnerFollowupClaim | null {
     ? { status: "claimed", lease_token: r.lease_token, mode: r.mode, candidate }
     : null;
 }
+function readReviewClaim(value: unknown): PartnerFollowupClaim | null {
+  const claim = readClaim(value);
+  if (claim?.status !== "claimed") return claim;
+  const c = claim.candidate;
+  return claim.mode === "osserva" && !c.send_allowed && c.draft === null && !c.send_not_after
+    ? claim
+    : null;
+}
+function readReply(value: unknown): PartnerFollowupReply | null {
+  const r = workerRecord(value);
+  if (!r || !exact(r, ["status"])) return null;
+  const { status } = r;
+  return status === "registered" || status === "already_recorded" || status === "stale"
+    ? { status }
+    : null;
+}
 const lostOrStopped = (r: Record<string, unknown>): Lost | Stopped | null =>
   r.status === "lease_persa" && exact(r, ["status"])
     ? { status: "lease_persa" }
@@ -315,7 +352,9 @@ function readCheck(value: unknown): PartnerFollowupCheck | null {
 
 export const PARTNER_FOLLOWUP_RPC_NAMES = [
   "claim_partner_followup",
+  "claim_partner_followup_reply_review",
   "record_partner_followup_check",
+  "record_partner_followup_reply",
   "prepare_partner_followup_send",
   "start_partner_followup_send",
   "finish_partner_followup_send",
@@ -362,6 +401,47 @@ export function createPartnerFollowupStore(config: PartnerAssistantConfig): Part
         "claim_partner_followup",
         { p_worker_id: workerId, p_lease_seconds: seconds },
         readClaim,
+        signal,
+      );
+    },
+    claimReplyReview(workerId, seconds, signal) {
+      if (!workerUuid(workerId) || !integer(seconds, 60, 600)) return refused();
+      return rpc(
+        "claim_partner_followup_reply_review",
+        { p_worker_id: workerId, p_lease_seconds: seconds },
+        readReviewClaim,
+        signal,
+      );
+    },
+    recordReply(lease, c, input, signal) {
+      if (
+        !workerUuid(lease) ||
+        !workerUuid(c.id) ||
+        !integer(c.version, 1) ||
+        !replyMessageId(input.message_id) ||
+        !Array.isArray(input.references) ||
+        input.references.length < 1 ||
+        input.references.length > 64 ||
+        !input.references.every(replyMessageId) ||
+        new Set(input.references).size !== input.references.length ||
+        input.references.includes(input.message_id) ||
+        !address(input.from_address) ||
+        !instant(input.received_at) ||
+        typeof input.subject !== "string" ||
+        !input.subject.isWellFormed() ||
+        input.subject.length > 300 ||
+        /[\x00-\x1f\x7f-\x9f\u2028\u2029]/u.test(input.subject)
+      )
+        return refused();
+      return rpc(
+        "record_partner_followup_reply",
+        {
+          p_lease_token: lease,
+          p_conversation_id: c.id,
+          p_expected_version: c.version,
+          p_reply: input,
+        },
+        readReply,
         signal,
       );
     },

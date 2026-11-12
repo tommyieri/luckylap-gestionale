@@ -330,6 +330,33 @@ it("conserva nella scheda la risposta completa anche quando è fuori dalla pagin
   expect(descendants(full).some((node) => node.type === "strong")).toBe(false);
 });
 
+it.each(["", "Oggetto sintetico: " + "Titolo lungo. ".repeat(22)])(
+  "distingue la risposta registrata dalla casella dal suo testo (oggetto %s)",
+  (body) => {
+    const tree = render(2, {
+      latestReply: {
+        id: "risposta-da-casella",
+        partnerId: "70000000-0000-4000-8000-000000000002",
+        kind: "risposta",
+        occurredAt: "2026-10-18T10:00:00Z",
+        createdBy: PARTNER_FIXTURE_MEMBER_ID,
+        origin: "assistente",
+        channel: "email",
+        body,
+      },
+    });
+    const latest = descendants(tree).find(
+      (node) => node.props["aria-label"] === "Ultima risposta registrata",
+    );
+    const initial = words(visible(latest));
+    expect(initial).toContain("Registrata automaticamente dalla casella.");
+    expect(initial).toContain("Il testo della risposta resta nella posta.");
+    expect(words(latest)).not.toContain("Leggi risposta completa");
+    if (body) expect(initial).toContain(`Oggetto della risposta: ${body.trim()}`);
+    else expect(initial).not.toContain("Oggetto della risposta");
+  },
+);
+
 // Il salvataggio continua a usare lo stesso comando, rendendo visibile l'effetto prima del click.
 it.each(["Seguito da", "Prossima azione"])(
   "avvisa prima di salvare %s su un contatto ancora seguito dall'assistente",
