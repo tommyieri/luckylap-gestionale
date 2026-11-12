@@ -154,13 +154,15 @@ class FakeImap extends EventEmitter {
 function fixture(messages: Record<string, FetchMessageObject[]> = {}, clock = NOW) {
   const fake = new FakeImap(messages);
   const create = vi.fn((_options: ImapFlowOptions) => fake as unknown as ImapFlow);
+  const reportIdentification = vi.fn();
   const controller = new AbortController();
   const run = (value = input) =>
     checkPartnerAssistantFollowupMailbox(mail, value, controller.signal, {
       createImapFlow: create,
       now: () => clock,
+      reportIdentification,
     });
-  return { fake, create, controller, run };
+  return { fake, create, controller, run, reportIdentification };
 }
 
 function autoReply(uid = 1, body = "I am out of the office. I will return on 2026-11-17.") {
@@ -353,7 +355,7 @@ describe("risposta attribuita alla conversazione Partner", () => {
       "followup_headers_encoding",
     ],
     [Buffer.from("Separatore assente\r\n"), "followup_headers_syntax"],
-    [Buffer.from("References: identificatore non leggibile\r\n"), "followup_headers_id_invalid"],
+    [Buffer.from("References: <identificatore incompleto>\r\n"), "followup_headers_id_references"],
   ])(
     "mantiene incerta una intestazione invalida con causa sanificata %#",
     async (headers, reason) => {
@@ -361,6 +363,71 @@ describe("risposta attribuita alla conversazione Partner", () => {
         status: "uncertain",
         reason,
       });
+    },
+  );
+
+  it("un riferimento obsoleto senza ID non nasconde una risposta certa in un'altra cartella", async () => {
+    const notice = message(1, {
+      headers: Buffer.from('References: risposta precedente "testo sintetico"\r\n'),
+    });
+    const { row, reply } = humanReply();
+    const f = fixture({ Archive: [notice], INBOX: [row] });
+
+    expect(await f.run()).toMatchObject({ status: "found", reason: "reply", reply });
+    expect(f.reportIdentification).toHaveBeenCalledExactlyOnceWith(["references:legacy_phrase"]);
+  });
+
+  it("un commento UTF-8 non blocca un ID indipendente e non nasconde un riferimento noto", async () => {
+    const notice = message(1, {
+      headers: Buffer.from("Message-ID: (réception) <avviso@unrelated.example.test>\r\n"),
+    });
+    expect(await fixture({ Archive: [notice] }).run()).toMatchObject({ status: "clear" });
+
+    const possibleReply = message(2, {
+      headers: Buffer.from(`References: (réponse) ${knownId}\r\n`),
+    });
+    expect(await fixture({ INBOX: [possibleReply] }).run()).toMatchObject({
+      status: "found",
+      reason: "reply",
+    });
+  });
+
+  it("riconosce un ID noto scritto senza parentesi angolari come indizio, senza registrare una risposta", async () => {
+    const { row } = humanReply();
+    replaceHeader(row, "References", knownId.slice(1, -1));
+    replaceHeader(row, "In-Reply-To", null);
+    const f = fixture({ INBOX: [row] });
+
+    const result = await f.run();
+    expect(result).toMatchObject({ status: "found", reason: "reply" });
+    expect(result).not.toHaveProperty("reply");
+    expect(f.reportIdentification).toHaveBeenCalledExactlyOnceWith(["references:bare"]);
+  });
+
+  it("un riferimento noto nell'ENVELOPE resta un blocco se le intestazioni non lo confermano", async () => {
+    const row = message(1, {
+      envelope: { from: [{ address: "unknown@unrelated.example.test" }], inReplyTo: knownId },
+      headers: Buffer.from('In-Reply-To: "riferimento precedente"\r\n'),
+    });
+    const f = fixture({ INBOX: [row] });
+
+    expect(await f.run()).toMatchObject({ status: "found", reason: "ambiguous" });
+    expect(f.reportIdentification).toHaveBeenCalledExactlyOnceWith(["in_reply_to:legacy_phrase"]);
+  });
+
+  it.each([
+    ["Message-ID", "message_id"],
+    ["In-Reply-To", "in_reply_to"],
+    ["References", "references"],
+  ])(
+    "isola il campo %s malformato senza includere il valore nel motivo o nei log",
+    async (name, code) => {
+      const f = fixture({
+        INBOX: [message(1, { headers: Buffer.from(`${name}: <malformato>\r\n`) })],
+      });
+
+      expect(await f.run()).toEqual({ status: "uncertain", reason: `followup_headers_id_${code}` });
+      expect(f.reportIdentification).toHaveBeenCalledExactlyOnceWith([`${code}:invalid`]);
     },
   );
 });
@@ -853,7 +920,7 @@ describe("verifica della casella prima dei solleciti", () => {
   );
   it.each([
     { headers: undefined },
-    { headers: Buffer.from("References: messaggio-senza-identificatore\r\n") },
+    { headers: Buffer.from("References: <altro@example.test> <identificatore incompleto>\r\n") },
     { headers: Buffer.from("Header privo di separatore\r\n") },
     { headers: Buffer.from(`X-Large: ${"x".repeat(65_536)}\r\n`) },
     { envelope: undefined },
