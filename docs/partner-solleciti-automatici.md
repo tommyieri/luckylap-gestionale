@@ -54,6 +54,8 @@ Il percorso usa la stessa lease della casella e lo stesso intervallo tra gli inv
 
 Cartella mancante o cambiata durante la lettura, limite di scansione superato, ricerca interrotta, connessione dubbia, risposta possibile, stop, rimbalzo o invio manuale impediscono l'invio automatico. Il solo fuori ufficio con data certa segue il rinvio descritto sopra. Contatto assegnato al team, prossima azione, stato commerciale diverso, assistente fermato, «Non contattare», recapito cambiato o cancellato bloccano il ciclo. Una bozza con contesto o ricerca superati deve essere preparata di nuovo.
 
+La lettura di `Message-ID`, `In-Reply-To` e `References` riconosce anche alcune forme obsolete, tra cui commenti interni e frasi nei riferimenti. Un identificativo scritto senza parentesi angolari vale come indizio. Per registrare una risposta servono ancora mittente e riferimenti certi. Se un campo rimane illeggibile, l'invio si ferma e i registri distinguono il nome del campo e il tipo di problema. I registri contengono solo codici fissi, senza oggetti, valori o altri dati della casella. [RFC 5322, §4.5.4](https://www.rfc-editor.org/rfc/rfc5322.html#section-4.5.4)
+
 Se l'esito SMTP è **incerto**, la conversazione si ferma e quel messaggio non viene ritentato. Anche un processo interrotto durante l'invio viene recuperato come incerto. Gli errori della casella e i rimbalzi condividono i fermi e le attese già previsti per le prime email.
 
 ## Quote e calendario

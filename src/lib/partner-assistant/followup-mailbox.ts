@@ -4,6 +4,10 @@ import { ImapFlow, type ImapFlowOptions, type FetchMessageObject } from "imapflo
 import { partnerAssistantMailAddress, type PartnerAssistantMailConfig } from "./mail-config";
 import { isCalendarDay, addDays } from "../partner/dates";
 import {
+  isPartnerFollowupMessageId,
+  parsePartnerFollowupIdentification,
+} from "./followup-identification";
+import {
   PARTNER_FOLLOWUP_AUTO_REPLY_MAX_BYTES,
   readPartnerFollowupAutoReply,
 } from "./followup-auto-reply";
@@ -52,6 +56,7 @@ export type PartnerAssistantFollowupMailboxResult =
 export type PartnerAssistantFollowupMailboxDependencies = {
   createImapFlow?: (options: ImapFlowOptions) => ImapFlow;
   now?: () => number;
+  reportIdentification?: (codes: readonly string[]) => void;
 };
 
 const MAX_FOLDERS = 64;
@@ -77,7 +82,13 @@ const HEADER_NAMES = [
   "Bcc",
   "Reply-To",
 ];
-const MESSAGE_ID = /^<[\x21-\x3b\x3d\x3f\x41-\x7e]+@[\x21-\x3b\x3d\x3f\x41-\x7e]+>$/u;
+const IDENTIFICATION_FIELD = {
+  "message-id": "message_id",
+  "in-reply-to": "in_reply_to",
+  references: "references",
+} as const;
+type IdentificationField = keyof typeof IDENTIFICATION_FIELD;
+type IdentificationReport = (code: string) => void;
 type FolderState = { path: string; uidValidity: string; uidNext: number; exists: number };
 
 class MailboxUncertain extends Error {
@@ -177,9 +188,7 @@ function validatedInput(
   });
   if (
     new Set(addresses).size !== addresses.length ||
-    input.messageIds.some(
-      (id) => typeof id !== "string" || id.length > 254 || !MESSAGE_ID.test(id),
-    ) ||
+    !input.messageIds.every(isPartnerFollowupMessageId) ||
     new Set(input.messageIds).size !== input.messageIds.length
   )
     return stop("invalid_input");
@@ -332,7 +341,7 @@ function canonicalAddressList(value: string): AddressToken[] | null {
   return null;
 }
 
-function messageData(message: FetchMessageObject) {
+function messageData(message: FetchMessageObject, report: IdentificationReport) {
   const envelope = message.envelope;
   if (!envelope || typeof envelope !== "object" || Array.isArray(envelope))
     return stop("envelope_invalid");
@@ -395,17 +404,61 @@ function messageData(message: FetchMessageObject) {
       /[\x00-\x1f\x7f-\x9f\u2028\u2029]/u.test(subject))
   )
     return stop("envelope_subject_invalid");
-  const ids = (name: string): string[] => {
+  let messageIdFallback: "standard" | "legacy_phrase" | "legacy_cfws" | "bare" | null = null;
+  let identificationProblem: string | null = null;
+  const ids = (name: IdentificationField): string[] => {
     const values = headers.get(name) ?? [];
     return values.flatMap((value) => {
-      const matched = value.match(/<[^<>\s@]+@[^<>\s@]+>/gu) ?? [];
-      if (value.trim() && matched.length === 0) return stop("headers_id_invalid");
-      return matched;
+      const matched: string[] = value.match(/<[^<>\s@]+@[^<>\s@]+>/gu) ?? [];
+      if (!value.trim()) return matched;
+      const parsed = parsePartnerFollowupIdentification(value, name);
+      const field = IDENTIFICATION_FIELD[name];
+      if (!parsed) {
+        report(`${field}:invalid`);
+        if (matched.length === 0) return stop(`headers_id_${field}`);
+        // Un token in mezzo a una struttura non valida può fermare, ma non dare via libera.
+        identificationProblem ??= `headers_id_${field}`;
+        return matched;
+      }
+      if (matched.length === 0) {
+        if (name === "message-id") messageIdFallback = parsed.form;
+        report(`${field}:${parsed.form}`);
+      }
+      // Conserva come indizi anche i token già riconosciuti dal vecchio controllo.
+      const exactTokens = new Set(matched);
+      return [...matched, ...parsed.ids.filter((id) => !exactTokens.has(id))];
     });
   };
   const messageIds = ids("message-id");
   const references = [...ids("in-reply-to"), ...ids("references")];
-  return { headers, grouped, from, to, cc, bcc, replyTo, sender, subject, messageIds, references };
+  const envelopeMessageId = parsePartnerFollowupIdentification(envelope.messageId, "message-id");
+  const envelopeParent = parsePartnerFollowupIdentification(envelope.inReplyTo, "in-reply-to");
+  const envelopeIds = [
+    ...(envelopeMessageId?.ids ?? []),
+    ...(envelopeParent?.ids ?? []),
+    ...(typeof envelope.inReplyTo === "string"
+      ? (envelope.inReplyTo.match(/<[^<>\s@]+@[^<>\s@]+>/gu) ?? [])
+      : []),
+  ];
+  const originalIdConfirmed =
+    messageIdFallback === null ||
+    (messageIdFallback === "legacy_cfws" && envelopeMessageId?.ids[0] === messageIds[0]);
+  return {
+    headers,
+    grouped,
+    from,
+    to,
+    cc,
+    bcc,
+    replyTo,
+    sender,
+    subject,
+    messageIds,
+    references,
+    envelopeIds,
+    originalIdConfirmed,
+    identificationProblem,
+  };
 }
 type MessageData = ReturnType<typeof messageData>;
 
@@ -420,6 +473,7 @@ function messageReason(
   const known = new Set(input.messageIds);
   if (
     own &&
+    data.originalIdConfirmed &&
     from.length === 1 &&
     messageIds.length === 1 &&
     known.has(messageIds[0]) &&
@@ -458,7 +512,7 @@ function messageReason(
 function singleHeaderId(data: MessageData, name: string): string | null {
   const values = data.headers.get(name) ?? [];
   const id = values.length === 1 ? values[0].trim() : "";
-  return id.length <= 254 && MESSAGE_ID.test(id) ? id : null;
+  return isPartnerFollowupMessageId(id) ? id : null;
 }
 
 function singleHeaderAddress(data: MessageData, name: string): string | null {
@@ -535,7 +589,7 @@ function replyIds(input: unknown): string[] | null {
       const end = value.indexOf(">", cursor + 1);
       if (end < 0 || end - cursor >= 254) return null;
       const id = value.slice(cursor, end + 1);
-      if (!MESSAGE_ID.test(id) || ids.has(id) || ids.size >= 64) return null;
+      if (!isPartnerFollowupMessageId(id) || ids.has(id) || ids.size >= 64) return null;
       ids.add(id);
       cursor = end + 1;
     } else return null;
@@ -747,6 +801,7 @@ export async function checkPartnerAssistantFollowupMailbox(
   dependencies: PartnerAssistantFollowupMailboxDependencies = {},
 ): Promise<PartnerAssistantFollowupMailboxResult> {
   const now = dependencies.now ?? Date.now;
+  const identification = new Set<string>();
   let client: ImapFlow | null = null;
   let socketFailed = false;
   const close = () => {
@@ -859,16 +914,14 @@ export async function checkPartnerAssistantFollowupMailbox(
         )
           stop("fetch_incomplete");
         for (const message of messages) {
-          const data = messageData(message);
-          if (data.messageIds.length > 64) stop("headers_id_invalid");
+          const data = messageData(message, (code) => identification.add(code));
+          if (data.messageIds.length > 64) {
+            identification.add("message_id:limit");
+            stop("headers_id_message_id_limit");
+          }
           const envelopeId = message.envelope?.messageId;
           const ids = new Set(data.messageIds);
-          if (
-            typeof envelopeId === "string" &&
-            envelopeId.length <= 254 &&
-            MESSAGE_ID.test(envelopeId)
-          )
-            ids.add(envelopeId);
+          if (isPartnerFollowupMessageId(envelopeId)) ids.add(envelopeId);
           for (const id of ids) seenMessageIds.set(id, (seenMessageIds.get(id) ?? 0) + 1);
           if (path === sentPath) {
             const original = otherThreadOriginal(
@@ -889,11 +942,17 @@ export async function checkPartnerAssistantFollowupMailbox(
               });
             }
           }
-          const envelopeConflict =
-            typeof envelopeId === "string" &&
-            value.messageIds.includes(envelopeId) &&
-            !data.messageIds.includes(envelopeId);
+          const envelopeConflict = data.envelopeIds.some(
+            (id) =>
+              value.messageIds.includes(id) &&
+              !data.messageIds.includes(id) &&
+              !data.references.includes(id),
+          );
           const reason = messageReason(data, value) ?? (envelopeConflict ? "ambiguous" : null);
+          if (data.identificationProblem) {
+            firstFound ??= reason;
+            stop(data.identificationProblem);
+          }
           if (!reason) continue;
           for (const id of ids) if (value.messageIds.includes(id)) collidingThreadIds.add(id);
           const headers = data.headers;
@@ -905,9 +964,7 @@ export async function checkPartnerAssistantFollowupMailbox(
             }
           }
           const auto = headers.get("auto-submitted") ?? [];
-          const collision = (headers.get("message-id") ?? []).some((id) =>
-            value.messageIds.includes(id.trim()),
-          );
+          const collision = data.messageIds.some((id) => value.messageIds.includes(id));
           if (
             reason === "reply" &&
             !collision &&
@@ -1031,7 +1088,7 @@ export async function checkPartnerAssistantFollowupMailbox(
         proofSha256: createHash("sha256")
           .update(
             JSON.stringify({
-              version: 4,
+              version: 5,
               input: value,
               selection,
               states,
@@ -1067,6 +1124,11 @@ export async function checkPartnerAssistantFollowupMailbox(
     }
     close();
     signal.removeEventListener("abort", close);
+    if (identification.size > 0) {
+      const codes = [...identification].sort();
+      if (dependencies.reportIdentification) dependencies.reportIdentification(codes);
+      else console.info("partner_followup_identification", codes.join(","));
+    }
   }
   if (signal.aborted) return { status: "uncertain", reason: "followup_aborted" };
   if (socketFailed) return { status: "uncertain", reason: "followup_connection_failed" };
