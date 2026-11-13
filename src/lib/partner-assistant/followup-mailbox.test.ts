@@ -36,6 +36,7 @@ type RawEnvelopeOptions = {
   replyTo?: unknown;
   sender?: unknown;
   subject?: string | null;
+  messageId?: string;
 };
 function realEnvelope(options: RawEnvelopeOptions = {}) {
   return parseEnvelope([
@@ -48,7 +49,7 @@ function realEnvelope(options: RawEnvelopeOptions = {}) {
     options.cc ?? null,
     options.bcc ?? null,
     null,
-    token("<synthetic@unrelated.example.test>"),
+    token(options.messageId ?? "<synthetic@unrelated.example.test>"),
   ]);
 }
 
@@ -188,6 +189,7 @@ function otherThread() {
       from: [rawAddress(own, "Nome sintetico")],
       to: [rawAddress(otherPeer)],
       subject: otherSubject,
+      messageId: otherSentId,
     }),
     headers: Buffer.from(
       `From: "Nome sintetico" <${own}>\r\nTo: ${otherPeer}\r\nSubject: ${otherSubject}\r\nMessage-ID: ${otherSentId}\r\nContent-Type: text/plain; charset=utf-8\r\n`,
@@ -200,6 +202,7 @@ function otherThread() {
       from: [rawAddress(otherPeer, "Ufficio sintetico")],
       to: [rawAddress(own, "Nome sintetico")],
       subject: replySubject,
+      messageId: "<other-automatic@other-partner.example.test>",
     }),
     headers: Buffer.from(
       `Return-Path: <>\r\nFrom: Ufficio sintetico <${otherPeer}>\r\nTo: Nome sintetico <${own}>\r\nSubject: ${replySubject}\r\nMessage-ID: <other-automatic@other-partner.example.test>\r\nIn-Reply-To: ${otherSentId}\r\nReferences: ${otherSentId}\r\nAuto-Submitted: auto-generated\r\nContent-Type: multipart/alternative; boundary="synthetic"\r\n`,
@@ -415,8 +418,142 @@ describe("risposta attribuita alla conversazione Partner", () => {
     expect(f.reportIdentification).toHaveBeenCalledExactlyOnceWith(["in_reply_to:legacy_phrase"]);
   });
 
+  it("un Message-ID illeggibile su un messaggio estraneo consente la verifica completa", async () => {
+    const notice = message(1, { headers: Buffer.from("Message-ID: <malformato>\r\n") });
+    const f = fixture({ Archive: [notice] });
+
+    expect(await f.run()).toMatchObject({ status: "clear", folderCount: 6, messageCount: 1 });
+    expect(f.fake.getMailboxLock).toHaveBeenCalledTimes(12);
+    expect(f.reportIdentification).toHaveBeenCalledExactlyOnceWith([
+      "message_id:invalid",
+      "message_id:invalid_without_token",
+    ]);
+  });
+
+  it("un Message-ID illeggibile in Archivio non nasconde una risposta certa in Posta in arrivo", async () => {
+    const notice = message(1, { headers: Buffer.from("Message-ID: <malformato>\r\n") });
+    const { row, reply } = humanReply();
+    const f = fixture({ Archive: [notice], INBOX: [row] });
+
+    expect(await f.run()).toMatchObject({ status: "found", reason: "reply", reply });
+    expect(f.reportIdentification).toHaveBeenCalledExactlyOnceWith([
+      "message_id:invalid",
+      "message_id:invalid_without_token",
+    ]);
+  });
+
   it.each([
-    ["Message-ID", "message_id"],
+    ["mittente", { from: [{ address: target }] }, "", "reply"],
+    ["thread", {}, `References: ${knownId}\r\n`, "reply"],
+    ["oggetto", { subject: `Re: ${input.subject}` }, "", "ambiguous"],
+    [
+      "rimbalzo",
+      {},
+      "Content-Type: multipart/report; report-type=delivery-status\r\n",
+      "ambiguous",
+    ],
+  ] as const)(
+    "un Message-ID illeggibile non scarta un segnale rilevante per %s",
+    async (_signal, envelope, headers, reason) => {
+      const row = message(1);
+      row.envelope = { ...row.envelope, ...envelope } as NonNullable<
+        FetchMessageObject["envelope"]
+      >;
+      row.headers = Buffer.from(`Message-ID: <malformato>\r\n${headers}`);
+      const f = fixture({ INBOX: [row] });
+      const found = await f.run();
+
+      expect(found).toMatchObject({ status: "found", reason });
+      expect(found).not.toHaveProperty("reply");
+      expect(f.reportIdentification).toHaveBeenCalledExactlyOnceWith([
+        "message_id:invalid",
+        "message_id:invalid_without_token",
+      ]);
+    },
+  );
+
+  it("non registra una risposta da mittente e thread noti se il proprio Message-ID è illeggibile", async () => {
+    const { row } = humanReply();
+    replaceHeader(row, "Message-ID", "<malformato>");
+    row.envelope!.messageId = "<malformato>";
+    const found = await fixture({ INBOX: [row] }).run();
+
+    expect(found).toMatchObject({ status: "found", reason: "reply" });
+    expect(found).not.toHaveProperty("reply");
+  });
+
+  it.each([
+    ["duplicato", `Message-ID: ${knownId}\r\nMessage-ID: ${knownId}\r\n`, knownId],
+    ["bare", `Message-ID: ${knownId.slice(1, -1)}\r\n`, knownId],
+    ["ENVELOPE discordante", `Message-ID: ${knownId}\r\n`, "<different@brand.example.test>"],
+    ["in testo malformato", `Message-ID: spazzatura ${knownId}\r\n`, knownId],
+  ])("non esenta come prima email un Message-ID noto %s", async (_kind, headers, messageId) => {
+    const row = message(1, {
+      headers: Buffer.from(headers),
+      envelope: { from: [{ address: own }], to: [{ address: target }], messageId },
+    });
+    const found = await fixture({ Sent: [row] }).run();
+
+    expect(found).toMatchObject({ status: "found", reason: "manual" });
+    expect(found).not.toHaveProperty("reply");
+  });
+
+  it.each(["header", "ENVELOPE"])(
+    "un ID noto in %s malformato blocca senza attribuire una risposta collegata allo stesso ID",
+    async (where) => {
+      const collision = message(1);
+      const garbage = `spazzatura ${knownId}`;
+      collision.headers = Buffer.from(
+        `Message-ID: ${where === "header" ? garbage : "<malformato>"}\r\n`,
+      );
+      if (where === "ENVELOPE") collision.envelope!.messageId = garbage;
+      const { row } = humanReply();
+      const f = fixture({ Archive: [collision], INBOX: [row] });
+
+      const found = await f.run();
+      expect(found).toMatchObject({ status: "found" });
+      expect(found).not.toHaveProperty("reply");
+      expect(f.reportIdentification).toHaveBeenCalledExactlyOnceWith([
+        "message_id:invalid",
+        "message_id:invalid_with_token",
+        ...(where === "ENVELOPE" ? ["message_id:invalid_without_token"] : []),
+      ]);
+    },
+  );
+
+  it("una copia apparente fuori da Inviata o duplicata non viene esentata", async () => {
+    const row = message(1, {
+      headers: Buffer.from(`From: ${own}\r\nTo: ${target}\r\nMessage-ID: ${knownId}\r\n`),
+      envelope: { from: [{ address: own }], to: [{ address: target }], messageId: knownId },
+    });
+    for (const [folder, rows] of [
+      ["INBOX", [row]],
+      ["Sent", [row, { ...row, uid: 2 }]],
+    ] as const) {
+      expect(await fixture({ [folder]: [...rows] }).run()).toMatchObject({
+        status: "found",
+        reason: "manual",
+      });
+    }
+  });
+
+  it.each([
+    ["From", "altro@unrelated.example.test"],
+    ["Cc", "altro@unrelated.example.test"],
+    ["In-Reply-To", "<altro@unrelated.example.test>"],
+  ])("non riconosce la copia della prima email con %s discordante", async (name, value) => {
+    const row = message(1, {
+      headers: Buffer.from(`From: ${own}\r\nTo: ${target}\r\nMessage-ID: ${knownId}\r\n`),
+      envelope: { from: [{ address: own }], to: [{ address: target }], messageId: knownId },
+    });
+    replaceHeader(row, name, value);
+    expect(await fixture({ Sent: [row] }).run()).toMatchObject({
+      status: "found",
+      reason: "manual",
+    });
+  });
+
+  it.each([
     ["In-Reply-To", "in_reply_to"],
     ["References", "references"],
   ])(
@@ -508,7 +645,7 @@ describe("verifica della casella prima dei solleciti", () => {
   it("esclude la prima email nota soltanto con il nostro mittente e il destinatario previsto", async () => {
     const original = message(1, {
       envelope: { from: [{ address: own }], to: [{ address: target }], subject: input.subject },
-      headers: Buffer.from(`Message-ID: ${knownId}\r\n`),
+      headers: Buffer.from(`From: ${own}\r\nTo: ${target}\r\nMessage-ID: ${knownId}\r\n`),
     });
     expect(await fixture({ Sent: [original] }).run()).toMatchObject({
       status: "clear",
@@ -528,6 +665,27 @@ describe("verifica della casella prima dei solleciti", () => {
       status: "found",
       reason: "manual",
     });
+  });
+
+  it("riconosce il sollecito già inviato con il riferimento alla prima email", async () => {
+    const followupId = "<followup-synthetic@brand.example.test>";
+    const followup = message(1, {
+      envelope: {
+        from: [{ address: own }],
+        to: [{ address: target }],
+        messageId: followupId,
+        inReplyTo: knownId,
+      },
+      headers: Buffer.from(
+        `From: ${own}\r\nTo: ${target}\r\nMessage-ID: ${followupId}\r\nIn-Reply-To: ${knownId}\r\nReferences: ${knownId}\r\n`,
+      ),
+    });
+    expect(
+      await fixture({ Sent: [followup] }).run({
+        ...input,
+        messageIds: [knownId, followupId],
+      }),
+    ).toMatchObject({ status: "clear" });
   });
   it("la corrispondenza parziale o il nome visualizzato non valgono come indirizzo esatto", async () => {
     const f = fixture({
@@ -1271,13 +1429,16 @@ describe("ENVELOPE reale: gruppi, NIL e destinatari nascosti", () => {
       to: [rawAddress(target)],
       sender: [rawAddress(own)],
       replyTo: [rawAddress(own)],
+      messageId: knownId,
     });
     expect(
       await fixture({
         Sent: [
           message(1, {
             envelope,
-            headers: Buffer.from(`Message-ID: ${knownId}\r\nReply-To: ${own}\r\n`),
+            headers: Buffer.from(
+              `From: ${own}\r\nTo: ${target}\r\nMessage-ID: ${knownId}\r\nReply-To: ${own}\r\n`,
+            ),
           }),
         ],
       }).run(),

@@ -83,7 +83,6 @@ const HEADER_NAMES = [
   "Reply-To",
 ];
 const IDENTIFICATION_FIELD = {
-  "message-id": "message_id",
   "in-reply-to": "in_reply_to",
   references: "references",
 } as const;
@@ -341,6 +340,58 @@ function canonicalAddressList(value: string): AddressToken[] | null {
   return null;
 }
 
+/** Un ID del messaggio è facoltativo. Le forme rotte danno solo indizi di pertinenza,
+ * mai un'identità con cui registrare una risposta o riconoscere una copia in Inviata. */
+function messageIdentification(
+  values: readonly string[],
+  envelopeValue: string | undefined,
+  report: IdentificationReport,
+) {
+  const hints = new Set<string>();
+  let invalid = false;
+  const collect = (value: string) => {
+    if (value.length > MAX_HEADERS_BYTES) stop("headers_id_message_id_limit");
+    if (!value.trim()) return null;
+    const parsed = parsePartnerFollowupIdentification(value, "message-id");
+    for (const id of parsed?.ids ?? []) hints.add(id);
+    const exact = value.match(/<[^<>\s@]+@[^<>\s@]+>/gu) ?? [];
+    for (const id of exact) hints.add(id);
+    if (parsed) return parsed;
+    invalid = true;
+    report(exact.length ? "message_id:invalid_with_token" : "message_id:invalid_without_token");
+    // Anche un token noto in un campo rotto conta come indizio. Non ricostruiamo un ID
+    // concatenando frammenti e non usiamo questi token come prova per l'attribuzione.
+    for (const token of value.match(/<[^<>]*>/gu) ?? []) {
+      const candidate = parsePartnerFollowupIdentification(token, "message-id");
+      for (const id of candidate?.ids ?? []) hints.add(id);
+    }
+    for (const token of value.split(/[\s<>()",;:\[\]\\]+/u)) {
+      if (!token.includes("@")) continue;
+      const candidate = parsePartnerFollowupIdentification(token, "message-id");
+      for (const id of candidate?.ids ?? []) hints.add(id);
+    }
+    return null;
+  };
+  const parsed = values.map(collect);
+  const fromEnvelope = typeof envelopeValue === "string" ? collect(envelopeValue) : null;
+  const only = parsed.length === 1 ? parsed[0] : null;
+  const headerId = only && only.form !== "bare" ? only.ids[0] : undefined;
+  const envelopeHasValue = typeof envelopeValue === "string" && !!envelopeValue.trim();
+  const matchesEnvelope =
+    !envelopeHasValue || (fromEnvelope?.form !== "bare" && fromEnvelope?.ids[0] === headerId);
+  const usableId = headerId && matchesEnvelope ? headerId : null;
+
+  if (invalid) report("message_id:invalid");
+  else if (values.length > 1) report("message_id:duplicate");
+  else if (only && only.form !== "standard") report(`message_id:${only.form}`);
+  else if (headerId && envelopeHasValue && !usableId) report("message_id:conflict");
+  if (hints.size > 64) {
+    report("message_id:limit");
+    stop("headers_id_message_id_limit");
+  }
+  return { messageIds: [...hints], usableId };
+}
+
 function messageData(message: FetchMessageObject, report: IdentificationReport) {
   const envelope = message.envelope;
   if (!envelope || typeof envelope !== "object" || Array.isArray(envelope))
@@ -404,7 +455,6 @@ function messageData(message: FetchMessageObject, report: IdentificationReport) 
       /[\x00-\x1f\x7f-\x9f\u2028\u2029]/u.test(subject))
   )
     return stop("envelope_subject_invalid");
-  let messageIdFallback: "standard" | "legacy_phrase" | "legacy_cfws" | "bare" | null = null;
   let identificationProblem: string | null = null;
   const ids = (name: IdentificationField): string[] => {
     const values = headers.get(name) ?? [];
@@ -421,7 +471,6 @@ function messageData(message: FetchMessageObject, report: IdentificationReport) 
         return matched;
       }
       if (matched.length === 0) {
-        if (name === "message-id") messageIdFallback = parsed.form;
         report(`${field}:${parsed.form}`);
       }
       // Conserva come indizi anche i token già riconosciuti dal vecchio controllo.
@@ -429,20 +478,19 @@ function messageData(message: FetchMessageObject, report: IdentificationReport) 
       return [...matched, ...parsed.ids.filter((id) => !exactTokens.has(id))];
     });
   };
-  const messageIds = ids("message-id");
+  const { messageIds, usableId } = messageIdentification(
+    headers.get("message-id") ?? [],
+    envelope.messageId,
+    report,
+  );
   const references = [...ids("in-reply-to"), ...ids("references")];
-  const envelopeMessageId = parsePartnerFollowupIdentification(envelope.messageId, "message-id");
   const envelopeParent = parsePartnerFollowupIdentification(envelope.inReplyTo, "in-reply-to");
-  const envelopeIds = [
-    ...(envelopeMessageId?.ids ?? []),
+  const envelopeReferences = [
     ...(envelopeParent?.ids ?? []),
     ...(typeof envelope.inReplyTo === "string"
       ? (envelope.inReplyTo.match(/<[^<>\s@]+@[^<>\s@]+>/gu) ?? [])
       : []),
   ];
-  const originalIdConfirmed =
-    messageIdFallback === null ||
-    (messageIdFallback === "legacy_cfws" && envelopeMessageId?.ids[0] === messageIds[0]);
   return {
     headers,
     grouped,
@@ -454,41 +502,42 @@ function messageData(message: FetchMessageObject, report: IdentificationReport) 
     sender,
     subject,
     messageIds,
+    usableId,
     references,
-    envelopeIds,
-    originalIdConfirmed,
+    envelopeReferences,
     identificationProblem,
   };
 }
 type MessageData = ReturnType<typeof messageData>;
 
+function isKnownOriginal(data: MessageData, input: PartnerAssistantFollowupMailboxInput): boolean {
+  const { usableId, headers, references, envelopeReferences, to } = data;
+  const firstId = input.messageIds[0];
+  if (usableId === null || !input.messageIds.includes(usableId) || to.length !== 1) return false;
+  if (usableId === firstId) {
+    if (headers.has("in-reply-to") || headers.has("references") || envelopeReferences.length > 0)
+      return false;
+  } else if (
+    singleHeaderId(data, "in-reply-to") !== firstId ||
+    [...references, ...envelopeReferences].some(
+      (id) => id === usableId || !input.messageIds.includes(id),
+    )
+  )
+    return false;
+  return (
+    input.addresses.includes(to[0]) &&
+    simpleParties(data, input.ownAddress, to[0], singleReplyAddress)
+  );
+}
+
 function messageReason(
   data: MessageData,
   input: PartnerAssistantFollowupMailboxInput,
 ): "reply" | "manual" | "ambiguous" | null {
-  const { headers, grouped, from, to, cc, bcc, replyTo, sender, subject, messageIds, references } =
-    data;
+  const { headers, from, to, cc, bcc, replyTo, sender, subject, messageIds, references } = data;
   const own = from.includes(input.ownAddress);
   const expected = new Set(input.addresses);
   const known = new Set(input.messageIds);
-  if (
-    own &&
-    data.originalIdConfirmed &&
-    from.length === 1 &&
-    messageIds.length === 1 &&
-    known.has(messageIds[0]) &&
-    to.length > 0 &&
-    [...to, ...cc].every((address) => expected.has(address)) &&
-    bcc.length === 0 &&
-    !headers.has("bcc") &&
-    grouped.size === 0 &&
-    (sender.length === 0 || (sender.length === 1 && sender[0] === input.ownAddress)) &&
-    (replyTo.length === 0 || (replyTo.length === 1 && replyTo[0] === input.ownAddress)) &&
-    (!headers.has("reply-to") ||
-      JSON.stringify(canonicalAddressList((headers.get("reply-to") ?? []).join(","))) ===
-        JSON.stringify([{ address: input.ownAddress }]))
-  )
-    return null;
   if (
     references.some((id) => known.has(id)) ||
     [...from, ...to, ...cc, ...bcc, ...replyTo, ...sender].some((address) => expected.has(address))
@@ -623,6 +672,7 @@ function confirmedReply(
   const references = replyReferences(data, "references");
   if (
     id === null ||
+    id !== data.usableId ||
     input.messageIds.includes(id) ||
     (envelopeId !== undefined && JSON.stringify(replyIds(envelopeId)) !== JSON.stringify(ids)) ||
     parent === null ||
@@ -722,7 +772,7 @@ function threadMessage(
 ): OtherThreadMessage | null {
   const messageId = singleHeaderId(data, "message-id");
   const at = internalTime(message, since, now);
-  if (messageId === null || at === null) return null;
+  if (messageId === null || messageId !== data.usableId || at === null) return null;
   return {
     messageId,
     peer,
@@ -871,6 +921,7 @@ export async function checkPartnerAssistantFollowupMailbox(
     const sentMessages = new Map<string, SentThreadMessage>();
     const seenMessageIds = new Map<string, number>();
     const collidingThreadIds = new Set<string>();
+    const possibleOriginals: { id: string; uid: number }[] = [];
     const replies: PartnerAssistantFollowupMailboxReply[] = [];
     const today = recipientDay(now(), value.timezone);
     let resumeOn: string | null = null;
@@ -915,14 +966,8 @@ export async function checkPartnerAssistantFollowupMailbox(
           stop("fetch_incomplete");
         for (const message of messages) {
           const data = messageData(message, (code) => identification.add(code));
-          if (data.messageIds.length > 64) {
-            identification.add("message_id:limit");
-            stop("headers_id_message_id_limit");
-          }
-          const envelopeId = message.envelope?.messageId;
-          const ids = new Set(data.messageIds);
-          if (isPartnerFollowupMessageId(envelopeId)) ids.add(envelopeId);
-          for (const id of ids) seenMessageIds.set(id, (seenMessageIds.get(id) ?? 0) + 1);
+          for (const id of data.messageIds)
+            seenMessageIds.set(id, (seenMessageIds.get(id) ?? 0) + 1);
           if (path === sentPath) {
             const original = otherThreadOriginal(
               message,
@@ -932,7 +977,7 @@ export async function checkPartnerAssistantFollowupMailbox(
               now(),
             );
             // Anche una seconda copia incoerente con lo stesso ID impedisce l'esenzione.
-            for (const id of new Set(data.messageIds)) {
+            for (const id of data.messageIds) {
               const previous = sentMessages.get(id);
               sentMessages.set(id, {
                 count: (previous?.count ?? 0) + 1,
@@ -942,11 +987,8 @@ export async function checkPartnerAssistantFollowupMailbox(
               });
             }
           }
-          const envelopeConflict = data.envelopeIds.some(
-            (id) =>
-              value.messageIds.includes(id) &&
-              !data.messageIds.includes(id) &&
-              !data.references.includes(id),
+          const envelopeConflict = data.envelopeReferences.some(
+            (id) => value.messageIds.includes(id) && !data.references.includes(id),
           );
           const reason = messageReason(data, value) ?? (envelopeConflict ? "ambiguous" : null);
           if (data.identificationProblem) {
@@ -954,7 +996,18 @@ export async function checkPartnerAssistantFollowupMailbox(
             stop(data.identificationProblem);
           }
           if (!reason) continue;
-          for (const id of ids) if (value.messageIds.includes(id)) collidingThreadIds.add(id);
+          if (
+            path === sentPath &&
+            !envelopeConflict &&
+            data.usableId !== null &&
+            data.messageIds.length === 1 &&
+            isKnownOriginal(data, value)
+          ) {
+            possibleOriginals.push({ id: data.usableId, uid: message.uid });
+            continue;
+          }
+          for (const id of data.messageIds)
+            if (value.messageIds.includes(id)) collidingThreadIds.add(id);
           const headers = data.headers;
           if (reason === "ambiguous") {
             const unrelated = otherThreadAutoReply(message, data, value, since.getTime(), now());
@@ -1043,6 +1096,11 @@ export async function checkPartnerAssistantFollowupMailbox(
     if (JSON.stringify(selection) !== JSON.stringify(finalSelection)) stop("folders_changed");
     await call(() => box.noop());
     if (box.usable !== true) stop("connection_failed");
+    for (const original of possibleOriginals) {
+      if (seenMessageIds.get(original.id) === 1) continue;
+      collidingThreadIds.add(original.id);
+      firstFound ??= "manual";
+    }
     const otherThreadReplies: {
       reply: (typeof pendingReplies)[number];
       original: SentThreadMessage;
@@ -1052,6 +1110,7 @@ export async function checkPartnerAssistantFollowupMailbox(
       const original = matched?.original;
       if (
         matched?.count !== 1 ||
+        seenMessageIds.get(reply.originalId) !== 1 ||
         !original ||
         original.messageId !== reply.originalId ||
         original.peer !== reply.peer ||
@@ -1088,11 +1147,12 @@ export async function checkPartnerAssistantFollowupMailbox(
         proofSha256: createHash("sha256")
           .update(
             JSON.stringify({
-              version: 5,
+              version: 6,
               input: value,
               selection,
               states,
               datedReplies,
+              possibleOriginals,
               otherThreadReplies,
               checkedAt,
             }),
