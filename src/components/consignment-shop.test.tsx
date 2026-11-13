@@ -21,7 +21,7 @@ import {
   ConsignmentCountForm,
   revealConfirm,
 } from "./consignment-count-form";
-import { item, shopPageRows } from "../lib/consignment/shop-fixtures";
+import { cap, item, shopPageRows, sx } from "../lib/consignment/shop-fixtures";
 import { countDraft, shopPageFromRows } from "../lib/consignment/shop-read";
 
 const NOW = "2026-10-22T10:00:00.000Z";
@@ -53,6 +53,27 @@ const renderSales = (code = "NEG01", canFinance = true) =>
   );
 
 describe("magazzino del negozio (Magazzino › Conto vendita)", () => {
+  it("mostra la nota del negozio e le giacenze dei cappellini a parte", () => {
+    const rows = shopPageRows();
+    rows.availability.push({
+      stock_item_id: cap,
+      location_id: sx.shop,
+      on_hand: 4,
+      reserved: 0,
+      available: 4,
+    });
+    const p = shopPageFromRows(rows, NOW);
+    p.shop.note = "Vendite sintetiche precedenti alla consegna.";
+    const stock = text(renderToStaticMarkup(<ConsignmentShopStock page={p} now={NOW} />));
+    expect(stock).toContain("Nota del negozio Vendite sintetiche precedenti alla consegna.");
+    expect(stock).toContain("8 magliette");
+    expect(stock).toContain("Cappellini in negozio 4 in totale Nero Cappellino sintetico 4");
+    const sales = text(
+      renderToStaticMarkup(<ConsignmentShopSales page={p} canFinance={false} now={NOW} />),
+    );
+    expect(sales).toContain("Nota del negozio Vendite sintetiche precedenti alla consegna.");
+    expect(sales).not.toContain("Cappellini in negozio");
+  });
   it("negozio contato: tutta la griglia S–XL, conta, ordini con mancanze, storico delle magliette", () => {
     const html = renderStock();
     const t = text(html);

@@ -16,7 +16,7 @@ const document = (index: number, role: "invoice" | "statement") => ({
 
 const raw = {
   id: uuid(1),
-  shop: { code: "SHOP", name: "Negozio demo" },
+  shop: { code: "SHOP", name: "Negozio demo", config: { note: "  Nota del negozio demo  " } },
   period_start: "2028-01-01",
   period_start_month_only: true,
   period_end: "2028-02-05",
@@ -67,9 +67,15 @@ describe("storico del conto vendita", () => {
       periodStartMonthOnly: true,
       periodEnd: "2028-02-05",
       brandCents: 4800,
+      shopNote: "Nota del negozio demo",
     });
     expect(() => consignmentArchiveFromRows([{ ...raw, brand_cents: "4799" }])).toThrow();
     expect(() => consignmentArchiveFromRows([{ ...raw, invoice: raw.statement }])).toThrow();
+  });
+
+  it("mantiene leggibile l’archivio per un negozio senza nota", () => {
+    const [row] = consignmentArchiveFromRows([{ ...raw, shop: { ...raw.shop, config: null } }]);
+    expect(row?.shopNote).toBeNull();
   });
 
   it("segue la revisione del pagamento, distinguendo previsto, in sospeso e incassato", () => {

@@ -13,6 +13,8 @@ Le regole, i comandi e i dati sono gli stessi per i due lati: cambia solo dove s
 
 In **Finance › Conto vendita** si consultano i capi venduti per periodo di fatturazione, le fatture e i riepiloghi privati, il movimento BudgetFlow collegato, il totale incassato e il residuo. Le fatture storiche mantengono i periodi indicati nei PDF, anche quando attraversano più mesi. Il dettaglio riporta modello, taglia, quantità, prezzo e quota LuckyLap. I resoconti del gestionale e le eventuali vendite registrate singolarmente restano consultabili nella stessa sezione.
 
+La nota nelle impostazioni del negozio compare anche nell’archivio Finance e nelle pagine del negozio in Magazzino e Vendite. Può indicare quali vendite archiviate precedono una consegna. Le fatture mantengono il periodo originale e le giacenze seguono le conte e i trasferimenti registrati.
+
 L'archivio collega il movimento BudgetFlow esistente. Incassi in sospeso, futuri, annullati o da confermare hanno un residuo aperto. Se un pagamento era previsto all'esportazione, resta in sospeso anche dopo la data prevista. Dopo aver verificato il versamento, apri il movimento Finance, riporta la data effettiva, togli «In sospeso» e indica il motivo della modifica. Se le fonti riportano numeri di fattura discordanti, la scheda mostra la nota originale accanto al collegamento.
 
 ### Importazione dell'archivio
@@ -128,7 +130,7 @@ Avvisi in cima, solo se servono, calcolati alla lettura senza job pianificati (`
 **Magazzino del negozio** (`ConsignmentShopStock`), dall'alto:
 
 1. Avvisi: negozio da contare, ordini da consegnare; negozio chiuso, modifiche al magazzino sospese.
-2. **In negozio**: la griglia con tutte le T-shirt attive nelle taglie del negozio, il totale e «Conta in negozio» (prima conta, pulsante principale) o «Correggi la conta». Prima della conta ogni casella è «—» e la frase lo spiega. Le celle con ordini aperti mostrano «+2 in arrivo».
+2. **In negozio**: la griglia con tutte le T-shirt attive nelle taglie del negozio, il totale e «Conta in negozio» (prima conta, pulsante principale) o «Correggi la conta». Prima della conta ogni casella è «—» e la frase lo spiega. Le celle con ordini aperti mostrano «+2 in arrivo». **Cappellini in negozio** mostra le giacenze positive per modello e colore, con il proprio totale.
 3. **Ordini**: «Nuovo ordine», gli ordini aperti con «Da preparare · In magazzino · Mancano», quelli chiusi comprimibili.
 4. **Storico**, comprimibile: conte, consegne, magliette riportate e versioni dei resoconti che hanno tolto magliette dal negozio, con autore e ora (le fatture no). Qui c'è l'azione secondaria «Riporta in magazzino».
 5. Link «Vendite del negozio» e «Impostazioni del negozio».

@@ -21,7 +21,7 @@ import {
   suggestedReportMonth,
   type ShopPageRows,
 } from "./shop-read";
-import { item, shopListRows, shopPageRows, sid, sx } from "./shop-fixtures";
+import { cap, item, shopListRows, shopPageRows, sid, sx } from "./shop-fixtures";
 
 const page = (rows: ShopPageRows = shopPageRows()) =>
   shopPageFromRows(rows, "2026-10-22T10:00:00Z");
@@ -62,6 +62,25 @@ describe("lettura della pagina del negozio", () => {
   });
   it("senza Finance non porta pagamenti", () => {
     expect(page(shopPageRows("NEG01", false)).payments).toBeNull();
+  });
+  it("mostra i cappellini dalla giacenza del negozio, separati dalla griglia e dalla conta", () => {
+    const p = page(
+      edit((rows) =>
+        rows.availability.push({
+          stock_item_id: cap,
+          location_id: sx.shop,
+          on_hand: 4,
+          reserved: 0,
+          available: 4,
+        }),
+      ),
+    );
+    expect(p.caps).toEqual([
+      { id: cap, model: "Cappellino sintetico", color: "Nero", quantity: 4 },
+    ]);
+    expect(shopStockGrid(p).total).toBe(8);
+    expect(countDraft(p, { [cap]: 4 })).toBeNull();
+    expect(page().caps).toEqual([]);
   });
   it.each<[string, (rows: ShopPageRows) => void]>([
     ["riga del resoconto mancante", (r) => r.reportLines.pop()],
@@ -615,6 +634,15 @@ describe("storico", () => {
 });
 
 describe("elenco dei negozi", () => {
+  it("conteggia le magliette e i cappellini separatamente", () => {
+    const rows = shopListRows();
+    rows.availability.push({ stock_item_id: cap, location_id: sx.shop, on_hand: 4 });
+    expect(shopsFromRows(rows, "2026-11-05T10:00:00Z").shops[0]).toMatchObject({
+      code: "NEG01",
+      pieces: 8,
+      capPieces: 4,
+    });
+  });
   it("in negozio, ultimo resoconto, mesi da registrare e ordini aperti", () => {
     const list = shopsFromRows(shopListRows(), "2026-11-05T10:00:00Z");
     expect(

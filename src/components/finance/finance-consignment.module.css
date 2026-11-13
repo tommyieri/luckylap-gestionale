@@ -123,12 +123,22 @@
   flex-wrap: wrap;
 }
 
+.shopNote,
 .paymentNote {
-  margin: 0 0 6px;
   padding: 9px 12px;
   font-size: var(--text-sm);
   background: var(--amber-wash);
   border-radius: var(--radius-finance-control);
+  overflow-wrap: anywhere;
+}
+
+.shopNote {
+  margin: 0 0 14px;
+  white-space: pre-line;
+}
+
+.paymentNote {
+  margin: 0 0 6px;
 }
 
 .details summary {

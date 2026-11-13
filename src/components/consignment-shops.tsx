@@ -85,6 +85,13 @@ function StockShopRow({ row }: { row: ShopListRow }) {
           ) : (
             `${tshirtsLabel(row.pieces)} in negozio`
           )}
+          {row.capPieces > 0 && (
+            <>
+              {" "}
+              · {row.capPieces.toLocaleString("it-IT")}{" "}
+              {row.capPieces === 1 ? "cappellino" : "cappellini"}
+            </>
+          )}
         </p>
         <p className={roadbook.meta}>
           {row.openOrders > 0

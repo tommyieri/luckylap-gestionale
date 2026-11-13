@@ -18,6 +18,7 @@ export type ConsignmentArchiveRow = {
   id: string;
   code: string;
   shopName: string;
+  shopNote: string | null;
   periodStart: string;
   periodStartMonthOnly: boolean;
   periodEnd: string;
@@ -75,6 +76,9 @@ export function consignmentArchiveFromRows(raw: unknown[]): ConsignmentArchive {
     const row = stockRecord(value) ?? fail();
     const shop = stockRecord(row.shop) ?? fail();
     const code = shopCode(shop.code) ?? fail();
+    const rawNote = stockRecord(shop.config)?.note;
+    const shopNote =
+      typeof rawNote === "string" && [...rawNote].length <= 1_000 ? rawNote.trim() || null : null;
     const invoice = financeDocumentFromDatabase(row.invoice);
     const statement = financeDocumentFromDatabase(row.statement);
     const payment = stockRecord(row.payment);
@@ -121,6 +125,7 @@ export function consignmentArchiveFromRows(raw: unknown[]): ConsignmentArchive {
       id: row.id,
       code,
       shopName: text(shop.name, 240),
+      shopNote,
       periodStart: row.period_start,
       periodStartMonthOnly: row.period_start_month_only,
       periodEnd: row.period_end,

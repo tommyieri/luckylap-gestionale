@@ -132,6 +132,29 @@
   color: var(--ink-2);
   font-size: var(--text-md);
 }
+.shopNote {
+  margin: 0;
+  max-width: 72ch;
+  color: var(--ink-2);
+  overflow-wrap: anywhere;
+  white-space: pre-line;
+}
+.capList {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  border-top: 1.5px solid var(--ink);
+}
+.capList li {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 10px 12px;
+  border-bottom: 1px solid var(--rule);
+  color: var(--ink-2);
+  overflow-wrap: anywhere;
+}
 .total {
   color: var(--ink-2);
   font-size: var(--text-md);
