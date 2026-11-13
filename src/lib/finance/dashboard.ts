@@ -16,6 +16,14 @@ export type FinanceMovement = {
   future: boolean;
   transfer: boolean;
   allocationNote: string | null;
+  evaluateStatistics?: boolean;
+  evaluateBudgets?: boolean;
+  expectedPayment?: boolean;
+  payee?: string | null;
+  tags?: string[];
+  notes?: string | null;
+  location?: string | null;
+  time?: string | null;
   /** Pagina della fonte, se ne ha una: per i pagamenti del negozio, il resoconto del mese. */
   href?: string;
 };
@@ -89,6 +97,7 @@ export type FinanceDashboardOptions = {
   settlements?: DashboardSettlement[];
   /** Pagamenti dei resoconti mensili del conto vendita. */
   shopPayments?: DashboardShopPayment[];
+  expectedBudgetFlowPayments?: readonly string[];
 };
 
 /** Parse decimal source text, never multiply a floating point euro amount. */
@@ -133,11 +142,16 @@ export function buildFinanceDashboard(
   reportDate: string,
   options: FinanceDashboardOptions = {},
 ): FinanceDashboard {
-  const { settlements = [], shopPayments = [] } = options;
+  const { settlements = [], shopPayments = [], expectedBudgetFlowPayments = [] } = options;
+  const expectedPaymentIds = new Set(expectedBudgetFlowPayments);
   if (!transactionTiming(reportDate, false, reportDate))
     throw new Error("Data del riepilogo non valida.");
   const movements: FinanceMovement[] = imports.transactions.map((row) => {
-    const timing = transactionTiming(row.sourceDate, row.pending, reportDate);
+    const timing = transactionTiming(
+      row.sourceDate,
+      row.pending || expectedPaymentIds.has(row.id),
+      reportDate,
+    );
     if (!timing) throw new Error("Data del movimento non valida.");
     return {
       id: `budgetflow:${row.id}`,
@@ -150,6 +164,7 @@ export function buildFinanceDashboard(
       category: row.category,
       description: row.payee || row.notes || "Movimento BudgetFlow",
       ...timing,
+      ...(expectedPaymentIds.has(row.id) ? { expectedPayment: true } : {}),
       transfer: row.targetAccount !== null,
       allocationNote: null,
     };
@@ -163,12 +178,19 @@ export function buildFinanceDashboard(
       date: row.date,
       cents: (row.type === "income" ? 1n : -1n) * workCents(row.cents),
       account: financeAccountLabel(row.account),
-      targetAccount: null,
+      targetAccount: financeAccountLabel(row.targetAccount ?? null),
       category: row.category ?? "",
       description: row.description,
-      pending: false,
+      pending: row.pending ?? false,
       future: row.date > reportDate,
-      transfer: false,
+      transfer: Boolean(row.targetAccount),
+      ...(row.evaluateStatistics === false ? { evaluateStatistics: false } : {}),
+      ...(row.evaluateBudgets === false ? { evaluateBudgets: false } : {}),
+      ...(row.payee ? { payee: row.payee } : {}),
+      ...(row.tags?.length ? { tags: row.tags } : {}),
+      ...(row.notes ? { notes: row.notes } : {}),
+      ...(row.location ? { location: row.location } : {}),
+      ...(row.time ? { time: row.time } : {}),
       allocationNote: row.account?.trim() ? null : "Conto non indicato nella dichiarazione.",
     });
   }

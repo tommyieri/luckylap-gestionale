@@ -629,31 +629,32 @@ export function GuideView({ access, preview = false }: { access: GuideAccess; pr
                   condiviso, premi «Chiudi Finance» in cima alle pagine Finance, oppure chiudila da
                   «Account e sicurezza».
                 </p>
-                <h3 className={styles.subTitle}>Panoramica, Movimenti e Da incassare</h3>
+                <h3 className={styles.subTitle}>Panoramica, Movimenti e Analisi</h3>
                 <p>
-                  Finance si apre sulla Panoramica: saldo dai movimenti, entrate e uscite, con il
-                  periodo e i conti scelti. Il saldo viene dalle registrazioni e non è verificato
-                  con la banca. Voci future e in sospeso sono separate; quelle senza conto si
-                  trovano in «Da attribuire». Tocca un valore o una barra per vedere i movimenti che
-                  lo compongono.
+                  Finance si apre sulla Panoramica con i saldi dei conti nel periodo scelto. In
+                  Analisi trovi entrate, uscite e spese per categoria. Il saldo viene dalle
+                  registrazioni e non è verificato con la banca. Voci future e in sospeso sono
+                  separate; quelle senza conto si trovano in «Da attribuire». Tocca un valore o una
+                  barra per vedere i movimenti che lo compongono.
                 </p>
                 <p>
-                  In Movimenti cerca per descrizione, categoria, conto o importo. Controlla il
+                  In Movimenti cerca per descrizione, categoria, conto, tag o importo. Controlla il
                   periodo: «Tutti i periodi» cerca anche negli altri anni; senza risultati trovi
                   «Cerca in tutti i periodi». In «Altri filtri» scegli stato e fonte.
                 </p>
                 <h3 className={styles.subTitle}>Aggiungere un movimento</h3>
                 <p>
-                  «Nuovo movimento» apre subito il modulo: Uscita o Entrata, importo senza segno,
-                  data, descrizione, conto e categoria. Usa la virgola per i centesimi. Conto e
-                  categoria sono facoltativi: «Da attribuire» e «Da classificare» li lasciano da
-                  completare. Puoi anche scrivere un conto o una categoria personalizzati.
+                  «Nuovo movimento» apre subito il modulo: Uscita, Entrata o Trasferimento, importo
+                  senza segno, data, descrizione, conto e categoria. Usa la virgola per i centesimi.
+                  Conto e categoria sono facoltativi: «Da attribuire» e «Da classificare» li
+                  lasciano da completare. Puoi anche scrivere un conto o una categoria
+                  personalizzati.
                 </p>
                 <p>
-                  La data parte da oggi e non può essere futura: per una scadenza usa un promemoria
-                  nel Calendario. Controlla che il movimento non sia già presente, conferma e premi
-                  «Registra uscita» o «Registra entrata». «Registra e aggiungi un’altra» prepara il
-                  modulo successivo solo dopo un salvataggio confermato.
+                  Scegli una data futura per pianificare una scadenza o imposta una ricorrenza.
+                  Controlla che il movimento non sia già presente, conferma e premi «Salva». «Salva
+                  e aggiungi un movimento» prepara il modulo successivo solo dopo un salvataggio
+                  confermato.
                 </p>
                 <h3 className={styles.subTitle}>Correggere un movimento</h3>
                 <p>
@@ -673,11 +674,11 @@ export function GuideView({ access, preview = false }: { access: GuideAccess; pr
                   stato «Eliminati · recuperabili», apri la scheda e ripristina una versione dallo
                   storico.
                 </p>
-                <h3 className={styles.subTitle}>Da incassare e documenti</h3>
+                <h3 className={styles.subTitle}>Conto vendita e documenti</h3>
                 <p>
-                  Da incassare mostra i residui dei resoconti dei negozi. Registra il pagamento dal
-                  resoconto: non aggiungere anche un’entrata manuale. «Documenti e fonti» raccoglie
-                  importazioni e dati originali, con il collegamento ai documenti.
+                  Conto vendita mostra vendite, fatture, pagamenti e residui. Registra i pagamenti
+                  nuovi dal resoconto del negozio. «Documenti e fonti» raccoglie importazioni e dati
+                  originali, con il collegamento ai documenti.
                 </p>
                 <p className={styles.actions}>
                   <Link

@@ -9,6 +9,30 @@ Dal 23 ottobre 2026 sta in due schede, una per lato (vedi «Pagine»):
 
 Le regole, i comandi e i dati sono gli stessi per i due lati: cambia solo dove stanno le pagine.
 
+## Finance · conto vendita
+
+In **Finance › Conto vendita** si consultano i capi venduti per periodo di fatturazione, le fatture e i riepiloghi privati, il movimento BudgetFlow collegato, il totale incassato e il residuo. Le fatture storiche mantengono i periodi indicati nei PDF, anche quando attraversano più mesi. Il dettaglio riporta modello, taglia, quantità, prezzo e quota LuckyLap. I resoconti del gestionale e le eventuali vendite registrate singolarmente restano consultabili nella stessa sezione.
+
+L'archivio collega il movimento BudgetFlow esistente. Incassi in sospeso, futuri, annullati o da confermare hanno un residuo aperto. Se un pagamento era previsto all'esportazione, resta in sospeso anche dopo la data prevista. Dopo aver verificato il versamento, apri il movimento Finance, riporta la data effettiva, togli «In sospeso» e indica il motivo della modifica. Se le fonti riportano numeri di fattura discordanti, la scheda mostra la nota originale accanto al collegamento.
+
+### Importazione dell'archivio
+
+`supabase/prepare-consignment-archive.py` prepara l'import senza collegarsi a Supabase. Eseguire con il Python del workspace con `pypdf`, indicando la cartella delle fatture e dei riepiloghi, il CSV BudgetFlow, il codice del negozio, il tag esatto del negozio sul CSV, la data di riferimento e una nuova cartella privata.
+
+```sh
+python3 supabase/prepare-consignment-archive.py \
+  --invoice-dir /percorso/privato/fatture \
+  --budgetflow-csv /percorso/privato/export.csv \
+  --shop-code NEG01 \
+  --party 'Tag esatto in BudgetFlow' \
+  --reference-date AAAA-MM-GG \
+  --output .private/finance-staging/conto-vendita
+```
+
+Il comando verifica numero e totale della fattura, dettagli del riepilogo, quantità, importi ai centesimi e identificazione univoca della riga BudgetFlow. L'output comprende un manifesto `originali.json` con le chiavi Storage, le copie dei PDF a byte invariati e `conto-vendita.sql`. Dopo l'autorizzazione per la produzione, applicare la migrazione `20261113195000_finance_conto_vendita_storico.sql` e completare l'import BudgetFlow. Caricare ogni PDF tramite Storage API nel bucket privato `finance-documents`, usando la chiave esatta del manifesto. Una volta verificati gli originali, eseguire l'SQL in una connessione privilegiata. L'SQL rifiuta periodi sovrapposti, originali mancanti e pagamenti assenti o ambigui. La procedura registra le fonti storiche senza generare movimenti di magazzino o di cassa. Originali, manifesto e SQL reale rimangono in `.private`.
+
+I PDF sono disponibili dal download riservato Finance, che ricontrolla l'accesso e verifica dimensione e SHA-256 dell'originale. Metadati e oggetti usano le stesse regole di accesso degli altri documenti Finance.
+
 Migrazione: `supabase/migrations/20261022215046_consignment_monthly.sql`, solo aggiunte. Il codice legge le tabelle nuove anche fuori dal modulo (colonna «In negozio» delle Giacenze, Finance): la migrazione va applicata in produzione prima del merge, come in «Produzione».
 
 ## Regole

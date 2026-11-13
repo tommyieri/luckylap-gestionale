@@ -9,6 +9,11 @@ import {
   financeImportSql,
   parseCsv,
 } from "../generate-finance-import.mjs";
+import {
+  budgetFlowBaselineSql,
+  budgetFlowRegisterSql,
+  reconcileBudgetFlow,
+} from "../reconcile-finance-export.mjs";
 
 let checks = 0;
 const check = (value, message) => {
@@ -466,6 +471,162 @@ try {
       0,
       "Current membership revocation applies immediately",
     ),
+  );
+  // The reconciliation only reads this view. Model two revision versions in the
+  // small import harness without bootstrapping the sale and area-password schemas.
+  await db.exec(`
+    alter table public.finance_entries add column amount_cents bigint, add column account_label text, add column category text;
+    create table public.finance_entry_voids (finance_entry_id uuid);
+    create table public.order_payments (id uuid, occurred_at timestamptz, amount_cents bigint, source_kind text, method text);
+    create table public.finance_movement_revisions (
+      id uuid default gen_random_uuid(), source_kind text, source_id uuid, version integer,
+      deleted boolean, value_snapshot jsonb
+    );
+    create view public.finance_revision_current as select * from public.finance_movement_revisions;
+  `);
+  const prior = (
+    await db.query(
+      "select id, source_row from public.finance_import_transactions where batch_id=$1 order by source_row",
+      [batch.id],
+    )
+  ).rows;
+  await db.query(
+    "insert into public.finance_movement_revisions(source_kind,source_id,version,deleted,value_snapshot) values ('budgetflow',$1,1,true,$2::jsonb)",
+    [prior[1].id, '{"date":"2026-10-21"}'],
+  );
+  const manualId = (
+    await db.query(
+      `insert into public.finance_entries(entry_date,entry_type,amount_eur,amount_cents,account_label,category,description,created_by)
+      values ('2026-10-26','expense',10,1000,'Test account','Test category','Synthetic overlap',$1) returning id`,
+      [ids.founder],
+    )
+  ).rows[0].id;
+  const baseline = (await db.query(budgetFlowBaselineSql)).rows[0].snapshot;
+  const syntheticExport = fixture([
+    {
+      date: "2026-10-20",
+      amount: "-12.30",
+      pending: "False",
+      notes: original.input.rows[0].raw.Notes,
+    },
+    { date: "2026-10-25", amount: "10.01", pending: "True" },
+    { date: "2026-10-23", amount: "1.00", pending: "False" },
+    { date: "2026-10-19", amount: "3.45", pending: "False" },
+    { date: "2026-10-26", amount: "-4.50", pending: "False", notes: 'Test "€"\nsecond line' },
+    { date: "2026-10-26", amount: "-10.00", pending: "False", notes: "Synthetic overlap" },
+  ]);
+  const options = {
+    sourceBytes: syntheticExport.sourceBytes,
+    sourceFileName: "synthetic-complete.csv",
+    extractedAt: syntheticExport.input.extracted_at,
+    referenceDate: syntheticExport.input.as_of_date,
+    baseline,
+    register: (await db.query(budgetFlowRegisterSql)).rows[0].snapshot,
+  };
+  const { report } = reconcileBudgetFlow(options);
+  equal(report.identical.length, 3, "Exact source fingerprints retain existing rows");
+  equal(
+    report.date_changes,
+    [
+      {
+        source_row: 3,
+        existing_id: prior[1].id,
+        old_date: "2026-10-21",
+        new_date: "2026-10-25",
+        effective_date: "2026-10-21",
+        deleted: true,
+        expected_version: 1,
+      },
+    ],
+    "Proposed date edits identify an existing deleted revision without changing it",
+  );
+  equal(
+    report.additions.map((row) => row.source_row),
+    [6, 7],
+    "Both unseen source rows are reviewed",
+  );
+  equal(
+    report.register_candidates.map((row) => [row.source_row, row.candidates[0].id]),
+    [[7, manualId]],
+    "Existing movements are used to propose overlaps",
+  );
+  const review = {
+    source_sha256: report.source_sha256,
+    ledger_sha256: report.ledger_sha256,
+    keep_existing: [],
+  };
+  throws(
+    () => reconcileBudgetFlow({ ...options, review }),
+    /conferma esplicitamente/,
+    "An unresolved date change blocks generation",
+  );
+  review.keep_existing = [
+    {
+      source_row: 3,
+      existing_id: prior[1].id,
+      expected_version: 1,
+      reason: "Conserva la revisione di prova.",
+    },
+  ];
+  review.register_sha256 = report.register_sha256;
+  throws(
+    () => reconcileBudgetFlow({ ...options, review }),
+    /possibile doppione del registro/,
+    "A cross-source candidate requires an explicit decision",
+  );
+  review.register_matches = [
+    { source_row: 7, existing_id: manualId, reason: "Registrata a mano e verificata." },
+  ];
+  const { sql, report: reviewedReport } = reconcileBudgetFlow({ ...options, review });
+  equal(
+    reviewedReport.additions.map((row) => row.source_row),
+    [6],
+    "Only the new source row enters delta",
+  );
+  await db.exec("update public.finance_revision_current set version=2");
+  await assert.rejects(db.exec(sql), /Una revisione Finance è cambiata/);
+  await db.exec("rollback");
+  await db.exec("update public.finance_revision_current set version=1");
+  await db.query("update public.finance_entries set category='Modified' where id=$1", [manualId]);
+  await assert.rejects(db.exec(sql), /Il registro movimenti è cambiato/);
+  await db.exec("rollback");
+  await db.query("update public.finance_entries set category='Test category' where id=$1", [
+    manualId,
+  ]);
+  const allBefore = (
+    await db.query("select id from public.finance_import_transactions order by id")
+  ).rows;
+  await db.exec(sql);
+  await db.exec(sql);
+  equal(
+    (await db.query("select id from public.finance_import_transactions order by id")).rows.length,
+    allBefore.length + 1,
+    "A reconciled delta is applied once",
+  );
+  equal(
+    (
+      await db.query(
+        "select id from public.finance_import_transactions where id=any($1::uuid[]) order by id",
+        [allBefore.map(({ id }) => id)],
+      )
+    ).rows,
+    allBefore,
+    "Original rows and identities remain available",
+  );
+  equal(
+    (
+      await db.query(
+        "select raw_record, future_as_of_reference_date from public.finance_import_transactions where id<>all($1::uuid[])",
+        [allBefore.map(({ id }) => id)],
+      )
+    ).rows,
+    [
+      {
+        raw_record: syntheticExport.input.rows.at(-2).raw,
+        future_as_of_reference_date: true,
+      },
+    ],
+    "Reconciliation preserves raw source fields, including multiline notes and date flags",
   );
   console.log(
     `PASS ${checks} Finance checks with synthetic fixtures and mocked Auth. Real Supabase/JWT/MFA runtime and concurrent connections remain unverified.`,

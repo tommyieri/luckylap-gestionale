@@ -4,6 +4,10 @@ import { FinanceImportsView, revisionAuthorLine } from "./finance-imports-view";
 import type { FinanceRevisionRecord } from "../lib/finance-revisions/model";
 import type { FinanceSnapshot } from "../lib/finance/model";
 
+vi.mock("../app/finance/budget-actions", () => ({
+  loadFinanceBudgets: vi.fn(),
+  saveFinanceBudget: vi.fn(),
+}));
 vi.mock("./finance/finance-movement-panel", () => ({ FinanceMovementPanel: () => null }));
 vi.mock("./finance/finance-new-movement", () => ({ FinanceNewMovement: () => null }));
 vi.mock("./finance-work-form", () => ({ FinanceWorkRecovery: () => null }));
@@ -76,7 +80,7 @@ const head = (sourceId: string, deleted = false): FinanceRevisionRecord => ({
 });
 
 describe("Finance: una sola proiezione per la nuova interfaccia", () => {
-  it("mette la descrizione prima della categoria e conserva segno e direzione dei movimenti", () => {
+  it("mette in evidenza la categoria BudgetFlow e conserva descrizione, segno e direzione", () => {
     const html = render([
       transaction(1),
       transaction(2, { sourceAmount: "-7.89", payee: "Spesa sintetica", category: "Software" }),
@@ -88,10 +92,8 @@ describe("Finance: una sola proiezione per la nuova interfaccia", () => {
       transaction(4, { sourceAmount: "0.00", payee: "" }),
     ]);
     const incoming = row(html, "Entrata sintetica descritta");
-    expect(incoming).toContain("<strong>Entrata sintetica descritta</strong>");
-    expect(incoming.indexOf("Entrata sintetica descritta")).toBeLessThan(
-      incoming.indexOf("Vendite"),
-    );
+    expect(incoming).toContain("<strong>Vendite</strong>");
+    expect(incoming).toContain("Entrata sintetica descritta");
     expect(incoming).toContain("+12,34 €");
     expect(incoming).toContain("Entrata: ");
     expect(row(html, "Spesa sintetica")).toContain("−7,89 €");
@@ -108,7 +110,7 @@ describe("Finance: una sola proiezione per la nuova interfaccia", () => {
     expect(render(rows)).not.toContain("Esempio sospeso");
     const all = render(rows, { stato: "all" });
     expect(row(all, "Esempio sospeso")).toContain("In sospeso");
-    expect(row(all, "Esempio futuro")).toContain("Data futura");
+    expect(row(all, "Esempio futuro")).toContain("Pianificato");
   });
   it("applica le revisioni prima di filtri, righe e riepiloghi", () => {
     const rows = [transaction(1), transaction(2, { payee: "Entrata mai corretta" })];

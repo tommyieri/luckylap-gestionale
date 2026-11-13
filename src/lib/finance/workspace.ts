@@ -3,7 +3,7 @@ import type { FinanceDashboard, FinanceMovement } from "./dashboard";
 import type { FinanceTransaction } from "./model";
 
 export type FinanceView = {
-  tab: "overview" | "movements" | "receivables" | "sources";
+  tab: "overview" | "movements" | "analysis" | "budgets" | "categories" | "receivables" | "sources";
   period: "month" | "previous" | "year" | "custom" | "all";
   from: string;
   to: string;
@@ -17,6 +17,7 @@ export type FinanceView = {
   batchId: string;
   movementId: string | null;
   newEntry: "income" | "expense" | null;
+  statisticsOnly?: boolean;
 };
 
 export type FinanceFlowBucket = {
@@ -131,7 +132,15 @@ export function parseFinanceView(
   return {
     tab: choice(
       get("vista"),
-      ["overview", "movements", "receivables", "sources"] as const,
+      [
+        "overview",
+        "movements",
+        "analysis",
+        "budgets",
+        "categories",
+        "receivables",
+        "sources",
+      ] as const,
       "overview",
     ),
     period,
@@ -150,6 +159,7 @@ export function parseFinanceView(
     batchId: get("lotto"),
     movementId: get("movimento") || null,
     newEntry: choice(get("nuovo"), ["", "income", "expense"] as const, "") || null,
+    ...(get("valutazione") === "statistiche" ? { statisticsOnly: true } : {}),
   };
 }
 
@@ -171,6 +181,7 @@ export function financeViewHref(view: FinanceView): string {
     ["lotto", view.batchId],
     ["movimento", view.movementId],
     ["nuovo", view.newEntry],
+    ["valutazione", view.statisticsOnly ? "statistiche" : ""],
   ];
   for (const [name, value] of optional)
     if (value && (name === "q" || value.trim()))
@@ -244,8 +255,10 @@ export function filterFinanceMovements(
     const deleted = (row.revision?.deleted ?? false) || options.deletedIds?.has(row.id) === true;
     if (view.state === "deleted" ? !deleted : deleted) return false;
     if (view.state === "posted" && !isPosted(row)) return false;
-    if (view.state === "pending" && !row.pending) return false;
-    if (view.state === "future" && (!row.future || row.pending)) return false;
+    if (view.state === "pending" && (!row.pending || (row.future && row.expectedPayment)))
+      return false;
+    if (view.state === "future" && (!row.future || (row.pending && !row.expectedPayment)))
+      return false;
     if (view.state === "unallocated" && (!isUnallocated(row) || !isPosted(row))) return false;
     if (view.state === "edited" && !(row.revision && row.revision.version > 0)) return false;
     if (view.direction === "transfer" && !row.transfer) return false;
@@ -253,6 +266,7 @@ export function filterFinanceMovements(
     if (view.direction === "expense" && (row.transfer || row.cents >= 0n)) return false;
     if (view.category && (row.category || "Senza categoria") !== view.category) return false;
     if (view.source && row.source !== view.source) return false;
+    if (view.statisticsOnly && row.evaluateStatistics === false) return false;
     if (view.batchId) {
       const original =
         row.source === "budgetflow"
@@ -261,9 +275,25 @@ export function filterFinanceMovements(
       if (!original || original.batchId !== view.batchId) return false;
     }
     if (!query) return true;
+    const original =
+      row.source === "budgetflow" ? options.originalById?.get(row.sourceId) : undefined;
     if (
       normalizedText(
-        [row.description, row.category, row.account, row.targetAccount].filter(Boolean).join(" "),
+        [
+          row.description,
+          row.category,
+          row.account,
+          row.targetAccount,
+          row.payee,
+          row.notes,
+          row.location,
+          ...(row.tags ?? []),
+          original?.tags,
+          original?.payee,
+          original?.notes,
+        ]
+          .filter(Boolean)
+          .join(" "),
       ).includes(query)
     )
       return true;
@@ -366,7 +396,7 @@ export function financeWorkspaceSummary(
   let outgoing = 0n;
   const expenses = new Map<string, { category: string; cents: bigint; count: number }>();
   for (const row of periodRows) {
-    if (row.transfer) continue;
+    if (row.transfer || row.evaluateStatistics === false) continue;
     if (row.cents > 0n) incoming += row.cents;
     else if (row.cents < 0n) {
       outgoing -= row.cents;
@@ -393,7 +423,7 @@ export function financeWorkspaceSummary(
     for (const row of periodRows) {
       if (row.date < range.from || row.date > range.to) continue;
       count++;
-      if (!row.transfer) {
+      if (!row.transfer && row.evaluateStatistics !== false) {
         if (row.cents > 0n) bucketIncoming += row.cents;
         else bucketOutgoing -= row.cents;
       }

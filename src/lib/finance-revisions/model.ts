@@ -220,7 +220,11 @@ export function parseFinanceRevisionCommand(value: unknown): FinanceRevisionComm
       (target?.length ?? 0) > 240 ||
       (category?.length ?? 0) > 240 ||
       values.description.trim().length > 2000 ||
-      (target !== null && (shared.source_kind !== "budgetflow" || !account || account === target))
+      (target !== null &&
+        (!["budgetflow", "manual"].includes(shared.source_kind) ||
+          !account ||
+          account === target ||
+          (shared.source_kind === "manual" && values.direction !== "expense")))
     )
       return null;
     normalized = {

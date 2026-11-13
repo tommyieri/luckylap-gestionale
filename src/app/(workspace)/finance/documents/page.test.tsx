@@ -35,7 +35,7 @@ const supabase = (rows: unknown[], error: unknown = null) => {
   const query = {
     select: () => query,
     order: () => query,
-    limit: async () => ({ data: rows, count: rows.length, error }),
+    range: async () => ({ data: rows, count: rows.length, error }),
   };
   return { from: vi.fn(() => query) };
 };

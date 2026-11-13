@@ -1,6 +1,14 @@
+const documentKinds = [
+  "budgetflow",
+  "cogs",
+  "recap",
+  "consignment_invoice",
+  "consignment_statement",
+] as const;
+
 export type FinanceDocument = {
   id: string;
-  kind: "budgetflow" | "cogs" | "recap";
+  kind: (typeof documentKinds)[number];
   fileName: string;
   storagePath: string;
   sha256: string;
@@ -13,7 +21,7 @@ export function financeDocumentFromDatabase(value: unknown): FinanceDocument | n
   if (
     typeof row.id !== "string" ||
     !/^[a-f0-9-]{36}$/i.test(row.id) ||
-    !["budgetflow", "cogs", "recap"].includes(String(row.source_kind)) ||
+    !documentKinds.includes(row.source_kind as FinanceDocument["kind"]) ||
     row.review_status !== "unreviewed"
   )
     return null;
@@ -33,7 +41,9 @@ export function financeDocumentFromDatabase(value: unknown): FinanceDocument | n
       "application/pdf",
       "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
       "text/csv",
-    ].includes(String(row.content_type))
+    ].includes(String(row.content_type)) ||
+    ((row.source_kind === "consignment_invoice" || row.source_kind === "consignment_statement") &&
+      row.content_type !== "application/pdf")
   )
     return null;
   return {

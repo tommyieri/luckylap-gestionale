@@ -19,7 +19,7 @@ export async function financeWorkAccess(supabase: SupabaseClient) {
 const selections = {
   entries: [
     "finance_entries",
-    "id,entry_date,entry_type,amount_cents,description,account_label,category,source_kind,review_status,created_at,created_by",
+    "id,entry_date,entry_type,amount_cents,description,account_label,category,source_kind,review_status,created_at,created_by,target_account_label,pending,evaluate_statistics,evaluate_budgets,payee,tags,notes,location,entry_time",
   ],
   voids: ["finance_entry_voids", "id,finance_entry_id,reason,created_at,created_by"],
   facts: [

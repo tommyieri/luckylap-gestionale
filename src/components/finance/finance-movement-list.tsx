@@ -1,8 +1,17 @@
 "use client";
-import { Search, X, SlidersHorizontal, ArrowUpRight } from "lucide-react";
+import { useRef, useEffect } from "react";
+import {
+  CalendarDays,
+  ChartNoAxesCombined,
+  ChevronRight,
+  Paperclip,
+  Search,
+  X,
+  SlidersHorizontal,
+} from "lucide-react";
 import type { FinanceMovement } from "../../lib/finance/dashboard";
 import { financeCentsLabel } from "../../lib/finance/dashboard";
-import { formatCalendarDate } from "../../lib/finance/model";
+import { formatCalendarDate, type FinanceTransaction } from "../../lib/finance/model";
 import type { FinanceView } from "../../lib/finance/workspace";
 import type { RevisedMovement } from "../../lib/finance-revisions/projection";
 import {
@@ -14,12 +23,25 @@ import {
   financeMovementTitle,
   revisionAuthorLine,
 } from "./finance-presentation";
+import { FinanceCategoryIcon, financeTags } from "./finance-category-icon";
 import styles from "./finance-workspace.module.css";
+
+const dayLabel = new Intl.DateTimeFormat("it-IT", {
+  weekday: "short",
+  day: "numeric",
+  month: "short",
+  year: "numeric",
+  timeZone: "UTC",
+});
 
 export function FinanceMovementList({
   rows,
   view,
   categories,
+  originalById,
+  invoicePaymentIds = [],
+  reportDate,
+  showSearch,
   names,
   change,
   open,
@@ -28,11 +50,29 @@ export function FinanceMovementList({
   rows: readonly RevisedMovement<FinanceMovement>[];
   view: FinanceView;
   categories: readonly string[];
+  originalById: ReadonlyMap<string, FinanceTransaction>;
+  invoicePaymentIds?: readonly string[];
+  reportDate: string;
+  showSearch: boolean;
   names: Record<string, string>;
   change: (patch: Partial<FinanceView>, replace?: boolean) => void;
   open: (row: FinanceMovement) => void;
   reset: () => void;
 }) {
+  const search = useRef<HTMLDetailsElement>(null);
+  const searchInput = useRef<HTMLInputElement>(null);
+  useEffect(() => {
+    if (showSearch && search.current) {
+      search.current.open = true;
+      searchInput.current?.focus();
+    }
+  }, [showSearch]);
+  const days = new Map<string, RevisedMovement<FinanceMovement>[]>();
+  for (const row of rows) {
+    const day = days.get(row.date) ?? [];
+    day.push(row);
+    days.set(row.date, day);
+  }
   const incoming = rows
     .filter((r) => !r.transfer && r.cents > 0n)
     .reduce((n, r) => n + r.cents, 0n);
@@ -75,6 +115,7 @@ export function FinanceMovementList({
     },
     view.source && { label: FINANCE_SOURCE_LABELS[view.source], clear: { source: "" as const } },
     view.batchId && { label: "Importazione selezionata", clear: { batchId: "" } },
+    view.statisticsOnly && { label: "Incluse nelle statistiche", clear: { statisticsOnly: false } },
   ].filter(Boolean) as { label: string; clear: Partial<FinanceView> }[];
   return (
     <section
@@ -82,100 +123,142 @@ export function FinanceMovementList({
       className={styles.register}
       aria-labelledby="movements-title"
     >
-      <header className={styles.sectionHeading}>
-        <div>
-          <h2 id="movements-title">Movimenti</h2>
-          <p>Cerca una voce, aprila e correggi i dati senza perdere il punto.</p>
-        </div>
-      </header>
-      <div className={styles.searchLine}>
-        <label className={styles.search}>
-          <Search size={18} aria-hidden="true" />
-          <span className="sr-only">Cerca movimenti</span>
-          <input
-            type="search"
-            value={view.query}
-            placeholder="Descrizione, categoria, conto o importo"
-            onChange={(e) => change({ query: e.target.value }, true)}
-          />
-          {view.query && (
-            <button
-              type="button"
-              aria-label="Cancella ricerca"
-              onClick={() => change({ query: "" })}
-            >
-              <X size={18} />
-            </button>
-          )}
-        </label>
-        <label className={styles.field}>
-          <span>Tipo</span>
-          <select
-            value={view.direction}
-            onChange={(e) => change({ direction: e.target.value as FinanceView["direction"] })}
-          >
-            <option value="all">Entrate e uscite</option>
-            <option value="income">Entrate</option>
-            <option value="expense">Uscite</option>
-            <option value="transfer">Trasferimenti</option>
-          </select>
-        </label>
-        <label className={styles.field}>
-          <span>Categoria</span>
-          <select value={view.category} onChange={(e) => change({ category: e.target.value })}>
-            <option value="">Tutte le categorie</option>
-            {categories.map((c) => (
-              <option key={c} value={c}>
-                {c}
-              </option>
-            ))}
-          </select>
-        </label>
+      <h1 id="movements-title" className={styles.screenHeading}>
+        Movimenti
+      </h1>
+      <div className={styles.registerTiles}>
+        <button
+          type="button"
+          className={styles.surface}
+          aria-pressed={view.direction === "income"}
+          onClick={() => change({ direction: view.direction === "income" ? "all" : "income" })}
+        >
+          Entrate <b className={styles.income}>{financeCentsLabel(incoming)}</b>
+        </button>
+        <button
+          type="button"
+          className={styles.surface}
+          aria-pressed={view.direction === "expense"}
+          onClick={() => change({ direction: view.direction === "expense" ? "all" : "expense" })}
+        >
+          Uscite <b className={styles.expense}>{financeCentsLabel(-outgoing)}</b>
+        </button>
+        <button
+          type="button"
+          className={styles.surface}
+          onClick={() => change({ tab: "analysis" })}
+        >
+          <ChartNoAxesCombined size={17} aria-hidden="true" /> Analisi
+        </button>
+        <button
+          type="button"
+          className={styles.surface}
+          aria-pressed={view.state === "future"}
+          onClick={() =>
+            change(
+              view.state === "future"
+                ? { state: "posted" }
+                : { state: "future", period: "all", direction: "all" },
+            )
+          }
+        >
+          <CalendarDays size={17} aria-hidden="true" /> Pianificati
+        </button>
       </div>
-      <details className={styles.advanced}>
+      <details ref={search} className={styles.advanced} open={view.query ? true : undefined}>
         <summary>
-          <SlidersHorizontal size={16} aria-hidden="true" />
-          Altri filtri
+          <SlidersHorizontal size={16} aria-hidden="true" /> Cerca e filtra
         </summary>
-        <div className={styles.advancedFields}>
+        <div className={styles.searchLine}>
+          <label className={styles.search}>
+            <Search size={18} aria-hidden="true" />
+            <span className="sr-only">Cerca movimenti</span>
+            <input
+              ref={searchInput}
+              type="search"
+              value={view.query}
+              placeholder="Descrizione, categoria, tag o importo"
+              onChange={(e) => change({ query: e.target.value }, true)}
+            />
+            {view.query && (
+              <button
+                type="button"
+                aria-label="Cancella ricerca"
+                onClick={() => change({ query: "" })}
+              >
+                <X size={18} />
+              </button>
+            )}
+          </label>
           <label className={styles.field}>
-            <span>Stato</span>
+            <span>Tipo</span>
             <select
-              value={view.state}
-              onChange={(e) => change({ state: e.target.value as FinanceView["state"] })}
+              value={view.direction}
+              onChange={(e) => change({ direction: e.target.value as FinanceView["direction"] })}
             >
-              <option value="posted">Registrati</option>
-              <option value="all">Tutti gli stati attivi</option>
-              <option value="pending">In sospeso</option>
-              <option value="future">Date future</option>
-              <option value="unallocated">Conto da attribuire</option>
-              <option value="edited">Modificati</option>
-              <option value="deleted">Eliminati · recuperabili</option>
+              <option value="all">Entrate e uscite</option>
+              <option value="income">Entrate</option>
+              <option value="expense">Uscite</option>
+              <option value="transfer">Trasferimenti</option>
             </select>
           </label>
           <label className={styles.field}>
-            <span>Fonte</span>
-            <select
-              value={view.source}
-              onChange={(e) => change({ source: e.target.value as FinanceView["source"] })}
-            >
-              <option value="">Tutte le fonti</option>
-              {Object.entries(FINANCE_SOURCE_LABELS).map(([key, label]) => (
-                <option key={key} value={key}>
-                  {label}
+            <span>Categoria</span>
+            <select value={view.category} onChange={(e) => change({ category: e.target.value })}>
+              <option value="">Tutte le categorie</option>
+              {categories.map((c) => (
+                <option key={c} value={c}>
+                  {c}
                 </option>
               ))}
             </select>
           </label>
-          <label className={styles.check}>
-            <input
-              type="checkbox"
-              checked={view.account === "__unallocated"}
-              onChange={(e) => change({ account: e.target.checked ? "__unallocated" : "" })}
-            />
-            Solo senza conto
-          </label>
         </div>
+        <details className={styles.advanced}>
+          <summary>
+            <SlidersHorizontal size={16} aria-hidden="true" />
+            Altri filtri
+          </summary>
+          <div className={styles.advancedFields}>
+            <label className={styles.field}>
+              <span>Stato</span>
+              <select
+                value={view.state}
+                onChange={(e) => change({ state: e.target.value as FinanceView["state"] })}
+              >
+                <option value="posted">Registrati</option>
+                <option value="all">Tutti gli stati attivi</option>
+                <option value="pending">In sospeso</option>
+                <option value="future">Date future</option>
+                <option value="unallocated">Conto da attribuire</option>
+                <option value="edited">Modificati</option>
+                <option value="deleted">Eliminati · recuperabili</option>
+              </select>
+            </label>
+            <label className={styles.field}>
+              <span>Fonte</span>
+              <select
+                value={view.source}
+                onChange={(e) => change({ source: e.target.value as FinanceView["source"] })}
+              >
+                <option value="">Tutte le fonti</option>
+                {Object.entries(FINANCE_SOURCE_LABELS).map(([key, label]) => (
+                  <option key={key} value={key}>
+                    {label}
+                  </option>
+                ))}
+              </select>
+            </label>
+            <label className={styles.check}>
+              <input
+                type="checkbox"
+                checked={view.account === "__unallocated"}
+                onChange={(e) => change({ account: e.target.checked ? "__unallocated" : "" })}
+              />
+              Solo senza conto
+            </label>
+          </div>
+        </details>
       </details>
       {chips.length > 0 && (
         <div className={styles.chips} aria-label="Filtri attivi">
@@ -203,12 +286,6 @@ export function FinanceMovementList({
           <b className={styles.expense}>{financeCentsLabel(outgoing)}</b>
         </span>
       </div>
-      {view.state !== "posted" && (
-        <p className={styles.contextNote}>
-          I totali qui descrivono i risultati e lo stato selezionato. La Panoramica comprende solo i
-          movimenti registrati, esclusi sospesi, futuri ed eliminati.
-        </p>
-      )}
       {rows.length === 0 ? (
         <div className={styles.empty}>
           <h3>Nessun movimento con questi filtri</h3>
@@ -231,59 +308,119 @@ export function FinanceMovementList({
           </button>
         </div>
       ) : (
-        <div className={styles.movementRows} role="list" aria-label="Elenco movimenti">
-          {rows.map((row) => (
-            <article
-              role="listitem"
-              id={financeMovementAnchor(row)}
-              key={row.id}
-              className={styles.movementRow}
-            >
-              <span className={styles.rowDate}>{formatCalendarDate(row.date)}</span>
-              <button
-                type="button"
-                className={styles.rowDescription}
-                onClick={() => open(row)}
-                aria-label={`Apri ${financeMovementTitle(row)}, ${financeMovementAmount(row)}`}
-              >
-                <strong>{financeMovementTitle(row)}</strong>
-                <span>
-                  {financeMovementCategory(row)}
-                  <span aria-hidden="true"> · </span>
-                  {row.account || "Conto da attribuire"}
-                  {row.targetAccount && ` → ${row.targetAccount}`}
-                </span>
-              </button>
-              <div className={styles.rowMeta}>
-                {view.state === "deleted" && <span>Eliminato · recuperabile</span>}
-                {row.pending && <span>In sospeso</span>}
-                {row.future && !row.pending && <span>Data futura</span>}
-                {row.revision && <span>{revisionAuthorLine(row.revision, names)}</span>}
-                <span className={styles.sourceLabel}>{FINANCE_SOURCE_LABELS[row.source]}</span>
-              </div>
-              <div className={styles.rowAmount}>
-                <span className="sr-only">{financeMovementDirection(row)}: </span>
-                <strong
-                  className={
-                    !row.transfer && row.cents !== 0n
-                      ? row.cents > 0n
-                        ? styles.income
-                        : styles.expense
-                      : undefined
-                  }
-                >
-                  {financeMovementAmount(row)}
-                </strong>
-                <button
-                  type="button"
-                  onClick={() => open(row)}
-                  aria-label={`Dettagli e modifica di ${financeMovementTitle(row)}`}
-                >
-                  <ArrowUpRight size={18} aria-hidden="true" />
-                </button>
-              </div>
-            </article>
-          ))}
+        <div className={styles.movementRows} aria-label="Elenco movimenti">
+          {[...days]
+            .sort(([left], [right]) => right.localeCompare(left))
+            .map(([date, items]) => (
+              <section key={date} className={styles.dayGroup}>
+                <h2>
+                  {date === reportDate ? "Oggi" : dayLabel.format(new Date(`${date}T00:00:00Z`))}
+                </h2>
+                <div className={styles.surface} role="list">
+                  {items.map((row) => {
+                    const original =
+                      row.source === "budgetflow" ? originalById.get(row.sourceId) : undefined;
+                    const tags = row.tags ?? financeTags(original?.tags ?? "");
+                    const category = financeMovementCategory(row);
+                    const description = financeMovementTitle(row);
+                    const importedWithCategory = original && row.category;
+                    const title = importedWithCategory ? category : description;
+                    const secondary = importedWithCategory
+                      ? row.revision
+                        ? description
+                        : original.payee
+                      : category;
+                    const hasInvoice =
+                      row.source === "budgetflow" && invoicePaymentIds.includes(row.sourceId);
+                    return (
+                      <article
+                        role="listitem"
+                        id={financeMovementAnchor(row)}
+                        key={row.id}
+                        className={styles.movementRow}
+                      >
+                        <button
+                          type="button"
+                          className={styles.movementButton}
+                          onClick={() => open(row)}
+                          aria-label={`Dettagli e modifica di ${description}, ${financeMovementAmount(row)}${title === description ? "" : `, ${title}`}`}
+                        >
+                          <FinanceCategoryIcon category={row.category} />
+                          <span className={styles.movementDetail}>
+                            <strong>{title}</strong>
+                            <span>
+                              {row.account || "Conto da attribuire"}
+                              {row.targetAccount && ` → ${row.targetAccount}`}
+                              {secondary && secondary !== title && (
+                                <>
+                                  {" "}
+                                  <span aria-hidden="true"> · </span> {secondary}
+                                </>
+                              )}
+                            </span>
+                            {(hasInvoice ||
+                              tags.length > 0 ||
+                              view.state === "deleted" ||
+                              row.pending ||
+                              row.future ||
+                              row.revision) && (
+                              <span className={styles.rowMeta}>
+                                {hasInvoice && (
+                                  <span className={styles.tag}>
+                                    <Paperclip size={12} aria-hidden="true" /> Fattura e riepilogo
+                                  </span>
+                                )}
+                                {tags.map((tag) => (
+                                  <span className={styles.tag} key={tag}>
+                                    #{tag}
+                                  </span>
+                                ))}
+                                {view.state === "deleted" && <span>Eliminato · recuperabile</span>}
+                                {row.pending && !(row.future && row.expectedPayment) && (
+                                  <span>In sospeso</span>
+                                )}
+                                {row.future && (!row.pending || row.expectedPayment) && (
+                                  <span>Pianificato</span>
+                                )}
+                                {row.revision && (
+                                  <span>{revisionAuthorLine(row.revision, names)}</span>
+                                )}
+                              </span>
+                            )}
+                          </span>
+                          <span className={styles.rowTotal}>
+                            <time dateTime={date}>{formatCalendarDate(date)}</time>
+                            <span className="sr-only">{financeMovementDirection(row)}: </span>
+                            <strong
+                              className={
+                                row.transfer
+                                  ? undefined
+                                  : row.cents > 0n
+                                    ? styles.income
+                                    : styles.expense
+                              }
+                            >
+                              {financeMovementAmount(row)}
+                            </strong>
+                          </span>
+                          <ChevronRight
+                            size={16}
+                            className={styles.rowChevron}
+                            aria-hidden="true"
+                          />
+                        </button>
+                      </article>
+                    );
+                  })}
+                </div>
+                <p className={styles.daySum}>
+                  Totale{" "}
+                  {financeCentsLabel(
+                    items.reduce((sum, row) => sum + (row.transfer ? 0n : row.cents), 0n),
+                  )}
+                </p>
+              </section>
+            ))}
         </div>
       )}
     </section>

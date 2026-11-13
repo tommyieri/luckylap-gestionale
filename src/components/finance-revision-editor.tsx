@@ -307,16 +307,17 @@ export function FinanceRevisionEditor({
                 placeholder="Da attribuire"
               />
             </label>
-            {history.original.sourceKind === "budgetflow" && (
-              <label>
-                Conto di destinazione, per trasferimenti
-                <input
-                  name="targetAccount"
-                  defaultValue={current.targetAccount ?? ""}
-                  maxLength={240}
-                />
-              </label>
-            )}
+            {["budgetflow", "manual"].includes(history.original.sourceKind) &&
+              !history.original.orderId && (
+                <label>
+                  Conto di destinazione, per trasferimenti
+                  <input
+                    name="targetAccount"
+                    defaultValue={current.targetAccount ?? ""}
+                    maxLength={240}
+                  />
+                </label>
+              )}
             <label>
               Categoria
               <input

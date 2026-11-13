@@ -14,6 +14,10 @@ const hooks = vi.hoisted(() => ({
   changed: false,
 }));
 
+vi.mock("../../app/finance/budget-actions", () => ({
+  loadFinanceBudgets: vi.fn(),
+  saveFinanceBudget: vi.fn(),
+}));
 vi.mock("react", async () => {
   const memo = (build: () => unknown, deps?: unknown[]) => {
     const slot = hooks.memoIndex++;
@@ -356,7 +360,7 @@ describe("ricevuta e aggiornamento dei dati Finance", () => {
     tree = settle(value);
     expect(hasChild(tree, FinanceNewMovement)).toBe(false);
     expect(hasChild(tree, FinanceMovementPanel)).toBe(false);
-    expect(params()).toMatchObject({ vista: "movements", periodo: "all", stato: "posted" });
+    expect(params()).toMatchObject({ vista: "movements", periodo: "all", stato: "all" });
     expect(params()).not.toHaveProperty("movimento");
     expect(params()).not.toHaveProperty("q");
     const refreshed = { ...value, dashboard: { ...value.dashboard, movements: [saved, ...rows] } };
@@ -393,7 +397,7 @@ describe("ricevuta e aggiornamento dei dati Finance", () => {
     });
     tree = settle(value);
     const newButton = descendants(tree).find(
-      (node) => node.type === "button" && [node.props.children].flat().includes("Nuovo movimento"),
+      (node) => node.type === "button" && node.props["aria-label"] === "Nuovo movimento",
     )!;
     (newButton.props.onClick as () => void)();
     tree = settle(value);

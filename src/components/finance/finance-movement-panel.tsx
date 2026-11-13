@@ -8,12 +8,14 @@ import { financeCentsLabel } from "../../lib/finance/dashboard";
 import { formatRomeDate } from "../../lib/team/model";
 import { FinanceRevisionEditor } from "../finance-revision-editor";
 import { FinanceShopPaymentEditor } from "../finance-shop-payment-editor";
+import { FinanceMovementAttachments } from "./finance-movement-attachments";
 import styles from "./finance-movement-panel.module.css";
 
 export function FinanceMovementPanel({
   movement,
   actorId,
   readOnly,
+  linkedDocuments = [],
   onClose,
   onDirtyChange,
 }: {
@@ -21,6 +23,7 @@ export function FinanceMovementPanel({
   actorId: string;
   names: Record<string, string>;
   readOnly: boolean;
+  linkedDocuments?: { id: string; label: string }[];
   onClose: () => void;
   onDirtyChange: (dirty: boolean) => void;
 }) {
@@ -161,6 +164,38 @@ export function FinanceMovementPanel({
               onDirtyChange={reportDirty}
               onSaved={reload}
             />
+          )}
+          {movement.payee ||
+          movement.tags?.length ||
+          movement.notes ||
+          movement.location ||
+          movement.time ||
+          movement.evaluateStatistics === false ||
+          movement.evaluateBudgets === false ? (
+            <details className={styles.source}>
+              <summary>Dettagli della registrazione</summary>
+              {movement.payee && <p>Beneficiario · {movement.payee}</p>}
+              {movement.tags?.length ? (
+                <p>Tag · {movement.tags.map((tag) => `#${tag}`).join(" ")}</p>
+              ) : null}
+              {movement.location && <p>Luogo · {movement.location}</p>}
+              {movement.time && <p>Ora · {movement.time}</p>}
+              {movement.notes && <p>{movement.notes}</p>}
+              {movement.evaluateStatistics === false && <p>Escluso dalle statistiche.</p>}
+              {movement.evaluateBudgets === false && <p>Escluso dai budget.</p>}
+            </details>
+          ) : null}
+          {linkedDocuments.length > 0 && (
+            <section className={styles.source} aria-label="Documenti del conto vendita">
+              {linkedDocuments.map((document) => (
+                <p key={document.id}>
+                  <a href={`/finance/documents/${document.id}`}>{document.label}</a>
+                </p>
+              ))}
+            </section>
+          )}
+          {!readOnly && (
+            <FinanceMovementAttachments key={movement.id} source={source} sourceId={sourceId} />
           )}
           <details className={styles.source}>
             <summary>Fonte del movimento</summary>

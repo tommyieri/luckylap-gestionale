@@ -433,3 +433,13 @@
     font-size: var(--text-xs);
   }
 }
+
+.topSave {
+  position: sticky;
+  z-index: 1;
+  top: 0;
+  padding-block: 5px;
+  display: flex;
+  justify-content: flex-end;
+  background: var(--finance-background, var(--paper));
+}

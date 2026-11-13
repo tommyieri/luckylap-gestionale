@@ -18,7 +18,7 @@ vi.mock("react", async (original) => ({
     ];
   },
 }));
-import { FinanceOverview } from "./finance-overview";
+import { FinanceAnalysis } from "./finance-analysis";
 
 const view: FinanceView = {
   tab: "overview",
@@ -88,7 +88,7 @@ function nodes(node: ReactNode): Node[] {
 }
 function render(nextSummary = summary, nextView = view, onDrill = vi.fn()) {
   hooks.cursor = 0;
-  return { tree: FinanceOverview({ summary: nextSummary, view: nextView, onDrill }), onDrill };
+  return { tree: FinanceAnalysis({ summary: nextSummary, view: nextView, onDrill }), onDrill };
 }
 function button(tree: ReactNode, label: string) {
   const found = nodes(tree).find(
@@ -130,6 +130,7 @@ describe("panoramica Finance verificabile", () => {
       direction: "income",
       state: "posted",
       account: "__allocated",
+      statisticsOnly: true,
     });
   });
   it("conserva il conto selezionato quando apre le uscite", () => {
@@ -143,6 +144,7 @@ describe("panoramica Finance verificabile", () => {
       direction: "expense",
       state: "posted",
       account: "Conto sintetico",
+      statisticsOnly: true,
     });
   });
   it("separa i movimenti senza conto e consente di attribuirli nel periodo", () => {
@@ -171,6 +173,7 @@ describe("panoramica Finance verificabile", () => {
       category: "Produzione",
       state: "posted",
       account: "__allocated",
+      statisticsOnly: true,
     });
     const tables = nodes(tree).filter((node) => node.type === "table");
     expect(tables).toHaveLength(2);

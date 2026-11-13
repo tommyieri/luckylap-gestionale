@@ -1,0 +1,163 @@
+.container {
+  display: grid;
+  gap: 32px;
+  min-width: 0;
+}
+
+.archive {
+  min-width: 0;
+}
+
+.archive h3 {
+  margin: 0 0 14px;
+  font: 600 20px/1.25 var(--f-cond);
+}
+
+.sectionHeading,
+.invoiceHeader {
+  display: flex;
+  align-items: start;
+  justify-content: space-between;
+  gap: 12px 24px;
+  flex-wrap: wrap;
+}
+
+.sectionHeading {
+  margin-bottom: 16px;
+  align-items: center;
+}
+
+.sectionHeading h2,
+.invoiceHeader h4 {
+  margin: 0;
+  font: 600 25px/1.2 var(--f-cond);
+}
+
+.sectionHeading a,
+.actions a {
+  display: inline-flex;
+  gap: 8px;
+  align-items: center;
+  min-height: 44px;
+  color: var(--ink);
+  font-size: var(--text-sm);
+  font-weight: 500;
+  text-underline-offset: 3px;
+}
+
+.summary,
+.invoiceMetrics {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 130px), 1fr));
+  gap: 16px 24px;
+}
+
+.summary {
+  margin: 0 0 16px;
+  padding: 18px;
+  border: 1px solid var(--rule);
+  border-radius: var(--radius-finance-card);
+  background: var(--tint);
+}
+
+.archive dt,
+.invoiceHeader p,
+.empty {
+  color: var(--muted);
+  font-size: var(--text-sm);
+}
+
+.archive dd {
+  margin: 5px 0 0;
+  font: 600 clamp(18px, 2.5vw, 25px)/1.15 var(--f-cond);
+  font-variant-numeric: tabular-nums;
+  overflow-wrap: anywhere;
+}
+
+.invoice {
+  padding: 18px;
+  border: 1px solid var(--rule);
+  border-radius: var(--radius-finance-card);
+  background: var(--paper);
+}
+
+.invoice + .invoice {
+  margin-top: 12px;
+}
+
+.invoiceHeader h4 {
+  font-size: 21px;
+}
+
+.invoiceHeader p {
+  margin: 5px 0 0;
+}
+
+.paid,
+.due {
+  padding: 5px 11px;
+  border: 1px solid currentColor;
+  border-radius: var(--radius-finance-pill);
+  font-size: var(--text-sm);
+}
+
+.paid {
+  color: var(--green);
+}
+
+.due {
+  color: var(--ink);
+  background: var(--amber-wash);
+  border-color: var(--rule);
+}
+
+.invoiceMetrics {
+  margin: 16px 0 0;
+  padding: 14px 0;
+  border-block: 1px solid var(--rule);
+}
+
+.actions {
+  display: flex;
+  gap: 0 24px;
+  flex-wrap: wrap;
+}
+
+.paymentNote {
+  margin: 0 0 6px;
+  padding: 9px 12px;
+  font-size: var(--text-sm);
+  background: var(--amber-wash);
+  border-radius: var(--radius-finance-control);
+}
+
+.details summary {
+  align-content: center;
+  min-height: 44px;
+  font-size: var(--text-sm);
+  font-weight: 500;
+  cursor: pointer;
+}
+
+.tableWrap {
+  overflow: auto;
+}
+
+.details table {
+  width: 100%;
+  border-collapse: collapse;
+  text-align: left;
+  font-size: var(--text-sm);
+}
+
+.details th,
+.details td {
+  padding: 9px 12px 9px 0;
+  border-bottom: 1px solid var(--rule);
+}
+
+.details table :is(th, td):nth-child(n + 3) {
+  white-space: nowrap;
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+}

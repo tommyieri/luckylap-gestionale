@@ -60,6 +60,27 @@ Il basename del CSV deve coincidere con quello registrato nello staging. L’out
 
 L’SQL contiene `BEGIN`, la chiamata alla funzione privata e `COMMIT`. Il file è stato successivamente applicato al progetto `annvatqnllkbrtufmgnl` dopo verifica della destinazione e delle policy. Il confronto cloud conferma tutte le 144 righe e i fingerprint; le prove con JWT/MFA reali hanno verificato la matrice dei cinque ruoli usando un account QA separato. Le sessioni personali dei membri richiedono ancora la loro attivazione. Vedere `verifica-import-cloud.md` e `verifica-auth-cloud.md`.
 
+## Aggiornare lo storico da un nuovo export completo
+
+`supabase/reconcile-finance-export.mjs` confronta un nuovo CSV completo con le righe già archiviate. L’anteprima conserva i numeri di riga del nuovo CSV e distingue le corrispondenze esatte, le date diverse a parità di tutti gli altri campi, le righe nuove e i casi da chiarire. Voci senza corrispondenza nello storico e candidati ambigui bloccano la generazione dell’SQL. Le date diverse richiedono una scelta esplicita per riusare la riga esistente con le sue revisioni. Le modifiche manuali si fanno dalla scheda del movimento in Finance.
+
+1. Salva in `.private/finance-staging` i risultati delle query in sola lettura stampate da `node supabase/reconcile-finance-export.mjs --baseline-query` e `node supabase/reconcile-finance-export.mjs --register-query`. La prima restituisce l’array dello storico BudgetFlow, la seconda un oggetto con le voci manuali, gli incassi degli ordini e la loro impronta. Se usi `psql` con una connessione già configurata al database di destinazione, i flag `-XAt` restituiscono il JSON senza intestazione. Usa `umask 077` prima di scrivere i file.
+2. Genera l’anteprima offline.
+
+   ```sh
+   node supabase/reconcile-finance-export.mjs \
+     --source /percorso/privato/export-originale.csv \
+     --baseline .private/finance-staging/baseline.json \
+     --register .private/finance-staging/registro.json \
+     --extracted-at '2026-11-13T12:00:00+01:00' \
+     --as-of 2026-11-13 \
+     --output .private/finance-staging/anteprima
+   ```
+
+3. Controlla `anteprima.report.json`. Crea un JSON privato con `source_sha256`, `ledger_sha256` e `register_sha256` copiati dal report. Nell’array `keep_existing`, per ogni voce in `date_changes` aggiungi una decisione con `source_row`, `existing_id`, `expected_version` e il motivo in `reason`. Per ogni voce in `register_candidates`, aggiungi a `register_matches` la riga `source_row`, l’ID `existing_id` del movimento da conservare o `null` per importare il nuovo movimento, e la motivazione `reason`. I candidati del registro hanno stesso conto e importo entro sette giorni. Verifica direttamente note, categorie o dettagli degli ordini prima di decidere. Usa array vuoti quando il report non contiene candidati.
+4. Ripeti il comando con un prefisso nuovo per `--output` e aggiungi `--review .private/finance-staging/revisione.json`. Il report finale lega l’hash dell’export a quello del lotto derivato e conserva la corrispondenza tra riga originale e riga del delta. L’SQL contiene soltanto le nuove righe e riusa l’importatore esistente. Al primo passaggio controlla sotto lock che storico, registro e revisioni citate coincidano con quelli esaminati. Rieseguire lo stesso SQL restituisce il lotto già importato.
+5. Dopo l’OK esplicito di Tommi, applica l’SQL al progetto verificato con una connessione proprietario, ad esempio con `psql -X --set ON_ERROR_STOP=1 --file <delta.sql>` su una connessione già configurata. Controlla il numero di nuove righe e l’assenza di duplicati prima di caricare documenti che fanno riferimento al nuovo incasso.
+
 ## Verifica e limiti
 
 ```sh

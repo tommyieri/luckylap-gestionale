@@ -3,10 +3,7 @@ import Link from "next/link";
 import { redirect } from "next/navigation";
 import { SensitiveAreaSessionBar } from "@/components/auth-sensitive-area-form";
 import { FinanceImportsView } from "@/components/finance-imports-view";
-import {
-  ConsignmentMonthlyFinance,
-  FinancePreviewNotice,
-} from "@/components/consignment-monthly-finance";
+import { FinancePreviewNotice } from "@/components/consignment-monthly-finance";
 import { PanelActions, WorkspacePanel } from "@/components/workspace-panel";
 import { isSensitiveAreaEligible } from "@/lib/auth/model";
 import { verifiedSensitiveAccess } from "@/lib/auth/sensitive-access";
@@ -19,6 +16,8 @@ import { buildFinanceDashboard } from "@/lib/finance/dashboard";
 import { financePreviewData } from "@/lib/finance/preview";
 import { loadFinanceRevisionContext } from "@/lib/finance-revisions/context-server";
 import { readFinanceProfileNames } from "@/lib/finance-revisions/names-server";
+import { loadFinanceConsignmentArchive } from "@/lib/finance/consignment-server";
+import { readConsignmentFinance } from "@/lib/consignment/finance";
 import {
   dashboardShopPaymentsFromRows,
   monthlyFinanceFromRows,
@@ -75,11 +74,7 @@ function FinancePreview({
         workSnapshot={data.workSnapshot}
         initialParams={initialParams}
         shopPayments={dashboardShopPaymentsFromRows(payments, reports, locations)}
-        consignment={
-          <ConsignmentMonthlyFinance
-            snapshot={monthlyFinanceFromRows(reports, payments, locations)}
-          />
-        }
+        consignmentHistory={{ snapshot: monthlyFinanceFromRows(reports, payments, locations) }}
         reportDate={reportDate}
         displayName="Anteprima locale"
         readOnly
@@ -137,12 +132,14 @@ export default async function FinancePage({
   // All reads use this user's session and the database Finance RLS policies.
   // The consignment panel and the shop payments in the balances share one read.
   // Names only label «Modificato da …»: without them the line says «un membro del team».
-  const [snapshot, work, settlements, consignment, names] = await Promise.all([
+  const [snapshot, work, settlements, consignment, names, legacy, archive] = await Promise.all([
     loadFinanceImports(supabase).catch(() => null),
     readFinanceWork(supabase).catch(() => null),
     readDashboardSettlements(supabase).catch(() => null),
     readConsignmentMonthlyFinance(supabase, access.member).catch(() => null),
     readFinanceProfileNames(supabase).catch(() => ({})),
+    readConsignmentFinance(supabase, access.member).catch(() => null),
+    loadFinanceConsignmentArchive(supabase, access.member).catch(() => null),
   ]);
   const reportDate = localReportDate(new Date());
   if (
@@ -150,6 +147,7 @@ export default async function FinancePage({
     !reportDate ||
     work?.status !== "ready" ||
     !settlements ||
+    archive?.status !== "ready" ||
     consignment?.status !== "ready"
   )
     return (
@@ -163,6 +161,9 @@ export default async function FinancePage({
     buildFinanceDashboard(snapshot, work.snapshot, reportDate, {
       settlements,
       shopPayments: consignment.shopPayments,
+      expectedBudgetFlowPayments: archive.archive
+        .filter((row) => row.paymentExpectedAtCapture)
+        .map((row) => row.paymentTransactionId),
     }).movements,
   ).catch(() => null);
   if (!revisions)
@@ -184,7 +185,11 @@ export default async function FinancePage({
         settlements={settlements}
         shopPayments={consignment.shopPayments}
         deletedShopPayments={consignment.deletedShopPayments}
-        consignment={<ConsignmentMonthlyFinance snapshot={consignment.snapshot} />}
+        consignmentHistory={{
+          snapshot: consignment.snapshot,
+          legacy: legacy?.status === "ready" ? legacy.snapshot : null,
+          archive: archive.archive,
+        }}
         reportDate={reportDate}
         displayName={access.member.displayName}
         revisionHeads={revisions.heads}
