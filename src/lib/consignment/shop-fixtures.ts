@@ -497,10 +497,13 @@ const profiles = () => [
 
 /** Righe dell'elenco dei negozi. */
 export function shopListRows(): ShopListRows {
+  const { variants, products } = shopPageRows("NEG01");
   return {
     settings: settings(),
     shops: shops(),
     locations: locations(),
+    variants,
+    products,
     availability: [
       ...shopStock(),
       availability(item("GT3RS", "Blu", "S"), sx.shop2, 0),

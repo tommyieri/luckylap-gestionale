@@ -82,16 +82,19 @@ export async function readConsignmentShops(
   member: VerifiedMember,
   now: Date = new Date(),
 ): Promise<ShopsRead> {
-  const [canFinance, settings, shops, locations, reports, openOrders] = await Promise.all([
-    financeOpen(supabase, member),
-    settingsRow(supabase),
-    pages(supabase, "consignment_shops", SHOP_COLUMNS, "location_id"),
-    pages(supabase, "stock_locations", "id,code,name,active,location_type"),
-    pages(supabase, "consignment_reports", REPORT_COLUMNS),
-    pages(supabase, "consignment_orders", "id,location_id,order_number,status", "id", [
-      { column: "status", value: "open" },
-    ]),
-  ]);
+  const [canFinance, settings, shops, locations, reports, openOrders, variants, products] =
+    await Promise.all([
+      financeOpen(supabase, member),
+      settingsRow(supabase),
+      pages(supabase, "consignment_shops", SHOP_COLUMNS, "location_id"),
+      pages(supabase, "stock_locations", "id,code,name,active,location_type"),
+      pages(supabase, "consignment_reports", REPORT_COLUMNS),
+      pages(supabase, "consignment_orders", "id,location_id,order_number,status", "id", [
+        { column: "status", value: "open" },
+      ]),
+      pages(supabase, "product_variants", "stock_item_id,product_id,color,size", "stock_item_id"),
+      pages(supabase, "products", "id,model,category"),
+    ]);
   const availability = (
     await Promise.all(
       shops.map((raw) => {
@@ -116,6 +119,8 @@ export async function readConsignmentShops(
         shops,
         locations,
         availability,
+        variants,
+        products,
         reports: await withCurrentShopPaymentStates(supabase, reports),
         openOrders,
       },

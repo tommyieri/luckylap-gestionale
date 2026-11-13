@@ -156,6 +156,10 @@ export function FinanceConsignment({
       .filter((movement) => movement.source === "budgetflow")
       .map((movement) => [movement.sourceId, movement]),
   );
+  const shopNotes = new Map<string, ConsignmentArchiveRow>();
+  for (const row of archive ?? []) {
+    if (row.shopNote && !shopNotes.has(row.code)) shopNotes.set(row.code, row);
+  }
   const summary = (archive ?? []).reduce(
     (result, row) => {
       const receipt = archivedConsignmentReceipt(row, paymentById.get(row.paymentTransactionId));
@@ -180,6 +184,13 @@ export function FinanceConsignment({
         <h3>Fatture, vendite e incassi storici</h3>
         {archive?.length ? (
           <>
+            {[...shopNotes.values()].map((row) => (
+              <p key={row.code} className={styles.shopNote}>
+                <strong>{row.shopName}</strong>
+                {" · "}
+                {row.shopNote}
+              </p>
+            ))}
             <dl className={styles.summary}>
               <div>
                 <dt>Capi venduti</dt>

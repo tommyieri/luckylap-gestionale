@@ -115,6 +115,7 @@ export type ShopItem = {
   /** «GT3RS Blu M». */
   label: string;
 };
+type ShopCap = Pick<ShopItem, "id" | "model" | "color"> & { quantity: number };
 export type ShopCount = {
   id: string;
   countedAt: string;
@@ -238,6 +239,7 @@ export type ShopPage = {
   warehouses: ShopLocation[];
   /** T-shirt nell'ordine del Magazzino (modello, colore, taglia). */
   items: ShopItem[];
+  caps: ShopCap[];
   /** Saldo del negozio così com'è nel database (`null` = nessun saldo noto). */
   shopStock: Record<string, number | null>;
   /** Disponibilità del magazzino di partenza. */
@@ -345,6 +347,8 @@ export type ShopListRows = {
   locations: unknown[];
   /** `operational_stock_availability` delle sedi dei negozi. */
   availability: unknown[];
+  variants: unknown[];
+  products: unknown[];
   reports: unknown[];
   /** Solo gli ordini aperti. */
   openOrders: unknown[];
@@ -358,6 +362,7 @@ export type ShopListRow = {
   markupCents: number;
   /** `null` = da contare. */
   pieces: number | null;
+  capPieces: number;
   lastReport: { month: string; pieces: number; status: string } | null;
   /** Mesi finiti senza resoconto, dal più vecchio. Vuoto finché il negozio non è contato. */
   missingMonths: string[];
@@ -429,16 +434,21 @@ export function shopsFromRows(
     shops = rows.shops.map((raw) => shopConfigFrom(raw, locations));
   unique(shops.map((s) => s.locationId));
   const shopIds = new Set(shops.map((s) => s.locationId));
+  const variants = stockVariantsFrom(rows);
   const pieces = new Map<string, number>();
+  const capPieces = new Map<string, number>();
   const seen = new Set<string>();
   for (const raw of rows.availability) {
     const r = obj(raw),
       location = id(r.location_id),
-      key = `${id(r.stock_item_id)}:${location}`;
+      itemId = id(r.stock_item_id),
+      key = `${itemId}:${location}`;
     if (!shopIds.has(location) || seen.has(key)) fail();
     seen.add(key);
     const onHand = nullable(r.on_hand, (v) => int(v));
-    if (onHand !== null) pieces.set(location, (pieces.get(location) ?? 0) + onHand);
+    const category = variants.get(itemId)?.category;
+    const totals = category === "T-shirt" ? pieces : category === "Cappellino" ? capPieces : null;
+    if (totals && onHand !== null) totals.set(location, (totals.get(location) ?? 0) + onHand);
   }
   const reports = rows.reports.map(reportHeadFrom);
   unique(reports.map((r) => r.id));
@@ -472,6 +482,7 @@ export function shopsFromRows(
         brandShareBps: shop.brandShareBps,
         markupCents: shop.markupCents,
         pieces: counted ? (pieces.get(shop.locationId) ?? 0) : null,
+        capPieces: capPieces.get(shop.locationId) ?? 0,
         lastReport: last
           ? {
               month: last.month,
@@ -542,7 +553,7 @@ const fillerItem = (item: Omit<ShopItem, "label" | "catalog" | "costCents">): In
   sourceCell: "",
 });
 
-function itemsFrom(rows: ShopPageRows): ShopItem[] {
+function stockVariantsFrom(rows: Pick<ShopPageRows, "products" | "variants">) {
   const products = new Map<string, { model: string; category: string }>();
   for (const raw of rows.products) {
     const r = obj(raw),
@@ -550,13 +561,23 @@ function itemsFrom(rows: ShopPageRows): ShopItem[] {
     if (products.has(key)) fail();
     products.set(key, { model: str(r.model), category: str(r.category) });
   }
-  const variants = new Map<string, { productId: string; color: string; size: string }>();
+  const variants = new Map<
+    string,
+    { model: string; category: string; color: string; size: string }
+  >();
   for (const raw of rows.variants) {
     const r = obj(raw),
       key = id(r.stock_item_id);
     if (variants.has(key)) fail();
-    variants.set(key, { productId: id(r.product_id), color: str(r.color), size: str(r.size) });
+    const product = products.get(id(r.product_id)) ?? fail();
+    variants.set(key, { ...product, color: str(r.color), size: str(r.size) });
   }
+  return variants;
+}
+
+function itemsFrom(rows: ShopPageRows) {
+  const variants = stockVariantsFrom(rows);
+  const caps = new Map<string, Omit<ShopCap, "quantity">>();
   const catalog = rows.catalog.map((raw) => {
     const r = obj(raw);
     if (typeof r.product_type !== "string") fail();
@@ -579,11 +600,14 @@ function itemsFrom(rows: ShopPageRows): ShopItem[] {
     const r = obj(raw),
       itemId = id(r.id),
       variant = variants.get(itemId) ?? fail(),
-      product = products.get(variant.productId) ?? fail(),
       sku = str(r.sku);
     if (r.kind !== "product" || seenSku.has(sku)) fail();
     seenSku.add(sku);
-    if (product.category !== "T-shirt") continue;
+    if (variant.category === "Cappellino") {
+      caps.set(itemId, { id: itemId, model: variant.model, color: variant.color });
+      continue;
+    }
+    if (variant.category !== "T-shirt") continue;
     const matches = catalog.filter(
       (c) =>
         c.itemId === itemId &&
@@ -596,7 +620,7 @@ function itemsFrom(rows: ShopPageRows): ShopItem[] {
       id: itemId,
       sku,
       name: str(r.name),
-      model: product.model,
+      model: variant.model,
       color: variant.color,
       size: variant.size,
       active: bool(r.active),
@@ -611,12 +635,12 @@ function itemsFrom(rows: ShopPageRows): ShopItem[] {
               observedAt: matches[0].observedAt,
             }
           : null,
-      label: `${product.model} ${variant.color} ${variant.size}`,
+      label: `${variant.model} ${variant.color} ${variant.size}`,
     });
   }
   unique(items.map((i) => i.id));
   const order = orderInventoryItems(items.map(fillerItem)).map((i) => i.id);
-  return order.map((itemId) => items.find((i) => i.id === itemId)!);
+  return { items: order.map((itemId) => items.find((i) => i.id === itemId)!), caps };
 }
 
 export function shopPageFromRows(
@@ -626,7 +650,7 @@ export function shopPageFromRows(
   const settings = shopSettingsFrom(rows.settings),
     locations = shopLocationsFrom(rows.locations),
     shop = shopConfigFrom(rows.shop, locations),
-    items = itemsFrom(rows),
+    { items, caps } = itemsFrom(rows),
     itemIds = new Set(items.map((i) => i.id)),
     shopId = shop.locationId,
     supplyId = shop.supply?.id ?? null;
@@ -641,6 +665,7 @@ export function shopPageFromRows(
   };
 
   const shopStock: Record<string, number | null> = {};
+  const capStock: ShopCap[] = [];
   const supplyStock: Record<string, StockAvailability> = {};
   for (const item of items) {
     shopStock[item.id] = null;
@@ -670,6 +695,9 @@ export function shopPageFromRows(
         : BigInt(onHand) - BigInt(reserved) !== BigInt(available ?? fail())
     )
       fail();
+    const cap = caps.get(itemId);
+    if (cap && location === shopId && onHand !== null && onHand > 0)
+      capStock.push({ ...cap, quantity: onHand });
     if (!itemIds.has(itemId)) continue;
     if (location === shopId) shopStock[itemId] = onHand;
     else supplyStock[itemId] = { itemId, locationId: location, onHand, reserved, available };
@@ -961,6 +989,9 @@ export function shopPageFromRows(
     shop,
     warehouses: locations.filter((l) => l.type === WAREHOUSE_TYPE && l.active),
     items,
+    caps: capStock.sort(
+      (a, b) => a.color.localeCompare(b.color, "it") || a.model.localeCompare(b.model, "it"),
+    ),
     shopStock,
     supplyStock,
     counts,

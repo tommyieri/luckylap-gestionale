@@ -384,6 +384,7 @@ export function ConsignmentShopStock({ page, now }: { page: ShopPage; now: strin
   return (
     <>
       <Reminders page={page} side="stock" now={now} />
+      <ShopNote note={shop.note} />
 
       <section className={styles.section} aria-labelledby="in-negozio">
         <div className={styles.sectionHead}>
@@ -428,6 +429,36 @@ export function ConsignmentShopStock({ page, now }: { page: ShopPage; now: strin
           note={(cell) => (cell.incoming > 0 ? `+${cell.incoming} in arrivo` : null)}
         />
       </section>
+
+      {page.caps.length > 0 && (
+        <section className={styles.section} aria-labelledby="cappellini-in-negozio">
+          <div className={styles.sectionHead}>
+            <h2 id="cappellini-in-negozio" className={styles.sectionTitle}>
+              Cappellini in negozio
+            </h2>
+            <p className={styles.total}>
+              <strong className={styles.totalNumber}>
+                {page.caps.reduce((total, cap) => total + cap.quantity, 0).toLocaleString("it-IT")}
+              </strong>{" "}
+              in totale
+            </p>
+          </div>
+          <ul className={styles.capList}>
+            {page.caps.map((cap) => (
+              <li key={cap.id}>
+                <span>
+                  <strong>{cap.color}</strong>
+                  <br />
+                  {cap.model}
+                </span>
+                <strong className={styles.totalNumber}>
+                  {cap.quantity.toLocaleString("it-IT")}
+                </strong>
+              </li>
+            ))}
+          </ul>
+        </section>
+      )}
 
       <section className={styles.section} aria-labelledby="ordini">
         <div className={styles.sectionHead}>
@@ -495,6 +526,18 @@ export function ConsignmentShopStock({ page, now }: { page: ShopPage; now: strin
         </li>
       </ul>
     </>
+  );
+}
+
+function ShopNote({ note }: { note: string }) {
+  if (!note) return null;
+  return (
+    <section className={styles.section} aria-labelledby="nota-negozio">
+      <h2 id="nota-negozio" className={styles.sectionTitle}>
+        Nota del negozio
+      </h2>
+      <p className={styles.shopNote}>{note}</p>
+    </section>
   );
 }
 
@@ -636,6 +679,7 @@ export function ConsignmentShopSales({
   return (
     <>
       <Reminders page={page} side="sales" now={now} />
+      <ShopNote note={shop.note} />
 
       <section className={styles.section} aria-labelledby="resoconti">
         <div className={styles.sectionHead}>
