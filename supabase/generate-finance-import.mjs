@@ -5,7 +5,7 @@ import path from "node:path";
 import { fileURLToPath, pathToFileURL } from "node:url";
 
 export const FINGERPRINT_VERSION = "budgetflow-v1-sorted-raw-core";
-const HEADERS = [
+export const BUDGETFLOW_HEADERS = [
   "Date",
   "Amount",
   "Source Currency",
@@ -21,6 +21,7 @@ const HEADERS = [
   "Notes",
   "Pending",
 ];
+const HEADERS = BUDGETFLOW_HEADERS;
 const SHA = /^[0-9a-f]{64}$/;
 const DATE = /^\d{4}-\d{2}-\d{2}$/;
 const sha256 = (value) => createHash("sha256").update(value).digest("hex");
@@ -292,8 +293,12 @@ export function buildFinanceImport(input, { sourceBytes }) {
   return { payload, report };
 }
 
+export function financeImportJsonLiteral(payload) {
+  return `E'${JSON.stringify(payload).replaceAll("\\", "\\\\").replaceAll("'", "''")}'`;
+}
+
 export function financeImportSql(payload) {
-  const literal = `E'${JSON.stringify(payload).replaceAll("\\", "\\\\").replaceAll("'", "''")}'`;
+  const literal = financeImportJsonLiteral(payload);
   return `-- PRIVATE FINANCE DATA: do not commit, publish or execute through a client.\n-- Owner-only, transactional, unreviewed source records; no stock or accounting posting.\nbegin;\nselect private.import_budgetflow_batch(${literal}::jsonb);\ncommit;\n`;
 }
 

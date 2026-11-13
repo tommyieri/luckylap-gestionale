@@ -1,0 +1,60 @@
+.attachments {
+  min-width: 0;
+  margin-block: 24px;
+  padding-block-start: 16px;
+  border-top: 1px solid var(--rule);
+}
+
+.attachments h3 {
+  margin: 0 0 10px;
+  font: 600 21px/1.2 var(--f-cond);
+}
+
+.attachments ul {
+  margin: 0 0 12px;
+  padding: 0;
+  list-style: none;
+}
+
+.attachments a {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  min-height: 44px;
+  color: var(--ink);
+  text-underline-offset: 3px;
+  overflow-wrap: anywhere;
+}
+
+.attachments a svg {
+  flex: none;
+}
+
+.attachments form {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: end;
+  gap: 8px;
+}
+
+.attachments label {
+  display: grid;
+  gap: 5px;
+  max-width: 100%;
+  font-size: var(--text-sm);
+}
+
+.attachments input {
+  max-width: 100%;
+  min-height: 44px;
+  font-size: 16px;
+}
+
+.attachments p {
+  margin: 8px 0 0;
+  font-size: var(--text-sm);
+}
+
+.attachments [role="alert"] {
+  color: var(--red);
+}

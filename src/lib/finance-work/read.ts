@@ -86,6 +86,8 @@ export function financeWorkFromRows(rows: WorkRows): FinanceWorkSnapshot {
   const entries: ManualEntry[] = rows.entries.map((raw) => {
     const r = obj(raw);
     if (!calendarDay(r.entry_date) || r.review_status !== "unclassified") fail();
+    const flags = [r.pending, r.evaluate_statistics, r.evaluate_budgets];
+    if (flags.some((value) => value !== undefined && typeof value !== "boolean")) fail();
     return {
       id: id(r.id),
       date: r.entry_date,
@@ -94,6 +96,15 @@ export function financeWorkFromRows(rows: WorkRows): FinanceWorkSnapshot {
       description: str(r.description),
       account: optional(r.account_label),
       category: optional(r.category),
+      ...(r.target_account_label != null ? { targetAccount: str(r.target_account_label) } : {}),
+      ...(r.pending === true ? { pending: true } : {}),
+      ...(r.evaluate_statistics === false ? { evaluateStatistics: false } : {}),
+      ...(r.evaluate_budgets === false ? { evaluateBudgets: false } : {}),
+      ...(r.payee != null ? { payee: str(r.payee) } : {}),
+      ...(Array.isArray(r.tags) && r.tags.length ? { tags: r.tags.map(str) } : {}),
+      ...(r.notes != null ? { notes: str(r.notes) } : {}),
+      ...(r.location != null ? { location: str(r.location) } : {}),
+      ...(r.entry_time != null ? { time: str(r.entry_time).slice(0, 5) } : {}),
       source: choice(r.source_kind, ["manual_declaration", "legacy_unclassified"]),
       createdAt: date(r.created_at),
       createdBy: id(r.created_by),

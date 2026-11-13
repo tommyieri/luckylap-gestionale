@@ -10,6 +10,10 @@ const mocks = vi.hoisted(() => ({
     throw Error("Nessuna chiamata a Supabase nei test.");
   }),
 }));
+vi.mock("../../../app/finance/budget-actions", () => ({
+  loadFinanceBudgets: vi.fn(),
+  saveFinanceBudget: vi.fn(),
+}));
 vi.mock("server-only", () => ({}));
 vi.mock("next/navigation", () => ({
   redirect: (to: string) => {
@@ -24,6 +28,8 @@ vi.mock("@/lib/auth/sensitive-access", () => ({ verifiedSensitiveAccess: vi.fn()
 vi.mock("@/lib/finance/server", () => ({ loadFinanceImports: vi.fn() }));
 vi.mock("@/lib/finance-work/server", () => ({ readFinanceWork: vi.fn() }));
 vi.mock("@/lib/finance/dashboard-server", () => ({ readDashboardSettlements: vi.fn() }));
+vi.mock("@/lib/finance/consignment-server", () => ({ loadFinanceConsignmentArchive: vi.fn() }));
+vi.mock("@/lib/consignment/finance", () => ({ readConsignmentFinance: vi.fn() }));
 vi.mock("@/lib/finance-revisions/context-server", () => ({ loadFinanceRevisionContext: vi.fn() }));
 vi.mock("@/lib/finance-revisions/names-server", () => ({
   readFinanceProfileNames: () =>
@@ -78,8 +84,8 @@ describe("anteprima locale di Finance (00-sequenza §1.5)", () => {
     const t = await text();
     expect(t).toContain("Anteprima locale: dati sintetici, salvataggio disattivato.");
     expect(t).toContain("Saldo dai movimenti");
-    expect(t).toContain("Entrate registrate");
-    expect(t).toContain("Uscite registrate");
+    expect(t).toContain("Pianificati");
+    expect(t).toContain("In sospeso");
     expect(t).not.toContain("Negozio sintetico");
     expect(t).toContain("Anteprima locale: la chiusura di Finance è disattivata.");
     expect(t).not.toContain("aperta su questo dispositivo");

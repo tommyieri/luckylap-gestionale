@@ -364,16 +364,16 @@ describe("Finance", () => {
   });
 
   it("spiega destinazioni, ricerca e significato del saldo solo a chi apre Finance", () => {
-    expect(text(html(everyone))).not.toContain("Panoramica, Movimenti e Da incassare");
+    expect(text(html(everyone))).not.toContain("Panoramica, Movimenti e Analisi");
     for (const access of [finance, founder]) {
       const copy = text(html(access));
       expect(copy).toContain("Finance si apre sulla Panoramica");
       expect(copy).toContain("non è verificato con la banca");
       expect(copy).toContain("Voci future e in sospeso sono separate");
       expect(copy).toContain("«Da attribuire»");
-      expect(copy).toContain("descrizione, categoria, conto o importo");
+      expect(copy).toContain("descrizione, categoria, conto, tag o importo");
       expect(copy).toContain("«Cerca in tutti i periodi»");
-      expect(copy).toContain("Da incassare mostra i residui dei resoconti dei negozi");
+      expect(copy).toContain("Conto vendita mostra vendite, fatture, pagamenti e residui");
       expect(copy).toContain("«Documenti e fonti»");
     }
     for (const href of ["/finance", "/finance/work", "/finance/documents"])
@@ -388,10 +388,10 @@ describe("Finance", () => {
       expect(hrefs(markup)).toContain("/finance/work");
       expect(copy).toContain("«Nuovo movimento» apre subito il modulo");
       expect(copy).toContain("Conto e categoria sono facoltativi");
-      expect(copy).toContain("non può essere futura");
+      expect(copy).toContain("Scegli una data futura");
       expect(copy).toContain("Controlla che il movimento non sia già presente");
       expect(copy).toContain("solo dopo un salvataggio confermato");
-      expect(copy).toContain("non aggiungere anche un’entrata manuale");
+      expect(copy).toContain("dal resoconto del negozio");
     }
   });
 
@@ -523,17 +523,11 @@ describe("i nomi citati esistono davvero", () => {
     ["src/components/refresh-button.tsx", ['"Riprova"']],
     [
       "src/components/finance/finance-workspace.tsx",
-      ["Panoramica", "Movimenti", "Da incassare", "Documenti e fonti", "Nuovo movimento"],
+      ["Panoramica", "Movimenti", "Conto vendita", "Documenti e fonti", "Nuovo movimento"],
     ],
     [
       "src/components/finance/finance-new-movement.tsx",
-      [
-        "Registra uscita",
-        "Registra entrata",
-        "Registra e aggiungi un’altra",
-        "Da attribuire",
-        "Da classificare",
-      ],
+      ['label="Salva"', "Salva e aggiungi un movimento", "Da attribuire", "Da classificare"],
     ],
     ["src/components/finance-revision-editor.tsx", ["Salva correzione"]],
     ["src/components/finance-shop-payment-editor.tsx", ["Salva correzione"]],

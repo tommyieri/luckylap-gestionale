@@ -14,7 +14,7 @@ import type {
   FinanceRevisionRecord,
 } from "../lib/finance-revisions/model";
 import type { RevisedMovement } from "../lib/finance-revisions/projection";
-import { FinanceWorkspace } from "./finance/finance-workspace";
+import { FinanceWorkspace, type FinanceWorkspaceProps } from "./finance/finance-workspace";
 
 export { revisionAuthorLine } from "./finance/finance-presentation";
 const emptyWork: FinanceWorkSnapshot = {
@@ -33,6 +33,7 @@ export type FinanceImportsViewProps = {
   shopPayments?: DashboardShopPayment[];
   deletedShopPayments?: DashboardShopPayment[];
   consignment?: ReactNode;
+  consignmentHistory?: FinanceWorkspaceProps["consignmentHistory"];
   reportDate: string;
   revisionHeads?: FinanceRevisionRecord[];
   revisionOriginals?: FinanceRevisionOriginal[];
@@ -50,6 +51,7 @@ export function FinanceImportsView({
   shopPayments = [],
   deletedShopPayments = [],
   consignment,
+  consignmentHistory,
   reportDate,
   revisionHeads = [],
   revisionOriginals = [],
@@ -61,7 +63,13 @@ export function FinanceImportsView({
   const dashboard = useMemo(
     () =>
       revisedFinanceDashboard(
-        buildFinanceDashboard(snapshot, workSnapshot, reportDate, { settlements, shopPayments }),
+        buildFinanceDashboard(snapshot, workSnapshot, reportDate, {
+          settlements,
+          shopPayments,
+          expectedBudgetFlowPayments: consignmentHistory?.archive
+            ?.filter((row) => row.paymentExpectedAtCapture)
+            .map((row) => row.paymentTransactionId),
+        }),
         revisionHeads,
         revisionOriginals,
       ),
@@ -71,6 +79,7 @@ export function FinanceImportsView({
       reportDate,
       settlements,
       shopPayments,
+      consignmentHistory?.archive,
       revisionHeads,
       revisionOriginals,
     ],
@@ -121,6 +130,7 @@ export function FinanceImportsView({
       snapshot={snapshot}
       workSnapshot={workSnapshot}
       consignment={consignment}
+      consignmentHistory={consignmentHistory}
       reportDate={reportDate}
       names={names}
       readOnly={readOnly}

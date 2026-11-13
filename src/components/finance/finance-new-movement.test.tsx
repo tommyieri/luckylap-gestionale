@@ -73,22 +73,35 @@ beforeEach(() => {
 afterEach(() => vi.useRealTimers());
 
 describe("nuovo movimento diretto", () => {
-  it("apre i sei campi con data di oggi e contratto record legato alla persona", () => {
+  it("apre il modulo con data di oggi e contratto record legato alla persona", () => {
     const nodes = render();
     expect(form(nodes).props).toMatchObject({
       userId: actorId,
       scope: "record",
       kind: "record_finance_entry",
-      label: "Registra uscita",
-      secondaryLabel: "Registra e aggiungi un’altra",
+      label: "Salva",
+      secondaryLabel: "Salva e aggiungi un movimento",
       showRecordHelp: false,
     });
     const fields = nodes.filter((node) =>
       ["input", "select", "textarea"].includes(String(node.type)),
     );
     expect(
-      fields.filter((node) => node.props.name !== "confirmed").map((node) => node.props.name),
-    ).toEqual(["type", "amount", "date", "description", "account", "category"]);
+      fields.filter((node) => node.props.name === "type").map((node) => node.props.value),
+    ).toEqual(["expense", "income", "transfer"]);
+    expect(fields.map((node) => node.props.name)).toEqual(
+      expect.arrayContaining([
+        "amount",
+        "date",
+        "description",
+        "account",
+        "category",
+        "repeat",
+        "pending",
+        "statistics",
+        "budgets",
+      ]),
+    );
     expect(fields.find((node) => node.props.name === "date")?.props.defaultValue).toBe(props.today);
     expect(fields.find((node) => node.props.name === "amount")?.props.inputMode).toBe("decimal");
     expect(fields.find((node) => node.props.name === "account")?.props.required).not.toBe(true);
@@ -113,7 +126,11 @@ describe("nuovo movimento diretto", () => {
       account_label: "Cassa sintetica",
       category: "Categoria sintetica",
     });
-    expect(form(render({ direction: "income" })).props.label).toBe("Registra entrata");
+    expect(
+      render({ direction: "income" }).find(
+        (node) => node.props.name === "type" && node.props.value === "income",
+      )?.props.checked,
+    ).toBe(true);
   });
   it("mantiene la conferma e mostra l’errore accanto al campo senza cancellare i dati", () => {
     const nodes = render();
@@ -131,7 +148,7 @@ describe("nuovo movimento diretto", () => {
       ),
     ).toBe(true);
     expect(() => build(payload({ confirmed: "" }))).toThrow();
-    expect(() => build(payload({ date: "2026-11-10" }))).toThrow();
+    expect(() => build(payload({ date: "2026-02-30" }))).toThrow();
   });
   it("passa al contenitore solo la riga della ricevuta confermata e la scelta altra voce", () => {
     const saved = form(render()).props.onSaved as (
@@ -171,7 +188,7 @@ describe("classificazione facoltativa", () => {
     const choices = nodes.filter((node) => node.type === "option");
     expect(
       choices.filter((node) => node.props.value === "").map((node) => node.props.children),
-    ).toEqual(["Da attribuire", "Da classificare"]);
+    ).toEqual(["Da attribuire", "Da classificare", "Mai"]);
     expect(
       nodes.filter((node) => node.type === "optgroup").map((node) => node.props.label),
     ).toEqual(["Costi fissi", "Costi variabili", "Entrate"]);
@@ -206,24 +223,50 @@ describe("classificazione facoltativa", () => {
   });
 });
 
-describe("date e contratto di registrazione esistente", () => {
-  it("mantiene il limite esistente alle date e spiega il promemoria nel Calendario", () => {
-    const nodes = render();
-    const date = nodes.find((node) => node.props.name === "date")!;
-    expect(date.props.max).toBe(props.today);
-    const content = nodes
-      .flatMap((node) => [node.props.children].flat())
-      .filter((value) => typeof value === "string")
-      .join(" ");
-    expect(content).toContain("Per una data futura usa un promemoria nel Calendario");
-  });
-
-  it("rispetta il vincolo del vero financeEntryForm senza creare una nuova voce futura", () => {
+describe("scadenze, ricorrenze e trasferimenti", () => {
+  it("accetta date future e conserva ripetizione, sospensione e preferenze statistiche", () => {
     const build = form(render()).props.build as (data: FormData) => unknown;
-    expect(() => build(payload({ date: "2026-11-10" }))).toThrow("Controlla i campi indicati.");
-    expect(mocks.setters[3]).toHaveBeenLastCalledWith({
-      date: "La data è futura: usa un promemoria nel Calendario e registra qui il movimento quando avviene.",
+    expect(
+      build(
+        payload({
+          date: "2026-11-30",
+          time: "09:30",
+          repeat: "monthly",
+          repeatCount: "3",
+          pending: "on",
+          statistics: "on",
+          tags: "#sintetico, prova, prova",
+          location: "Luogo di prova",
+        }),
+      ),
+    ).toMatchObject({
+      schema_version: 2,
+      entry_date: "2026-11-30",
+      entry_time: "09:30",
+      repeat_interval: "monthly",
+      repeat_count: 3,
+      pending: true,
+      evaluate_statistics: true,
+      evaluate_budgets: false,
+      tags: ["sintetico", "prova"],
+      location: "Luogo di prova",
     });
-    expect(props.onSaved).not.toHaveBeenCalled();
+    expect(() => build(payload({ repeat: "monthly", repeatCount: "61" }))).toThrow();
+  });
+  it("registra un solo trasferimento da cui derivano entrambe le gambe", () => {
+    const build = form(render()).props.build as (data: FormData) => unknown;
+    const data = {
+      type: "transfer",
+      account: "Conto sintetico",
+      targetAccount: "Cash",
+      description: "",
+    };
+    expect(build(payload(data))).toMatchObject({
+      entry_type: "expense",
+      account_label: "Conto sintetico",
+      target_account_label: "Cash",
+      description: "Trasferimento",
+    });
+    expect(() => build(payload({ ...data, account: "cash" }))).toThrow();
   });
 });

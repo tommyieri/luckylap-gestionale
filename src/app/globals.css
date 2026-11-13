@@ -121,6 +121,11 @@
   --tap-row: 40px;
   --radius: 0px;
   --radius-control: 2px;
+  --radius-finance-pill: 999px;
+  --radius-finance-card: 19px;
+  --radius-finance-control: 9px;
+  --radius-finance-panel: 24px;
+  --radius-finance-chip: 5px;
   --sidebar-width: 232px;
   --topband-h: 52px;
   --tabs-h: 48px;

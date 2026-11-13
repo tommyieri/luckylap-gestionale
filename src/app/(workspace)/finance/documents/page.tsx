@@ -6,6 +6,7 @@ import { SensitiveAreaSessionBar } from "@/components/auth-sensitive-area-form";
 import { PanelActions, WorkspacePanel } from "@/components/workspace-panel";
 import { financeDocumentAccess } from "@/lib/finance/document-access";
 import { financeDocumentFromDatabase } from "@/lib/finance/documents";
+import { readCompletePages } from "../../../../lib/finance/read";
 export const dynamic = "force-dynamic";
 export const metadata: Metadata = { title: "Documenti" };
 
@@ -25,15 +26,18 @@ export default async function FinanceDocumentsPage() {
         </PanelActions>
       </WorkspacePanel>
     );
-  const result = await access.supabase
-    .from("finance_documents")
-    .select("id,source_kind,file_name,storage_path,sha256,byte_size,content_type,review_status", {
-      count: "exact",
-    })
-    .order("source_kind")
-    .limit(100);
-  const documents = result.data?.map(financeDocumentFromDatabase) ?? [];
-  if (result.error || result.count !== documents.length || documents.some((row) => !row))
+  const rows = await readCompletePages((from, to) =>
+    access.supabase
+      .from("finance_documents")
+      .select("id,source_kind,file_name,storage_path,sha256,byte_size,content_type,review_status", {
+        count: "exact",
+      })
+      .order("source_kind")
+      .order("id")
+      .range(from, to),
+  ).catch(() => null);
+  const documents = rows?.map(financeDocumentFromDatabase);
+  if (!documents || documents.some((row) => !row))
     return (
       <WorkspacePanel
         title="Documenti non disponibili."
@@ -46,17 +50,9 @@ export default async function FinanceDocumentsPage() {
       <div className={styles.heading}>
         <div>
           <h1>Documenti</h1>
-          <p>Copie integre dei tre file ricevuti, in archivio privato.</p>
+          <p>Originali delle fonti Finance, delle fatture e dei riepiloghi del conto vendita.</p>
         </div>
         <span className={styles.readOnly}>Da verificare</span>
-      </div>
-      <div className={styles.notice}>
-        <strong>I documenti restano fonti da revisionare.</strong>
-        <p>
-          Il COGS Tracker conserva i suoi codici storici. Il recap PDF conserva i valori originali,
-          comprese le differenze da chiarire. Nessuno dei due modifica scorte, costi attuali o
-          totali BudgetFlow.
-        </p>
       </div>
       <section className={styles.section}>
         <div className={styles.sectionHeading}>

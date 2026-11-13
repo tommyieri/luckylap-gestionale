@@ -40,6 +40,7 @@ export function FinanceWorkForm({
   label,
   disabled = false,
   secondaryLabel,
+  saveAtTop = false,
   showRecordHelp = true,
   successMessage,
   invalidMessage = "Controlla i dati e la conferma di verifica delle altre fonti.",
@@ -54,6 +55,7 @@ export function FinanceWorkForm({
   label: string;
   disabled?: boolean;
   secondaryLabel?: string;
+  saveAtTop?: boolean;
   showRecordHelp?: boolean;
   successMessage?: string;
   invalidMessage?: string;
@@ -245,6 +247,11 @@ export function FinanceWorkForm({
       setNotice(error instanceof Error ? error.message : "Controlla i dati del modulo.");
     }
   }
+  const saveButton = (
+    <button type="submit" className="button button-primary">
+      {pending ? "Registrazione in corso…" : label}
+    </button>
+  );
   return (
     <form
       onSubmit={submit}
@@ -296,6 +303,7 @@ export function FinanceWorkForm({
         key={epoch}
         disabled={!loaded || pending || blocked || command !== null || disabled}
       >
+        {saveAtTop && <div className={styles.topSave}>{saveButton}</div>}
         {kind === "record_finance_entry" && showRecordHelp && (
           <p className={styles.help}>
             Gli incassi del conto vendita si registrano dal resoconto del negozio: non inserirli
@@ -303,9 +311,7 @@ export function FinanceWorkForm({
           </p>
         )}
         {children}
-        <button type="submit" className="button button-primary">
-          {pending ? "Registrazione in corso…" : label}
-        </button>
+        {!saveAtTop && saveButton}
         {secondaryLabel && (
           <button type="submit" value="addAnother" className="button button-secondary">
             {secondaryLabel}

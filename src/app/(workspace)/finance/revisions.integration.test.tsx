@@ -9,6 +9,7 @@ const mocks = vi.hoisted(() => ({
   settlements: vi.fn(),
   monthly: vi.fn(),
   legacy: vi.fn(),
+  archive: vi.fn(),
   context: vi.fn(),
   preview: vi.fn(),
   history: vi.fn(),
@@ -54,6 +55,9 @@ vi.mock("@/lib/consignment/shop-fixtures", () => ({
   shopFinanceRows: () => ({ reports: [], payments: [], locations: [] }),
 }));
 vi.mock("@/lib/consignment/finance", () => ({ readConsignmentFinance: mocks.legacy }));
+vi.mock("@/lib/finance/consignment-server", () => ({
+  loadFinanceConsignmentArchive: mocks.archive,
+}));
 vi.mock("@/lib/finance-revisions/context-server", () => ({
   loadFinanceRevisionContext: mocks.context,
 }));
@@ -114,6 +118,7 @@ beforeEach(() => {
     deletedShopPayments: [],
   });
   mocks.legacy.mockResolvedValue({ status: "ready", snapshot: { rows: [] } });
+  mocks.archive.mockResolvedValue({ status: "ready", archive: [] });
   mocks.context.mockResolvedValue(context);
 });
 describe("callsite e gate Finance con revisioni", () => {

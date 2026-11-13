@@ -1,18 +1,22 @@
 # Finance: inserimento, correzioni e fonti collegate
 
-L’inserimento e la correzione si svolgono dentro `/finance`: «Nuovo movimento» apre subito un modulo breve; **Movimenti** è il registro unico delle voci manuali, delle importazioni e del denaro ricevuto o rimborsato dalle vendite. Aprire una riga mostra la scheda contestuale con dati, correzione e storico. Le revisioni di [finance-revisions.md](finance-revisions.md) continuano a preservare le fonti; i limiti di eliminazione degli incassi delle vendite e dei rimborsi restano efficaci. «Chiudi Finance» rimane in cima alla pagina.
+L’inserimento e la correzione si svolgono dentro `/finance`: «Nuovo movimento» apre il modulo di registrazione; **Movimenti** è il registro unico delle voci manuali, delle importazioni e del denaro ricevuto o rimborsato dalle vendite. Aprire una riga mostra la scheda contestuale con dati, correzione e storico. Le revisioni di [finance-revisions.md](finance-revisions.md) continuano a preservare le fonti; i limiti di eliminazione degli incassi delle vendite e dei rimborsi restano efficaci. «Chiudi Finance» rimane in cima alla pagina.
 
 Il vecchio `/finance/work` rimane compatibile: reindirizza a `/finance?vista=movements&nuovo=expense`. L’area richiede ancora la password Finance prima di consentire letture e scritture. Non esiste più una seconda pagina «Registrazioni» da attraversare per aggiungere una voce. Le fonti BudgetFlow e i documenti originali restano consultabili da **Documenti e fonti** e dall’archivio privato `/finance/documents`. Il codice usa soltanto il client Supabase della sessione: nessuna chiave Admin o service role nelle pagine o nelle Server Actions.
 
-## Modulo breve e scheda
+## Nuovo movimento e scheda
 
-«Nuovo movimento» è disponibile in Panoramica, Movimenti e Da incassare. Il pannello sul computer occupa una superficie ampia sul telefono e mostra sei campi: Uscita / Entrata, Importo, Data, Descrizione, Conto e Categoria. La data iniziale è oggi; l’importo è positivo, senza segno, con virgola decimale e senza separatore delle migliaia. La direzione determina il segno nel registro. Il contratto esistente rifiuta date future: per una scadenza si usa un promemoria nel Calendario e si registra il movimento quando avviene.
+Il pulsante «Nuovo movimento» apre Uscita, Entrata o Trasferimento. Il modulo usa euro, con importo senza segno e fino a due decimali. Un trasferimento richiede due conti distinti e produce una sola voce con addebito sul conto di partenza e accredito su quello di destinazione. Conto e categoria sono facoltativi per entrate e uscite. Le opzioni «Altro conto…» e «Altra categoria…» accettano valori personalizzati.
 
-Conto e categoria restano facoltativi. «Da attribuire» e «Da classificare» rendono esplicita l’assenza del valore; «Altro conto…» e «Altra categoria…» permettono etichette personalizzate. Il catalogo suggerisce anche Packaging, Commissioni e Servizi e consulenze, senza riclassificare il passato. La descrizione chiede «A chi / per cosa» e gli errori compaiono accanto ai campi.
+Si possono indicare beneficiario, tag, luogo, ora e note. Una data futura entra in Pianificati. «Ripeti» crea da 2 a 60 occorrenze settimanali, mensili o annuali in un’unica transazione. Le date partono dalla scadenza iniziale e usano l’ultimo giorno del mese quando il giorno richiesto manca. Ogni occorrenza si può correggere dalla sua scheda. L’opzione «In sospeso» attende una conferma tramite la scheda prima di incidere sui saldi. I due interruttori di inclusione controllano le analisi e i budget, mentre il saldo continua a seguire il movimento effettivo.
 
-La conferma «Ho controllato che questo movimento non sia già registrato» rimane obbligatoria. Il modulo ricorda di registrare gli incassi dei negozi dai resoconti del conto vendita, senza copiarli anche come entrate manuali. L’azione principale è «Registra uscita» o «Registra entrata»; «Registra e aggiungi un’altra» prepara un altro inserimento solo dopo una ricevuta confermata. Un esito incerto conserva lo stesso tentativo e non abilita una nuova registrazione. Dopo il salvataggio confermato il registro e la scheda permettono di ritrovare il movimento.
+La conferma di verifica dei duplicati rimane obbligatoria. «Salva» apre la scheda della nuova voce dopo la ricevuta. «Salva e aggiungi un movimento» prepara un altro inserimento. Per gli incassi nuovi dei negozi si usa il resoconto del conto vendita.
 
 La scheda si apre nel contesto della ricerca, anche tramite indirizzo diretto con `movimento=<id>`. Chiuderla mantiene periodo e filtri; la navigazione avanti e indietro del browser li ripristina. Modifiche non salvate richiedono conferma prima di uscire. Storico e fonte sono richiudibili; il pagamento di un negozio usa il suo editor e il suo storico specifici. I vecchi collegamenti `/finance/movimento?source_kind=…&source_id=…` e `/finance/incasso/<id>` continuano a funzionare.
+
+### Allegati
+
+Nella scheda di un movimento salvato, **Allegati** accetta fatture e ricevute in PDF fino a 4 MB per file. I file sono privati, accessibili solo con Finance aperta. Se il caricamento si interrompe, ripeti l'operazione scegliendo lo stesso file. Il suo contenuto identifica l'allegato sul movimento. Per i pagamenti storici del conto vendita la scheda mostra anche le fatture e i riepiloghi collegati all'archivio.
 
 ## Vendite collegate a Finance
 
@@ -46,7 +50,7 @@ La migrazione `20261021125904_finance_work.sql`, generata tramite CLI e applicat
 }
 ```
 
-Importi positivi interi da 1 a 99.999.999.999.999 centesimi, coerenti con il tipo `numeric(14,2)` esistente. Entrata/uscita descrive la direzione; non si memorizzano importi negativi. La data è un giorno esplicito Europe/Rome, valido e non futuro. Le scadenze future richiedono un promemoria nel calendario e una registrazione quando il movimento avviene. Account e categoria sono etichette libere dell’utente: nessun conto, saldo iniziale o classificazione contabile viene inventato.
+Importi positivi interi da 1 a 99.999.999.999.999 centesimi, coerenti con il tipo `numeric(14,2)` esistente. Entrata/uscita descrive la direzione; non si memorizzano importi negativi. Il contratto storico `schema_version: 1` accetta date fino a oggi. Il modulo Finance usa `schema_version: 2` e ammette una data futura, oltre ai campi facoltativi per ricorrenza, trasferimento, stato e metadati. La migrazione `20261113195100_finance_movimenti_pianificati.sql` conserva ricevute e compatibilità del contratto precedente. Account e categoria sono etichette libere dell’utente: nessun conto, saldo iniziale o classificazione contabile viene inventato.
 
 Prima dell’invio il collaboratore conferma di aver controllato fonti BudgetFlow e fatti delle vendite per evitare copie. La conferma non costituisce una riconciliazione automatica: due pagamenti diversi possono avere lo stesso importo/data e un riconoscimento affidabile richiede riferimenti verificati. Le voci nuove restano «Da classificare» e non vengono dichiarate contabilizzate.
 
@@ -66,7 +70,7 @@ L’interfaccia conserva prima dell’invio UUID e payload congelato in `session
 
 ## Verifiche
 
-La nuova interfaccia conserva `FinanceWorkForm` e `financeEntryForm` per validazione, RPC e recupero. I test mirati del modulo breve coprono sei campi, direzione, importi italiani, data non futura, valori facoltativi, conferma dei duplicati, salvataggio confermato, esiti incerti e anteprima senza scritture. I test della scheda e del loader coprono identità corrente, area chiusa prima della lettura, risposta tardiva e distinzione fra revisioni Finance e storico dei pagamenti del negozio. La descrizione della Panoramica e del registro è in [finance-dashboard.md](finance-dashboard.md).
+La nuova interfaccia conserva `FinanceWorkForm` e `financeEntryForm` per validazione, RPC e recupero. I test del modulo coprono importi, scadenze future, ricorrenze, trasferimenti, conferma dei duplicati, esiti incerti e anteprima. Il test SQL verifica retry della serie, recupero delle ricevute precedenti e correzione di un trasferimento senza modificare la fonte. I test della scheda e del loader coprono identità corrente, area chiusa prima della lettura, risposta tardiva e distinzione fra revisioni Finance e storico dei pagamenti del negozio. La descrizione della Panoramica e del registro è in [finance-dashboard.md](finance-dashboard.md).
 
 Le correzioni con storico sono provate da `supabase/tests/finance-revisions.mjs` (PGlite), `finance-revisions-concurrency.mjs` e `finance-ecosystem-integration.mjs` (PostgreSQL 17): numeri in [verifiche](verification.md).
 

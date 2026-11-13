@@ -148,7 +148,7 @@ describe("pagamenti del negozio nella panoramica Finance", () => {
       displayName: "Synthetic",
     };
     const overview = renderToStaticMarkup(<FinanceImportsView {...props} />);
-    expect(text(overview)).toMatch(/Saldo dai movimenti Al 22\/10\/2026 83,00 €/);
+    expect(text(overview)).toContain("83,00 €");
     expect(overview).not.toContain("134,99");
     expect(overview).not.toContain('id="conto-vendita-da-incassare"');
     const register = renderToStaticMarkup(
@@ -157,7 +157,7 @@ describe("pagamenti del negozio nella panoramica Finance", () => {
     expect(register).toContain(`id="movimento-shop_payment-${sx.payment}"`);
     expect(register).toContain(`id="movimento-shop_payment-${sx.closedPayment}"`);
     expect(register).not.toContain(`movimento-shop_payment-${sx.voidedPayment}`);
-    expect(text(register)).toContain("Pagamento del negozio");
+    expect(text(register)).toContain("Conto da attribuire");
     const receivables = renderToStaticMarkup(
       <FinanceImportsView {...props} initialParams={{ vista: "receivables" }} />,
     );

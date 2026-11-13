@@ -1,6 +1,10 @@
 import { describe, expect, it, vi } from "vitest";
 import { renderToStaticMarkup } from "react-dom/server";
 import type { ReactNode } from "react";
+vi.mock("../app/finance/budget-actions", () => ({
+  loadFinanceBudgets: vi.fn(),
+  saveFinanceBudget: vi.fn(),
+}));
 vi.mock("./finance/finance-movement-panel", () => ({ FinanceMovementPanel: () => null }));
 vi.mock("./finance/finance-new-movement", () => ({ FinanceNewMovement: () => null }));
 vi.mock("@/lib/finance/model", () => import("../lib/finance/model"));

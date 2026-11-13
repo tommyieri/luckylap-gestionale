@@ -3,6 +3,10 @@ import { renderToStaticMarkup } from "react-dom/server";
 import { FinanceWorkspace } from "./finance-workspace";
 import type { FinanceMovement } from "../../lib/finance/dashboard";
 
+vi.mock("../../app/finance/budget-actions", () => ({
+  loadFinanceBudgets: vi.fn(),
+  saveFinanceBudget: vi.fn(),
+}));
 vi.mock("next/navigation", () => ({ useRouter: () => ({ refresh: vi.fn() }) }));
 vi.mock("./finance-movement-panel", () => ({ FinanceMovementPanel: () => null }));
 vi.mock("./finance-new-movement", () => ({
@@ -63,15 +67,23 @@ const props = {
 };
 
 describe("Finance come spazio di lavoro", () => {
-  it("apre sulla panoramica con tre valori, grafici e azione diretta", () => {
+  it("apre sulla panoramica con saldi, pianificati, sospesi e azione diretta", () => {
     const html = renderToStaticMarkup(<FinanceWorkspace {...props} />);
     expect(html).toContain("Saldo dai movimenti");
-    expect(html).toContain("Entrate registrate");
-    expect(html).toContain("Uscite registrate");
-    expect(html).toContain("Dove spendiamo");
+    expect(html).toContain("Saldi del giorno selezionato");
+    expect(html).toContain("Pianificati");
+    expect(html).toContain("In sospeso");
     expect(html).toContain("Nuovo movimento");
     expect(html).not.toContain("Nuova voce manuale");
     expect(html).not.toContain("Resoconti sintetici");
+  });
+  it("riunisce flussi e categorie nella vista Analisi", () => {
+    const html = renderToStaticMarkup(
+      <FinanceWorkspace {...props} initialParams={{ vista: "analysis" }} />,
+    );
+    expect(html).toContain("Entrate registrate");
+    expect(html).toContain("Uscite registrate");
+    expect(html).toContain("Dove spendiamo");
   });
   it("cerca nello storico quando sono selezionati tutti i periodi e mette la descrizione prima della categoria", () => {
     const html = renderToStaticMarkup(

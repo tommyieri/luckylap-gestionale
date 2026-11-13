@@ -544,3 +544,16 @@
     padding: 0;
   }
 }
+
+/* L'area Finance ha un menu proprio dopo lo sblocco. */
+.frame:has(:global(#finance-workspace)) {
+  grid-template-columns: minmax(0, 1fr);
+}
+.frame:has(:global(#finance-workspace)) > .sidebar {
+  display: none;
+}
+.main:has(:global(#finance-workspace)) {
+  max-width: none;
+  padding: 0;
+  background: #eaeaea;
+}
