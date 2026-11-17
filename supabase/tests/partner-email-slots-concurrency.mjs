@@ -1,4 +1,4 @@
-// test-db: postgres minimo 254
+// test-db: postgres minimo 260
 // Piano persistente: concorrenza reale, slot scaduti, monitoraggio, fusi e quote Roma.
 // Cluster PostgreSQL 17 temporaneo, Auth simulata e soli dati sintetici; nessuna rete o SMTP.
 import assert from "node:assert/strict";
@@ -260,7 +260,14 @@ async function reset() {
 }
 async function ready(
   co,
-  { club = false, tz = "Europe/Rome", country = "Italia", at = BEFORE, sent = false } = {},
+  {
+    club = false,
+    event = false,
+    tz = "Europe/Rome",
+    country = "Italia",
+    at = BEFORE,
+    sent = false,
+  } = {},
 ) {
   const id = randomUUID(),
     stamp = new Date(Date.parse(at) - 60 * 60 * 1000).toISOString();
@@ -273,7 +280,7 @@ async function ready(
       `Partner Sintetico ${co}`,
       sent ? "contattato" : "da_contattare",
       FOUNDER,
-      club ? ["club"] : ["collab"],
+      event ? ["eventi"] : club ? ["club"] : ["collab"],
       country,
     ],
   );
@@ -306,12 +313,13 @@ async function ready(
     [
       id,
       JSON.stringify({
-        contact_kind: club ? "club" : "brand",
+        contact_kind: event ? "evento" : club ? "club" : "brand",
         language: "it",
         register: "voi",
         timezone: tz,
-        event_starts_on: "",
-        request: club ? "merch_cobranding" : "collab_capsule",
+        event_starts_on: event ? "2027-05-20" : "",
+        ...(event ? { event_country: country } : {}),
+        request: event ? "stand_evento" : club ? "merch_cobranding" : "collab_capsule",
         decision: { kind: "scrivi" },
       }),
       ASSISTANT,
@@ -1217,6 +1225,65 @@ try {
     0,
   );
   await release(expiringClaim.lease_token, expiringAt);
+  // La scelta eventi è ricontrollata dopo la preparazione del MIME e prima dei byte SMTP.
+  const eventMigrations = new URL("../migrations/", import.meta.url);
+  const eventsMigration = readdirSync(eventMigrations).filter((name) =>
+    name.endsWith("_partner_prime_eventi_ue_uk.sql"),
+  );
+  eq(eventsMigration.length, 1);
+  await owner.query(readFileSync(new URL(eventsMigration[0], eventMigrations), "utf8"));
+  await reset();
+  const eventBefore = "2026-11-18T07:00:00Z";
+  const event = await ready(8801, { event: true, at: eventBefore });
+  const eventDraft = await scalar(
+    owner,
+    "select to_jsonb(d) value from public.partner_assistant_drafts d where id=$1",
+    [event.draft],
+  );
+  await as(
+    owner,
+    () =>
+      scalar(
+        owner,
+        "select private.approve_partner_event_first_draft_as_founder($1,$2,$3::jsonb) value",
+        [
+          FOUNDER,
+          randomUUID(),
+          JSON.stringify({
+            schema_version: 1,
+            partner_id: event.id,
+            draft_id: event.draft,
+            expected_partner_version: eventDraft.partner_version,
+            expected_sha256: eventDraft.sha256,
+            official_sources: ["https://event.example.test/2027/exhibitors"],
+          }),
+        ],
+      ),
+    eventBefore,
+    "postgres",
+  );
+  await plan(eventBefore);
+  const eventSlot = (await slots())[0];
+  ok(eventSlot);
+  const eventAt = new Date(eventSlot.planned_at).toISOString();
+  const eventClaim = await as(a, () => firstClaim(a), eventAt);
+  eq(eventClaim.status, "claimed");
+  const eventMessage = await as(a, () => prepareFirst(a, eventClaim), eventAt);
+  eq(eventMessage.status, "pronto");
+  await owner.query("delete from private.partner_event_first_approvals where draft_id=$1", [
+    event.draft,
+  ]);
+  const eventStart = await as(a, () => startFirst(a, eventClaim, eventMessage), eventAt);
+  ok(eventStart.status !== "in_invio", "il ritiro dell'approvazione dopo il MIME impedisce SMTP");
+  eq(
+    await scalar(
+      owner,
+      "select send_status value from public.partner_assistant_messages where id=$1",
+      [eventMessage.message_row_id],
+    ),
+    "scartato",
+  );
+  await release(eventClaim.lease_token, eventAt);
   console.log(`PASS ${checks} piano email concurrent checks; PostgreSQL17 locale, dati sintetici.`);
 } finally {
   for (const client of clients)

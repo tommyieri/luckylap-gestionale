@@ -99,6 +99,53 @@ const unprepared = (n: number): PartnerEmailUnprepared => ({
 const rows = (count: number, flow: "club" | "altri", start = 1) =>
   Array.from({ length: count }, (_, i) => item(start + i, { flow }));
 
+describe("prime email per eventi UE e Regno Unito", () => {
+  it("dal 18 novembre assegna sei posti alle bozze approvate per gli eventi", () => {
+    const on = "2026-11-18";
+    const events = Array.from({ length: 7 }, (_, i) =>
+      item(i + 1, {
+        sections: ["eventi"],
+        flow: "altri",
+        contactKind: "evento",
+        request: "stand_evento",
+        eventStartsOn: "2027-05-20",
+        eventApproved: true,
+        windows: [window(on)],
+      }),
+    );
+    const s = snapshot([...events, item(20, { windows: [window(on)], eventApproved: false })], {
+      generatedAt: `${on}T07:00:00Z`,
+      from: on,
+      days: 1,
+    });
+    s.config.eventFirstFrom = on;
+    const result = plan(s);
+    expect(prepared(result).map((row) => row.co)).toEqual([1, 2, 3, 4, 5, 6]);
+    expect(result.days).toEqual([{ day: on, limit: 6, club: 0, altri: 6 }]);
+    expect(result.items.find((row) => row.co === 20)?.state).toBe("non_prevista");
+  });
+
+  it("mantiene le quote precedenti prima della data di decorrenza", () => {
+    const s = snapshot([...rows(4, "club"), ...rows(4, "altri", 20)]);
+    s.config.eventFirstFrom = "2026-11-18";
+    s.config.firstRealOn = "2026-10-01";
+    s.config.dailyFirstLimit = 6;
+    expect(plan(s).days[0]).toEqual({ day: TODAY, limit: 6, club: 3, altri: 3 });
+  });
+
+  it("tratta una bozza senza approvazione come esclusa dal nuovo perimetro", () => {
+    const on = "2026-11-18";
+    const s = snapshot([item(1, { flow: "altri", sections: ["eventi"], windows: [window(on)] })], {
+      generatedAt: `${on}T07:00:00Z`,
+      from: on,
+      days: 1,
+    });
+    s.config.eventFirstFrom = on;
+    expect(prepared(plan(s))).toEqual([]);
+    expect(plan(s).items[0].explanation).toContain("bozza approvata dal founder");
+  });
+});
+
 describe("lettura del programma email", () => {
   it("legge il contratto completo senza perdere testo, revisioni, sezioni o invii", () => {
     const original = snapshot([
