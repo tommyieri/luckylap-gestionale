@@ -10,6 +10,8 @@ Alcuni documenti scritti prima del modello attuale chiedono ancora una sessione 
 
 ## Piano e aggiornamenti
 
+- [Prime email per eventi UE e Regno Unito](partner-prime-eventi-ue-uk.md): dal 18 novembre sei prime email al giorno per eventi con stand e bozza approvata dal founder, con solleciti nel percorso esistente. Consegna preparata, attivazione da verificare.
+
 - [Oggi: invii automatici e attività personali](oggi-invii-automatici.md): un solo riepilogo delle email del giorno, destinatari e orari apribili, attività manuali compatte e filtri conservativi sui vecchi promemoria.
 
 - [P4–P6: specifica](superpowers/specs/2026-10-22-p4-p6-design.md) e [piano Codex](superpowers/plans/2026-10-22-p4-p6-implementation.md): Finance modificabile, collegamenti e Oggi, feed CEO. Rilasciati con la pull request #3 il 23 ottobre 2026: in parte superati, lo stato attuale è nei documenti delle aree.

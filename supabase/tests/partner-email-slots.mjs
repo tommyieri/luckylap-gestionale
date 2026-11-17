@@ -1,4 +1,4 @@
-// test-db: pglite minimo 112
+// test-db: pglite minimo 164
 // Piano effettivo: quote, snapshot, finestre locali e scadenze senza recuperi a raffica.
 // Migrazioni Partner attuali, Auth simulata e dati sintetici, nessun accesso cloud.
 import assert from "node:assert/strict";
@@ -98,14 +98,24 @@ const followupSent = (day = TODAY) =>
 // vengono prima dei club.
 const ids = new Map();
 const draftIds = new Map();
-async function ready(co, { club, tz = "Europe/Rome", country = "Italia", researchAt } = {}) {
+async function ready(
+  co,
+  { club, event = false, tz = "Europe/Rome", country = "Italia", researchAt } = {},
+) {
   const partnerId = randomUUID();
   ids.set(co, partnerId);
   await asOwner(
     `insert into public.partners(id, co, name, origin, stage, created_by, sections, priority,
        contact_month, country)
      values ($1, $2, $3, 'team', 'da_contattare', $4, $5::text[], 'media', date '2026-11-01', $6)`,
-    [partnerId, co, `Club Sintetico ${co}`, founder, club ? ["club"] : ["collab"], country],
+    [
+      partnerId,
+      co,
+      `Club Sintetico ${co}`,
+      founder,
+      event ? ["eventi"] : club ? ["club"] : ["collab"],
+      country,
+    ],
   );
   const contactId = await value(
     `insert into public.partner_contacts(partner_id, kind, value, link_value, created_by, updated_by)
@@ -138,12 +148,13 @@ async function ready(co, { club, tz = "Europe/Rome", country = "Italia", researc
     [
       partnerId,
       JSON.stringify({
-        contact_kind: club ? "club" : "brand",
+        contact_kind: event ? "evento" : club ? "club" : "brand",
         language: "it",
         register: "voi",
         timezone: tz,
-        event_starts_on: "",
-        request: club ? "merch_cobranding" : "collab_capsule",
+        event_starts_on: event ? "2027-05-20" : "",
+        ...(event ? { event_country: country } : {}),
+        request: event ? "stand_evento" : club ? "merch_cobranding" : "collab_capsule",
         decision: { kind: "scrivi" },
       }),
       MODEL,
@@ -959,6 +970,169 @@ try {
     datelineIds,
     "ripetere il planner non cancella il primo gruppo quando legge il secondo",
   );
+  // La nuova consegna conserva i percorsi precedenti e cambia le sole prime email dal 18.
+  await resetPlan();
+  await db.exec(migration("_partner_prime_eventi_ue_uk.sql"));
+  now = "2026-11-18T07:00:00Z";
+  eq(await share(true, "2026-11-17"), 2);
+  eq(await share(false, "2026-11-17"), 3);
+  eq(await share(true, "2026-11-18"), 0);
+  eq(await share(false, "2026-11-18"), 6);
+  for (const country of [
+    "Italia",
+    "United Kingdom",
+    "GB",
+    "UK",
+    "Romania",
+    "RO",
+    "Slovacchia",
+    "CZ",
+  ])
+    eq(
+      await value("select private.partner_event_first_country($1) as v", [country]),
+      true,
+      country,
+    );
+  for (const country of [
+    "Svizzera",
+    "CH",
+    "Monaco",
+    "Norvegia",
+    "Jersey",
+    "Isola di Man",
+    "Emirati Arabi Uniti",
+    "",
+  ])
+    eq(
+      await value("select private.partner_event_first_country($1) as v", [country]),
+      false,
+      country,
+    );
+  const firstEvent = async (country = "Italia", approve = true) => {
+    const id = await ready(nextCo++, { club: false, event: true, country });
+    const draft = await one(
+      `select p.version,d.id,d.sha256 from public.partners p
+      join public.partner_assistant_jobs j on j.partner_id=p.id join public.partner_assistant_drafts d on d.id=j.draft_id where p.id=$1`,
+      [id],
+    );
+    const payload = {
+      schema_version: 1,
+      partner_id: id,
+      draft_id: draft.id,
+      expected_partner_version: draft.version,
+      expected_sha256: draft.sha256,
+      official_sources: ["https://event.example.test/2027/exhibitors"],
+    };
+    if (approve) {
+      const op = randomUUID();
+      const result = await team("approve_partner_event_first_draft", payload, op);
+      eq(result.approved, true);
+      eq((await team("approve_partner_event_first_draft", payload, op)).replayed, true);
+    }
+    return { id, draft, payload };
+  };
+  const events = [];
+  for (let i = 0; i < 7; i++) events.push(await firstEvent(i === 0 ? "Regno Unito" : "Italia"));
+  const heldEvent = await firstEvent("Italia", false);
+  const outsideEvent = await firstEvent("Svizzera", false);
+  await assert.rejects(
+    () => team("approve_partner_event_first_draft", outsideEvent.payload),
+    /invalid_partner_payload/,
+  );
+  checks++;
+  const excludedClub = await ready(nextCo++, { club: true });
+  const excludedShop = await ready(nextCo++, { club: false });
+  await as("postgres", null, () => db.exec("select private.refresh_partner_send_plan()"), { now });
+  const eventSlots =
+    await db.query(`select s.* from private.partner_send_slots s where s.status='scheduled'
+    and s.quota_day='2026-11-18' and s.kind='primo' order by s.planned_at`);
+  eq(eventSlots.rows.length, 6, "una sola finestra locale ospita sei eventi");
+  ok(
+    eventSlots.rows.every((s) => events.some((e) => e.id === s.partner_id)),
+    "solo bozze editorialmente approvate",
+  );
+  eq(new Set(eventSlots.rows.map((s) => s.partner_id)).size, 6);
+  eq(
+    await value(
+      "select private.partner_send_snapshot($1,'primo',$2,0,'2026-11-18T10:00:00Z') as v",
+      [heldEvent.id, heldEvent.draft.id],
+    ),
+    null,
+  );
+  for (const id of [excludedClub, excludedShop, outsideEvent.id])
+    eq(
+      await as(
+        "postgres",
+        null,
+        () => value("select private.partner_assistant_eligible($1) as v", [id]),
+        { now },
+      ),
+      false,
+    );
+  eq(
+    await as(
+      "postgres",
+      null,
+      () => value("select private.partner_assistant_eligible($1) as v", [excludedClub]),
+      { now: "2026-11-17T10:00:00Z" },
+    ),
+    true,
+  );
+  const approved = events[0];
+  eq(
+    await value("select private.partner_event_first_approved($1) as v", [approved.draft.id]),
+    true,
+  );
+  await asOwner(
+    "update public.partner_contacts set version=version+1 where partner_id=$1 and kind='email'",
+    [approved.id],
+  );
+  eq(
+    await value("select private.partner_event_first_approved($1) as v", [approved.draft.id]),
+    false,
+    "un recapito cambiato richiede nuova approvazione",
+  );
+  await as("postgres", null, () => db.exec("select private.refresh_partner_send_plan()"), { now });
+  const rebuilt = await db.query(
+    "select partner_id from private.partner_send_slots where kind='primo' and status='scheduled' and quota_day='2026-11-18'",
+  );
+  eq(
+    rebuilt.rows.length,
+    5,
+    "la bozza invalidata esce senza anticipare lo slot già prenotato per domani",
+  );
+  ok(rebuilt.rows.every((s) => s.partner_id !== approved.id));
+  const changed = events[1];
+  await asOwner("update public.partners set version=version+1 where id=$1", [changed.id]);
+  eq(
+    await value("select private.partner_event_first_approved($1) as v", [changed.draft.id]),
+    false,
+    "la versione della scheda è legata all'approvazione",
+  );
+  await assert.rejects(
+    () => team("approve_partner_event_first_draft", changed.payload),
+    /partner_changed/,
+  );
+  checks++;
+  // Un sollecito extra UE e di un Club continua a passare le stesse guardie dopo la scadenza.
+  await resetPlan();
+  const [oldClub] = await sent(1, { club: true, day: "2026-11-10", country: "USA" });
+  await asOwner("update public.partners set stage='contattato' where id=$1", [oldClub]);
+  await as("postgres", null, () => db.exec("select private.refresh_partner_followups()"), { now });
+  const oldFollowup = await value(
+    "select id as v from public.partner_assistant_followups where partner_id=$1",
+    [oldClub],
+  );
+  ok(oldFollowup);
+  eq(await value("select private.partner_followup_reason($1,false) as v", [oldFollowup]), null);
+  await save(oldFollowup);
+  ok(
+    await value(
+      "select private.partner_send_snapshot($1,'sollecito',$2,1,'2026-11-18T10:00:00Z') is not null as v",
+      [oldClub, (await conv(oldFollowup)).draft_id],
+    ),
+  );
+
   console.log(`planner_100_candidates_ms=${Math.round(plannerMs)}`);
   console.log(`PASS ${checks} controlli`);
 } catch (error) {

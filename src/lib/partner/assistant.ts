@@ -546,6 +546,7 @@ export type PartnerAssistantSendStatus = {
   lastTickAt: string | null;
   lastOutcome: string | null;
   dailyFirstLimit: number;
+  eventFirstFrom?: string;
   firstLimitToday: number;
   /** Sole prime email vere del giorno di Roma; i solleciti hanno un contatore SQL separato. */
   firstSentToday: number;
@@ -626,7 +627,12 @@ const nameOf = (value: unknown, what: string): string => text(value, 1, PARTNER_
 
 export function partnerAssistantSendFrom(value: unknown): PartnerAssistantSendStatus {
   const what = "Invio dell'assistente";
-  const r = exact(value, SEND_KEYS, what);
+  const source = record(value, what);
+  const r = exact(
+    value,
+    [...SEND_KEYS, ...(Object.hasOwn(source, "event_first_from") ? ["event_first_from"] : [])],
+    what,
+  );
   const runRow = r.test_run === null ? null : record(r.test_run, what);
   const run =
     runRow === null
@@ -651,6 +657,9 @@ export function partnerAssistantSendFrom(value: unknown): PartnerAssistantSendSt
     lastTickAt: nullable(instant)(r.last_tick_at, what),
     lastOutcome: nullable(code)(r.last_outcome, what),
     dailyFirstLimit: between(r.daily_first_limit, 1, 15, what),
+    ...(Object.hasOwn(r, "event_first_from")
+      ? { eventFirstFrom: day(r.event_first_from, what) }
+      : {}),
     firstLimitToday: between(r.first_limit_today, 1, 15, what),
     firstSentToday: integer(r.first_sent_today, 0, what),
     firstRealSendOn: nullable(day)(r.first_real_send_on, what),

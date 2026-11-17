@@ -823,6 +823,21 @@ function AssistantLimit({
     });
   }
 
+  if (send.eventFirstFrom && today >= send.eventFirstFrom)
+    return (
+      <section className={styles.dataSection} aria-labelledby="assistente-limite">
+        <h2 id="assistente-limite">Limite</h2>
+        <p className={styles.dataLine}>
+          Al massimo 6 prime email al giorno per eventi nell’Unione europea e nel Regno Unito, con
+          proposta di stand e bozza approvata dal founder.
+        </p>
+        <p className={styles.hint}>
+          I solleciti continuano con il limite separato di {PARTNER_ASSISTANT_FOLLOWUP_DAILY_LIMIT}{" "}
+          al giorno.
+        </p>
+      </section>
+    );
+
   return (
     <section className={styles.dataSection} aria-labelledby="assistente-limite">
       <h2 id="assistente-limite">Limite</h2>

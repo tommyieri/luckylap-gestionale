@@ -30,6 +30,8 @@ export type PartnerEmailProgramItem = {
   reason: string | null;
   writeOn: string | null;
   eligible: boolean;
+  /** Approvazione editoriale della bozza per un evento UE/UK con proposta di stand. */
+  eventApproved?: boolean;
   rank: number | null;
   sendPriority: number;
   country: string;
@@ -69,6 +71,7 @@ export type PartnerEmailProgramSnapshot = {
     pausedReason: "credito" | "errore_claude" | null;
     backoffUntil: string | null;
     dailyFirstLimit: number;
+    eventFirstFrom?: string;
     firstRealOn: string | null;
     currentRulesVersion: number;
   };
@@ -195,6 +198,11 @@ export function parsePartnerEmailProgram(value: unknown): PartnerEmailProgramSna
     "dailyFirstLimit",
     "firstRealOn",
     "currentRulesVersion",
+    ...(typeof root.config === "object" &&
+    root.config !== null &&
+    Object.hasOwn(root.config, "eventFirstFrom")
+      ? ["eventFirstFrom"]
+      : []),
   ]);
   const m = record(root.mail, ["stopReason", "backoffUntil", "dayStoppedOn", "nextSendAfter"]);
   const t = record(root.todaySent, ["club", "altri"]);
@@ -217,6 +225,9 @@ export function parsePartnerEmailProgram(value: unknown): PartnerEmailProgramSna
       "reason",
       "writeOn",
       "eligible",
+      ...(typeof value === "object" && value !== null && Object.hasOwn(value, "eventApproved")
+        ? ["eventApproved"]
+        : []),
       "rank",
       "sendPriority",
       "country",
@@ -288,6 +299,7 @@ export function parsePartnerEmailProgram(value: unknown): PartnerEmailProgramSna
       reason: nullable(r.reason, (v) => text(v, 240, 1)),
       writeOn: nullable(r.writeOn, day),
       eligible: bool(r.eligible),
+      ...(Object.hasOwn(r, "eventApproved") ? { eventApproved: bool(r.eventApproved) } : {}),
       rank: nullable(r.rank, (v) => integer(v, 1)),
       sendPriority: integer(r.sendPriority, 0, 9),
       country: text(r.country, 240),
@@ -371,6 +383,7 @@ export function parsePartnerEmailProgram(value: unknown): PartnerEmailProgramSna
       pausedReason: nullable(c.pausedReason, (v) => oneOf(v, ["credito", "errore_claude"])),
       backoffUntil: nullable(c.backoffUntil, instant),
       dailyFirstLimit: integer(c.dailyFirstLimit, 1, 15),
+      ...(Object.hasOwn(c, "eventFirstFrom") ? { eventFirstFrom: day(c.eventFirstFrom) } : {}),
       firstRealOn: nullable(c.firstRealOn, day),
       currentRulesVersion: integer(c.currentRulesVersion, 1),
     },
@@ -538,8 +551,11 @@ export function forecastPartnerEmails(
   );
   for (let offset = 0; offset < snapshot.days; offset++) {
     const on = addDays(snapshot.from, offset);
-    const limit =
-      firstRealOn === null || daysBetween(firstRealOn, on) <= 6
+    const eventsOnly =
+      snapshot.config.eventFirstFrom !== undefined && on >= snapshot.config.eventFirstFrom;
+    const limit = eventsOnly
+      ? 6
+      : firstRealOn === null || daysBetween(firstRealOn, on) <= 6
         ? 5
         : snapshot.config.dailyFirstLimit;
     const dayResult = { day: on, limit, club: 0, altri: 0 };
@@ -551,6 +567,14 @@ export function forecastPartnerEmails(
     const used = on === today ? { ...snapshot.todaySent } : { club: 0, altri: 0 };
     while (cursor < end) {
       pool = pool.filter((row) => {
+        if (eventsOnly && !row.eventApproved) {
+          set(
+            row,
+            "non_prevista",
+            "Dal 18 novembre le prime email riguardano eventi UE/UK con proposta di stand e bozza approvata dal founder.",
+          );
+          return false;
+        }
         const invalid = validAt(row, cursor, on);
         if (invalid) set(row, "da_rivedere", invalid);
         return invalid === null;
@@ -558,9 +582,11 @@ export function forecastPartnerEmails(
       if (snapshot.mail.dayStoppedOn === on || used.club + used.altri >= limit || pool.length === 0)
         break;
       const allowed = (flow: PartnerEmailFlow) =>
-        flow === "club"
-          ? used.club < Math.floor(limit / 2)
-          : used.altri < limit - Math.floor(limit / 2);
+        eventsOnly
+          ? flow === "altri" && used.altri < 6
+          : flow === "club"
+            ? used.club < Math.floor(limit / 2)
+            : used.altri < limit - Math.floor(limit / 2);
       const open = (row: Row) =>
         row.windows.some(
           (window) =>
