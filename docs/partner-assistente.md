@@ -463,6 +463,16 @@ La scheda distingue queste revisioni: «già controllata da Claude, con modifica
 
 Prima dell'applicazione si ricontrollano in sola lettura le bozze candidate. Dopo si verifica che il numero delle revisioni coincida con quelle attese e che non restino bozze del modello versione 2 ancora idonee all'invio. Le bozze saltate restano col testo precedente: vanno controllate prima di riattivarle, perché il normale invio non confronta la versione del modello.
 
+### Correzioni grammaticali della versione 3, 16 novembre 2026
+
+La seconda lettura di Claude aveva bocciato 16 bozze del modello (`modello_bocciato`), tutte per gli stessi errori del testo fisso:
+
+- in inglese mancava l'articolo davanti al nome del club: ora «the members of the Porsche Club of Victoria Inc.» e «glad to do it with the Porsche Club of Victoria Inc.» (un nome che comincia già con «The» non lo raddoppia);
+- in tedesco «mit schlichtem Design und der Silhouette des Autos auf der Brust gestickt» era un calco dall'italiano: ora «mit schlichtem Design und auf die Brust gestickter Silhouette des Autos»;
+- in tedesco un nome che finisce con «Club» prende la «-s» del genitivo nell'oggetto: «des Ostschweizerischen Porsche Clubs».
+
+Il numero resta 3: sono correzioni grammaticali, e il lookbook dei Club e la prova cercano `template_version = 3` nel database. Con la preparazione in pausa per il credito, su richiesta di Tommi («correggi i 16 club e rendili disponibili all'invio») le 16 bozze sono state ricomposte con il testo corretto e scritte come le bozze preparate a mano: nuova nota del modello v3 con `prepared_by: claude`, nuova scelta, bozza, approvazione `founder_edit` attribuita a Tommi e lavoro «pronta», tutto in una transazione che ricalcola l'impronta di ogni bozza. Dopo la scrittura ogni lavoro risulta nella coda d'invio, senza motivi di blocco e con il lookbook giusto.
+
 ### Lookbook Club dal 4 novembre
 
 Decisione di Tommi del 3 novembre 2026: dal **4 novembre, giorno di Roma**, le prime email dei Club che usano il modello approvato includono un PDF. «Porsche Clubs» per le comunità Porsche, «Clubs» per gli altri Club. Oggetto, corpo, firma, frase di uscita, limiti e finestra d'invio restano quelli approvati; nessuna nuova chiamata a Claude. Gli altri contatti restano senza allegati.

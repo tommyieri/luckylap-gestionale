@@ -262,8 +262,11 @@ describe("nome del club nel testo", () => {
       "T-Shirts für die Mitglieder der Porsche 356 IG Deutschland e.V.",
     );
     expect(PARTNER_ASSISTANT_TEMPLATES.de.subject("Ostschweizerischer Porsche Club")).toBe(
-      "T-Shirts für die Mitglieder des Ostschweizerischen Porsche Club",
+      "T-Shirts für die Mitglieder des Ostschweizerischen Porsche Clubs",
     );
+    expect(
+      PARTNER_ASSISTANT_TEMPLATES.de.body("Ostschweizerischer Porsche Club", "porsche"),
+    ).toContain("mit dem Ostschweizerischen Porsche Club umsetzen");
     expect(
       PARTNER_ASSISTANT_TEMPLATES.de.body("Württembergischer Porsche Club e.V.", "porsche"),
     ).toContain("mit dem Württembergischen Porsche Club e.V. umsetzen");
@@ -276,6 +279,24 @@ describe("nome del club nel testo", () => {
     expect(PARTNER_ASSISTANT_TEMPLATES.fr.body("Section SL", null)).toContain(
       "avec la Section SL.",
     );
+  });
+
+  it("l'articolo inglese e la silhouette in tedesco, come chiesto dalla seconda lettura", () => {
+    expect(PARTNER_ASSISTANT_TEMPLATES.en.subject("Porsche Club of Victoria Inc.")).toBe(
+      "T-shirts for the members of the Porsche Club of Victoria Inc.",
+    );
+    expect(
+      PARTNER_ASSISTANT_TEMPLATES.en.body("Porsche Club of Victoria Inc.", "porsche"),
+    ).toContain("glad to do it with the Porsche Club of Victoria Inc.\n");
+    expect(PARTNER_ASSISTANT_TEMPLATES.en.subject("The Ferrari Club of America")).toBe(
+      "T-shirts for the members of The Ferrari Club of America",
+    );
+    const german = PARTNER_ASSISTANT_TEMPLATES.de.body("Porsche Club Wien", "porsche");
+    expect(german).toContain(
+      "mit schlichtem Design und auf die Brust gestickter Silhouette des Autos.",
+    );
+    expect(german).toContain("mit dem auf den Ärmel gestickten Clublogo");
+    expect(german).not.toContain("auf der Brust gestickt");
   });
 });
 

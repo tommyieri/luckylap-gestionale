@@ -4,6 +4,9 @@
 // i modelli che abbiamo già della marca del club. Dalla versione 3 il riferimento alle collaborazioni
 // con Porsche Club in Italia è generico, senza nomi o quantità; Claude fa solo la seconda lettura. La versione va
 // nella nota di ricerca sostitutiva: per cambiare il testo si cambia anche la versione.
+// Il 16 novembre 2026 la versione 3 ha ricevuto solo correzioni grammaticali chieste dalla seconda
+// lettura («the» davanti al nome del club in inglese, la frase sulla silhouette e il genitivo in
+// tedesco). Il numero resta 3: il lookbook dei Club e la prova lo cercano nel database.
 import type {
   PartnerAssistantContext,
   PartnerAssistantLanguage,
@@ -52,10 +55,14 @@ const GERMAN_FEMININE =
   /^scuderia(?=\s)|(?:^|[\s-])(?:vereinigung|interessengemeinschaft|ig|gemeinschaft|community)(?=[\s.,]|$)/iu;
 /** Un aggettivo iniziale si declina dopo l'articolo: «des Württembergischen Porsche Club». */
 const germanAdjective = (club: string) => club.replace(/^(\p{Lu}\p{Ll}*isch)er(?=\s)/u, "$1en");
+/** Il genitivo maschile di un nome che finisce con «Club»: «des Ostschweizerischen Porsche Clubs». */
+const germanGenitive = (club: string) => club.replace(/(?<=\s)Club$/u, "Clubs");
 const germanOf = (club: string) =>
-  GERMAN_FEMININE.test(club) ? `der ${club}` : `des ${germanAdjective(club)}`;
+  GERMAN_FEMININE.test(club) ? `der ${club}` : `des ${germanGenitive(germanAdjective(club))}`;
 const germanWith = (club: string) =>
   GERMAN_FEMININE.test(club) ? `der ${club}` : `dem ${germanAdjective(club)}`;
+/** In inglese il nome del club vuole l'articolo: «the members of the Porsche Club of Victoria Inc.». */
+const englishThe = (club: string) => (/^the\s/iu.test(club) ? club : `the ${club}`);
 /** Il punto di fine frase, senza raddoppiarlo dopo «Inc.», «e.V.» o «r.y.». */
 const stop = (text: string) => (text.endsWith(".") ? text : `${text}.`);
 
@@ -142,14 +149,14 @@ export const PARTNER_ASSISTANT_TEMPLATES: Record<PartnerAssistantLanguage, Templ
       ].join("\n"),
   },
   en: {
-    subject: (club) => `T-shirts for the members of ${club}`,
+    subject: (club) => `T-shirts for the members of ${englishThe(club)}`,
     body: (club, brand) =>
       [
         "Hello,",
         "",
         "I am Tommaso, founder of LuckyLap, an Italian brand that turns a passion for cars into something to wear every day: organic cotton T-shirts with an essential design and the car's silhouette embroidered on the chest. Something discreet and recognisable, which carries the passion well beyond a club meeting or a circuit.",
         "",
-        `We have already started working with some Porsche Clubs in Italy, creating T-shirts for their members with the club logo embroidered on the sleeve. We would now like to take the project to other clubs in Europe and around the world, and we would be glad to do it with ${stop(club)}`,
+        `We have already started working with some Porsche Clubs in Italy, creating T-shirts for their members with the club logo embroidered on the sleeve. We would now like to take the project to other clubs in Europe and around the world, and we would be glad to do it with ${stop(englishThe(club))}`,
         "",
         `We can develop an exclusive version together: the car to feature, the colour of the T-shirt and of the embroidery, the position of your logo. ${DESIGN.en(brand)} We work with an embroidery workshop that has already worked for Porsche Clubs, and we follow the project from the design to the finished, packed garment, with men's and women's cuts.`,
         "",
@@ -166,7 +173,7 @@ export const PARTNER_ASSISTANT_TEMPLATES: Record<PartnerAssistantLanguage, Templ
       [
         "Sehr geehrte Damen und Herren,",
         "",
-        "mein Name ist Tommaso, ich bin der Gründer von LuckyLap, einer italienischen Marke, die die Leidenschaft für Automobile in ein Kleidungsstück für jeden Tag verwandelt: T-Shirts aus Bio-Baumwolle mit schlichtem Design und der Silhouette des Autos auf der Brust gestickt. Etwas Dezentes und Wiedererkennbares, das die Leidenschaft auch fern von Treffen und Rennstrecke zeigt.",
+        "mein Name ist Tommaso, ich bin der Gründer von LuckyLap, einer italienischen Marke, die die Leidenschaft für Automobile in ein Kleidungsstück für jeden Tag verwandelt: T-Shirts aus Bio-Baumwolle mit schlichtem Design und auf die Brust gestickter Silhouette des Autos. Etwas Dezentes und Wiedererkennbares, das die Leidenschaft auch fern von Treffen und Rennstrecke zeigt.",
         "",
         `Wir haben bereits einige Kooperationen mit Porsche Clubs in Italien begonnen und T-Shirts für die Mitglieder mit dem auf den Ärmel gestickten Clublogo gefertigt. Nun möchten wir das Projekt auf weitere Clubs in Europa und weltweit ausweiten, und wir würden es gern mit ${germanWith(club)} umsetzen.`,
         "",
