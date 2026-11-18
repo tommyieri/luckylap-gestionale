@@ -32,4 +32,12 @@ La lease della casella è condivisa con gli invii. Il worker rispetta il limite 
 
 La funzione riguarda la casella IONOS configurata e i messaggi ancora presenti in INBOX quando avviene il controllo. Gmail personale resta un canale distinto. Le verifiche per i solleciti conservano anche il loro controllo delle altre cartelle e dei riferimenti alla conversazione.
 
-L'implementazione usa `inbox.ts`, `inbox-mailbox.ts`, `inbox-store.ts` e la migrazione `20261118120000_partner_ionos_inbox.sql`. Le nuove RPC sono riservate al servizio server. I test usano esclusivamente dati sintetici e database locali.
+L'implementazione usa `inbox.ts`, `inbox-mailbox.ts`, `inbox-store.ts` e la migrazione `20261118112121_partner_ionos_inbox.sql`. Le nuove RPC sono riservate al servizio server. I test usano esclusivamente dati sintetici e database locali.
+
+## Migrazione in produzione, 18 novembre 2026
+
+Applicata con l'OK di Tommi prima del merge. Il database ha assegnato la versione `20261118112121`; il file è stato rinominato senza modificare il testo SQL. L'impronta MD5 del testo salvato in cloud coincide con quella del file: `2593c6b892587e44fb9b434129a6a099`.
+
+Impronte di Partner, recapiti, attività, attività del team, configurazione e scheduler identiche prima e dopo la migrazione. Importata una ricevuta storica per evitare duplicati; cursore vuoto e data di attivazione ancora nulla, in attesa del primo giro del nuovo codice. Verificati i grant riservati al servizio e la compatibilità del percorso precedente.
+
+Per il rilascio autorizzato, prima del deploy la soglia di lettura è stata impostata all'istante iniziale della migrazione, con cursore ancora vuoto e nessuna lease del nuovo importatore. Il primo giro comprenderà quindi anche le email ricevute durante il rilascio; non rileggerà quelle precedenti alla migrazione.
