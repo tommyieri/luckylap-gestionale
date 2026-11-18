@@ -1,0 +1,249 @@
+<!doctype html>
+<html lang="it" data-type="product">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+    <meta name="page-type" content="product" />
+    <meta name="site-kind" content="other" />
+    <meta name="robots" content="noindex,nofollow" />
+    <meta name="theme-color" content="#dadada" />
+    <title>LuckyLap: passione addosso</title>
+    <meta
+      name="description"
+      content="Entra nel guardaroba LuckyLap. Scegli la tua icona, guarda il ricamo da vicino e componi il tuo abbinamento."
+    />
+    <meta property="og:type" content="website" />
+    <meta property="og:title" content="LuckyLap: passione addosso" />
+    <meta
+      property="og:description"
+      content="Un guardaroba da esplorare, una passione da indossare."
+    />
+    <meta property="og:image" content="share.jpg" />
+    <meta name="twitter:card" content="summary_large_image" />
+    <link rel="icon" href="media/logo-square-100.webp" />
+    <link rel="preload" href="media/mona-400.ttf" as="font" type="font/ttf" crossorigin />
+    <link rel="preload" href="media/mona-500.ttf" as="font" type="font/ttf" crossorigin />
+    <link rel="stylesheet" href="style.css" />
+    <script type="module" src="main.js"></script>
+  </head>
+  <body>
+    <a class="skip" href="#guardaroba">Vai al guardaroba</a>
+    <header class="header">
+      <a class="brand" href="./" aria-label="LuckyLap, inizio"
+        ><img src="media/logo-square-200.webp" alt="LuckyLap" width="100" height="68"
+      /></a>
+      <button class="text-button world-trigger" data-open="world-dialog" disabled>
+        Il mondo LuckyLap <svg class="icon" aria-hidden="true"><use href="icons.svg#arrow" /></svg>
+      </button>
+      <button
+        class="selection-trigger"
+        data-open="selection-dialog"
+        aria-describedby="selection-context"
+        disabled
+      >
+        <span class="selection-text--full">La tua selezione</span
+        ><span class="selection-text--short">Selezione</span
+        ><span class="selection-count" id="selection-count">0</span></button
+      ><span class="sr-only" id="selection-context">0 capi scelti</span>
+    </header>
+
+    <main id="guardaroba" class="wardrobe">
+      <div class="left-side">
+        <div class="manifesto">
+          <p class="intro-line">Abbigliamento e car culture.</p>
+          <h1>
+            <span class="line"><span>Passione</span></span>
+            <span class="line"><span>addosso.</span></span>
+          </h1>
+          <p class="intro-copy">Le icone che riconosci.<br />I dettagli che senti tuoi.</p>
+        </div>
+
+        <div class="product-copy" id="product-copy">
+          <div class="product-heading">
+            <h2 id="product-name">964</h2>
+            <span id="product-color">Navy</span>
+          </div>
+          <p id="product-description">
+            La silhouette degli anni Novanta, ricamata a contrasto sul cotone biologico navy.
+          </p>
+          <div class="product-actions">
+            <button class="button button--green" id="add-selection" disabled>
+              <span id="add-label">Scegli questo capo</span
+              ><svg class="icon" aria-hidden="true">
+                <use id="add-icon" href="icons.svg#plus" />
+              </svg>
+            </button>
+            <a
+              class="shop-link"
+              id="product-link"
+              href="https://luckylap.com/products/964-tshirt"
+              target="_blank"
+              rel="noopener noreferrer"
+              >Vedi nello shop
+              <svg class="icon" aria-hidden="true"><use href="icons.svg#arrow" /></svg
+            ></a>
+          </div>
+        </div>
+      </div>
+
+      <div class="artwork" id="artwork">
+        <div class="model-ghost" id="model-ghost" aria-hidden="true">964</div>
+        <div class="lap-line" aria-hidden="true"></div>
+        <div
+          class="image-stage"
+          id="image-stage"
+          tabindex="0"
+          role="group"
+          aria-label="T-shirt 964, usa le frecce per cambiare capo"
+          aria-describedby="gesture-hint"
+        >
+          <img
+            id="product-image"
+            src="media/964-tee.webp"
+            alt="T-shirt 964 LuckyLap navy con ricamo sul petto"
+            width="960"
+            height="960"
+            fetchpriority="high"
+            draggable="false"
+          />
+        </div>
+        <div class="view-controls">
+          <button class="view-button" id="detail-toggle" aria-pressed="false" disabled>
+            <svg class="icon" aria-hidden="true"><use id="detail-icon" href="icons.svg#zoom" /></svg
+            ><span id="detail-toggle-label">Da vicino</span>
+          </button>
+          <p class="gesture-hint" id="gesture-hint">Trascina per cambiare icona</p>
+        </div>
+        <div class="zoom-controls" id="zoom-controls" hidden>
+          <label for="zoom">Esplora il dettaglio</label>
+          <input id="zoom" type="range" min="1" max="2.6" value="1.25" step="0.05" />
+          <button class="icon-button" id="reset-zoom" aria-label="Centra il dettaglio">
+            <svg class="icon" aria-hidden="true"><use href="icons.svg#reset" /></svg>
+          </button>
+          <p id="detail-view-label">I ricami a contrasto</p>
+        </div>
+        <p class="stage-status" id="stage-status" role="status" aria-live="polite"></p>
+      </div>
+
+      <div class="catalog-dock">
+        <nav class="categories" aria-label="Categorie del guardaroba">
+          <button data-category="tshirts" aria-pressed="true" disabled>T-shirt</button>
+          <button data-category="caps" aria-pressed="false" disabled>Cappellini</button>
+          <button data-category="knitwear" aria-haspopup="dialog" disabled>
+            Maglieria <span>In arrivo</span>
+          </button>
+        </nav>
+        <div class="product-picker">
+          <button class="icon-button nav-arrow" id="previous" aria-label="Capo precedente" disabled>
+            <svg class="icon" aria-hidden="true"><use href="icons.svg#left" /></svg>
+          </button>
+          <div
+            class="product-rail"
+            id="product-rail"
+            role="group"
+            aria-label="Scegli un’icona"
+          ></div>
+          <button class="icon-button nav-arrow" id="next" aria-label="Capo successivo" disabled>
+            <svg class="icon" aria-hidden="true"><use href="icons.svg#right" /></svg>
+          </button>
+        </div>
+      </div>
+    </main>
+
+    <footer class="footer">
+      <p>Lifestyle in Pole Position.</p>
+      <a href="https://luckylap.com/pages/collections" target="_blank" rel="noopener noreferrer"
+        >Lo shop LuckyLap <svg class="icon" aria-hidden="true"><use href="icons.svg#arrow" /></svg
+      ></a>
+    </footer>
+    <p class="toast" id="toast" role="status" aria-live="polite"></p>
+
+    <dialog class="selection-dialog" id="selection-dialog" aria-labelledby="selection-title">
+      <div class="dialog-top">
+        <span class="dialog-brand">LuckyLap</span
+        ><button class="icon-button" data-close aria-label="Chiudi la selezione">
+          <svg class="icon" aria-hidden="true"><use href="icons.svg#close" /></svg>
+        </button>
+      </div>
+      <h2 id="selection-title">Il tuo<br />abbinamento.</h2>
+      <p class="dialog-intro">Una T-shirt, un cappellino.<br />La tua idea di LuckyLap.</p>
+      <div id="selection-items" class="selection-items"></div>
+      <div class="selection-empty" id="selection-empty">
+        <p>Il primo capo lo scegli tu.</p>
+        <button class="button button--green" data-close>
+          Torna al guardaroba
+          <svg class="icon" aria-hidden="true"><use href="icons.svg#arrow" /></svg>
+        </button>
+      </div>
+      <p class="selection-note" id="selection-note" hidden>
+        Apri i capi nello shop per scegliere taglia e disponibilità.
+      </p>
+    </dialog>
+
+    <dialog class="soon-dialog" id="soon-dialog" aria-labelledby="soon-title">
+      <div class="dialog-top">
+        <span class="dialog-brand">LuckyLap</span
+        ><button class="icon-button" data-close aria-label="Chiudi la maglieria">
+          <svg class="icon" aria-hidden="true"><use href="icons.svg#close" /></svg>
+        </button>
+      </div>
+      <p class="soon-category">Il guardaroba si allarga.</p>
+      <h2 id="soon-title">Il prossimo<br />capitolo.</h2>
+      <p class="soon-copy">
+        La maglieria sta arrivando. Nuovi capi da esplorare, con la stessa passione LuckyLap.
+      </p>
+      <p class="soon-word" aria-hidden="true">Maglieria</p>
+      <button class="button button--green" data-close>
+        Torna ai capi <svg class="icon" aria-hidden="true"><use href="icons.svg#arrow" /></svg>
+      </button>
+    </dialog>
+
+    <dialog class="world-dialog" id="world-dialog" aria-labelledby="world-title">
+      <div class="dialog-top">
+        <span class="dialog-brand">Il mondo LuckyLap</span
+        ><button class="icon-button" data-close aria-label="Chiudi il mondo LuckyLap">
+          <svg class="icon" aria-hidden="true"><use href="icons.svg#close" /></svg>
+        </button>
+      </div>
+      <div class="world-layout">
+        <div class="world-copy">
+          <h2 id="world-title">La cultura<br />dei motori.</h2>
+          <p id="world-description">
+            Silhouette, storie e dettagli che riconosci al primo sguardo. È da questa passione che
+            nasce LuckyLap.
+          </p>
+          <div class="world-tabs" role="group" aria-label="Esplora il mondo LuckyLap">
+            <button data-world="culture" aria-pressed="true">La passione</button
+            ><button data-world="people" aria-pressed="false">Il progetto</button
+            ><button data-world="everyday" aria-pressed="false">Ogni giorno</button>
+          </div>
+          <a
+            class="shop-link"
+            href="https://luckylap.com/pages/about-us"
+            target="_blank"
+            rel="noopener noreferrer"
+            >Leggi la nostra storia
+            <svg class="icon" aria-hidden="true"><use href="icons.svg#arrow" /></svg
+          ></a>
+        </div>
+        <div class="world-image">
+          <img
+            id="world-image"
+            src="media/world-monza.webp"
+            alt="Una vettura da gara nel paddock di Monza"
+            width="1200"
+            height="800"
+            loading="lazy"
+          />
+        </div>
+      </div>
+    </dialog>
+
+    <noscript
+      ><div class="noscript">
+        <p>Puoi esplorare tutti i capi direttamente nello shop LuckyLap.</p>
+        <a href="https://luckylap.com/pages/collections">Apri il guardaroba</a>
+      </div></noscript
+    >
+  </body>
+</html>

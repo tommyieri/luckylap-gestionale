@@ -83,6 +83,8 @@ Alcuni documenti scritti prima del modello attuale chiedono ancora una sessione 
 
 ## Team, contenuti e sviluppo
 
+- [Preview LuckyLap V2](../previews/luckylap-v2/README.md): guardaroba interattivo con nove capi reali, dettaglio esplorabile, abbinamento locale e spazio per la maglieria futura. [Direzione](../previews/luckylap-v2/DIREZIONE.md) e [verifiche](../previews/luckylap-v2/VERIFICA.md).
+
 - [Layout condiviso e navigazione](workspace-layout.md): guscio comune a tutte le pagine, mappa delle sezioni, token di stile e regole per le pagine nuove.
 - [Guida «Come si usa»](workspace-layout.md#la-guida-come-si-usa): pagina `/guida` per i cinque del team e regole per tenerla allineata all'app.
 - [Workspace condiviso del team](team-workspace.md): route `/team` con il calendario a mese (pallino sui giorni con impegni), attività e note nel database, date e solleciti Partner, «Partner nel Team» (`/team/partner`).
