@@ -351,6 +351,8 @@ async function tick(
     run?: ReturnType<typeof vi.fn>;
     environmentResult?: unknown;
     followup?: ReturnType<typeof vi.fn>;
+    inbox?: ReturnType<typeof vi.fn>;
+    tickClock?: () => number;
   } = {},
 ) {
   const state = setup();
@@ -370,6 +372,8 @@ async function tick(
       send: send as never,
       sendDependencies: sending.sendDependencies,
       followup: extra.followup as never,
+      inbox: extra.inbox as never,
+      tickClock: extra.tickClock,
     },
   );
   for (const callback of callbacks) await callback();
@@ -538,6 +542,58 @@ describe("route del worker dell'assistente Partner", () => {
 });
 
 describe("route del worker: variabili, invio e passo con Claude", () => {
+  it("legge le risposte dai moduli prima degli invii e continua se la lettura è certa", async () => {
+    const inbox = vi.fn().mockResolvedValue({ status: "observed" });
+    const { send, run } = await tick({ ...environment, ...mailEnvironment }, { inbox });
+    expect(inbox).toHaveBeenCalledOnce();
+    expect(inbox.mock.invocationCallOrder[0]).toBeLessThan(send.mock.invocationCallOrder[0]);
+    expect(send).toHaveBeenCalledOnce();
+    expect(run).toHaveBeenCalledOnce();
+  });
+  it("una lettura nuova incerta non lascia partire invii o scritture", async () => {
+    const inbox = vi.fn().mockResolvedValue({ status: "uncertain" });
+    const { send, run } = await tick({ ...environment, ...mailEnvironment }, { inbox });
+    expect(send).not.toHaveBeenCalled();
+    expect(run).not.toHaveBeenCalled();
+  });
+  it("un errore inatteso nella nuova lettura non lascia partire invii", async () => {
+    const inbox = vi.fn().mockRejectedValue(new Error("synthetic inbox failure"));
+    const { send, run } = await tick({ ...environment, ...mailEnvironment }, { inbox });
+    expect(send).not.toHaveBeenCalled();
+    expect(run).not.toHaveBeenCalled();
+  });
+  it("senza casella non avvia lo scanner incrementale", async () => {
+    const inbox = vi.fn();
+    await tick(environment, { inbox });
+    expect(inbox).not.toHaveBeenCalled();
+  });
+  it("dopo una lettura lenta conserva gli invii ma rinvia Claude entro i 300 secondi", async () => {
+    let elapsed = 0;
+    const inbox = vi.fn().mockImplementation(async () => {
+      elapsed = 25_000;
+      return { status: "observed" };
+    });
+    const { send, run } = await tick(
+      { ...environment, ...mailEnvironment },
+      { inbox, tickClock: () => elapsed },
+    );
+    expect(send).toHaveBeenCalledOnce();
+    expect(run).not.toHaveBeenCalled();
+  });
+  it("non comincia il controllo solleciti se non entra nel tempo rimasto", async () => {
+    let elapsed = 0;
+    const send = vi.fn().mockImplementation(async () => {
+      elapsed = 145_000;
+      return { status: "idle" };
+    });
+    const followup = vi.fn();
+    const { run } = await tick(
+      { ...environment, ...mailEnvironment },
+      { send, followup, tickClock: () => elapsed },
+    );
+    expect(followup).not.toHaveBeenCalled();
+    expect(run).not.toHaveBeenCalled();
+  });
   it("dà precedenza alle prime email, poi osserva i solleciti e rinvia Claude al giro successivo", async () => {
     const followup = vi.fn().mockResolvedValue({ status: "observed" });
     const { send, run } = await tick({ ...environment, ...mailEnvironment }, { followup });

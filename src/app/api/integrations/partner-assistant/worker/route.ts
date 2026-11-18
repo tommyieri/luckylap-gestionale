@@ -1,11 +1,15 @@
 import { after } from "next/server";
 import { receivePartnerAssistantTick } from "@/lib/partner-assistant/worker";
 import { runPartnerAssistantFollowup } from "@/lib/partner-assistant/followup";
+import { runPartnerAssistantInbox } from "@/lib/partner-assistant/inbox";
 
 export const runtime = "nodejs";
 // Il massimo di Vercel Hobby con Fluid compute: il passo ha un budget proprio di 270 secondi.
 export const maxDuration = 300;
 
 export async function POST(request: Request) {
-  return receivePartnerAssistantTick(request, after, { followup: runPartnerAssistantFollowup });
+  return receivePartnerAssistantTick(request, after, {
+    inbox: runPartnerAssistantInbox,
+    followup: runPartnerAssistantFollowup,
+  });
 }

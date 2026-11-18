@@ -1,5 +1,6 @@
 import "server-only";
 import type { runPartnerAssistantFollowup } from "./followup";
+import type { runPartnerAssistantInbox } from "./inbox";
 import { randomUUID, timingSafeEqual } from "node:crypto";
 import { romeDay } from "../partner/dates";
 import { charCount, hasControlCharacters } from "../partner/model";
@@ -55,7 +56,11 @@ import {
   templateReviewCall,
   writeCall,
 } from "./prompts";
-import { runPartnerAssistantSendStep, type PartnerAssistantSendDependencies } from "./send";
+import {
+  PARTNER_ASSISTANT_SEND_BUDGET_MS,
+  runPartnerAssistantSendStep,
+  type PartnerAssistantSendDependencies,
+} from "./send";
 import { createPartnerAssistantSendStore } from "./send-store";
 import {
   createPartnerAssistantStore,
@@ -757,9 +762,12 @@ function reply(status: number, body: Record<string, unknown>) {
 
 /** Il tempo della registrazione delle variabili, a ogni giro. */
 const PARTNER_ASSISTANT_ENVIRONMENT_MS = 10_000;
+// Il limite della route è 300 secondi: dieci restano per la chiusura di after().
+const PARTNER_ASSISTANT_TICK_BUDGET_MS = 290_000;
+const PARTNER_ASSISTANT_FOLLOWUP_BUDGET_MS = 150_000;
 
-/** Risponde subito e fa il giro dopo la risposta: le variabili della posta, poi l'invio, poi il
- * passo con Claude. Il lavoro lo sceglie solo il database: corpo, query e cookie della richiesta
+/** Risponde subito e fa il giro dopo la risposta: variabili della posta, nuove risposte, invio,
+ * poi il passo con Claude. Il lavoro lo sceglie solo il database: corpo, query e cookie della richiesta
  * non si leggono mai. */
 export async function receivePartnerAssistantTick(
   request: Request,
@@ -769,6 +777,8 @@ export async function receivePartnerAssistantTick(
     run?: typeof runPartnerAssistantStep;
     send?: typeof runPartnerAssistantSendStep;
     followup?: typeof runPartnerAssistantFollowup;
+    inbox?: typeof runPartnerAssistantInbox;
+    tickClock?: () => number;
     sendDependencies?: PartnerAssistantSendDependencies;
   } = {},
 ): Promise<Response> {
@@ -777,6 +787,8 @@ export async function receivePartnerAssistantTick(
     run = runPartnerAssistantStep,
     send = runPartnerAssistantSendStep,
     followup,
+    inbox,
+    tickClock = () => performance.now(),
     sendDependencies,
     ...stepDependencies
   } = dependencies;
@@ -786,6 +798,9 @@ export async function receivePartnerAssistantTick(
     return reply(401, { code: "unauthorized" });
   try {
     afterResponse(async () => {
+      const startedAt = tickClock();
+      const fits = (budget: number) =>
+        tickClock() - startedAt + budget <= PARTNER_ASSISTANT_TICK_BUDGET_MS;
       // La risposta già mandata non deve fermare il giro: un segnale proprio, mai quello della
       // richiesta. Ogni passo ha il suo timer.
       const signal = new AbortController().signal;
@@ -815,11 +830,20 @@ export async function receivePartnerAssistantTick(
       try {
         const mail = partnerAssistantMailConfig(environment);
         if (mail) {
-          // Le 3+3 prime email mantengono la precedenza; i solleciti hanno quota aggiuntiva.
+          // Le risposte da moduli e invii manuali non hanno un ciclo solleciti. La lettura
+          // incrementale usa la stessa lease e precede qualunque eventuale invio.
+          if (inbox) {
+            const received = await inbox(config, mail, signal);
+            // Un giro senza lettura certa non deve far partire un nuovo contatto o sollecito.
+            if (received.status === "uncertain") return;
+          }
+          // Le prime email mantengono la precedenza; i solleciti hanno quota aggiuntiva.
           // Anche una copia arretrata o un esito incerto chiude il giro prima di un altro invio.
+          if (!fits(PARTNER_ASSISTANT_SEND_BUDGET_MS)) return;
           const sent = await send(config, mail, signal, { ...sendDependencies, store: sendStore });
           if (sent.status !== "idle") return;
           if (followup) {
+            if (!fits(PARTNER_ASSISTANT_FOLLOWUP_BUDGET_MS)) return;
             const checked = await followup(config, mail, signal);
             if (checked.status === "complete" || checked.status === "uncertain") return;
             observedFollowup = checked.status === "observed";
@@ -831,7 +855,7 @@ export async function receivePartnerAssistantTick(
       }
       // Una scansione della posta ha già usato parte dei 300 secondi: il passo Claude mantiene
       // il proprio budget di 270 secondi e riparte dal giro successivo.
-      if (observedFollowup) return;
+      if (observedFollowup || !fits(PARTNER_ASSISTANT_STEP_BUDGET_MS)) return;
       // 3. Il passo con Claude.
       try {
         await run(config, signal, stepDependencies);
