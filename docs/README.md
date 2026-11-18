@@ -38,6 +38,8 @@ Alcuni documenti scritti prima del modello attuale chiedono ancora una sessione 
 
 ## Vendite e Shopify
 
+- [Preview della landing LuckyLap](../previews/luckylap/README.md), [direzione del brand](../previews/luckylap/DIREZIONE.md) e [verifiche](../previews/luckylap/VERIFICA.md): prototipo fotografico separato dallo store, studio del catalogo e Taste Skill, con selettore delle silhouette e collegamenti ai prodotti reali.
+
 - [Annullamenti e resi dalle vendite](annullamenti-e-resi.md): registrazioni errate, rientro e rimborso contestuali, packaging riutilizzabile e storico.
 
 - [Ecosistema vendite](ecosistema-vendite.md): contratto tra vendite, magazzino, produzione e Finance, con le fonti e il significato dei numeri.

@@ -28,6 +28,10 @@ supabase/**/*.sql
 *.ico
 *.pdf
 
+# Runtime originale della Taste Skill: conservare identico alla fonte vendorizzata
+/previews/luckylap/assets/
+/previews/luckylap/.taste-skill/
+
 # Cartelle locali e di strumenti
 .impeccable/
 .private/

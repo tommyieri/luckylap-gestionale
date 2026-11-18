@@ -1,0 +1,468 @@
+<!doctype html>
+<html lang="it" data-type="product" data-radius="soft" data-buttons="pill" data-motion>
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+    <meta name="page-type" content="product" />
+    <meta name="site-kind" content="other" />
+    <meta name="robots" content="noindex, nofollow" />
+    <title>LuckyLap: abbigliamento per chi ama i motori</title>
+    <meta
+      name="description"
+      content="Silhouette automobilistiche, cotone biologico e disegni originali ricamati in Italia. Entra nel guardaroba LuckyLap."
+    />
+    <meta property="og:type" content="website" />
+    <meta property="og:title" content="LuckyLap: la car culture, da indossare" />
+    <meta property="og:description" content="Un piccolo ricamo. Una passione che si riconosce." />
+    <meta property="og:image" content="share.jpg" />
+    <meta name="twitter:card" content="summary_large_image" />
+    <meta name="theme-color" content="#f6f5f0" />
+    <link rel="icon" href="media/logo-square.webp" />
+    <link rel="preload" href="media/mona-400.ttf" as="font" type="font/ttf" crossorigin />
+    <link rel="stylesheet" href="assets/system.css" />
+    <link rel="stylesheet" href="assets/ui/cards.css" />
+    <link rel="stylesheet" href="assets/motion/motion.css" />
+    <link rel="stylesheet" href="assets/layout/layout.css" />
+    <link rel="stylesheet" href="assets/moments/photo-chapters/moment.css" />
+    <link rel="stylesheet" href="style.css" />
+    <script>
+      document.documentElement.classList.add("m-enter");
+      setTimeout(() => document.documentElement.classList.add("m-enter-done"), 700);
+    </script>
+    <script>
+      document.documentElement.classList.add("mo-js");
+      setTimeout(() => document.documentElement.classList.add("mo-safe"), 2500);
+    </script>
+    <link rel="modulepreload" href="assets/moments/moments.js" />
+    <link rel="modulepreload" href="assets/moments/lib.js" />
+    <link rel="modulepreload" href="assets/moments/photo-chapters/moment.js" />
+  </head>
+  <body>
+    <!-- product / other. Taste 2.5.1: Mona Sans, colori ufficiali LuckyLap,
+         product hero, nav-mega, footer-columns, close-photo, dark-band, pill.
+         photo-chapters: guardaroba, motorsport, origine del brand. Nessuna foto stock. -->
+    <header class="nav">
+      <div class="wrap nav__bar">
+        <a class="skip-link" href="#top">Vai al contenuto</a>
+        <a class="nav__logo brand" href="#top" aria-label="LuckyLap, inizio pagina"
+          ><img
+            src="media/logo-square.webp"
+            srcset="
+              media/logo-square-100.webp 100w,
+              media/logo-square-200.webp 200w,
+              media/logo-square.webp     300w
+            "
+            sizes="(max-width: 359px) 64px, (max-width: 639px) 80px, 100px"
+            width="100"
+            height="68"
+            alt="LuckyLap"
+            data-source="client"
+            data-subject="logo"
+        /></a>
+        <nav class="nav__links" aria-label="Navigazione principale">
+          <div class="nav__item">
+            <a class="nav__link" href="#collezione">Collezione</a>
+            <div class="nav__menu">
+              <div class="wrap grid">
+                <div class="menu-col span-4">
+                  <p class="t-label">Il guardaroba</p>
+                  <a href="https://luckylap.com/collections/t-shirt"
+                    >T-shirt<span>Le silhouette, ricamate</span></a
+                  ><a href="https://luckylap.com/collections/accessori"
+                    >Accessori<span>La firma LuckyLap</span></a
+                  >
+                </div>
+                <div class="menu-col span-4">
+                  <p class="t-label">Le icone</p>
+                  <a href="https://luckylap.com/collections/964"
+                    >964<span>La forma degli anni Novanta</span></a
+                  ><a href="https://luckylap.com/collections/project-88"
+                    >Project ’88<span>La memoria della Formula 1</span></a
+                  >
+                </div>
+                <div class="menu-col span-4">
+                  <p class="t-label">Il tuo capo</p>
+                  <a href="https://luckylap.com/pages/size-guide"
+                    >Taglie<span>Trova la tua vestibilità</span></a
+                  ><a href="https://luckylap.com/pages/collections"
+                    >Tutte le icone<span>Dal disegno al guardaroba</span></a
+                  >
+                </div>
+              </div>
+            </div>
+          </div>
+          <div class="nav__item"><a class="nav__link" href="#mondo">Il nostro mondo</a></div>
+          <div class="nav__item"><a class="nav__link" href="#dettagli">Il ricamo</a></div>
+        </nav>
+        <div class="nav__actions">
+          <a class="btn btn--primary" href="#collezione">Vedi la collezione</a>
+        </div>
+        <button class="nav__toggle" type="button" aria-expanded="false" aria-label="Apri il menu">
+          <svg width="18" height="18" viewBox="0 0 18 18" aria-hidden="true">
+            <path
+              d="M2 5h14M2 13h14"
+              stroke="currentColor"
+              stroke-width="1.6"
+              stroke-linecap="round"
+            />
+          </svg>
+        </button>
+      </div>
+    </header>
+    <main id="top">
+      <section class="hero hero--product" data-enter aria-labelledby="hero-h">
+        <div class="wrap">
+          <div class="hero-text hero__in">
+            <div class="hero__head">
+              <div>
+                <h1 id="hero-h">Abbigliamento per<br />chi ama i motori.</h1>
+                <p class="hero__lead">
+                  Le auto che riconosci al primo sguardo, in un piccolo ricamo. Disegni originali,
+                  ricamati in Italia.
+                </p>
+              </div>
+              <div class="btn-row">
+                <a class="btn btn--primary" href="#collezione">Vedi la collezione</a>
+              </div>
+            </div>
+            <div class="hero__stage" data-enter-media>
+              <picture
+                ><source
+                  media="(max-width: 639px)"
+                  srcset="media/964-hero-mobile-240.webp 240w, media/964-hero-mobile.webp 344w"
+                  sizes="calc(55vw - 31px)" />
+                <img
+                  src="media/964-lifestyle.webp"
+                  srcset="
+                    media/964-lifestyle-480.webp  480w,
+                    media/964-lifestyle-960.webp  960w,
+                    media/964-lifestyle.webp     1184w
+                  "
+                  sizes="(min-width: 1440px) 846px, (min-width: 1024px) calc(66.667vw - 115px), (min-width: 640px) calc(66.667vw - 72px), calc(55vw - 31px)"
+                  width="1184"
+                  height="864"
+                  alt="Le silhouette 964 ricamate a contrasto sul cotone navy e bianco LuckyLap"
+                  fetchpriority="high"
+                  data-source="client"
+                  data-subject="product"
+              /></picture>
+              <picture
+                ><img
+                  src="media/lifestyle-model.webp"
+                  srcset="
+                    media/lifestyle-model-480.webp  480w,
+                    media/lifestyle-model-960.webp  960w,
+                    media/lifestyle-model.webp     1066w
+                  "
+                  sizes="(min-width: 1440px) 423px, (min-width: 1024px) calc(33.333vw - 57px), (min-width: 640px) calc(33.333vw - 36px), 320px"
+                  width="1066"
+                  height="1600"
+                  alt="T-shirt GT3 RS LuckyLap navy indossata con occhiali ambra"
+                  fetchpriority="high"
+                  data-source="client"
+                  data-subject="product"
+              /></picture>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <section class="section" id="collezione" aria-labelledby="collezione-h">
+        <div class="wrap wardrobe">
+          <div class="section-head">
+            <h2 id="collezione-h">La tua icona, ogni giorno.</h2>
+            <p>Una forma basta a riconoscerla. Scegli quella che ti appartiene.</p>
+          </div>
+          <div class="wardrobe__body">
+            <div class="wardrobe__choice">
+              <fieldset class="model-choices" disabled>
+                <legend>Scegli la silhouette</legend>
+                <label
+                  ><input type="radio" name="model" value="964" checked /><span>964</span></label
+                >
+                <label><input type="radio" name="model" value="f40" /><span>F40</span></label>
+                <label
+                  ><input type="radio" name="model" value="project" /><span
+                    >Project ’88</span
+                  ></label
+                >
+                <label><input type="radio" name="model" value="300sl" /><span>300 SL</span></label>
+              </fieldset>
+              <div class="model-copy" aria-live="polite" aria-atomic="true">
+                <p class="model-copy__name" id="model-name">964</p>
+                <p id="model-description">
+                  Gli anni Novanta in una linea. Ricamo chiaro su cotone navy, vestibilità regular
+                  unisex.
+                </p>
+              </div>
+              <a
+                class="link model-link"
+                id="model-link"
+                href="https://luckylap.com/products/964-tshirt"
+                >Vedi la T-shirt 964</a
+              >
+              <p class="shop-note">Taglie e disponibilità nello shop.</p>
+            </div>
+            <a
+              class="wardrobe__photo m-zoom"
+              id="model-photo-link"
+              href="https://luckylap.com/products/964-tshirt"
+              aria-label="Vedi la T-shirt 964 nello shop"
+            >
+              <img
+                id="model-image"
+                src="media/964-front.webp"
+                srcset="
+                  media/964-front-480.webp  480w,
+                  media/964-front-960.webp  960w,
+                  media/964-front.webp     1400w
+                "
+                sizes="(max-width: 639px) calc(100vw - 48px), (max-width: 1023px) calc(50vw - 60px), (max-width: 1439px) calc(50vw - 92px), 628px"
+                alt="T-shirt 964 LuckyLap navy, vista frontale con ricamo sul petto"
+                width="1400"
+                height="1400"
+                loading="lazy"
+                decoding="async"
+                data-source="client"
+                data-subject="product"
+              />
+            </a>
+          </div>
+          <noscript
+            ><p>
+              Guarda anche <a class="link" href="https://luckylap.com/products/f40-tshirt">F40</a>,
+              <a class="link" href="https://luckylap.com/products/project-88-white-t-shirt"
+                >Project ’88</a
+              >
+              e <a class="link" href="https://luckylap.com/products/300-sl-t-shirt">300 SL</a> nello
+              shop.
+            </p></noscript
+          >
+        </div>
+      </section>
+
+      <section
+        class="section ground-inverse"
+        id="mondo"
+        data-moment="photo-chapters"
+        aria-labelledby="mondo-h"
+      >
+        <div class="wrap mo-ph">
+          <div class="mo-ph__head">
+            <h2 id="mondo-h">La passione esce dal paddock.</h2>
+            <p>LuckyLap nasce dall’incontro tra cultura dei motori e design.</p>
+          </div>
+          <ol class="mo-ph__list">
+            <li class="mo-ph__ch">
+              <figure class="mo-ph__pic">
+                <img
+                  src="media/monza.webp"
+                  srcset="
+                    media/monza-480.webp  480w,
+                    media/monza-960.webp  960w,
+                    media/monza.webp     1400w
+                  "
+                  sizes="(max-width: 639px) 750px, (max-width: 1023px) calc(100vw - 96px), (max-width: 1439px) calc(100vw - 160px), 1280px"
+                  alt="Una vettura da gara fotografata frontalmente nel paddock di Monza"
+                  width="1400"
+                  height="933"
+                  loading="lazy"
+                  decoding="async"
+                  data-source="client"
+                  data-subject="context"
+                />
+              </figure>
+              <h3>La cultura dei motori</h3>
+              <p>Ci appassionano le forme, le storie e le persone che ruotano attorno a un’auto.</p>
+            </li>
+            <li class="mo-ph__ch">
+              <figure class="mo-ph__pic">
+                <img
+                  src="media/founders.webp"
+                  srcset="
+                    media/founders-480.webp 480w,
+                    media/founders-768.webp 768w,
+                    media/founders.webp     974w
+                  "
+                  sizes="(max-width: 639px) calc(100vw - 48px), (max-width: 1023px) calc(100vw - 96px), 974px"
+                  alt="I fondatori di LuckyLap con le T-shirt del brand al paddock"
+                  width="974"
+                  height="974"
+                  loading="lazy"
+                  decoding="async"
+                  data-source="client"
+                  data-subject="people"
+                />
+              </figure>
+              <h3>Due amici, LuckyLap</h3>
+              <p>
+                Una passione condivisa per il motorsport, trasformata in un progetto di
+                abbigliamento.
+              </p>
+            </li>
+            <li class="mo-ph__ch">
+              <figure class="mo-ph__pic">
+                <img
+                  src="media/signature-detail.webp"
+                  srcset="
+                    media/signature-detail-480.webp  480w,
+                    media/signature-detail-960.webp  960w,
+                    media/signature-detail.webp     1600w
+                  "
+                  sizes="(max-width: 639px) 750px, (max-width: 1023px) calc(100vw - 96px), (max-width: 1439px) calc(100vw - 160px), 1280px"
+                  alt="La firma LuckyLap ricamata in verde e giallo sulla manica in cotone bianco"
+                  width="1600"
+                  height="1067"
+                  loading="lazy"
+                  decoding="async"
+                  data-source="client"
+                  data-subject="parts"
+                />
+              </figure>
+              <h3>Un dettaglio da portare con sé</h3>
+              <p>
+                La silhouette sul petto, la firma sulla manica. La stessa passione, anche lontano
+                dalla pista.
+              </p>
+            </li>
+          </ol>
+        </div>
+      </section>
+
+      <section class="section" id="dettagli" aria-labelledby="dettagli-h">
+        <div class="wrap details-section">
+          <div class="section-head">
+            <h2 id="dettagli-h">Il disegno diventa filo.</h2>
+            <p>Dalla silhouette al punto di ricamo. La car culture prende forma sul cotone.</p>
+          </div>
+          <div class="detail-pair">
+            <div class="detail-pair__words">
+              <p class="detail-statement">Piccolo ricamo.<br />Grande passione.</p>
+              <dl class="rows detail-facts">
+                <div>
+                  <dt>Il disegno</dt>
+                  <dd>Originale LuckyLap</dd>
+                </div>
+                <div>
+                  <dt>Il ricamo</dt>
+                  <dd>A macchina, in Italia</dd>
+                </div>
+                <div>
+                  <dt>Il cotone delle T-shirt</dt>
+                  <dd>Biologico</dd>
+                </div>
+              </dl>
+              <a class="link" href="https://luckylap.com/pages/about-us">Leggi la nostra storia</a>
+            </div>
+            <a
+              class="detail-pair__image m-zoom"
+              href="https://luckylap.com/products/project-88-white-t-shirt"
+              aria-label="Vedi il ricamo della T-shirt Project ’88"
+              ><img
+                src="media/project-detail.webp"
+                srcset="
+                  media/project-detail-480.webp  480w,
+                  media/project-detail-960.webp  960w,
+                  media/project-detail.webp     1600w
+                "
+                sizes="(max-width: 639px) calc(100vw - 48px), calc(150svh - 510px)"
+                alt="Dettaglio ravvicinato del ricamo multicolore della monoposto Project ’88 sul cotone bianco"
+                width="1600"
+                height="1067"
+                loading="lazy"
+                decoding="async"
+                data-source="client"
+                data-subject="parts"
+            /></a>
+          </div>
+        </div>
+      </section>
+    </main>
+
+    <footer class="footer closing" id="contact" aria-labelledby="close-h">
+      <div class="wrap">
+        <div class="closing__cta close--photo">
+          <div class="section-head section-head--split">
+            <div><h2 id="close-h">Il tuo prossimo ricamo.</h2></div>
+            <a class="btn btn--primary" href="#collezione">Vedi la collezione</a>
+          </div>
+          <a
+            class="close__media m-zoom"
+            href="https://luckylap.com/products/300-sl-t-shirt"
+            aria-label="Vedi la T-shirt 300 SL"
+            ><img
+              src="media/300sl-lifestyle.webp"
+              srcset="
+                media/300sl-lifestyle-480.webp  480w,
+                media/300sl-lifestyle-960.webp  960w,
+                media/300sl-lifestyle.webp     1063w
+              "
+              sizes="(max-width: 639px) calc(100vw - 48px), (max-width: 1023px) calc(100vw - 96px), (max-width: 1439px) calc(100vw - 160px), 1280px"
+              alt="Il ricamo bianco della silhouette 300 SL sulla T-shirt azzurra LuckyLap"
+              width="1063"
+              height="1480"
+              loading="lazy"
+              decoding="async"
+              data-source="client"
+              data-subject="parts"
+          /></a>
+        </div>
+        <div class="closing__links">
+          <div class="grid">
+            <div class="span-6">
+              <a class="nav__logo brand" href="#top" aria-label="LuckyLap, inizio pagina"
+                ><img
+                  src="media/logo-square.webp"
+                  srcset="
+                    media/logo-square-100.webp 100w,
+                    media/logo-square-200.webp 200w,
+                    media/logo-square.webp     300w
+                  "
+                  sizes="(max-width: 359px) 64px, (max-width: 639px) 80px, 100px"
+                  width="100"
+                  height="68"
+                  alt="LuckyLap"
+                  data-source="client"
+                  data-subject="logo"
+              /></a>
+              <p class="footer__lede">Lifestyle in Pole Position.</p>
+            </div>
+            <div class="span-3 start-7 footer__col">
+              <h3>Il guardaroba</h3>
+              <ul>
+                <li><a href="https://luckylap.com/collections/t-shirt">T-shirt</a></li>
+                <li><a href="https://luckylap.com/collections/accessori">Accessori</a></li>
+                <li><a href="https://luckylap.com/pages/size-guide">Guida alle taglie</a></li>
+              </ul>
+            </div>
+            <div class="span-3 footer__col">
+              <h3>Il mondo LuckyLap</h3>
+              <ul>
+                <li><a href="#mondo">Il brand</a></li>
+                <li>
+                  <a
+                    href="https://www.instagram.com/lucky.lap/"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    >Instagram</a
+                  >
+                </li>
+                <li><a href="https://luckylap.com/pages/contact">Contatti</a></li>
+              </ul>
+            </div>
+          </div>
+          <div class="footer__legal">
+            <span>© 2026 LuckyLap</span
+            ><a href="https://luckylap.com/policies/privacy-policy">Privacy</a
+            ><a href="https://luckylap.com/policies/terms-of-service">Termini</a
+            ><span>Fotografie e prodotti LuckyLap</span>
+          </div>
+        </div>
+      </div>
+    </footer>
+    <script type="module" src="assets/system.js"></script>
+    <script type="module" src="assets/motion/motion.js"></script>
+    <script type="module" src="assets/layout/layout.js"></script>
+    <script type="module" src="main.js"></script>
+  </body>
+</html>
