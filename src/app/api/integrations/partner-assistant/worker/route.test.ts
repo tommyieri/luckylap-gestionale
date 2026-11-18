@@ -2,6 +2,7 @@ import { describe, expect, it, vi } from "vitest";
 const mocks = vi.hoisted(() => ({
   after: vi.fn(),
   followup: vi.fn(),
+  inbox: vi.fn(),
   receivePartnerAssistantTick: vi.fn(async () =>
     Response.json({ accepted: true }, { status: 202 }),
   ),
@@ -12,6 +13,9 @@ vi.mock("@/lib/partner-assistant/worker", () => ({
 }));
 vi.mock("@/lib/partner-assistant/followup", () => ({
   runPartnerAssistantFollowup: mocks.followup,
+}));
+vi.mock("@/lib/partner-assistant/inbox", () => ({
+  runPartnerAssistantInbox: mocks.inbox,
 }));
 import { POST, maxDuration, runtime } from "./route";
 
@@ -33,7 +37,7 @@ describe("route del worker dell'assistente Partner", () => {
     expect(mocks.receivePartnerAssistantTick).toHaveBeenCalledExactlyOnceWith(
       request,
       mocks.after,
-      { followup: mocks.followup },
+      { inbox: mocks.inbox, followup: mocks.followup },
     );
     expect(mocks.after).not.toHaveBeenCalled();
   });
