@@ -32,6 +32,8 @@ export type PartnerEmailProgramItem = {
   eligible: boolean;
   /** Approvazione editoriale della bozza per un evento UE/UK con proposta di stand. */
   eventApproved?: boolean;
+  /** Verifica di esaurimento valida per questa nuova bozza non evento, intervallo [start, end). */
+  fallbackWindow?: { start: string; end: string } | null;
   rank: number | null;
   sendPriority: number;
   country: string;
@@ -72,6 +74,7 @@ export type PartnerEmailProgramSnapshot = {
     backoffUntil: string | null;
     dailyFirstLimit: number;
     eventFirstFrom?: string;
+    eventPriorityFrom?: string;
     firstRealOn: string | null;
     currentRulesVersion: number;
   };
@@ -203,6 +206,11 @@ export function parsePartnerEmailProgram(value: unknown): PartnerEmailProgramSna
     Object.hasOwn(root.config, "eventFirstFrom")
       ? ["eventFirstFrom"]
       : []),
+    ...(typeof root.config === "object" &&
+    root.config !== null &&
+    Object.hasOwn(root.config, "eventPriorityFrom")
+      ? ["eventPriorityFrom"]
+      : []),
   ]);
   const m = record(root.mail, ["stopReason", "backoffUntil", "dayStoppedOn", "nextSendAfter"]);
   const t = record(root.todaySent, ["club", "altri"]);
@@ -227,6 +235,9 @@ export function parsePartnerEmailProgram(value: unknown): PartnerEmailProgramSna
       "eligible",
       ...(typeof value === "object" && value !== null && Object.hasOwn(value, "eventApproved")
         ? ["eventApproved"]
+        : []),
+      ...(typeof value === "object" && value !== null && Object.hasOwn(value, "fallbackWindow")
+        ? ["fallbackWindow"]
         : []),
       "rank",
       "sendPriority",
@@ -268,6 +279,21 @@ export function parsePartnerEmailProgram(value: unknown): PartnerEmailProgramSna
       const h = record(value, ["id", "version", "createdAt"]);
       return { id: id(h.id), version: integer(h.version, 1), createdAt: instant(h.createdAt) };
     });
+    const fallbackWindow = Object.hasOwn(r, "fallbackWindow")
+      ? nullable(r.fallbackWindow, (value) => {
+          const w = record(value, ["start", "end"]);
+          const window = { start: instant(w.start), end: instant(w.end) };
+          if (
+            Date.parse(window.start) >= Date.parse(window.end) ||
+            r.contactKind === "evento" ||
+            r.request === "stand_evento" ||
+            !draft ||
+            Date.parse(draft.createdAt) < Date.parse(window.start)
+          )
+            return fail();
+          return window;
+        })
+      : undefined;
     const windows = array(r.windows, 180)
       .map((value) => {
         const w = record(value, ["day", "start", "end"]);
@@ -300,6 +326,7 @@ export function parsePartnerEmailProgram(value: unknown): PartnerEmailProgramSna
       writeOn: nullable(r.writeOn, day),
       eligible: bool(r.eligible),
       ...(Object.hasOwn(r, "eventApproved") ? { eventApproved: bool(r.eventApproved) } : {}),
+      ...(fallbackWindow !== undefined ? { fallbackWindow } : {}),
       rank: nullable(r.rank, (v) => integer(v, 1)),
       sendPriority: integer(r.sendPriority, 0, 9),
       country: text(r.country, 240),
@@ -384,6 +411,9 @@ export function parsePartnerEmailProgram(value: unknown): PartnerEmailProgramSna
       backoffUntil: nullable(c.backoffUntil, instant),
       dailyFirstLimit: integer(c.dailyFirstLimit, 1, 15),
       ...(Object.hasOwn(c, "eventFirstFrom") ? { eventFirstFrom: day(c.eventFirstFrom) } : {}),
+      ...(Object.hasOwn(c, "eventPriorityFrom")
+        ? { eventPriorityFrom: day(c.eventPriorityFrom) }
+        : {}),
       firstRealOn: nullable(c.firstRealOn, day),
       currentRulesVersion: integer(c.currentRulesVersion, 1),
     },
@@ -551,8 +581,11 @@ export function forecastPartnerEmails(
   );
   for (let offset = 0; offset < snapshot.days; offset++) {
     const on = addDays(snapshot.from, offset);
+    const eventPriority =
+      snapshot.config.eventPriorityFrom !== undefined && on >= snapshot.config.eventPriorityFrom;
     const eventsOnly =
-      snapshot.config.eventFirstFrom !== undefined && on >= snapshot.config.eventFirstFrom;
+      eventPriority ||
+      (snapshot.config.eventFirstFrom !== undefined && on >= snapshot.config.eventFirstFrom);
     const limit = eventsOnly
       ? 6
       : firstRealOn === null || daysBetween(firstRealOn, on) <= 6
@@ -567,13 +600,33 @@ export function forecastPartnerEmails(
     const used = on === today ? { ...snapshot.todaySent } : { club: 0, altri: 0 };
     while (cursor < end) {
       pool = pool.filter((row) => {
-        if (eventsOnly && !row.eventApproved) {
+        if (eventPriority && row.eventApproved && (!row.eventStartsOn || row.eventStartsOn <= on)) {
           set(
             row,
             "non_prevista",
-            "Dal 18 novembre le prime email riguardano eventi UE/UK con proposta di stand e bozza approvata dal founder.",
+            "L'evento deve avere una data futura confermata prima dell'invio.",
           );
           return false;
+        }
+        if (eventsOnly && !row.eventApproved) {
+          if (!eventPriority || !row.fallbackWindow) {
+            set(
+              row,
+              "non_prevista",
+              eventPriority
+                ? "Gli eventi UE/UK hanno la priorità. Le altre prime email richiedono una nuova bozza e una verifica di esaurimento ancora valida."
+                : "Dal 18 novembre le prime email riguardano eventi UE/UK con proposta di stand e bozza approvata dal founder.",
+            );
+            return false;
+          }
+          if (Date.parse(row.fallbackWindow.end) <= cursor) {
+            set(
+              row,
+              "non_prevista",
+              "La verifica di esaurimento degli eventi è scaduta: occorre rinnovarla prima delle altre prime email.",
+            );
+            return false;
+          }
         }
         const invalid = validAt(row, cursor, on);
         if (invalid) set(row, "da_rivedere", invalid);
@@ -582,11 +635,13 @@ export function forecastPartnerEmails(
       if (snapshot.mail.dayStoppedOn === on || used.club + used.altri >= limit || pool.length === 0)
         break;
       const allowed = (flow: PartnerEmailFlow) =>
-        eventsOnly
-          ? flow === "altri" && used.altri < 6
-          : flow === "club"
-            ? used.club < Math.floor(limit / 2)
-            : used.altri < limit - Math.floor(limit / 2);
+        eventPriority
+          ? used[flow] < 6
+          : eventsOnly
+            ? flow === "altri" && used.altri < 6
+            : flow === "club"
+              ? used.club < Math.floor(limit / 2)
+              : used.altri < limit - Math.floor(limit / 2);
       const open = (row: Row) =>
         row.windows.some(
           (window) =>
@@ -594,7 +649,16 @@ export function forecastPartnerEmails(
             Date.parse(window.start) <= cursor &&
             cursor < Date.parse(window.end),
         );
-      const chosen = pool.find((row) => allowed(row.flow) && open(row));
+      const chosen = pool.find(
+        (row) =>
+          allowed(row.flow) &&
+          open(row) &&
+          (!eventPriority ||
+            row.eventApproved ||
+            (row.fallbackWindow &&
+              Date.parse(row.fallbackWindow.start) <= cursor &&
+              cursor < Date.parse(row.fallbackWindow.end))),
+      );
       if (chosen) {
         chosen.estimatedDay = on;
         set(
@@ -613,6 +677,11 @@ export function forecastPartnerEmails(
           // Anche una ricerca senza finestre oggi può scadere prima del giorno successivo.
           const expiry = Date.parse(row.researchAt!) + TTL;
           if (expiry > cursor) next = Math.min(next, expiry);
+          if (eventPriority && !row.eventApproved && row.fallbackWindow)
+            for (const boundary of [row.fallbackWindow.start, row.fallbackWindow.end]) {
+              const at = Date.parse(boundary);
+              if (at > cursor) next = Math.min(next, at);
+            }
           if (allowed(row.flow))
             for (const window of row.windows) {
               const start = Date.parse(window.start);

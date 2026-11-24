@@ -417,6 +417,27 @@ describe("invio dell'assistente (read_partner_assistant_send)", () => {
     expect(() => partnerAssistantSendFrom(row)).toThrow();
   });
 
+  it("legge le due decorrenze degli eventi e conserva le risposte precedenti", () => {
+    const legacy = partnerAssistantSendFrom(sendRow());
+    expect(legacy).not.toHaveProperty("eventFirstFrom");
+    expect(legacy).not.toHaveProperty("eventPriorityFrom");
+    const row = {
+      ...sendRow(),
+      event_first_from: "2026-11-18",
+      event_priority_from: "2026-11-24",
+    };
+    expect(partnerAssistantSendFrom(row)).toMatchObject({
+      eventFirstFrom: "2026-11-18",
+      eventPriorityFrom: "2026-11-24",
+    });
+    expect(() => partnerAssistantSendFrom({ ...row, event_priority_from: "2026-02-30" })).toThrow(
+      PartnerReadError,
+    );
+    expect(() => partnerAssistantSendFrom({ ...row, event_priority_from: null })).toThrow(
+      PartnerReadError,
+    );
+  });
+
   it("fermo, variabili mai controllate, nessuna prova: valori nulli ammessi", () => {
     const send = partnerAssistantSendFrom({
       ...sendRow(),
