@@ -1,0 +1,23 @@
+<section class="collection-page section-pad"><div class="section-heading"><div><p class="eyebrow">{{ shop.name | escape }}</p><h1>{{ collection.title | escape }}</h1>{% if section.settings.show_description and collection.description != blank %}<div class="rte collection-description">{{ collection.description }}</div>{% endif %}</div><form class="collection-sort" action="{{ collection.url }}" method="get"><label for="SortBy-{{ section.id }}">{{ 'collection.sort' | t }}</label><select name="sort_by" id="SortBy-{{ section.id }}">{% assign current_sort = collection.sort_by | default: collection.default_sort_by %}{% for option in collection.sort_options %}<option value="{{ option.value }}"{% if option.value == current_sort %} selected{% endif %}>{{ option.name | escape }}</option>{% endfor %}</select><button type="submit">{{ 'general.apply' | t }}</button></form></div>{% paginate collection.products by section.settings.products_per_page %}<p class="results-count">{{ 'collection.count' | t: count: collection.products_count }}</p><div class="shop-grid">{% for card_product in collection.products %}{% render 'product-card', card_product: card_product %}{% else %}<p class="empty-state">{{ 'collection.empty' | t }}</p>{% endfor %}</div>{% if paginate.pages > 1 %}<nav class="pagination" aria-label="{{ 'general.pagination' | t }}">{{ paginate | default_pagination }}</nav>{% endif %}{% endpaginate %}</section>
+{% schema %}
+{
+  "name": "Collezione",
+  "settings": [
+    {
+      "type": "checkbox",
+      "id": "show_description",
+      "label": "Mostra descrizione",
+      "default": true
+    },
+    {
+      "type": "range",
+      "id": "products_per_page",
+      "label": "Prodotti per pagina",
+      "min": 6,
+      "max": 36,
+      "step": 3,
+      "default": 12
+    }
+  ]
+}
+{% endschema %}

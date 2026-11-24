@@ -1,0 +1,18 @@
+{
+  "current": {
+    "color_green": "#173d2a",
+    "color_background": "#f4f5f1",
+    "color_text": "#14231c",
+    "font_source": "local",
+    "body_font": "assistant_n4"
+  },
+  "presets": {
+    "LuckyLap": {
+      "color_green": "#173d2a",
+      "color_background": "#f4f5f1",
+      "color_text": "#14231c",
+      "font_source": "local",
+      "body_font": "assistant_n4"
+    }
+  }
+}

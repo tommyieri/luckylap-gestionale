@@ -1,0 +1,12 @@
+<section class="page-content section-pad"><h1>{{ page.title | escape }}</h1><div class="rte">{{ page.content }}</div>{% for block in section.blocks %}{% if block.type == '@app' %}{% render block %}{% endif %}{% endfor %}</section>
+{% schema %}
+{
+  "name": "Pagina",
+  "settings": [],
+  "blocks": [
+    {
+      "type": "@app"
+    }
+  ]
+}
+{% endschema %}

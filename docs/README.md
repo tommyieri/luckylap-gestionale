@@ -38,6 +38,8 @@ Alcuni documenti scritti prima del modello attuale chiedono ancora una sessione 
 
 ## Vendite e Shopify
 
+- [Nuovo showroom LuckyLap](../previews/luckylap-studio/README.md): anteprima navigabile, direzione visiva, ricerca delle skill e tema Shopify nativo da provare nella libreria prima della pubblicazione.
+
 - [Annullamenti e resi dalle vendite](annullamenti-e-resi.md): registrazioni errate, rientro e rimborso contestuali, packaging riutilizzabile e storico.
 
 - [Ecosistema vendite](ecosistema-vendite.md): contratto tra vendite, magazzino, produzione e Finance, con le fonti e il significato dei numeri.

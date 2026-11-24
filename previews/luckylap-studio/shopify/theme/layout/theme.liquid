@@ -1,0 +1,26 @@
+<!doctype html>
+<html lang="{{ request.locale.iso_code }}" class="no-js">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width,initial-scale=1">
+    <meta name="theme-color" content="{{ settings.color_green }}">
+    <link rel="canonical" href="{{ canonical_url }}">
+    <title>{{ page_title | escape }}{% if current_tags %} — {{ current_tags | join: ', ' | escape }}{% endif %}{% if current_page != 1 %} — {{ current_page }}{% endif %}{% unless page_title contains shop.name %} — {{ shop.name | escape }}{% endunless %}</title>
+    {% if page_description %}<meta name="description" content="{{ page_description | escape }}">{% endif %}
+    {% if settings.favicon %}<link rel="icon" type="image/png" href="{{ settings.favicon | image_url: width: 32, height: 32 }}">{% endif %}
+    {{ 'studio.css' | asset_url | stylesheet_tag }}
+    {{ 'theme.css' | asset_url | stylesheet_tag }}
+    {% style %}
+      {% if settings.font_source == 'shopify' %}{{ settings.body_font | font_face: font_display: 'swap' }}{% endif %}
+      :root { --green: {{ settings.color_green }}; --cream: {{ settings.color_background }}; --paper: {{ settings.color_background }}; --ink: {{ settings.color_text }}; --color-green: {{ settings.color_green }}; --color-background: {{ settings.color_background }}; --color-ink: {{ settings.color_text }}; --font-body: {% if settings.font_source == 'shopify' %}{{ settings.body_font.family }}, {{ settings.body_font.fallback_families }}{% else %}'Mona Sans', Arial, sans-serif{% endif %}; }
+    {% endstyle %}
+    <script src="{{ 'theme.js' | asset_url }}" defer></script>
+    {{ content_for_header }}
+  </head>
+  <body class="template-{{ template.name | handle }}">
+    <a class="skip-link" href="#MainContent">{{ 'general.skip_content' | t }}</a>
+    {% sections 'header-group' %}
+    <main id="MainContent" tabindex="-1">{{ content_for_layout }}</main>
+    {% sections 'footer-group' %}
+  </body>
+</html>

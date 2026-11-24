@@ -1,0 +1,34 @@
+<footer class="site-footer"><div class="footer-top"><a href="{{ routes.root_url }}" class="footer-wordmark">LuckyLap</a><p>{% if section.settings.tagline != blank %}{{ section.settings.tagline | escape }}{% else %}{{ 'footer.tagline' | t }}{% endif %}</p></div><div class="footer-links"><div><h2>{{ 'footer.shop' | t }}</h2>{% if section.settings.shop_menu != blank %}{% for link in section.settings.shop_menu.links %}<a href="{{ link.url }}">{{ link.title | escape }}</a>{% endfor %}{% else %}<a href="{{ collections['t-shirt'].url | default: routes.all_products_collection_url }}">{{ 'collection.tshirts' | t }}</a><a href="{{ collections.accessories.url | default: routes.all_products_collection_url }}">{{ 'collection.caps' | t }}</a><a href="{{ routes.root_url }}#knitwear">{{ 'navigation.knitwear' | t }}</a>{% endif %}</div><div><h2>{{ 'footer.world' | t }}</h2>{% if section.settings.brand_menu != blank %}{% for link in section.settings.brand_menu.links %}<a href="{{ link.url }}">{{ link.title | escape }}</a>{% endfor %}{% else %}<a href="{{ pages['about-us'].url | default: routes.root_url }}">{{ 'navigation.story' | t }}</a><a href="{{ routes.root_url }}#partners">{{ 'navigation.partners' | t }}</a>{% endif %}{% if section.settings.instagram_url != blank %}<a href="{{ section.settings.instagram_url }}" rel="noopener noreferrer" target="_blank">Instagram @lucky.lap <span class="visually-hidden">{{ 'general.new_window' | t }}</span></a>{% endif %}</div><div><h2>{{ 'footer.help' | t }}</h2>{% if section.settings.menu != blank %}{% for link in section.settings.menu.links %}<a href="{{ link.url }}">{{ link.title | escape }}</a>{% endfor %}{% else %}{% if pages.contact %}<a href="{{ pages.contact.url }}">{{ 'footer.contact' | t }}</a>{% endif %}{% for policy in shop.policies %}{% if policy.body != blank %}<a href="{{ policy.url }}">{{ policy.title | escape }}</a>{% endif %}{% endfor %}{% endif %}</div></div>{% if localization.available_languages.size > 1 %}{% form 'localization', class: 'locale-form' %}<label for="FooterLanguage-{{ section.id }}">{{ 'general.language' | t }}</label><select id="FooterLanguage-{{ section.id }}" name="language_code">{% for language in localization.available_languages %}<option value="{{ language.iso_code }}"{% if language.iso_code == localization.language.iso_code %} selected{% endif %}>{{ language.endonym_name | capitalize | escape }}</option>{% endfor %}</select><button type="submit">{{ 'general.apply' | t }}</button>{% endform %}{% endif %}<div class="footer-bottom"><span>© {{ 'now' | date: '%Y' }} {{ shop.name | escape }}</span><span>{{ 'footer.signature' | t }}</span></div></footer>
+{% schema %}
+{
+  "name": "Footer",
+  "settings": [
+    {
+      "type": "text",
+      "id": "tagline",
+      "label": "Frase del brand"
+    },
+    {
+      "type": "link_list",
+      "id": "menu",
+      "label": "Menu footer"
+    },
+    {
+      "type": "url",
+      "id": "instagram_url",
+      "label": "Instagram ufficiale",
+      "default": "https://www.instagram.com/lucky.lap/"
+    },
+    {
+      "type": "link_list",
+      "id": "shop_menu",
+      "label": "Menu collezione"
+    },
+    {
+      "type": "link_list",
+      "id": "brand_menu",
+      "label": "Menu del brand"
+    }
+  ]
+}
+{% endschema %}

@@ -1,0 +1,39 @@
+<header class="site-header" data-site-header>
+  <a class="site-logo" href="{{ routes.root_url }}" aria-label="{{ shop.name | escape }}">
+    {% if section.settings.logo %}{{ section.settings.logo | image_url: width: 400 | image_tag: widths: '160, 240, 400', width: section.settings.logo_width, loading: 'eager', alt: shop.name }}{% else %}<img src="{{ 'logo-original.png' | asset_url }}" alt="{{ shop.name | escape }}" width="1563" height="1563" loading="eager">{% endif %}
+  </a>
+  <nav class="main-nav desktop-nav" aria-label="{{ 'navigation.main' | t }}">
+    {% if section.settings.menu != blank %}{% for link in section.settings.menu.links %}<div class="nav-item">{% if link.links != blank %}<details class="nav-dropdown"><summary>{{ link.title | escape }}</summary><div>{% for child in link.links %}<a href="{{ child.url }}"{% if child.current %} aria-current="page"{% endif %}>{{ child.title | escape }}</a>{% endfor %}<a href="{{ link.url }}">{{ 'navigation.view_all' | t }}</a></div></details>{% else %}<a href="{{ link.url }}"{% if link.current %} aria-current="page"{% endif %}>{{ link.title | escape }}</a>{% endif %}</div>{% endfor %}{% else %}<a href="{{ routes.all_products_collection_url }}">{{ 'navigation.shop' | t }}</a><a href="{{ routes.root_url }}#knitwear">{{ 'navigation.knitwear' | t }}</a><a href="{{ routes.root_url }}#story">{{ 'navigation.story' | t }}</a><a href="{{ routes.root_url }}#partners">{{ 'navigation.partners' | t }}</a>{% endif %}
+  </nav>
+  <div class="nav-actions">
+    <a href="{{ routes.cart_url }}" class="cart-link">{{ 'navigation.cart' | t }} <span class="cart-count" aria-label="{{ 'cart.item_count' | t: count: cart.item_count }}">{{ cart.item_count }}</span></a>
+    <details class="mobile-menu"><summary aria-label="{{ 'navigation.open_menu' | t }}"><span aria-hidden="true">☰</span></summary><nav aria-label="{{ 'navigation.mobile' | t }}">{% if section.settings.menu != blank %}{% for link in section.settings.menu.links %}<a href="{{ link.url }}">{{ link.title | escape }}</a>{% for child in link.links %}<a class="nav-child" href="{{ child.url }}">{{ child.title | escape }}</a>{% endfor %}{% endfor %}{% else %}<a href="{{ routes.all_products_collection_url }}">{{ 'navigation.shop' | t }}</a><a href="{{ routes.root_url }}#knitwear">{{ 'navigation.knitwear' | t }}</a><a href="{{ routes.root_url }}#story">{{ 'navigation.story' | t }}</a><a href="{{ routes.root_url }}#partners">{{ 'navigation.partners' | t }}</a>{% endif %}</nav></details>
+  </div>
+</header>
+{% schema %}
+{
+  "name": "Header",
+  "settings": [
+    {
+      "type": "image_picker",
+      "id": "logo",
+      "label": "Logo"
+    },
+    {
+      "type": "range",
+      "id": "logo_width",
+      "label": "Larghezza logo",
+      "min": 100,
+      "max": 260,
+      "step": 10,
+      "unit": "px",
+      "default": 180
+    },
+    {
+      "type": "link_list",
+      "id": "menu",
+      "label": "Menu principale"
+    }
+  ]
+}
+{% endschema %}

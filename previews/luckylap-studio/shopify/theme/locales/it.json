@@ -1,0 +1,142 @@
+{
+  "general": {
+    "skip_content": "Vai al contenuto",
+    "new_window": "Si apre in una nuova finestra",
+    "language": "Lingua",
+    "apply": "Applica",
+    "pagination": "Pagine",
+    "not_found": "Questa pagina ha preso un’altra strada.",
+    "not_found_text": "Ritrova il tuo percorso nella collezione."
+  },
+  "navigation": {
+    "main": "Navigazione principale",
+    "mobile": "Menu telefono",
+    "shop": "Collezione",
+    "knitwear": "Maglieria",
+    "story": "La nostra storia",
+    "partners": "Club ed eventi",
+    "cart": "Carrello",
+    "open_menu": "Apri menu",
+    "view_all": "Vedi tutto"
+  },
+  "footer": {
+    "tagline": "Una passione condivisa. Un dettaglio quotidiano.",
+    "signature": "Driven by passion. Worn every day.",
+    "shop": "Il guardaroba",
+    "world": "Il mondo LuckyLap",
+    "help": "Ci siamo",
+    "contact": "Contattaci"
+  },
+  "home": {
+    "eyebrow": "Passione automobilistica. Da indossare.",
+    "heading": "La passione si riconosce.",
+    "description": "Silhouette originali di automobili, ricamate a macchina in Italia su T-shirt in cotone biologico. Un dettaglio per chi sa riconoscerlo.",
+    "shop_action": "Trova la tua auto",
+    "story_action": "Scopri LuckyLap",
+    "caption": "Driven by passion. Worn every day.",
+    "image_alt": "Una T-shirt LuckyLap ricamata, indossata all’aperto",
+    "collection_eyebrow": "La collezione",
+    "collection_title": "La tua auto. Il tuo dettaglio.",
+    "all_products": "Esplora la collezione",
+    "choose_model": "Scegli il tuo modello",
+    "choose_size": "Scegli la taglia"
+  },
+  "story": {
+    "eyebrow": "Dal disegno al ricamo",
+    "title": "Il disegno diventa filo.",
+    "text": "Trasformiamo le linee delle auto che amiamo in grafiche originali. Un ricamo a macchina realizzato in Italia, discreto e riconoscibile, che porta la nostra passione nella vita di ogni giorno.",
+    "action": "La nostra storia",
+    "image_alt": "Dettaglio della silhouette automobilistica ricamata su una T-shirt LuckyLap"
+  },
+  "knitwear": {
+    "eyebrow": "Il prossimo capitolo",
+    "title": "Il prossimo capitolo si fa in lana.",
+    "text": "Stiamo preparando i primi maglioni LuckyLap. La stessa passione per i dettagli, in una nuova parte del guardaroba.",
+    "soon": "In arrivo",
+    "action": "Chiedici un aggiornamento",
+    "composition": "100% lana.",
+    "origin": "Made in Italy."
+  },
+  "partners": {
+    "eyebrow": "Una passione condivisa",
+    "title": "Porta LuckyLap nel tuo mondo.",
+    "text": "Club, eventi e negozi selezionati. Modi diversi di riunire una community intorno alla stessa passione.",
+    "action": "Raccontaci il tuo progetto"
+  },
+  "product": {
+    "sold_out": "Esaurito",
+    "available": "Disponibile",
+    "unavailable": "Questa combinazione non è disponibile",
+    "view": "Scopri il capo",
+    "from_price": "Da {{ price }}",
+    "back": "Torna alla collezione",
+    "variant": "Scegli una variante",
+    "quantity": "Quantità",
+    "add": "Aggiungi al carrello",
+    "shipping_notice": "Opzioni di consegna e importi finali sono mostrati al checkout.",
+    "shipping_policy": "Informazioni di spedizione",
+    "refund_policy": "Resi",
+    "size_guide": "Guida taglie",
+    "description": "I dettagli",
+    "image_number": "Immagine {{ number }} di {{ title }}",
+    "image_notice": "La foto generale non è associata alla variante selezionata. Controlla il colore indicato nelle opzioni."
+  },
+  "collection": {
+    "empty": "Questa collezione non contiene ancora prodotti.",
+    "sort": "Ordina per",
+    "count": {
+      "one": "{{ count }} prodotto",
+      "other": "{{ count }} prodotti"
+    },
+    "list_title": "Le collezioni",
+    "filter": "Filtra i prodotti",
+    "all": "Tutti",
+    "tshirts": "T-shirt",
+    "caps": "Cappellini"
+  },
+  "cart": {
+    "title": "Il tuo carrello",
+    "continue": "Continua a esplorare",
+    "empty": "Il carrello è vuoto. Trova il dettaglio che ti somiglia.",
+    "remove": "Rimuovi",
+    "remove_item": "Rimuovi {{ title }}",
+    "quantity_for": "Quantità di {{ title }}",
+    "subtotal": "Subtotale",
+    "update": "Aggiorna carrello",
+    "checkout": "Vai al checkout",
+    "checkout_notice": "Spedizione, imposte applicabili e sconti vengono calcolati al checkout.",
+    "note": "Nota per l’ordine",
+    "item_count": {
+      "one": "{{ count }} articolo nel carrello",
+      "other": "{{ count }} articoli nel carrello"
+    }
+  },
+  "contact": {
+    "name": "Nome",
+    "email": "Email",
+    "message": "Raccontaci il tuo progetto",
+    "send": "Invia messaggio",
+    "success": "Grazie. Il tuo messaggio è stato inviato."
+  },
+  "search": {
+    "title": "Trova il tuo dettaglio",
+    "label": "Cerca",
+    "placeholder": "Un’auto, un capo, un dettaglio…",
+    "action": "Cerca",
+    "results": {
+      "one": "{{ count }} risultato per “{{ terms }}”",
+      "other": "{{ count }} risultati per “{{ terms }}”"
+    }
+  },
+  "password": {
+    "title": "Un nuovo capitolo prende forma.",
+    "label": "Password del negozio",
+    "enter": "Entra"
+  },
+  "world": {
+    "title": "Prima dei capi, la passione.",
+    "text": "LuckyLap nasce da due appassionati di auto a Milano. Volevamo portare con noi le linee che amiamo, anche lontano dai circuiti.",
+    "action": "Entra nel nostro mondo",
+    "image_alt": "I fondatori LuckyLap indossano le T-shirt con le silhouette automobilistiche ricamate"
+  }
+}

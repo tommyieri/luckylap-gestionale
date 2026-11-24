@@ -1,0 +1,80 @@
+{% liquid
+  assign hero_product = section.settings.product
+  assign selected_product = hero_product
+  for block in section.blocks
+    if block.settings.product != blank
+      assign selected_product = block.settings.product
+      break
+    endif
+  endfor
+  assign hero_image = section.settings.image
+  assign hero_link = section.settings.button_link | default: routes.all_products_collection_url
+%}
+<section class="hero" aria-labelledby="HeroTitle-{{ section.id }}">
+  <div class="hero-copy"><h1 class="hero-title" id="HeroTitle-{{ section.id }}">{% if section.settings.heading != blank %}{{ section.settings.heading | escape | newline_to_br }}{% else %}{{ 'home.heading' | t }}{% endif %}</h1><p class="hero-description">{% if section.settings.text != blank %}{{ section.settings.text | escape }}{% else %}{{ 'home.description' | t }}{% endif %}</p><div class="hero-actions"><a class="btn btn-light" href="{{ hero_link }}">{% if section.settings.button_label != blank %}{{ section.settings.button_label | escape }}{% else %}{{ 'home.shop_action' | t }}{% endif %}<span aria-hidden="true">↗</span></a></div>
+    {% if selected_product != blank %}<div class="featured-picker" data-featured-picker><a class="featured-picker-image" href="{{ selected_product.url }}" data-feature-link>{% if selected_product.featured_image %}{{ selected_product.featured_image | image_url: width: 320 | image_tag: widths: '160, 240, 320', sizes: '100px', loading: 'eager', alt: selected_product.title }}{% endif %}</a><div class="featured-picker-info"><div class="featured-picker-tabs" aria-label="{{ 'home.choose_model' | t }}">{% assign rendered_count = 0 %}{% for block in section.blocks %}{% if block.settings.product != blank %}{% assign picker_product = block.settings.product %}<button type="button" data-feature-product data-url="{{ picker_product.url }}" data-image="{{ picker_product.featured_image | image_url: width: 320 }}" data-title="{{ picker_product.title | escape }}" data-price="{{ picker_product.price | money | escape }}" aria-pressed="{% if rendered_count == 0 %}true{% else %}false{% endif %}" {{ block.shopify_attributes }}>{{ block.settings.label | default: picker_product.title | escape }}</button>{% assign rendered_count = rendered_count | plus: 1 %}{% endif %}{% endfor %}</div><p class="featured-picker-title"><span data-feature-title>{{ selected_product.title | escape }}</span><span class="price-inline" data-feature-price>{{ selected_product.price | money }}</span></p><a class="text-link" href="{{ selected_product.url }}" data-feature-link>{{ 'home.choose_size' | t }} <span aria-hidden="true">↗</span></a></div></div>{% endif %}
+  </div>
+  <div class="hero-media">{% if hero_image %}{{ hero_image | image_url: width: 1600 | image_tag: widths: '500, 750, 1000, 1300, 1600', sizes: '(min-width: 900px) 56vw, 100vw', loading: 'eager', fetchpriority: 'high', class: 'hero-image', alt: hero_image.alt }}{% else %}<img src="{{ 'hero.webp' | asset_url }}" alt="{{ 'home.image_alt' | t }}" width="1200" height="1500" loading="eager" fetchpriority="high">{% endif %}{% if hero_product %}<a class="hero-product-link" href="{{ hero_product.url }}">{{ hero_product.title | escape }} <span>{{ hero_product.price | money }}</span><span aria-hidden="true">↗</span></a>{% endif %}</div>
+</section>
+
+{% schema %}
+{
+  "name": "Hero",
+  "settings": [
+    {
+      "type": "textarea",
+      "id": "heading",
+      "label": "Titolo"
+    },
+    {
+      "type": "textarea",
+      "id": "text",
+      "label": "Testo"
+    },
+    {
+      "type": "image_picker",
+      "id": "image",
+      "label": "Immagine principale"
+    },
+    {
+      "type": "product",
+      "id": "product",
+      "label": "Prodotto protagonista"
+    },
+    {
+      "type": "text",
+      "id": "button_label",
+      "label": "Testo pulsante"
+    },
+    {
+      "type": "url",
+      "id": "button_link",
+      "label": "Destinazione pulsante"
+    }
+  ],
+  "presets": [
+    {
+      "name": "Hero"
+    }
+  ],
+  "blocks": [
+    {
+      "type": "featured_product",
+      "name": "Modello da scegliere",
+      "settings": [
+        {
+          "type": "product",
+          "id": "product",
+          "label": "Prodotto"
+        },
+        {
+          "type": "text",
+          "id": "label",
+          "label": "Nome breve"
+        }
+      ]
+    }
+  ],
+  "max_blocks": 3
+}
+{% endschema %}

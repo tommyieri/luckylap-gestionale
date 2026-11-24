@@ -1,0 +1,83 @@
+{
+  "sections": {
+    "hero": {
+      "type": "hero",
+      "settings": {
+        "product": "gt3rs-tshirt"
+      },
+      "blocks": {
+        "964": {
+          "type": "featured_product",
+          "settings": {
+            "product": "964-tshirt",
+            "label": "964"
+          }
+        },
+        "f40": {
+          "type": "featured_product",
+          "settings": {
+            "product": "f40-tshirt",
+            "label": "F40"
+          }
+        },
+        "gt3rs": {
+          "type": "featured_product",
+          "settings": {
+            "product": "gt3rs-tshirt",
+            "label": "GT3 RS"
+          }
+        }
+      },
+      "block_order": ["964", "f40", "gt3rs"]
+    },
+    "collection": {
+      "type": "featured-collection",
+      "settings": {
+        "collection": "all",
+        "products_to_show": 9
+      }
+    },
+    "story": {
+      "type": "brand-story",
+      "settings": {
+        "button_link": "/pages/about-us"
+      }
+    },
+    "knitwear": {
+      "type": "knitwear",
+      "settings": {
+        "button_link": "/pages/contact"
+      }
+    },
+    "partners": {
+      "type": "partners",
+      "settings": {
+        "button_link": "/pages/contact"
+      },
+      "blocks": {
+        "club": {
+          "type": "opportunity",
+          "settings": {
+            "title": "Club e community",
+            "text": "Un capo dedicato, dalla grafica al ricamo. Costruiamo insieme una proposta per chi condivide la vostra passione."
+          }
+        },
+        "events": {
+          "type": "opportunity",
+          "settings": {
+            "title": "Eventi e negozi",
+            "text": "Uno stand nel posto giusto o una selezione di capi nel vostro spazio. Parliamone con una proposta concreta."
+          }
+        }
+      },
+      "block_order": ["club", "events"]
+    },
+    "world": {
+      "type": "brand-world",
+      "settings": {
+        "link": "/pages/about-us"
+      }
+    }
+  },
+  "order": ["hero", "collection", "story", "knitwear", "world", "partners"]
+}

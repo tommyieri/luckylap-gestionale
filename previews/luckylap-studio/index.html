@@ -1,0 +1,163 @@
+<!doctype html>
+<html lang="it" data-type="product" data-motion="considered">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="robots" content="noindex, nofollow" />
+    <meta name="page-type" content="product" />
+    <meta name="site-kind" content="other" />
+    <meta name="theme-color" content="#173d2a" />
+    <meta
+      name="description"
+      content="LuckyLap. Silhouette automobilistiche ricamate su capi da indossare ogni giorno. Esplora la nuova anteprima."
+    />
+    <title>LuckyLap — La passione si riconosce.</title>
+    <link rel="icon" href="/media/logo-square-100.webp" />
+    <link rel="preload" href="/media/mona-400.ttf" as="font" type="font/ttf" crossorigin />
+    <link rel="stylesheet" href="/style.css" />
+    <script type="module" src="/main.js"></script>
+  </head>
+  <body>
+    <a class="skip-link" href="#main">Vai al contenuto</a>
+    <div class="preview-notice">
+      Anteprima LuckyLap <span>Il prossimo capitolo del nostro guardaroba.</span>
+    </div>
+    <header class="site-header">
+      <a class="site-logo" href="/" aria-label="LuckyLap, home"
+        ><img src="/media/logo-original.png" alt="LuckyLap" width="1563" height="1563"
+      /></a>
+      <nav class="main-nav" aria-label="Navigazione principale">
+        <a href="/collections/t-shirt">T-shirt</a>
+        <a href="/collections/accessories">Cappellini</a>
+        <a href="/#maglieria">Maglieria <span class="nav-soon">In arrivo</span></a>
+        <a href="/pages/about-us">Il nostro mondo</a>
+        <a href="/pages/club-eventi">Club ed eventi</a>
+      </nav>
+      <div class="nav-actions">
+        <button class="icon-button" data-open-search aria-label="Cerca un capo">
+          <svg aria-hidden="true"><use href="/icons.svg#search"></use></svg>
+        </button>
+        <button class="cart-button" data-open-cart aria-label="Apri la tua borsa">
+          <svg aria-hidden="true"><use href="/icons.svg#bag"></use></svg
+          ><span class="cart-count" data-cart-count>0</span>
+        </button>
+        <button
+          class="icon-button menu-toggle"
+          data-open-menu
+          aria-label="Apri il menu"
+          aria-expanded="false"
+        >
+          <svg aria-hidden="true"><use href="/icons.svg#menu"></use></svg>
+        </button>
+      </div>
+    </header>
+    <main id="main" tabindex="-1"></main>
+    <noscript
+      ><section class="no-script">
+        <h1>LuckyLap, abbigliamento per chi ama le auto.</h1>
+        <p>Silhouette originali ricamate a macchina in Italia su T-shirt in cotone biologico.</p>
+        <a class="btn btn-primary" href="https://luckylap.com/collections/t-shirt"
+          >Esplora la collezione LuckyLap</a
+        >
+      </section></noscript
+    >
+    <footer class="site-footer">
+      <div class="footer-top">
+        <a class="footer-wordmark" href="/">LuckyLap</a>
+        <p>Una passione che ti porti dietro.<br />Anche quando scendi dall’auto.</p>
+      </div>
+      <div class="footer-links">
+        <div>
+          <h2>Il guardaroba</h2>
+          <a href="/collections/t-shirt">T-shirt</a><a href="/collections/accessories">Cappellini</a
+          ><a href="/#maglieria">Maglieria in arrivo</a>
+        </div>
+        <div>
+          <h2>Il mondo LuckyLap</h2>
+          <a href="/pages/about-us">La nostra storia</a
+          ><a href="/pages/club-eventi">Club, eventi e negozi</a
+          ><a href="https://www.instagram.com/lucky.lap/" target="_blank" rel="noopener noreferrer"
+            >Instagram @lucky.lap</a
+          >
+        </div>
+        <div>
+          <h2>Ci siamo</h2>
+          <a href="https://luckylap.com/pages/contact" target="_blank" rel="noopener noreferrer"
+            >Contattaci</a
+          ><a
+            href="https://luckylap.com/policies/shipping-policy"
+            target="_blank"
+            rel="noopener noreferrer"
+            >Spedizione</a
+          ><a
+            href="https://luckylap.com/policies/refund-policy"
+            target="_blank"
+            rel="noopener noreferrer"
+            >Resi e assistenza</a
+          >
+        </div>
+      </div>
+      <div class="footer-bottom">
+        <span>© <span data-year>2026</span> LuckyLap</span
+        ><a
+          href="https://luckylap.com/policies/privacy-policy"
+          target="_blank"
+          rel="noopener noreferrer"
+          >Privacy</a
+        ><a
+          href="https://luckylap.com/policies/terms-of-service"
+          target="_blank"
+          rel="noopener noreferrer"
+          >Termini</a
+        ><span>Anteprima indipendente dallo shop.</span>
+      </div>
+    </footer>
+    <dialog class="cart-drawer" id="cart-dialog" aria-labelledby="cart-title">
+      <div class="drawer-head">
+        <h2 id="cart-title">La tua borsa</h2>
+        <button class="icon-button" data-close-dialog aria-label="Chiudi la borsa">
+          <svg aria-hidden="true"><use href="/icons.svg#close"></use></svg>
+        </button>
+      </div>
+      <div id="cart-content"></div>
+    </dialog>
+    <dialog class="search-dialog" id="search-dialog" aria-labelledby="search-title">
+      <div class="drawer-head">
+        <h2 id="search-title">Trova il tuo modello</h2>
+        <button class="icon-button" data-close-dialog aria-label="Chiudi la ricerca">
+          <svg aria-hidden="true"><use href="/icons.svg#close"></use></svg>
+        </button>
+      </div>
+      <label class="search-label" for="site-search">Cerca un’auto o un capo</label
+      ><input
+        id="site-search"
+        type="search"
+        placeholder="Per esempio: 964, F40, cappellino"
+        autocomplete="off"
+      />
+      <div id="search-results"></div>
+    </dialog>
+    <dialog class="menu-dialog" id="menu-dialog" aria-label="Menu LuckyLap">
+      <div class="drawer-head">
+        <span>LuckyLap</span
+        ><button class="icon-button" data-close-dialog aria-label="Chiudi il menu">
+          <svg aria-hidden="true"><use href="/icons.svg#close"></use></svg>
+        </button>
+      </div>
+      <nav aria-label="Menu mobile">
+        <a href="/collections/t-shirt">T-shirt</a><a href="/collections/accessories">Cappellini</a
+        ><a href="/#maglieria">Maglieria <small>In arrivo</small></a
+        ><a href="/pages/about-us">Il nostro mondo</a
+        ><a href="/pages/club-eventi">Club ed eventi</a>
+      </nav>
+      <a
+        class="menu-social"
+        href="https://www.instagram.com/lucky.lap/"
+        target="_blank"
+        rel="noopener noreferrer"
+        >Seguici su Instagram</a
+      >
+    </dialog>
+    <div class="toast" role="status" aria-live="polite"></div>
+  </body>
+</html>

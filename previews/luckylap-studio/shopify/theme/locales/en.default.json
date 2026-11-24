@@ -1,0 +1,142 @@
+{
+  "general": {
+    "skip_content": "Skip to content",
+    "new_window": "Opens in a new window",
+    "language": "Language",
+    "apply": "Apply",
+    "pagination": "Pagination",
+    "not_found": "This page has taken another road.",
+    "not_found_text": "Find your way back to the collection."
+  },
+  "navigation": {
+    "main": "Main navigation",
+    "mobile": "Mobile navigation",
+    "shop": "Shop",
+    "knitwear": "Knitwear",
+    "story": "Our story",
+    "partners": "Clubs and events",
+    "cart": "Bag",
+    "open_menu": "Open menu",
+    "view_all": "View all"
+  },
+  "footer": {
+    "tagline": "A shared passion. An everyday detail.",
+    "signature": "Driven by passion. Worn every day.",
+    "shop": "The wardrobe",
+    "world": "Our world",
+    "help": "Here for you",
+    "contact": "Contact us"
+  },
+  "home": {
+    "eyebrow": "Automotive passion. Everyday wear.",
+    "heading": "Passion is recognisable.",
+    "description": "Original car silhouettes, machine embroidered in Italy on organic cotton T-shirts. A detail for those who know.",
+    "shop_action": "Find your car",
+    "story_action": "Discover LuckyLap",
+    "caption": "Driven by passion. Worn every day.",
+    "image_alt": "A LuckyLap embroidered T-shirt worn outdoors",
+    "collection_eyebrow": "The collection",
+    "collection_title": "Your car. Your detail.",
+    "all_products": "Explore the collection",
+    "choose_model": "Choose your model",
+    "choose_size": "Choose your size"
+  },
+  "story": {
+    "eyebrow": "From drawing to embroidery",
+    "title": "The drawing becomes thread.",
+    "text": "We turn the lines of the cars we love into original designs. A discreet machine embroidery, made in Italy, that brings our passion into everyday life.",
+    "action": "Our story",
+    "image_alt": "Close-up of the car silhouette embroidered on a LuckyLap T-shirt"
+  },
+  "knitwear": {
+    "eyebrow": "The next chapter",
+    "title": "The next chapter is made of wool.",
+    "text": "We are preparing the first LuckyLap sweaters. The same passion for detail, in a new part of your wardrobe.",
+    "soon": "Coming soon",
+    "action": "Ask us for an update",
+    "composition": "100% wool.",
+    "origin": "Made in Italy."
+  },
+  "partners": {
+    "eyebrow": "A shared passion",
+    "title": "Bring LuckyLap into your world.",
+    "text": "Clubs, events and selected shops. Different ways to bring a community together around the same passion.",
+    "action": "Tell us about your project"
+  },
+  "product": {
+    "sold_out": "Sold out",
+    "available": "Available",
+    "unavailable": "This combination is not available",
+    "view": "View product",
+    "from_price": "From {{ price }}",
+    "back": "Back to collection",
+    "variant": "Choose a variant",
+    "quantity": "Quantity",
+    "add": "Add to bag",
+    "shipping_notice": "Delivery options and final charges are shown at checkout.",
+    "shipping_policy": "Shipping information",
+    "refund_policy": "Returns",
+    "size_guide": "Size guide",
+    "description": "The details",
+    "image_number": "Image {{ number }} of {{ title }}",
+    "image_notice": "The general product image is not assigned to the selected variant. Check the colour shown in the options."
+  },
+  "collection": {
+    "empty": "There are no products in this collection yet.",
+    "sort": "Sort by",
+    "count": {
+      "one": "{{ count }} product",
+      "other": "{{ count }} products"
+    },
+    "list_title": "Our collections",
+    "filter": "Filter products",
+    "all": "All",
+    "tshirts": "T-shirts",
+    "caps": "Caps"
+  },
+  "cart": {
+    "title": "Your bag",
+    "continue": "Continue exploring",
+    "empty": "Your bag is empty. Find the detail that speaks to you.",
+    "remove": "Remove",
+    "remove_item": "Remove {{ title }}",
+    "quantity_for": "Quantity for {{ title }}",
+    "subtotal": "Subtotal",
+    "update": "Update bag",
+    "checkout": "Go to checkout",
+    "checkout_notice": "Shipping, applicable taxes and discounts are calculated at checkout.",
+    "note": "Order note",
+    "item_count": {
+      "one": "{{ count }} item in bag",
+      "other": "{{ count }} items in bag"
+    }
+  },
+  "contact": {
+    "name": "Name",
+    "email": "Email",
+    "message": "Tell us about your project",
+    "send": "Send message",
+    "success": "Thank you. Your message has been sent."
+  },
+  "search": {
+    "title": "Find your detail",
+    "label": "Search",
+    "placeholder": "A car, a product, a detail…",
+    "action": "Search",
+    "results": {
+      "one": "{{ count }} result for “{{ terms }}”",
+      "other": "{{ count }} results for “{{ terms }}”"
+    }
+  },
+  "password": {
+    "title": "A new chapter is taking shape.",
+    "label": "Store password",
+    "enter": "Enter"
+  },
+  "world": {
+    "title": "Before the clothes, the passion.",
+    "text": "LuckyLap began with two car enthusiasts in Milan. We wanted to carry the lines we love with us, even away from the track.",
+    "action": "Enter our world",
+    "image_alt": "The LuckyLap founders wearing T-shirts with embroidered car silhouettes"
+  }
+}

@@ -1,0 +1,25 @@
+{% doc %}
+  Renders a product card using current Shopify product data.
+  @param {product} card_product - Product to display.
+  @param {string} [image_loading] - Image loading priority.
+{% enddoc %}
+{% liquid
+  assign card_loading = image_loading | default: 'lazy'
+  assign card_image_alt = card_product.featured_image.alt | default: card_product.title
+  assign card_price = card_product.price | money
+  assign product_type = card_product.type | downcase
+  assign card_group = 'other'
+  if product_type contains 't-shirt' or product_type contains 'tshirt'
+    assign card_group = 'tshirts'
+  elsif product_type contains 'cap' or product_type contains 'cappell'
+    assign card_group = 'caps'
+  endif
+%}
+<article class="product-card" data-product-card data-product-type="{{ card_group }}">
+  <a class="product-media" href="{{ card_product.url }}" aria-label="{{ card_product.title | escape }}">
+    {% if card_product.featured_image %}{{ card_product.featured_image | image_url: width: 900 | image_tag: widths: '320, 480, 640, 900', sizes: '(min-width: 1000px) 30vw, (min-width: 600px) 48vw, 100vw', loading: card_loading, class: 'product-image', alt: card_image_alt }}{% else %}{{ 'product-1' | placeholder_svg_tag: 'product-placeholder' }}{% endif %}
+    {% unless card_product.available %}<span class="product-badge">{{ 'product.sold_out' | t }}</span>{% endunless %}
+    <span class="product-card-action">{{ 'product.view' | t }} <span aria-hidden="true">↗</span></span>
+  </a>
+  <div class="product-info"><h3 class="product-title"><a href="{{ card_product.url }}">{{ card_product.title | escape }}</a></h3><p class="product-price">{% if card_product.price_varies %}{{ 'product.from_price' | t: price: card_price }}{% else %}{{ card_product.price | money }}{% endif %}</p></div>
+</article>

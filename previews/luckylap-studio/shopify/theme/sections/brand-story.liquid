@@ -1,0 +1,38 @@
+<section class="story-grid" id="story" aria-labelledby="StoryTitle-{{ section.id }}"><div class="story-image">{% if section.settings.image %}{{ section.settings.image | image_url: width: 1400 | image_tag: widths: '480, 750, 1000, 1400', sizes: '(min-width: 900px) 50vw, 100vw', loading: 'lazy', alt: section.settings.image.alt }}{% else %}<img src="{{ 'story.webp' | asset_url }}" alt="{{ 'story.image_alt' | t }}" width="1200" height="1400" loading="lazy">{% endif %}</div><div class="story-copy"><p class="eyebrow">{{ 'story.eyebrow' | t }}</p><h2 id="StoryTitle-{{ section.id }}">{% if section.settings.heading != blank %}{{ section.settings.heading | escape | newline_to_br }}{% else %}{{ 'story.title' | t }}{% endif %}</h2><div class="rte">{% if section.settings.text != blank %}{{ section.settings.text }}{% else %}<p>{{ 'story.text' | t }}</p>{% endif %}</div>{% if section.settings.button_link != blank %}<a class="text-link" href="{{ section.settings.button_link }}">{% if section.settings.button_label != blank %}{{ section.settings.button_label | escape }}{% else %}{{ 'story.action' | t }}{% endif %} <span aria-hidden="true">↗</span></a>{% endif %}</div></section>
+{% schema %}
+{
+  "name": "Storia del brand",
+  "settings": [
+    {
+      "type": "image_picker",
+      "id": "image",
+      "label": "Immagine"
+    },
+    {
+      "type": "textarea",
+      "id": "heading",
+      "label": "Titolo"
+    },
+    {
+      "type": "richtext",
+      "id": "text",
+      "label": "Testo"
+    },
+    {
+      "type": "text",
+      "id": "button_label",
+      "label": "Testo collegamento"
+    },
+    {
+      "type": "url",
+      "id": "button_link",
+      "label": "Collegamento"
+    }
+  ],
+  "presets": [
+    {
+      "name": "Storia del brand"
+    }
+  ]
+}
+{% endschema %}

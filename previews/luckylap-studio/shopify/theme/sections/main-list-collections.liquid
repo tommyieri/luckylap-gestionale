@@ -1,0 +1,7 @@
+<section class="section-pad"><h1>{{ 'collection.list_title' | t }}</h1>{% paginate collections by 12 %}<div class="shop-grid">{% for item in collections %}<article class="product-card"><a class="product-media" href="{{ item.url }}">{% if item.featured_image %}{{ item.featured_image | image_url: width: 900 | image_tag: widths: '320, 600, 900', sizes: '(min-width: 900px) 30vw, 100vw', loading: 'lazy', alt: item.title }}{% endif %}</a><h2><a href="{{ item.url }}">{{ item.title | escape }}</a></h2></article>{% endfor %}</div>{% if paginate.pages > 1 %}<nav class="pagination" aria-label="{{ 'general.pagination' | t }}">{{ paginate | default_pagination }}</nav>{% endif %}{% endpaginate %}</section>
+{% schema %}
+{
+  "name": "Elenco collezioni",
+  "settings": []
+}
+{% endschema %}

@@ -1,0 +1,7 @@
+<section class="page-content section-pad"><h1>{{ page.title | escape }}</h1>{% if page.content != blank %}<div class="rte">{{ page.content }}</div>{% endif %}{% form 'contact', class: 'contact-form' %}{% if form.posted_successfully? %}<p role="status" class="form-success">{{ 'contact.success' | t }}</p>{% endif %}{{ form.errors | default_errors }}<label for="ContactName">{{ 'contact.name' | t }}</label><input id="ContactName" type="text" name="contact[name]" autocomplete="name" value="{{ form.name | default: customer.name | escape }}"><label for="ContactEmail">{{ 'contact.email' | t }}</label><input id="ContactEmail" type="email" name="contact[email]" autocomplete="email" required value="{{ form.email | default: customer.email | escape }}"><label for="ContactMessage">{{ 'contact.message' | t }}</label><textarea id="ContactMessage" name="contact[body]" rows="7" required>{{ form.body | escape }}</textarea><button type="submit" class="btn btn-primary">{{ 'contact.send' | t }}</button>{% endform %}</section>
+{% schema %}
+{
+  "name": "Contatti",
+  "settings": []
+}
+{% endschema %}

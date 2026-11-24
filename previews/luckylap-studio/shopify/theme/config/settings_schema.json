@@ -1,0 +1,60 @@
+[
+  {
+    "name": "theme_info",
+    "theme_name": "LuckyLap Studio",
+    "theme_version": "1.0.0",
+    "theme_author": "LuckyLap",
+    "theme_documentation_url": "https://shopify.dev/docs/storefronts/themes",
+    "theme_support_url": "https://luckylap.com/pages/contact"
+  },
+  {
+    "name": "Colori e caratteri",
+    "settings": [
+      {
+        "type": "color",
+        "id": "color_green",
+        "label": "Verde LuckyLap",
+        "default": "#173d2a"
+      },
+      {
+        "type": "color",
+        "id": "color_background",
+        "label": "Fondo",
+        "default": "#f4f5f1"
+      },
+      {
+        "type": "color",
+        "id": "color_text",
+        "label": "Testo",
+        "default": "#14231c"
+      },
+      {
+        "type": "select",
+        "id": "font_source",
+        "label": "Carattere",
+        "options": [
+          {
+            "value": "local",
+            "label": "Mona Sans locale"
+          },
+          {
+            "value": "shopify",
+            "label": "Carattere Shopify"
+          }
+        ],
+        "default": "local"
+      },
+      {
+        "type": "font_picker",
+        "id": "body_font",
+        "label": "Carattere Shopify",
+        "default": "assistant_n4"
+      },
+      {
+        "type": "image_picker",
+        "id": "favicon",
+        "label": "Icona del sito"
+      }
+    ]
+  }
+]
