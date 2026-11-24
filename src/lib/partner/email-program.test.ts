@@ -146,6 +146,149 @@ describe("prime email per eventi UE e Regno Unito", () => {
   });
 });
 
+describe("priorità eventi e ripresa delle altre prime email", () => {
+  const on = "2026-11-24";
+  const proof = { start: `${on}T06:00:00Z`, end: "2026-11-26T06:00:00Z" };
+  const candidate = (n: number, change: Partial<PartnerEmailProgramItem> = {}) => {
+    const row = item(n, {
+      researchAt: `${on}T05:00:00Z`,
+      eventApproved: false,
+      fallbackWindow: proof,
+      windows: [window(on)],
+      ...change,
+    });
+    row.draft = { ...row.draft!, createdAt: `${on}T06:30:00Z` };
+    return row;
+  };
+  const current = (items: PartnerEmailProgramItem[]) => {
+    const s = snapshot(items, { generatedAt: `${on}T07:00:00Z`, from: on, days: 1 });
+    s.config.eventFirstFrom = "2026-11-18";
+    s.config.eventPriorityFrom = on;
+    return s;
+  };
+
+  it("legge le finestre di esaurimento e il nuovo regime senza cambiare i payload precedenti", () => {
+    const s = current([candidate(1), candidate(2, { fallbackWindow: null })]);
+    expect(parsePartnerEmailProgram(s)).toEqual(s);
+    const legacy = snapshot([item(1)]);
+    const parsed = parsePartnerEmailProgram(legacy);
+    expect(parsed).toEqual(legacy);
+    expect(Object.hasOwn(parsed.config, "eventPriorityFrom")).toBe(false);
+    expect(Object.hasOwn(parsed.items[0], "fallbackWindow")).toBe(false);
+  });
+
+  it.each([
+    { start: proof.end, end: proof.start },
+    { start: proof.start, end: proof.start },
+    { start: "2026-11-24", end: proof.end },
+    { start: proof.start, end: proof.end, approved: true },
+  ])("rifiuta una finestra di esaurimento non valida (%#)", (fallbackWindow) => {
+    const s = current([candidate(1)]);
+    expect(() =>
+      parsePartnerEmailProgram({ ...s, items: [{ ...s.items[0], fallbackWindow }] }),
+    ).toThrow(PartnerReadError);
+  });
+
+  it("rifiuta la nuova decorrenza non valida, vecchie bozze e finestre assegnate a eventi", () => {
+    const s = current([candidate(1)]);
+    expect(() =>
+      parsePartnerEmailProgram({ ...s, config: { ...s.config, eventPriorityFrom: "2026-02-30" } }),
+    ).toThrow(PartnerReadError);
+    s.items[0].draft!.createdAt = `${on}T05:59:59Z`;
+    expect(() => parsePartnerEmailProgram(s)).toThrow(PartnerReadError);
+    const event = current([
+      candidate(2, { contactKind: "evento", request: "stand_evento", country: "Svizzera" }),
+    ]);
+    expect(() => parsePartnerEmailProgram(event)).toThrow(PartnerReadError);
+  });
+
+  it("consente sei Club quando le nuove bozze hanno una verifica ancora valida", () => {
+    const result = plan(current(Array.from({ length: 8 }, (_, i) => candidate(i + 1))));
+    expect(prepared(result).map((row) => row.co)).toEqual([1, 2, 3, 4, 5, 6]);
+    expect(result.days).toEqual([{ day: on, limit: 6, club: 6, altri: 0 }]);
+  });
+
+  it("condivide sei posti totali tra Club, altre proposte ed eventi approvati", () => {
+    const clubs = Array.from({ length: 4 }, (_, i) => candidate(i + 1));
+    const others = Array.from({ length: 4 }, (_, i) =>
+      candidate(20 + i, { flow: "altri", contactKind: "brand", request: "collab_capsule" }),
+    );
+    const event = candidate(5, {
+      flow: "altri",
+      contactKind: "evento",
+      request: "stand_evento",
+      eventStartsOn: "2027-05-20",
+      eventApproved: true,
+      fallbackWindow: null,
+    });
+    const result = plan(current([...clubs, event, ...others]));
+    expect(prepared(result).map((row) => row.co)).toEqual([1, 2, 3, 4, 5, 20]);
+    expect(result.days).toEqual([{ day: on, limit: 6, club: 4, altri: 2 }]);
+    const used = current([...clubs, ...others]);
+    used.todaySent = { club: 1, altri: 2 };
+    expect(prepared(plan(used))).toHaveLength(3);
+  });
+
+  it("esclude le altre proposte prive di verifica senza togliere gli eventi approvati", () => {
+    const s = current([
+      candidate(1, { fallbackWindow: null }),
+      candidate(2),
+      candidate(3, {
+        flow: "altri",
+        contactKind: "evento",
+        request: "stand_evento",
+        eventStartsOn: "2027-05-20",
+        eventApproved: true,
+        fallbackWindow: null,
+      }),
+    ]);
+    delete s.items[1].fallbackWindow;
+    const result = plan(s);
+    expect(prepared(result).map((row) => row.co)).toEqual([3]);
+    expect(result.items[0].explanation).toContain("verifica di esaurimento");
+  });
+
+  it("controlla la scadenza esatta della verifica anche dentro lo stesso giorno", () => {
+    const fallbackWindow = { ...proof, end: `${on}T09:00:00Z` };
+    const result = plan(
+      current([
+        candidate(1, { fallbackWindow, windows: [window(on, "08:59:59", "09:10:00")] }),
+        candidate(2, { fallbackWindow, windows: [window(on, "09:00:00", "09:10:00")] }),
+      ]),
+    );
+    expect(prepared(result).map((row) => row.co)).toEqual([1]);
+    expect(result.items[1].explanation).toContain("verifica di esaurimento degli eventi è scaduta");
+  });
+
+  it("dal nuovo regime richiede la data futura anche per un evento con approvazione precedente", () => {
+    const s = current([
+      candidate(1, {
+        flow: "altri",
+        contactKind: "evento",
+        request: "stand_evento",
+        eventApproved: true,
+        eventStartsOn: null,
+        fallbackWindow: null,
+      }),
+    ]);
+    const result = plan(s);
+    expect(prepared(result)).toEqual([]);
+    expect(result.items[0].explanation).toContain("data futura confermata");
+    s.config.eventPriorityFrom = "2026-11-25";
+    expect(prepared(plan(s))).toHaveLength(1);
+  });
+
+  it("mantiene il regime esclusivo eventi fino al 23 e quando manca la nuova decorrenza", () => {
+    const s = current([candidate(1)]);
+    delete s.config.eventPriorityFrom;
+    expect(prepared(plan(s))).toEqual([]);
+    const previous = current([candidate(1, { windows: [window("2026-11-23")] })]);
+    previous.generatedAt = "2026-11-23T07:00:00Z";
+    previous.from = "2026-11-23";
+    expect(prepared(plan(previous))).toEqual([]);
+  });
+});
+
 describe("lettura del programma email", () => {
   it("legge il contratto completo senza perdere testo, revisioni, sezioni o invii", () => {
     const original = snapshot([

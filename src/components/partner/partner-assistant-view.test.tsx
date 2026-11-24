@@ -1224,6 +1224,33 @@ describe("PartnerAssistantView", () => {
     expect(delivery).not.toContain("(prime e solleciti)");
   });
 
+  it("mostra sei prime complessive con priorità agli eventi e ripresa delle altre proposte", () => {
+    const tree = render(
+      { founder: true },
+      { mode: "invio" },
+      { eventFirstFrom: TODAY, eventPriorityFrom: TODAY, firstLimitToday: 6 },
+    );
+    const limit = sectionOf(tree, "Limite");
+    expect(words(limit)).toContain("6 prime email complessive al giorno");
+    expect(words(limit)).toContain("Priorità agli eventi nell’Unione europea e nel Regno Unito");
+    expect(words(limit)).toContain("quando gli eventi contattabili sono esauriti");
+    expect(words(limit)).toContain("riprendono anche le altre proposte");
+    expect(words(limit)).toContain("I solleciti continuano con il limite separato di 6 al giorno");
+    expect(words(limit)).not.toContain("3 Club e 3 altri");
+    expect(descendants(limit).some((node) => node.type === "form")).toBe(false);
+  });
+
+  it("mantiene il testo esclusivo eventi prima della decorrenza della priorità", () => {
+    const tree = render(
+      {},
+      {},
+      { eventFirstFrom: TODAY, eventPriorityFrom: "2026-11-24", firstLimitToday: 6 },
+    );
+    const limit = words(sectionOf(tree, "Limite"));
+    expect(limit).toContain("bozza approvata dal founder");
+    expect(limit).not.toContain("riprendono anche le altre proposte");
+  });
+
   it("limite fuori da 1-15: nessun invio e l'errore vicino al campo", () => {
     const options = { founder: true };
     const field = () =>
