@@ -56,5 +56,16 @@
         "label": "Icona del sito"
       }
     ]
+  },
+  {
+    "name": "Consegna",
+    "settings": [
+      {
+        "type": "richtext",
+        "id": "shipping_policy_text",
+        "label": "Testo spedizioni",
+        "info": "Comunicazione mostrata nella scheda prodotto e nel carrello. Le tariffe effettive si configurano nelle impostazioni Shopify."
+      }
+    ]
   }
 ]

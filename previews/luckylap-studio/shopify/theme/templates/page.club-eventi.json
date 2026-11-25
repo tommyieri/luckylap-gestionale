@@ -1,0 +1,43 @@
+{
+  "sections": {
+    "partners": {
+      "type": "partners",
+      "settings": {
+        "button_link": "/pages/contact",
+        "heading": "Una passione. Tre modi di incontrarci.",
+        "text": "Un capo per il club, una presenza al vostro evento, un assortimento per il negozio. Partiamo dal vostro pubblico e definiamo insieme il progetto."
+      },
+      "blocks": {
+        "club": {
+          "type": "opportunity",
+          "settings": {
+            "title": "Un capo per il club.",
+            "text": "Una silhouette dedicata e una personalizzazione da valutare. Ci raccontate occasione, destinatari e tempi desiderati. Prima di partire definiamo chi approva il disegno e chi segue ordini, stock, consegna e assistenza.",
+            "link": "/pages/contact",
+            "link_label": "Raccontaci il progetto"
+          }
+        },
+        "events": {
+          "type": "opportunity",
+          "settings": {
+            "title": "LuckyLap al vostro evento.",
+            "text": "Valutiamo una presenza con stand e collezione LuckyLap. Per preparare una proposta ci servono pubblico, luogo, date, opzioni di spazio e condizioni espositive.",
+            "link": "/pages/contact",
+            "link_label": "Parliamo dell’evento"
+          }
+        },
+        "retail": {
+          "type": "opportunity",
+          "settings": {
+            "title": "Nel vostro negozio.",
+            "text": "Un assortimento pensato per il vostro pubblico. Confrontiamoci su esposizione e modelli, poi definiamo disponibilità, rendiconto e riassortimento prima di concordare le condizioni.",
+            "link": "/pages/contact",
+            "link_label": "Conosciamoci"
+          }
+        }
+      },
+      "block_order": ["club", "events", "retail"]
+    }
+  },
+  "order": ["partners"]
+}

@@ -1,6 +1,6 @@
 # LuckyLap Studio: nuova anteprima dello shop
 
-**Stato: lavoro in corso, fermato per completare prima l’analisi del team AI richiesta dal founder.** Revisione finale e pubblicazione non concluse.
+**Stato: anteprima ripresa sulla base dell’analisi e del nuovo brief del founder.** Home con sequenza del ricamo GT3 RS → F40, materiali operativi preparati e tema nativo confezionabile; nessuna pubblicazione nello store. Limiti e controlli in VERIFICHE.md.
 
 Una proposta di redesign da esplorare prima della pubblicazione: home, cataloghi T-shirt e cappellini, nove schede prodotto, ricerca, borsa, storia del brand e percorso club/eventi/negozi. È un progetto autonomo nella cartella `previews/`; non cambia le pagine del gestionale.
 
@@ -20,7 +20,7 @@ Home, collezioni e pagine prodotto sono navigabili anche con URL diretti. La pre
 
 Verde LuckyLap, fondo chiaro, logo originale, fotografia del prodotto indossato e titoli ampi. La scelta del modello è già nella prima schermata. Il dettaglio del ricamo dà sostanza al racconto; i fondatori e le collaborazioni completano il mondo del brand. La maglieria viene annunciata senza simulare prodotti già acquistabili.
 
-Il movimento accompagna ingresso della home, cambio modello e apertura dei pannelli. Le preferenze di movimento ridotto disattivano animazioni e transizioni; non ci sono autoplay o scorrimenti forzati. I fatti di prodotto sono registrati in [PRODUCT.md](PRODUCT.md). Le decisioni visive definitive saranno documentate dopo il brief del team e la revisione con il founder.
+Il movimento accompagna ingresso della home, cambio modello e apertura dei pannelli. Le preferenze di movimento ridotto disattivano animazioni e transizioni; non ci sono autoplay o scorrimenti forzati. I fatti di prodotto sono registrati in [PRODUCT.md](PRODUCT.md); direzione visiva e movimento in [DESIGN.md](DESIGN.md).
 
 ## Catalogo e borsa
 
@@ -48,3 +48,9 @@ node previews/luckylap-studio/shopify/package-theme.mjs
 - Licenze dei font in `media/LICENSE-MonaSans.txt` e delle icone in `LICENZA-ICONE.txt`.
 
 Taste Skill è stato usato come riferimento insieme a Impeccable; il suo gate headless completo non è stato eseguito e non viene dichiarato superato. Sono documentati i controlli realmente svolti sul browser e sul tema.
+
+## La nuova scena di ricamo
+
+Il cliente controlla la sequenza con lo scroll: GT3 RS sul capo navy, distacco, passaggio fra sette contorni corrispondenti e F40 ricomposta sulla T-shirt bianca. Si può tornare indietro, passare direttamente al catalogo o ridurre il movimento. GSAP, ScrollTrigger e MorphSVGPlugin 3.15.1 sono serviti localmente; fonti e licenza in vendor/README.md. La transizione usa contorni normalizzati per l’animazione: non certifica il disegno digitale di una macchina da ricamo. Gli originali raster del brand sono conservati separati.
+
+Per mostrare le condizioni approvate, avviare il server con LUCKYLAP_SHIPPING_POLICY_PATH verso un JSON privato esterno, con currency, rates (italy/europe/world) e freeShipping (minimumSubtotal/zones). Importi in centesimi. Senza configurazione il sito rimanda alle condizioni dello shop e non inventa tariffe. Nessuna cifra commerciale è salvata come listino nel codice. Lo stesso file può alimentare il packaging del tema; il richtext viene aggiunto soltanto nel file ZIP generato, senza modificare i settings sorgenti.

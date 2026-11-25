@@ -16,7 +16,8 @@
       {% if section.settings.show_dynamic_checkout %}{{ form | payment_button }}{% endif %}
     {% endform %}
     <p class="product-service">{{ 'product.shipping_notice' | t }}{% if shop.shipping_policy.body != blank %} <a href="{{ shop.shipping_policy.url }}">{{ 'product.shipping_policy' | t }}</a>{% endif %}{% if shop.refund_policy.body != blank %} · <a href="{{ shop.refund_policy.url }}">{{ 'product.refund_policy' | t }}</a>{% endif %}</p>
-    {% if section.settings.size_guide != blank %}<details class="product-details"><summary>{{ 'product.size_guide' | t }}</summary><div class="rte">{{ section.settings.size_guide.content }}</div></details>{% endif %}
+    {% if settings.shipping_policy_text != blank %}<details class="product-details"><summary>{{ 'product.delivery' | t }}</summary><div class="rte">{{ settings.shipping_policy_text }}</div></details>{% endif %}
+    {% if section.settings.size_guide != blank %}<details class="product-details" id="taglie"><summary>{{ 'product.size_guide' | t }}</summary><div class="rte">{{ section.settings.size_guide.content }}</div></details>{% endif %}
     {% if product.description != blank %}<details class="product-details" open><summary>{{ 'product.description' | t }}</summary><div class="rte">{{ product.description }}</div></details>{% endif %}
     {% if section.settings.details != blank %}<details class="product-details"><summary>{{ section.settings.details_title | escape }}</summary><div class="rte">{{ section.settings.details }}</div></details>{% endif %}
     {% for block in section.blocks %}{% if block.type == '@app' %}{% render block %}{% endif %}{% endfor %}

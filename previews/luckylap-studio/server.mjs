@@ -96,6 +96,30 @@ const server = createServer(async (request, response) => {
     response.end();
     return;
   }
+  if (pathname === "/api/shipping-policy") {
+    response.setHeader("Content-Type", types[".json"]);
+    response.setHeader("Cache-Control", "no-store");
+    try {
+      const configured = process.env.LUCKYLAP_SHIPPING_POLICY_PATH;
+      if (!configured) throw new Error("not_configured");
+      const source = JSON.parse(await readFile(configured, "utf8"));
+      const { version, currency, rates, freeShipping } = source;
+      if (
+        currency !== "EUR" ||
+        ![rates?.italy, rates?.europe, rates?.world, freeShipping?.minimumSubtotal].every(
+          (value) => Number.isSafeInteger(value) && value >= 0,
+        ) ||
+        !Array.isArray(freeShipping.zones) ||
+        !freeShipping.zones.every((zone) => ["italy", "europe", "world"].includes(zone))
+      )
+        throw new Error("invalid_policy");
+      response.end(JSON.stringify({ version, currency, rates, freeShipping }));
+    } catch {
+      response.writeHead(503);
+      response.end(JSON.stringify({ error: "policy_unavailable" }));
+    }
+    return;
+  }
   if (pathname === "/api/catalog") {
     response.setHeader("Content-Type", types[".json"]);
     response.setHeader("Cache-Control", "no-store");

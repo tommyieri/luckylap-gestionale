@@ -1,0 +1,304 @@
+{
+  "schemaVersion": 2,
+  "generatedAt": "2026-11-25T14:24:36.267707+00:00",
+  "title": "Design System: LuckyLap Studio",
+  "extensions": {
+    "colorMeta": {
+      "green": {
+        "role": "primary",
+        "displayName": "Verde bosco",
+        "tonalRamp": [
+          "oklch(15% 0.07 155)",
+          "oklch(26% 0.07 155)",
+          "oklch(37% 0.07 155)",
+          "oklch(48% 0.07 155)",
+          "oklch(60% 0.07 155)",
+          "oklch(72% 0.07 155)",
+          "oklch(84% 0.07 155)",
+          "oklch(95% 0.07 155)"
+        ]
+      },
+      "green-hover": {
+        "role": "primary",
+        "displayName": "Verde foglia",
+        "tonalRamp": [
+          "oklch(15% 0.08 155)",
+          "oklch(26% 0.08 155)",
+          "oklch(37% 0.08 155)",
+          "oklch(48% 0.08 155)",
+          "oklch(60% 0.08 155)",
+          "oklch(72% 0.08 155)",
+          "oklch(84% 0.08 155)",
+          "oklch(95% 0.08 155)"
+        ]
+      },
+      "paper": {
+        "role": "neutral",
+        "displayName": "Carta",
+        "tonalRamp": [
+          "oklch(15% 0.006 110)",
+          "oklch(26% 0.006 110)",
+          "oklch(37% 0.006 110)",
+          "oklch(48% 0.006 110)",
+          "oklch(60% 0.006 110)",
+          "oklch(72% 0.006 110)",
+          "oklch(84% 0.006 110)",
+          "oklch(95% 0.006 110)"
+        ]
+      },
+      "white": {
+        "role": "neutral",
+        "displayName": "Bianco",
+        "tonalRamp": [
+          "oklch(15% 0 0)",
+          "oklch(26% 0 0)",
+          "oklch(37% 0 0)",
+          "oklch(48% 0 0)",
+          "oklch(60% 0 0)",
+          "oklch(72% 0 0)",
+          "oklch(84% 0 0)",
+          "oklch(95% 0 0)"
+        ]
+      },
+      "ink": {
+        "role": "neutral",
+        "displayName": "Inchiostro verde",
+        "tonalRamp": [
+          "oklch(15% 0.025 155)",
+          "oklch(26% 0.025 155)",
+          "oklch(37% 0.025 155)",
+          "oklch(48% 0.025 155)",
+          "oklch(60% 0.025 155)",
+          "oklch(72% 0.025 155)",
+          "oklch(84% 0.025 155)",
+          "oklch(95% 0.025 155)"
+        ]
+      },
+      "muted": {
+        "role": "neutral",
+        "displayName": "Grigio vegetale",
+        "tonalRamp": [
+          "oklch(15% 0.015 155)",
+          "oklch(26% 0.015 155)",
+          "oklch(37% 0.015 155)",
+          "oklch(48% 0.015 155)",
+          "oklch(60% 0.015 155)",
+          "oklch(72% 0.015 155)",
+          "oklch(84% 0.015 155)",
+          "oklch(95% 0.015 155)"
+        ]
+      },
+      "rule": {
+        "role": "neutral",
+        "displayName": "Regola chiara",
+        "tonalRamp": [
+          "oklch(15% 0.012 125)",
+          "oklch(26% 0.012 125)",
+          "oklch(37% 0.012 125)",
+          "oklch(48% 0.012 125)",
+          "oklch(60% 0.012 125)",
+          "oklch(72% 0.012 125)",
+          "oklch(84% 0.012 125)",
+          "oklch(95% 0.012 125)"
+        ]
+      },
+      "wash": {
+        "role": "neutral",
+        "displayName": "Lavatura",
+        "tonalRamp": [
+          "oklch(15% 0.012 125)",
+          "oklch(26% 0.012 125)",
+          "oklch(37% 0.012 125)",
+          "oklch(48% 0.012 125)",
+          "oklch(60% 0.012 125)",
+          "oklch(72% 0.012 125)",
+          "oklch(84% 0.012 125)",
+          "oklch(95% 0.012 125)"
+        ]
+      },
+      "hero-muted": {
+        "role": "neutral",
+        "displayName": "Verde pallido",
+        "tonalRamp": [
+          "oklch(15% 0.02 135)",
+          "oklch(26% 0.02 135)",
+          "oklch(37% 0.02 135)",
+          "oklch(48% 0.02 135)",
+          "oklch(60% 0.02 135)",
+          "oklch(72% 0.02 135)",
+          "oklch(84% 0.02 135)",
+          "oklch(95% 0.02 135)"
+        ]
+      },
+      "error": {
+        "role": "error",
+        "displayName": "Rosso errore",
+        "tonalRamp": [
+          "oklch(15% 0.12 32)",
+          "oklch(26% 0.12 32)",
+          "oklch(37% 0.12 32)",
+          "oklch(48% 0.12 32)",
+          "oklch(60% 0.12 32)",
+          "oklch(72% 0.12 32)",
+          "oklch(84% 0.12 32)",
+          "oklch(95% 0.12 32)"
+        ]
+      }
+    },
+    "typographyMeta": {
+      "display": {
+        "displayName": "Titolo scena",
+        "purpose": "Apertura dello showroom; scala ridotta su mobile."
+      },
+      "headline": {
+        "displayName": "Titolo sezione",
+        "purpose": "Scandisce catalogo, ricamo e racconto."
+      },
+      "body": {
+        "displayName": "Testo corrente",
+        "purpose": "Lettura e informazioni sul prodotto."
+      },
+      "label": {
+        "displayName": "Etichetta azione",
+        "purpose": "Pulsanti principali."
+      }
+    },
+    "shadows": [
+      {
+        "name": "capo-isolato",
+        "value": "drop-shadow(0 22px 22px rgba(8, 20, 14, 0.2))",
+        "purpose": "Filtro del capo nella scena, non ombra delle schede."
+      },
+      {
+        "name": "dialog-backdrop",
+        "value": "rgba(6, 22, 12, 0.45)",
+        "purpose": "Oscuramento del contenuto dietro i dialoghi."
+      }
+    ],
+    "motion": [
+      {
+        "name": "ease",
+        "value": "cubic-bezier(0.16, 1, 0.3, 1)",
+        "purpose": "Transizioni dei controlli."
+      },
+      {
+        "name": "drawer-ease",
+        "value": "cubic-bezier(0.32, 0.72, 0, 1)",
+        "purpose": "Entrata dialoghi (0.3s) e borsa (0.32s)."
+      },
+      {
+        "name": "button-transition",
+        "value": "0.2s",
+        "purpose": "Hover delle azioni; traslazione -2px disabilitata con movimento ridotto."
+      },
+      {
+        "name": "product-image-transition",
+        "value": "transform 0.6s, opacity 0.35s",
+        "purpose": "Zoom 1.025 e dettaglio della scheda al passaggio del puntatore."
+      },
+      {
+        "name": "embroidery-scroll",
+        "value": "GSAP 3.15.1 + ScrollTrigger scrub:true + MorphSVGPlugin; ease:none",
+        "purpose": "Camera iniziale 4; silhouette ingrandita 5.8; sette parti normalizzate; spessore finale 8. Ricami fotografici ufficiali agli estremi, geometrie intermedie basate sugli originali senza equivalenza vettoriale certificata. Nessun autoplay. Alternativa statica per preferenza utente, comando dedicato o librerie assenti."
+      }
+    ],
+    "breakpoints": [
+      {
+        "name": "nav-compact",
+        "value": "1100px"
+      },
+      {
+        "name": "menu-and-two-columns",
+        "value": "850px"
+      },
+      {
+        "name": "scene-tablet",
+        "value": "1000px"
+      },
+      {
+        "name": "mobile",
+        "value": "600px"
+      },
+      {
+        "name": "small-mobile",
+        "value": "360px"
+      },
+      {
+        "name": "wide",
+        "value": "1600px"
+      }
+    ]
+  },
+  "components": [
+    {
+      "name": "Azione principale",
+      "kind": "button",
+      "refersTo": "button-primary",
+      "description": "Azione rettangolare con stato hover e focus visibile.",
+      "html": "<button class=\"ds-btn ds-primary\">Esplora le T-shirt</button>",
+      "css": ".ds-btn{display:inline-flex;align-items:center;justify-content:center;gap:26px;min-height:52px;padding:15px 24px;border:1px solid transparent;border-radius:0;font:500 13px/1.3 Mona,Arial,sans-serif;text-decoration:none;cursor:pointer;transition:background .2s cubic-bezier(.16,1,.3,1),transform .2s cubic-bezier(.16,1,.3,1)}.ds-btn:hover{transform:translateY(-2px)}.ds-btn:active{transform:translateY(0) scale(.98)}.ds-btn:focus-visible{outline:2px solid var(--green,#173d2a);outline-offset:5px}@media(prefers-reduced-motion:reduce){.ds-btn{transition:none}.ds-btn:hover,.ds-btn:active{transform:none}}.ds-primary{background:var(--green,#173d2a);color:var(--white,#fff)}.ds-primary:hover{background:var(--green-hover,#24563c)}"
+    },
+    {
+      "name": "Azione chiara",
+      "kind": "button",
+      "refersTo": "button-light",
+      "description": "Azione rettangolare con stato hover e focus visibile.",
+      "html": "<button class=\"ds-btn ds-light\">Scopri la GT3 RS</button>",
+      "css": ".ds-btn{display:inline-flex;align-items:center;justify-content:center;gap:26px;min-height:52px;padding:15px 24px;border:1px solid transparent;border-radius:0;font:500 13px/1.3 Mona,Arial,sans-serif;text-decoration:none;cursor:pointer;transition:background .2s cubic-bezier(.16,1,.3,1),transform .2s cubic-bezier(.16,1,.3,1)}.ds-btn:hover{transform:translateY(-2px)}.ds-btn:active{transform:translateY(0) scale(.98)}.ds-btn:focus-visible{outline:2px solid var(--green,#173d2a);outline-offset:5px}@media(prefers-reduced-motion:reduce){.ds-btn{transition:none}.ds-btn:hover,.ds-btn:active{transform:none}}.ds-light{background:var(--paper,#f4f5f1);color:var(--green,#173d2a)}.ds-light:hover{background:var(--white,#fff)}"
+    },
+    {
+      "name": "Azione contornata",
+      "kind": "button",
+      "refersTo": "button-outline",
+      "description": "Azione rettangolare con stato hover e focus visibile.",
+      "html": "<button class=\"ds-btn ds-outline\">Conosciamoci</button>",
+      "css": ".ds-btn{display:inline-flex;align-items:center;justify-content:center;gap:26px;min-height:52px;padding:15px 24px;border:1px solid transparent;border-radius:0;font:500 13px/1.3 Mona,Arial,sans-serif;text-decoration:none;cursor:pointer;transition:background .2s cubic-bezier(.16,1,.3,1),transform .2s cubic-bezier(.16,1,.3,1)}.ds-btn:hover{transform:translateY(-2px)}.ds-btn:active{transform:translateY(0) scale(.98)}.ds-btn:focus-visible{outline:2px solid var(--green,#173d2a);outline-offset:5px}@media(prefers-reduced-motion:reduce){.ds-btn{transition:none}.ds-btn:hover,.ds-btn:active{transform:none}}.ds-outline{border-color:currentColor;background:transparent;color:var(--ink,#14231c)}.ds-outline:hover{background:var(--wash,#e7ebe3)}"
+    },
+    {
+      "name": "Ricerca",
+      "kind": "input",
+      "description": "Campo di ricerca con etichetta e linea inferiore.",
+      "html": "<label class=\"ds-search-label\" for=\"ds-search\">Cerca un’auto o un capo</label><input class=\"ds-search\" id=\"ds-search\" type=\"search\" placeholder=\"Per esempio: 964, F40, cappellino\">",
+      "css": ".ds-search-label{display:block;margin-bottom:8px;font:400 12px Mona,Arial,sans-serif;color:var(--ink,#14231c)}.ds-search{width:100%;padding:14px 0;border:0;border-bottom:1px solid var(--ink,#14231c);border-radius:0;background:transparent;color:var(--ink,#14231c);font:400 16px Mona,Arial,sans-serif;caret-color:var(--green,#173d2a)}.ds-search:hover{border-color:var(--green,#173d2a)}.ds-search:focus-visible{outline:2px solid var(--green,#173d2a);outline-offset:5px}"
+    },
+    {
+      "name": "Navigazione desktop",
+      "kind": "nav",
+      "description": "Link compatti con area di interazione alta almeno 44px; sostituiti dal menu a 850px.",
+      "html": "<nav class=\"ds-nav\" aria-label=\"Navigazione principale\"><a href=\"#t-shirt\">T-shirt</a><a href=\"#cappellini\">Cappellini</a><a href=\"#mondo\">Il nostro mondo</a></nav>",
+      "css": ".ds-nav{display:flex;align-items:center;flex-wrap:wrap;gap:clamp(18px,2vw,34px);color:var(--ink,#14231c)}.ds-nav a{display:flex;align-items:center;min-height:44px;font:400 13px Mona,Arial,sans-serif;color:inherit;text-decoration:none}.ds-nav a:hover{text-decoration:underline;text-underline-offset:5px}.ds-nav a:focus-visible{outline:2px solid var(--green,#173d2a);outline-offset:5px}"
+    },
+    {
+      "name": "Filtro categoria",
+      "kind": "chip",
+      "description": "Selezione rettangolare: stato premuto pieno verde, stato libero trasparente.",
+      "html": "<div class=\"ds-filters\" role=\"group\" aria-label=\"Scegli una categoria\"><button aria-pressed=\"true\">T-shirt</button><button aria-pressed=\"false\">Cappellini</button></div>",
+      "css": ".ds-filters{display:flex;gap:7px;flex-wrap:wrap}.ds-filters button{min-height:44px;padding:9px 22px;border:1px solid var(--rule,#d8ddd5);border-radius:0;background:transparent;color:var(--ink,#14231c);font:400 12px Mona,Arial,sans-serif;cursor:pointer;transition:background .2s cubic-bezier(.16,1,.3,1),color .2s cubic-bezier(.16,1,.3,1)}.ds-filters button[aria-pressed=true]{background:var(--green,#173d2a);border-color:var(--green,#173d2a);color:var(--white,#fff)}.ds-filters button:hover{border-color:var(--green,#173d2a)}.ds-filters button:focus-visible{outline:2px solid var(--green,#173d2a);outline-offset:5px}@media(prefers-reduced-motion:reduce){.ds-filters button{transition:none}}"
+    },
+    {
+      "name": "Informazioni scheda prodotto",
+      "kind": "card",
+      "description": "Blocco testuale della scheda piana, sotto la fotografia quadrata ufficiale; nessuna immagine sostitutiva nel campione.",
+      "html": "<article class=\"ds-product\"><h3><a href=\"#modello\">Modello · T-shirt</a></h3><span class=\"ds-price\">Vedi nello shop</span><p>Cotone biologico · Regular unisex</p><a class=\"ds-open\" href=\"#modello\" aria-label=\"Scegli il modello\"><svg viewBox=\"0 0 24 24\" aria-hidden=\"true\"><path d=\"M4 12h16m-7-7 7 7-7 7\"/></svg></a></article>",
+      "css": ".ds-product{display:grid;grid-template-columns:1fr auto;gap:6px 12px;padding:17px 1px 6px;color:var(--ink,#14231c);font-family:Mona,Arial,sans-serif}.ds-product h3{margin:0;font-size:16px;font-weight:500;line-height:1.3;letter-spacing:-.015em}.ds-product a{color:inherit;text-decoration:none}.ds-price{font-size:13px}.ds-product p{grid-column:1;max-width:30ch;margin:0;font-size:12px;color:var(--muted,#58625b)}.ds-open{grid-column:2;grid-row:2;display:flex;align-items:center;justify-content:flex-end;width:40px;min-height:44px}.ds-open svg{width:20px;height:20px;fill:none;stroke:currentColor;stroke-width:1.5;transition:transform .2s cubic-bezier(.16,1,.3,1)}.ds-product:hover .ds-open svg{transform:translateX(3px)}.ds-product a:hover{text-decoration:underline;text-underline-offset:5px}.ds-product a:focus-visible{outline:2px solid var(--green,#173d2a);outline-offset:5px}@media(prefers-reduced-motion:reduce){.ds-open svg{transition:none}.ds-product:hover .ds-open svg{transform:none}}"
+    }
+  ],
+  "narrative": {
+    "northStar": "Il ricamo prende forma",
+    "overview": "Uno showroom luminoso e preciso: verde bosco, carta chiara, fotografie ampie e silhouette riconoscibili. Il capo resta il riferimento materiale; il ricamo occupa un campo piccolo e discreto sul petto. Il logo originale è un asset da preservare.\n\nQuesto documento descrive esclusivamente il preview pubblico LuckyLap Studio. Il sistema visivo del gestionale resta indipendente.",
+    "keyCharacteristics": [
+      "Verde profondo e superfici cartacee.",
+      "Titoli ampi, peso medio e ritmo arioso.",
+      "Fotografia del prodotto e movimento controllato dal visitatore."
+    ],
+    "rules": [],
+    "dos": [
+      "**Do** conservare logo originale, palette e discrezione del ricamo sul capo.",
+      "**Do** mantenere focus visibile, controlli accessibili e alternativa statica."
+    ],
+    "donts": [
+      "**Don't** avviare automaticamente la trasformazione: il visitatore la controlla scorrendo.",
+      "**Don't** presentare i contorni animati come tracciati originali esatti del prodotto."
+    ]
+  }
+}

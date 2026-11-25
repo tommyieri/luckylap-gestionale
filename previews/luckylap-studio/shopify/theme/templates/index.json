@@ -1,34 +1,11 @@
 {
   "sections": {
     "hero": {
-      "type": "hero",
+      "type": "embroidery-hero",
       "settings": {
-        "product": "gt3rs-tshirt"
-      },
-      "blocks": {
-        "964": {
-          "type": "featured_product",
-          "settings": {
-            "product": "964-tshirt",
-            "label": "964"
-          }
-        },
-        "f40": {
-          "type": "featured_product",
-          "settings": {
-            "product": "f40-tshirt",
-            "label": "F40"
-          }
-        },
-        "gt3rs": {
-          "type": "featured_product",
-          "settings": {
-            "product": "gt3rs-tshirt",
-            "label": "GT3 RS"
-          }
-        }
-      },
-      "block_order": ["964", "f40", "gt3rs"]
+        "gt3_product": "gt3rs-tshirt",
+        "f40_product": "f40-tshirt"
+      }
     },
     "collection": {
       "type": "featured-collection",
@@ -52,32 +29,55 @@
     "partners": {
       "type": "partners",
       "settings": {
-        "button_link": "/pages/contact"
+        "button_link": "/pages/club-eventi",
+        "heading": "La passione ci mette insieme.",
+        "text": "Un club, un evento, un negozio. Se condividiamo lo stesso mondo, possiamo immaginare un progetto insieme.",
+        "button_label": "Scopri come collaborare"
       },
       "blocks": {
         "club": {
           "type": "opportunity",
           "settings": {
-            "title": "Club e community",
-            "text": "Un capo dedicato, dalla grafica al ricamo. Costruiamo insieme una proposta per chi condivide la vostra passione."
+            "title": "Un capo per il club.",
+            "text": "Una silhouette dedicata e una personalizzazione da valutare. Definiamo insieme occasione, destinatari, tempi e responsabilità.",
+            "link": "/pages/contact",
+            "link_label": "Raccontaci il progetto"
           }
         },
         "events": {
           "type": "opportunity",
           "settings": {
-            "title": "Eventi e negozi",
-            "text": "Uno stand nel posto giusto o una selezione di capi nel vostro spazio. Parliamone con una proposta concreta."
+            "title": "LuckyLap al vostro evento.",
+            "text": "Una presenza con stand e collezione LuckyLap. Parliamo di pubblico, luogo, date, spazio e condizioni espositive.",
+            "link": "/pages/contact",
+            "link_label": "Parliamo dell’evento"
+          }
+        },
+        "retail": {
+          "type": "opportunity",
+          "settings": {
+            "title": "Nel vostro negozio.",
+            "text": "Un assortimento pensato per il vostro pubblico. Definiamo esposizione, modelli, rendiconto e riassortimento prima delle condizioni.",
+            "link": "/pages/contact",
+            "link_label": "Conosciamoci"
           }
         }
       },
-      "block_order": ["club", "events"]
+      "block_order": ["club", "events", "retail"]
     },
     "world": {
       "type": "brand-world",
       "settings": {
         "link": "/pages/about-us"
       }
+    },
+    "fit_gift": {
+      "type": "fit-gift",
+      "settings": {
+        "product": "964-tshirt",
+        "contact_link": "/pages/contact"
+      }
     }
   },
-  "order": ["hero", "collection", "story", "knitwear", "world", "partners"]
+  "order": ["hero", "collection", "story", "fit_gift", "knitwear", "world", "partners"]
 }

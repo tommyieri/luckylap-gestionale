@@ -1,0 +1,18 @@
+{
+  "date": "2026-11-25",
+  "tool": "image_gen.imagegen (integrato)",
+  "transparent_background": true,
+  "assets": [
+    {
+      "source": "media/gt3rs-tee.webp",
+      "output": "media/animation-shirt-navy.webp",
+      "prompt": "Use case: precise-object-edit and background-extraction. Input image is the exact edit target, not a style reference. Create a clean animation base layer from this product photo. Remove ONLY the small white embroidered car on the center chest and remove the surrounding gray backdrop to genuine alpha transparency. Keep the exact navy cotton T-shirt, its silhouette, scale and position in the square frame, folds, lighting, neck label, white hanging tag and sleeve LuckyLap signature unchanged. Reconstruct the tiny chest area naturally with identical navy cotton. Preserve all fabric texture and edges. Front view, isolated centered shirt, full garment visible. No additional shapes, text, objects, decorations or new branding. This is a component for a scroll-controlled product animation, not a new plain-shirt product."
+    },
+    {
+      "source": "media/f40-tee.webp",
+      "output": "media/animation-shirt-white.webp",
+      "prompt": "Use case: precise-object-edit and background-extraction. This exact white T-shirt product photograph is the edit target. Produce a clean animation base layer: remove ONLY the small red embroidered F40 car on the center chest, and remove the gray background to genuine transparent alpha. Keep the EXACT existing white cotton shirt silhouette, front-view framing and its position and scale, folds, seams, lighting, neck label and red LuckyLap sleeve embroidery. Reconstruct only the tiny removed chest graphic area naturally as the same white cotton. Full shirt visible and centered in square frame. Preserve exact garment edges. No added wording or elements. This is an animation layer of the actual product, not a new plain-shirt product."
+    }
+  ],
+  "postprocessing": "Conversione e ridimensionamento WebP con alpha, width 900, quality 88; nessun altro ritocco dopo generazione."
+}

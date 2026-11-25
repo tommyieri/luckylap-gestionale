@@ -1,3 +1,4 @@
+import { embroideryStoryMarkup, mountEmbroideryScene } from "./embroidery-scene.js";
 import { products as sourceProducts } from "./catalog.js";
 
 const main = document.querySelector("#main");
@@ -18,6 +19,7 @@ const products = sourceProducts.map((product) => ({
 }));
 let liveCatalog = new Map();
 let catalogState = "loading";
+let shippingPolicy;
 let selectedHero = "964-tee";
 let currentCategory = "tshirts";
 let selectedOptions = [];
@@ -26,6 +28,7 @@ let imageIndex = 0;
 let cart = [];
 let toastTimer;
 let returnFocus;
+let disposeScene = () => {};
 try {
   cart = JSON.parse(sessionStorage.getItem("luckylap-studio-bag") || "[]")
     .filter(
@@ -84,12 +87,13 @@ function heroPicker() {
 }
 
 function home() {
-  return `<section class="hero" aria-labelledby="hero-title"><div class="hero-copy"><h1 class="hero-title" id="hero-title">La passione<br />si riconosce.</h1><p>T-shirt e cappellini per chi ama le auto.<br />Silhouette originali. Ricami a macchina realizzati in Italia sulle nostre T-shirt.</p><div class="hero-actions"><a class="btn btn-light" href="#collezione">Trova il tuo modello ${icon("arrow")}</a></div><div class="featured-picker" aria-label="Il tuo primo giro nella collezione">${heroPicker()}</div></div><div class="hero-media"><img src="/media/world-lifestyle.webp" alt="T-shirt GT3 RS LuckyLap navy indossata, con la silhouette ricamata sul petto" width="1066" height="1600" fetchpriority="high" /><a class="hero-photo-link" href="/products/gt3rs-tshirt">GT3 RS · Da indossare ogni giorno ${icon("arrow")}</a></div></section>
+  return `${embroideryStoryMarkup()}
   <section class="collection-section" id="collezione" aria-labelledby="collection-title"><div class="section-heading"><h2 id="collection-title">Quale auto<br />ti rappresenta?</h2><p>Un’icona che riconosci al primo sguardo.<br />Un dettaglio che porti nel quotidiano.</p></div><div class="filter-tabs" role="group" aria-label="Scegli una categoria"><button data-home-filter="tshirts" aria-pressed="${currentCategory === "tshirts"}">T-shirt</button><button data-home-filter="caps" aria-pressed="${currentCategory === "caps"}">Cappellini</button></div><div class="shop-grid" id="home-products">${products
     .filter((p) => p.category === currentCategory)
     .map(card)
     .join("")}</div></section>
   <section class="story-grid" id="ricamo" aria-labelledby="embroidery-title"><div class="story-image"><img id="embroidery-image" src="/media/gt3rs-tee-detail.webp" alt="Dettaglio della GT3 RS ricamata sul cotone navy con cartellino LuckyLap" width="1200" height="800" loading="lazy" /></div><div class="story-copy"><h2 id="embroidery-title">Il disegno<br />diventa filo.</h2><p>Disegniamo le silhouette che ci fanno girare la testa. Poi le facciamo ricamare a macchina in Italia, sul cotone biologico delle nostre T-shirt.</p><p class="story-fact">Il carattere dell’auto, nelle sue linee.<br />Il tuo stile, nel modo di indossarle.</p><div class="story-detail-toggle" role="group" aria-label="Guarda i dettagli del ricamo"><button data-embroidery="gt3" aria-pressed="true">GT3 RS</button><button data-embroidery="project" aria-pressed="false">Project ’88</button></div><a class="text-link" href="/collections/t-shirt">Esplora le T-shirt ${icon("arrow")}</a></div></section>
+  <section class="fit-gift" aria-labelledby="gift-title"><img src="/media/world-lifestyle.webp" alt="GT3 RS LuckyLap indossata, con il ricamo visibile sul petto" width="1066" height="1600" loading="lazy"><div><h2 id="gift-title">Un dettaglio<br>che ti somiglia.</h2><p>Per te, o per qualcuno di cui conosci la passione. Parti dall’auto. Poi confronta le misure con una T-shirt che indossi già.</p><a class="btn btn-primary" href="/products/964-tshirt#taglie">Trova la taglia <svg aria-hidden="true"><use href="/icons.svg#arrow"></use></svg></a><p class="fit-stockist">Preferisci vederla da vicino?<br><a class="text-link" href="https://luckylap.com/pages/contact" target="_blank" rel="noopener noreferrer">Scopri il punto vendita a Milano <svg aria-hidden="true"><use href="/icons.svg#arrow"></use></svg></a></p></div></section>
   <section class="knitwear" id="maglieria" aria-labelledby="knitwear-title"><h2 id="knitwear-title">Il prossimo<br />capitolo si<br />fa in lana.</h2><div class="knitwear-copy"><div class="coming-soon">Maglieria in arrivo</div><p class="wool-truth">100% lana.<br />Made in Italy.</p><p>Stiamo preparando i primi maglioni LuckyLap. La stessa passione per i dettagli, in una nuova parte del guardaroba.</p><a class="text-link" href="https://luckylap.com/pages/contact" target="_blank" rel="noopener noreferrer">Chiedici un aggiornamento ${icon("arrow")}</a></div></section>
   <section class="world-section" aria-labelledby="world-title"><div class="world-grid"><div><h2 id="world-title">Prima dei capi,<br />la passione.</h2><p>LuckyLap nasce da due appassionati di auto a Milano. Volevamo portare con noi le linee che amiamo, anche lontano dai circuiti.</p><a class="text-link" href="/pages/about-us">Entra nel nostro mondo ${icon("arrow")}</a></div><img src="/media/world-founders.webp" alt="I fondatori LuckyLap indossano una T-shirt navy e una bianca con silhouette ricamate" width="974" height="974" loading="lazy" /></div></section>
   <section class="partner-section" aria-labelledby="partner-title"><h2 id="partner-title">La passione<br />ci mette insieme.</h2><div><p>Un club, un evento, un negozio. Se condividiamo lo stesso mondo, possiamo immaginare un progetto insieme.</p><a class="btn btn-light" href="/pages/club-eventi">Scopri come collaborare ${icon("arrow")}</a></div></section>`;
@@ -157,7 +161,7 @@ function productPage(product) {
     data?.variants?.[0];
   selectedOptions = initial?.options ? [...initial.options] : [];
   imageIndex = 0;
-  return `<article class="product-page"><nav class="breadcrumbs" aria-label="Ti trovi qui"><a href="/">Home</a><span>/</span><a href="/collections/${product.category === "tshirts" ? "t-shirt" : "accessories"}">${product.category === "tshirts" ? "T-shirt" : "Cappellini"}</a><span>/</span><span>${escapeHtml(product.name)}</span></nav><div class="product-layout"><div class="product-gallery"><div class="product-main-image"><img id="product-image" src="${escapeHtml(fullImageUrl(initial?.image) || product.image)}" alt="${escapeHtml(initial?.image ? `${productName(product)}, ${initial.options.join(" / ")}` : product.alt)}" width="960" height="960" fetchpriority="high" /></div><div class="gallery-thumbs" role="group" aria-label="Immagini del capo"><button data-product-image="0" aria-label="Guarda il capo intero" aria-pressed="true"><img src="${escapeHtml(fullImageUrl(initial?.image) || product.thumb)}" alt="" width="240" height="240" /></button><button data-product-image="1" aria-label="Guarda ${escapeHtml(product.viewLabel.toLowerCase())}" aria-pressed="false"><img src="${product.detailImage}" alt="" width="${product.detailWidth}" height="${product.detailHeight}" /></button></div></div><div class="product-summary"><h1>${escapeHtml(productName(product))}</h1><p class="product-subtitle">${escapeHtml(product.description)}</p><div class="product-price-line"><span class="product-price" id="selected-price">${priceOf(product)}</span></div><p class="product-tax">Imposte incluse. <a href="https://luckylap.com/policies/shipping-policy" target="_blank" rel="noopener noreferrer">Spedizione</a> calcolata al checkout.</p><div id="product-options">${optionControls(product)}</div><div class="product-accordions">${product.category === "tshirts" ? `<details><summary>Trova la tua taglia</summary><div class="details-content">${sizeGuide()}</div></details>` : ""}<details><summary>Materiali e ricamo</summary><div class="details-content"><p>${product.category === "tshirts" ? "T-shirt in cotone biologico pettinato. Vestibilità regular unisex. Disegni originali LuckyLap e ricami a macchina realizzati in Italia." : "Cotone lavato, visiera curva e chiusura regolabile. Ricami LuckyLap."}</p><p>${product.category === "tshirts" ? "Il luogo del ricamo non indica il luogo di produzione dell’intero capo." : "Consulta la scheda ufficiale per tutte le caratteristiche del capo."}</p></div></details><details><summary>Consegna e resi</summary><div class="details-content"><p>Destinazione e contenuto dell’ordine determinano le opzioni di spedizione, verificate prima del pagamento sullo shop.</p><p>Hai 30 giorni dalla consegna per richiedere un reso, secondo le condizioni pubblicate.</p><a href="https://luckylap.com/policies/refund-policy" target="_blank" rel="noopener noreferrer">Leggi la politica di reso</a></div></details><details><summary>Un regalo da riconoscere</summary><div class="details-content"><p>Parti dall’auto che ama e confronta la taglia con un capo che indossa già. Le T-shirt arrivano nella confezione LuckyLap.</p></div></details></div><div class="product-reassurance"><p>${product.category === "tshirts" ? "Ricamo a macchina in Italia" : "Chiusura regolabile"}</p><p>Assistenza prima e dopo l’acquisto</p></div></div></div><section class="product-detail-banner"><img src="${product.detailImage}" alt="${escapeHtml(product.detailAlt)}" width="${product.detailWidth}" height="${product.detailHeight}" loading="lazy" /><div><h2>È il dettaglio<br />che riconosci.</h2><p>${product.category === "tshirts" ? "Un profilo familiare, disegnato da noi e trasformato in ricamo. Il resto lo racconti tu, indossandolo." : "Un richiamo discreto alla tua passione. Da abbinare ai capi che indossi ogni giorno."}</p></div></section></article>`;
+  return `<article class="product-page"><nav class="breadcrumbs" aria-label="Ti trovi qui"><a href="/">Home</a><span>/</span><a href="/collections/${product.category === "tshirts" ? "t-shirt" : "accessories"}">${product.category === "tshirts" ? "T-shirt" : "Cappellini"}</a><span>/</span><span>${escapeHtml(product.name)}</span></nav><div class="product-layout"><div class="product-gallery"><div class="product-main-image"><img id="product-image" src="${escapeHtml(fullImageUrl(initial?.image) || product.image)}" alt="${escapeHtml(initial?.image ? `${productName(product)}, ${initial.options.join(" / ")}` : product.alt)}" width="960" height="960" fetchpriority="high" /></div><div class="gallery-thumbs" role="group" aria-label="Immagini del capo"><button data-product-image="0" aria-label="Guarda il capo intero" aria-pressed="true"><img src="${escapeHtml(fullImageUrl(initial?.image) || product.thumb)}" alt="" width="240" height="240" /></button><button data-product-image="1" aria-label="Guarda ${escapeHtml(product.viewLabel.toLowerCase())}" aria-pressed="false"><img src="${product.detailImage}" alt="" width="${product.detailWidth}" height="${product.detailHeight}" /></button></div></div><div class="product-summary"><h1>${escapeHtml(productName(product))}</h1><p class="product-subtitle">${escapeHtml(product.description)}</p><div class="product-price-line"><span class="product-price" id="selected-price">${priceOf(product)}</span></div><p class="product-tax">Imposte incluse. <a href="https://luckylap.com/policies/shipping-policy" target="_blank" rel="noopener noreferrer">Spedizione</a> calcolata al checkout.</p><div id="product-options">${optionControls(product)}</div><div class="product-accordions">${product.category === "tshirts" ? `<details id="taglie"><summary>Trova la tua taglia</summary><div class="details-content">${sizeGuide()}</div></details>` : ""}<details><summary>Materiali e ricamo</summary><div class="details-content"><p>${product.category === "tshirts" ? "T-shirt in cotone biologico pettinato. Vestibilità regular unisex. Disegni originali LuckyLap e ricami a macchina realizzati in Italia." : "Cotone lavato, visiera curva e chiusura regolabile. Ricami LuckyLap."}</p><p>${product.category === "tshirts" ? "Il luogo del ricamo non indica il luogo di produzione dell’intero capo." : "Consulta la scheda ufficiale per tutte le caratteristiche del capo."}</p></div></details><details><summary>Consegna e resi</summary><div class="details-content"><div data-shipping-policy></div><p>Destinazione e contenuto dell’ordine determinano le opzioni di spedizione, verificate prima del pagamento sullo shop.</p><p>Hai 30 giorni dalla consegna per richiedere un reso, secondo le condizioni pubblicate.</p><a href="https://luckylap.com/policies/refund-policy" target="_blank" rel="noopener noreferrer">Leggi la politica di reso</a></div></details><details><summary>Un regalo da riconoscere</summary><div class="details-content"><p>Parti dall’auto che ama e confronta la taglia con un capo che indossa già. Le T-shirt arrivano nella confezione LuckyLap.</p></div></details></div><div class="product-reassurance"><p>${product.category === "tshirts" ? "Ricamo a macchina in Italia" : "Chiusura regolabile"}</p><p>Assistenza prima e dopo l’acquisto</p></div></div></div><section class="product-detail-banner"><img src="${product.detailImage}" alt="${escapeHtml(product.detailAlt)}" width="${product.detailWidth}" height="${product.detailHeight}" loading="lazy" /><div><h2>È il dettaglio<br />che riconosci.</h2><p>${product.category === "tshirts" ? "Un profilo familiare, disegnato da noi e trasformato in ricamo. Il resto lo racconti tu, indossandolo." : "Un richiamo discreto alla tua passione. Da abbinare ai capi che indossi ogni giorno."}</p></div></section></article>`;
 }
 
 function aboutPage() {
@@ -165,10 +169,12 @@ function aboutPage() {
 }
 
 function partnerPage() {
-  return `<article class="content-page"><h1>Una passione.<br />Il vostro progetto.</h1><p class="content-lead">Club, eventi e negozi condividono con noi il piacere di riconoscersi in un dettaglio. Possiamo valutare insieme un capo dedicato, una presenza dal vivo o una proposta per il vostro pubblico.</p><section class="partner-paths"><div class="partner-path"><h2>Un capo per il club.</h2><p>Un progetto co-firmato, con un disegno dedicato e il vostro logo. Partiamo dall’idea, poi definiamo insieme fattibilità, tempi e gestione.</p><a class="btn btn-primary" href="https://luckylap.com/pages/contact" target="_blank" rel="noopener noreferrer">Raccontaci il progetto ${icon("arrow")}</a></div><div class="partner-path"><h2>Incontriamoci dal vivo.</h2><p>Uno stand, un incontro o un assortimento per il negozio. Prima di decidere, confrontiamoci sul pubblico, sugli spazi e sul lavoro da organizzare.</p><a class="btn btn-outline" href="https://luckylap.com/pages/contact" target="_blank" rel="noopener noreferrer">Parliamo dell’opportunità ${icon("arrow")}</a></div></section><section class="content-split"><img src="/media/gt3rs-tee-detail.webp" alt="Dettaglio della silhouette GT3 RS ricamata sul cotone navy" width="1200" height="800" loading="lazy" /><div><h2>Un progetto chiaro,<br />dall’inizio.</h2><p>Ci raccontate chi siete e cosa avete in mente. Noi valutiamo il prodotto e la proposta adatti. Prima di partire definiamo responsabilità, quantità e condizioni, senza impegni anticipati.</p><a class="text-link" href="/collections/t-shirt">Conosci la collezione ${icon("arrow")}</a></div></section></article>`;
+  return `<article class="content-page"><h1>Una passione.<br>Tre modi di incontrarci.</h1><p class="content-lead">Un capo per il club, una presenza al vostro evento, un assortimento per il negozio. Partiamo dal vostro pubblico e definiamo insieme il progetto.</p><section class="partner-paths"><div class="partner-path"><h2>Un capo per il club.</h2><p>Una silhouette dedicata e una personalizzazione da valutare. Ci raccontate occasione, destinatari e tempi desiderati. Prima di partire definiamo chi approva il disegno e chi segue ordini, stock, consegna e assistenza.</p><a class="btn btn-primary" href="https://luckylap.com/pages/contact" target="_blank" rel="noopener noreferrer">Raccontaci il progetto ${icon("arrow")}</a></div><div class="partner-path"><h2>LuckyLap al vostro evento.</h2><p>Valutiamo una presenza con stand e collezione LuckyLap. Per preparare una proposta ci servono pubblico, luogo, date, opzioni di spazio e condizioni espositive.</p><a class="btn btn-outline" href="https://luckylap.com/pages/contact" target="_blank" rel="noopener noreferrer">Parliamo dell’evento ${icon("arrow")}</a></div><div class="partner-path"><h2>Nel vostro negozio.</h2><p>Un assortimento pensato per il vostro pubblico. Confrontiamoci su esposizione e modelli, poi definiamo disponibilità, rendiconto e riassortimento prima di concordare le condizioni.</p><a class="btn btn-outline" href="https://luckylap.com/pages/contact" target="_blank" rel="noopener noreferrer">Conosciamoci ${icon("arrow")}</a></div></section><section class="content-split"><img src="/media/gt3rs-tee-detail.webp" alt="Dettaglio della GT3 RS ricamata sul cotone navy" width="1200" height="800" loading="lazy"><div><h2>Le responsabilità,<br>dall’inizio.</h2><p>Ogni realtà ha persone e risorse diverse. Prima di confermare il progetto mettiamo a fuoco prodotto, fattibilità, ruoli e prossimi passi.</p><a class="text-link" href="/collections/t-shirt">Conosci la collezione ${icon("arrow")}</a></div></section></article>`;
 }
 
 function renderRoute({ scroll = true } = {}) {
+  disposeScene();
+  disposeScene = () => {};
   const path = window.location.pathname;
   selectedProduct = undefined;
   if (path.startsWith("/products/")) {
@@ -190,6 +196,17 @@ function renderRoute({ scroll = true } = {}) {
   } else {
     main.innerHTML = home();
     document.title = "LuckyLap — La passione si riconosce.";
+  }
+  disposeScene = mountEmbroideryScene(main, {
+    priceFor: (id) => {
+      const product = products.find((p) => p.id === id);
+      return product ? priceOf(product) : "Verifica nello shop";
+    },
+  });
+  renderShippingPolicy();
+  if (location.hash === "#taglie") {
+    const guide = main.querySelector("#taglie");
+    if (guide) guide.open = true;
   }
   if (scroll) {
     window.scrollTo({ top: 0, behavior: "instant" });
@@ -247,6 +264,37 @@ function updateProductOptions() {
     image.alt = variant?.image
       ? `${productName(product)}, ${selectedOptions.join(" / ")}`
       : product.alt;
+  }
+}
+
+function renderShippingPolicy() {
+  if (!shippingPolicy) return;
+  const { rates, freeShipping } = shippingPolicy;
+  const amount = (cents) => money.format(cents / 100);
+  document.querySelectorAll("[data-shipping-policy]").forEach((node) => {
+    node.innerHTML = `<p><strong>Spedizioni</strong><br>Italia ${amount(rates.italy)} · Europa e Regno Unito ${amount(rates.europe)} · Resto del mondo ${amount(rates.world)}.</p><p>Gratuita da ${amount(freeShipping.minimumSubtotal)} di totale ordine, con qualsiasi prodotto, in Italia, Europa e Regno Unito. Nel resto del mondo il costo resta ${amount(rates.world)}.</p>`;
+  });
+}
+async function loadShippingPolicy() {
+  try {
+    const response = await fetch("/api/shipping-policy");
+    if (!response.ok) return;
+    const data = await response.json();
+    if (
+      data.currency !== "EUR" ||
+      ![
+        data.rates?.italy,
+        data.rates?.europe,
+        data.rates?.world,
+        data.freeShipping?.minimumSubtotal,
+      ].every(Number.isSafeInteger) ||
+      data.freeShipping.zones.join(",") !== "italy,europe"
+    )
+      return;
+    shippingPolicy = data;
+    renderShippingPolicy();
+  } catch {
+    /* Lo shop conferma le condizioni al checkout. */
   }
 }
 
@@ -310,7 +358,8 @@ function renderCart() {
     })
     .join("");
   const permalink = `https://luckylap.com/cart/${cart.map((line) => `${line.variantId}:${line.quantity}`).join(",")}`;
-  target.innerHTML = `<div class="cart-lines">${lines}</div><div class="cart-total"><div class="cart-total-row"><span>Totale articoli</span><span>${money.format(total / 100)}</span></div><p>Imposte incluse. Spedizione ed eventuali sconti vengono verificati nello shop prima del pagamento.</p>${allVerified ? `<a class="btn btn-primary" href="${permalink}" target="_blank" rel="noopener noreferrer">Continua su LuckyLap ${icon("arrow")}</a>` : '<p class="error-message">Una variante non è disponibile o non è stata verificata. Rimuovila o controlla il capo nello shop.</p>'}<p class="cart-preview-note">Stai provando la nuova esperienza. L’acquisto si completa nello shop LuckyLap attuale.</p></div>`;
+  target.innerHTML = `<div class="cart-lines">${lines}</div><div class="cart-total"><div class="cart-total-row"><span>Totale articoli</span><span>${money.format(total / 100)}</span></div><p>Imposte incluse. Spedizione ed eventuali sconti vengono verificati nello shop prima del pagamento.</p>${allVerified ? `<a class="btn btn-primary" href="${permalink}" target="_blank" rel="noopener noreferrer">Continua su LuckyLap ${icon("arrow")}</a>` : '<p class="error-message">Una variante non è disponibile o non è stata verificata. Rimuovila o controlla il capo nello shop.</p>'}<div class="cart-shipping" data-shipping-policy></div><p class="cart-preview-note">Stai provando la nuova esperienza. L’acquisto si completa nello shop LuckyLap attuale.</p></div>`;
+  renderShippingPolicy();
 }
 
 function search(query = "") {
@@ -334,6 +383,7 @@ document.addEventListener("click", (event) => {
   const button = event.target.closest("button");
   if (button?.matches("[data-open-cart]")) {
     renderCart();
+    renderShippingPolicy();
     openDialog("#cart-dialog");
   }
   if (button?.matches("[data-open-search]")) {
@@ -472,6 +522,7 @@ document.addEventListener("submit", (event) => {
   else cart.push({ productId: selectedProduct.id, variantId: variant.id, quantity: 1 });
   saveCart();
   renderCart();
+  renderShippingPolicy();
   openDialog("#cart-dialog");
   toast("Il tuo capo è nella borsa.");
 });
@@ -512,3 +563,5 @@ document.querySelector("[data-year]").textContent = new Date().getFullYear();
 renderRoute({ scroll: false });
 updateCartCount();
 void loadCatalog();
+
+void loadShippingPolicy();

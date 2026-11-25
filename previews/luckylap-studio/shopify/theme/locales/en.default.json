@@ -61,7 +61,9 @@
     "eyebrow": "A shared passion",
     "title": "Bring LuckyLap into your world.",
     "text": "Clubs, events and selected shops. Different ways to bring a community together around the same passion.",
-    "action": "Tell us about your project"
+    "action": "Tell us about your project",
+    "responsibilities_title": "Responsibilities, from the start.",
+    "responsibilities_text": "Every organisation has different people and resources. Before confirming the project, we agree on the product, feasibility, roles and next steps."
   },
   "product": {
     "sold_out": "Sold out",
@@ -79,7 +81,8 @@
     "size_guide": "Size guide",
     "description": "The details",
     "image_number": "Image {{ number }} of {{ title }}",
-    "image_notice": "The general product image is not assigned to the selected variant. Check the colour shown in the options."
+    "image_notice": "The general product image is not assigned to the selected variant. Check the colour shown in the options.",
+    "delivery": "Delivery"
   },
   "collection": {
     "empty": "There are no products in this collection yet.",
@@ -138,5 +141,32 @@
     "text": "LuckyLap began with two car enthusiasts in Milan. We wanted to carry the lines we love with us, even away from the track.",
     "action": "Enter our world",
     "image_alt": "The LuckyLap founders wearing T-shirts with embroidered car silhouettes"
+  },
+  "embroidery": {
+    "heading_first": "Passion",
+    "heading_second": "takes shape.",
+    "intro": "T-shirts for car enthusiasts.",
+    "original_designs": "Original drawings. Machine embroidery",
+    "made_in_italy": "made in Italy.",
+    "gt3_action": "Discover the GT3 RS",
+    "f40_action": "Discover the F40",
+    "collection_action": "Explore the collection",
+    "gt3_object": "the GT3 RS",
+    "f40_object": "the F40",
+    "collection_object": "the collection",
+    "check_price": "Check in the shop",
+    "instruction": "Scroll to bring the embroidery to life.",
+    "explore": "Explore the embroidery",
+    "reduce_motion": "Reduce motion",
+    "enable_motion": "Enable motion"
+  },
+  "fit_gift": {
+    "heading_first": "A detail",
+    "heading_second": "that feels like you.",
+    "text": "For yourself, or someone whose passion you know. Start with the car, then compare the measurements with a T-shirt you already wear.",
+    "size_action": "Find your size",
+    "stockist_text": "Prefer to see it in person?",
+    "stockist_action": "Discover the Milan stockist",
+    "image_alt": "A LuckyLap GT3 RS T-shirt being worn, with the embroidery visible on the chest"
   }
 }

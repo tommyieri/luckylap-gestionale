@@ -47,6 +47,7 @@ Alcuni documenti scritti prima del modello attuale chiedono ancora una sessione 
 - [Vendite e produzione condivise](sales-interface.md): pagina `/sales` collegata alle RPC del nucleo transazionale.
 - [Catalogo commerciale Shopify](catalog-shopify.md): tabella `shopify_catalog_variants` con varianti, prezzi e collegamento agli SKU fisici.
 - [App interna Shopify](shopify-app-setup.md): preparazione e installazione dell'app «LuckyLap Gestionale» senza nuovi abbonamenti.
+- [Sonda dei permessi Shopify](probe-shopify-permissions.md): piano offline e letture isolate con la stessa app interna, report redatto e nessuna applicazione di ordini.
 - [Collegamento Shopify](shopify-bridge.md): verifica della firma HMAC delle notifiche webhook in `src/lib/shopify/webhook.ts`.
 - [Ricevitore Shopify e inbox](shopify-receiver.md): route `POST /api/integrations/shopify/webhook` che salva ricevuta e job.
 - [Reader canonico Shopify](shopify-canonical-reader.md): lettura di un ordine tramite Admin GraphQL 2026-10, senza scritture.

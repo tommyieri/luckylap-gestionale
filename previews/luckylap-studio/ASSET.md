@@ -40,3 +40,10 @@ La maglieria futura non ha immagini prodotto in questa consegna. Nessun mockup v
 - `icons.svg`: simboli derivati da [Lucide](https://lucide.dev/). La licenza ISC e le attribuzioni MIT applicabili alle icone derivate da Feather sono conservate in `LICENZA-ICONE.txt`.
 
 Nessun prezzo, giacenza o data di lancio è attestato da questo manifest.
+
+## Livelli della scena animata, 25 novembre
+
+- animation-shirt-navy.webp e animation-shirt-white.webp: livelli elaborati con lo strumento integrato ImageGen dalle rispettive foto prodotto ufficiali, rimozione del ricamo frontale e scontorno per la sola composizione animata. Originali prodotto conservati. Conversione WebP con alpha; prompt in PROMPT-ANIMAZIONE.json. Non rappresentano nuovi capi senza ricamo acquistabili.
+- gt3rs-originale-drive.png e f40-originale-drive.png: disegni raster originali del brand, copiati senza ritocchi da LuckyLap/Grafiche/Auto. Sono riferimenti autorizzati del founder; fonte e SHA nel dossier esterno ORIGINALI-RICAMI-DRIVE.md.
+- embroidery-morph.js contiene sette contorni normalizzati e semplificati per il passaggio animato. Sono distinti dagli originali e dalle fotografie del ricamo.
+- Gli estremi usano i dettagli ufficiali GT3 RS e F40 con maschera alpha a runtime. Il dettaglio F40 mantiene la nota di provenienza già indicata sopra.

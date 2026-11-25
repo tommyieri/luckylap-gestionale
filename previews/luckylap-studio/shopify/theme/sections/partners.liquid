@@ -1,4 +1,29 @@
-<section class="partner-section section-pad" id="partners" aria-labelledby="PartnersTitle-{{ section.id }}"><p class="eyebrow">{{ 'partners.eyebrow' | t }}</p><h2 id="PartnersTitle-{{ section.id }}">{% if section.settings.heading != blank %}{{ section.settings.heading | escape }}{% else %}{{ 'partners.title' | t }}{% endif %}</h2><p class="partner-intro">{% if section.settings.text != blank %}{{ section.settings.text | escape }}{% else %}{{ 'partners.text' | t }}{% endif %}</p><div class="partner-grid">{% for block in section.blocks %}<article class="partner-card" {{ block.shopify_attributes }}><span class="partner-number">0{{ forloop.index }}</span><h3>{{ block.settings.title | escape }}</h3><p>{{ block.settings.text | escape }}</p>{% if block.settings.link != blank %}<a class="text-link" href="{{ block.settings.link }}">{{ block.settings.link_label | escape }} <span aria-hidden="true">↗</span></a>{% endif %}</article>{% endfor %}</div>{% if section.settings.button_link != blank %}<a class="btn btn-light" href="{{ section.settings.button_link }}">{% if section.settings.button_label != blank %}{{ section.settings.button_label | escape }}{% else %}{{ 'partners.action' | t }}{% endif %}<span aria-hidden="true">↗</span></a>{% endif %}</section>
+{% if template.suffix == 'club-eventi' %}
+  <article class="content-page" aria-labelledby="PartnersTitle-{{ section.id }}">
+    <h1 id="PartnersTitle-{{ section.id }}">{{ section.settings.heading | default: page.title | escape }}</h1>
+    <p class="content-lead">{{ section.settings.text | escape }}</p>
+    <section class="partner-paths">
+      {% for block in section.blocks %}
+        <div class="partner-path" {{ block.shopify_attributes }}>
+          <h2>{{ block.settings.title | escape }}</h2>
+          <p>{{ block.settings.text | escape }}</p>
+          {% if block.settings.link != blank %}<a class="btn {% if forloop.first %}btn-primary{% else %}btn-outline{% endif %}" href="{{ block.settings.link }}">{{ block.settings.link_label | escape }} <span aria-hidden="true">↗</span></a>{% endif %}
+        </div>
+      {% endfor %}
+    </section>
+    <section class="content-split">
+      <img src="{{ 'story.webp' | asset_url }}" alt="{{ 'story.image_alt' | t }}" width="1200" height="800" loading="lazy">
+      <div><h2>{{ 'partners.responsibilities_title' | t }}</h2><p>{{ 'partners.responsibilities_text' | t }}</p><a class="text-link" href="{{ routes.all_products_collection_url }}">{{ 'home.all_products' | t }} <span aria-hidden="true">↗</span></a></div>
+    </section>
+  </article>
+{% else %}
+  <section class="partner-section" id="partners" aria-labelledby="PartnersTitle-{{ section.id }}">
+    <h2 id="PartnersTitle-{{ section.id }}">{% if section.settings.heading != blank %}{{ section.settings.heading | escape }}{% else %}{{ 'partners.title' | t }}{% endif %}</h2>
+    <div><p>{% if section.settings.text != blank %}{{ section.settings.text | escape }}{% else %}{{ 'partners.text' | t }}{% endif %}</p>
+      {% if section.settings.button_link != blank %}<a class="btn btn-light" href="{{ section.settings.button_link }}">{% if section.settings.button_label != blank %}{{ section.settings.button_label | escape }}{% else %}{{ 'partners.action' | t }}{% endif %}<span aria-hidden="true">↗</span></a>{% endif %}
+    </div>
+  </section>
+{% endif %}
 {% schema %}
 {
   "name": "Club, eventi e negozi",

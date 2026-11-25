@@ -15,6 +15,12 @@
       :root { --green: {{ settings.color_green }}; --cream: {{ settings.color_background }}; --paper: {{ settings.color_background }}; --ink: {{ settings.color_text }}; --color-green: {{ settings.color_green }}; --color-background: {{ settings.color_background }}; --color-ink: {{ settings.color_text }}; --font-body: {% if settings.font_source == 'shopify' %}{{ settings.body_font.family }}, {{ settings.body_font.fallback_families }}{% else %}'Mona Sans', Arial, sans-serif{% endif %}; }
     {% endstyle %}
     <script src="{{ 'theme.js' | asset_url }}" defer></script>
+    {% if template.name == 'index' %}
+      <script src="{{ 'gsap-3.15.1.min.js' | asset_url }}" defer></script>
+      <script src="{{ 'ScrollTrigger-3.15.1.min.js' | asset_url }}" defer></script>
+      <script src="{{ 'MorphSVGPlugin-3.15.1.min.js' | asset_url }}" defer></script>
+      <script type="module" src="{{ 'embroidery-shopify.js' | asset_url }}"></script>
+    {% endif %}
     {{ content_for_header }}
   </head>
   <body class="template-{{ template.name | handle }}">

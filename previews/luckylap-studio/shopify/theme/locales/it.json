@@ -61,7 +61,9 @@
     "eyebrow": "Una passione condivisa",
     "title": "Porta LuckyLap nel tuo mondo.",
     "text": "Club, eventi e negozi selezionati. Modi diversi di riunire una community intorno alla stessa passione.",
-    "action": "Raccontaci il tuo progetto"
+    "action": "Raccontaci il tuo progetto",
+    "responsibilities_title": "Le responsabilità, dall’inizio.",
+    "responsibilities_text": "Ogni realtà ha persone e risorse diverse. Prima di confermare il progetto mettiamo a fuoco prodotto, fattibilità, ruoli e prossimi passi."
   },
   "product": {
     "sold_out": "Esaurito",
@@ -79,7 +81,8 @@
     "size_guide": "Guida taglie",
     "description": "I dettagli",
     "image_number": "Immagine {{ number }} di {{ title }}",
-    "image_notice": "La foto generale non è associata alla variante selezionata. Controlla il colore indicato nelle opzioni."
+    "image_notice": "La foto generale non è associata alla variante selezionata. Controlla il colore indicato nelle opzioni.",
+    "delivery": "Consegna"
   },
   "collection": {
     "empty": "Questa collezione non contiene ancora prodotti.",
@@ -138,5 +141,32 @@
     "text": "LuckyLap nasce da due appassionati di auto a Milano. Volevamo portare con noi le linee che amiamo, anche lontano dai circuiti.",
     "action": "Entra nel nostro mondo",
     "image_alt": "I fondatori LuckyLap indossano le T-shirt con le silhouette automobilistiche ricamate"
+  },
+  "embroidery": {
+    "heading_first": "La passione",
+    "heading_second": "prende forma.",
+    "intro": "T-shirt per chi ama le auto.",
+    "original_designs": "Disegni originali. Ricami a macchina",
+    "made_in_italy": "realizzati in Italia.",
+    "gt3_action": "Scopri la GT3 RS",
+    "f40_action": "Scopri la F40",
+    "collection_action": "Vai alla collezione",
+    "gt3_object": "la GT3 RS",
+    "f40_object": "la F40",
+    "collection_object": "la collezione",
+    "check_price": "Verifica nello shop",
+    "instruction": "Scorri per dare movimento al ricamo.",
+    "explore": "Esplora il ricamo",
+    "reduce_motion": "Riduci il movimento",
+    "enable_motion": "Attiva il movimento"
+  },
+  "fit_gift": {
+    "heading_first": "Un dettaglio",
+    "heading_second": "che ti somiglia.",
+    "text": "Per te, o per qualcuno di cui conosci la passione. Parti dall’auto. Poi confronta le misure con una T-shirt che indossi già.",
+    "size_action": "Trova la taglia",
+    "stockist_text": "Preferisci vederla da vicino?",
+    "stockist_action": "Scopri il punto vendita a Milano",
+    "image_alt": "GT3 RS LuckyLap indossata, con il ricamo visibile sul petto"
   }
 }
