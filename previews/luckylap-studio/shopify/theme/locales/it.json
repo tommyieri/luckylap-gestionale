@@ -143,22 +143,15 @@
     "image_alt": "I fondatori LuckyLap indossano le T-shirt con le silhouette automobilistiche ricamate"
   },
   "embroidery": {
-    "heading_first": "La passione",
-    "heading_second": "prende forma.",
-    "intro": "T-shirt per chi ama le auto.",
-    "original_designs": "Disegni originali. Ricami a macchina",
-    "made_in_italy": "realizzati in Italia.",
-    "gt3_action": "Scopri la GT3 RS",
-    "f40_action": "Scopri la F40",
-    "collection_action": "Vai alla collezione",
-    "gt3_object": "la GT3 RS",
-    "f40_object": "la F40",
-    "collection_object": "la collezione",
-    "check_price": "Verifica nello shop",
-    "instruction": "Scorri per dare movimento al ricamo.",
-    "explore": "Esplora il ricamo",
-    "reduce_motion": "Riduci il movimento",
-    "enable_motion": "Attiva il movimento"
+    "heading": "La passione prende vita.",
+    "description": "T-shirt con ricami a macchina realizzati in Italia.",
+    "shop_action": "Esplora le T-shirt",
+    "pause_video": "Pausa",
+    "pause_video_label": "Metti in pausa il video dei ricami",
+    "play_video": "Riproduci",
+    "play_video_label": "Riproduci il video dei ricami",
+    "retry_video": "Riprova",
+    "video_unavailable": "Il video non è disponibile. Puoi esplorare le T-shirt."
   },
   "fit_gift": {
     "heading_first": "Un dettaglio",

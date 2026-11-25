@@ -197,9 +197,9 @@
         "purpose": "Zoom 1.025 e dettaglio della scheda al passaggio del puntatore."
       },
       {
-        "name": "embroidery-scroll",
-        "value": "GSAP 3.15.1 + ScrollTrigger scrub:true + MorphSVGPlugin; ease:none",
-        "purpose": "Camera iniziale 4; silhouette ingrandita 5.8; sette parti normalizzate; spessore finale 8. Ricami fotografici ufficiali agli estremi, geometrie intermedie basate sugli originali senza equivalenza vettoriale certificata. Nessun autoplay. Alternativa statica per preferenza utente, comando dedicato o librerie assenti."
+        "name": "embroidery-film",
+        "value": "MP4 24s, autoplay muted loop playsinline, desktop e verticale; pausa esplicita",
+        "purpose": "Sei grafiche GT3 RS, 300 SL, 964 bianca, F40, 512 TR, Project ’88. Il ricamo si stacca, cambia silhouette e torna sul capo. Export HyperFrames con sette contorni intermedi normalizzati; non vettori certificati né simulazione fisica del filo. Poster statico per movimento ridotto o risparmio dati, riproduzione manuale disponibile. Nessun pin o scorrimento artificiale."
       }
     ],
     "breakpoints": [
@@ -289,7 +289,7 @@
     "keyCharacteristics": [
       "Verde profondo e superfici cartacee.",
       "Titoli ampi, peso medio e ritmo arioso.",
-      "Fotografia del prodotto e movimento controllato dal visitatore."
+      "Fotografia del prodotto e video automatico con pausa esplicita."
     ],
     "rules": [],
     "dos": [
@@ -297,7 +297,7 @@
       "**Do** mantenere focus visibile, controlli accessibili e alternativa statica."
     ],
     "donts": [
-      "**Don't** avviare automaticamente la trasformazione: il visitatore la controlla scorrendo.",
+      "**Don't** legare il video allo scroll o imporre lo scorrimento per raggiungere la collezione.",
       "**Don't** presentare i contorni animati come tracciati originali esatti del prodotto."
     ]
   }

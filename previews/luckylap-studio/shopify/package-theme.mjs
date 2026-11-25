@@ -21,23 +21,28 @@ for (const [source, destination] of [
   ["mona-400.ttf", "mona-400.ttf"],
   ["mona-500.ttf", "mona-500.ttf"],
   ["LICENSE-MonaSans.txt", "LICENSE-MonaSans.txt"],
-  ["animation-shirt-navy.webp", "animation-shirt-navy.webp"],
-  ["animation-shirt-white.webp", "animation-shirt-white.webp"],
-  ["gt3rs-tee-detail.webp", "gt3rs-tee-detail.webp"],
-  ["f40-tee-detail.webp", "f40-tee-detail.webp"],
+  ["hero-ricami.mp4", "hero-ricami.mp4"],
+  ["hero-ricami-mobile.mp4", "hero-ricami-mobile.mp4"],
+  ["hero-ricami-poster.webp", "hero-ricami-poster.webp"],
+  ["hero-ricami-mobile-poster.webp", "hero-ricami-mobile-poster.webp"],
 ]) {
   await copyFile(join(previewRoot, "media", source), join(themeRoot, "assets", destination));
 }
-for (const file of ["embroidery-scene.js", "embroidery-scene.css", "embroidery-morph.js"]) {
+for (const file of ["embroidery-scene.js", "embroidery-scene.css"]) {
   await copyFile(join(previewRoot, file), join(themeRoot, "assets", file));
 }
-await rm(join(themeRoot, "assets", "embroidery-art.js"), { force: true });
 for (const file of [
+  "embroidery-art.js",
+  "embroidery-morph.js",
   "gsap-3.15.1.min.js",
   "ScrollTrigger-3.15.1.min.js",
   "MorphSVGPlugin-3.15.1.min.js",
+  "animation-shirt-navy.webp",
+  "animation-shirt-white.webp",
+  "gt3rs-tee-detail.webp",
+  "f40-tee-detail.webp",
 ]) {
-  await copyFile(join(previewRoot, "vendor", file), join(themeRoot, "assets", file));
+  await rm(join(themeRoot, "assets", file), { force: true });
 }
 for (const file of [
   "layout/theme.liquid",

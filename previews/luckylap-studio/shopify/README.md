@@ -2,13 +2,13 @@
 
 Tema Online Store 2.0 preparato per l’installazione nella libreria temi come copia non pubblicata. Il file da caricare è `luckylap-studio.zip`. La cartella `theme/` contiene i sorgenti modificabili.
 
-Il tema comprende home, header e footer a gruppi di sezioni, collezione, prodotto, carrello, pagina, contatti, ricerca, elenco delle collezioni, errore 404 e pagina password. La home riprende la direzione visiva della preview: verde LuckyLap, scelta del modello, catalogo, dettaglio del ricamo, futura maglieria, fondatori e opportunità per club, eventi e negozi.
+Il tema comprende home, header e footer a gruppi di sezioni, collezione, prodotto, carrello, pagina, contatti, ricerca, elenco delle collezioni, errore 404 e pagina password. La home riprende la direzione visiva della preview: video con sei ricami, verde LuckyLap, catalogo, dettaglio del ricamo, futura maglieria, fondatori e opportunità per club, eventi e negozi.
 
 ## Installazione nella libreria
 
 1. In Shopify aprire **Negozio online → Temi → Importa tema → Carica file ZIP** e scegliere `luckylap-studio.zip`. Non pubblicarlo durante questa prova.
 2. Aprire **Personalizza** sulla copia aggiunta alla libreria. Collegare il menu del negozio in Header e i menu del footer. I collegamenti predefiniti usano le collezioni e le pagine già presenti, quando disponibili.
-3. In Home aprire **Ricamo in movimento** e controllare i prodotti GT3 RS e F40. I riferimenti iniziali sono `gt3rs-tshirt` e `f40-tshirt`: URL, titolo e prezzo vengono letti dal catalogo Shopify. Se un handle cambia, scegliere di nuovo il prodotto dall’editor. Le fotografie della scena rappresentano GT3 RS navy e F40 bianca: scegliere i capi corrispondenti, senza associare altri modelli alla stessa immagine.
+3. In Home aprire **Video dei ricami**. Sono inclusi il filmato orizzontale, quello verticale e le copertine. I campi video permettono di sostituirli con file caricati su Shopify; per mantenere l’inquadratura dedicata scegliere entrambi i formati. Se viene scelto soltanto un nuovo video desktop, viene usato anche su mobile. Collegare il pulsante alla collezione T-shirt oppure lasciare il salto alla selezione della home.
 4. Controllare immagini, testi, collegamenti e ordine delle sezioni. Foto di hero, ricamo e fondatori e logo sono già inclusi nel pacchetto; gli `image_picker` permettono di sostituirli dall’editor.
 5. Nel template Prodotto selezionare la pagina **Guida taglie** corretta. Il contenuto è quello della pagina scelta: il tema non inventa misure e non sostituisce i dati presenti in Shopify.
 6. Prima della pubblicazione associare alle varianti le fotografie bianche/navy corrette in Shopify, in particolare per `964-tshirt` e `gt3rs-tshirt`: le varianti consultate non espongono tutte una foto associata. Finché manca l’associazione, il tema ripristina la foto generale e mostra una nota esplicita; non deduce il colore dal nome del file. Questo pacchetto non modifica il catalogo.
@@ -22,7 +22,7 @@ L’installazione del tema non crea prodotti, pagine, collezioni, lingue, menu o
 ## Che cosa è modificabile
 
 - Testi, immagini e destinazioni delle sezioni della home.
-- Prodotti GT3 RS/F40 della scena e collezione in evidenza, numero di prodotti e filtri T-shirt / cappellini.
+- Video desktop/mobile, copertine e collezione del pulsante iniziale; collezione in evidenza, numero di prodotti e filtri T-shirt / cappellini.
 - Logo, navigazione, menu del footer e collegamento all’Instagram ufficiale `@lucky.lap`.
 - Colori globali e caratteri: Mona Sans locale, con licenza inclusa, oppure un carattere selezionato da Shopify.
 - Guida taglie e dettagli aggiuntivi della scheda prodotto, pulsanti accelerati opzionali, note del carrello.
@@ -63,7 +63,7 @@ Dalla radice del repository:
 node previews/luckylap-studio/shopify/package-theme.mjs
 ```
 
-Lo script ricopia la CSS corrente della preview adattando i percorsi dei font, sincronizza le immagini editoriali, i due livelli delle T-shirt, le macro del ricamo, i font e il modulo della scena. Include GSAP 3.15.1, ScrollTrigger e MorphSVGPlugin con gli header originali di licenza; i tre script sono caricati con defer solo in home. La licenza GSAP è disponibile su [gsap.com/community/standard-license](https://gsap.com/community/standard-license/). Lo ZIP contiene le directory Shopify alla radice. Il file `main.js` della preview non viene copiato: `assets/theme.js` conserva form e checkout nativi, mentre `assets/embroidery-shopify.js` monta la scena e ne rilascia le risorse su `shopify:section:unload`.
+Lo script ricopia la CSS corrente della preview adattando i percorsi dei font, sincronizza le immagini editoriali, i due MP4, le due copertine, i font e il modulo di riproduzione. Rimuove gli asset della vecchia scena a scorrimento. GSAP non viene caricato nella pagina: è usato solo durante l’esportazione locale del filmato. Lo ZIP contiene le directory Shopify alla radice. Il file `main.js` della preview non viene copiato: `assets/theme.js` conserva form e checkout nativi, mentre `assets/embroidery-shopify.js` monta il video e ne rilascia le risorse su `shopify:section:unload`.
 
 Per sincronizzare soltanto gli asset, senza creare o aggiornare lo ZIP:
 
@@ -71,11 +71,11 @@ Per sincronizzare soltanto gli asset, senza creare o aggiornare lo ZIP:
 node previews/luckylap-studio/shopify/package-theme.mjs --assets-only
 ```
 
-In **Impostazioni tema → Consegna → Testo spedizioni** si può gestire il testo mostrato in scheda prodotto e carrello. Nei sorgenti il campo è vuoto e i messaggi neutrali rimandano al checkout. Per includere nel solo ZIP la copia delle quote approvate, impostare `LUCKYLAP_SHIPPING_POLICY_PATH` al percorso del JSON esterno approvato prima di lanciare lo script di packaging. Il formato richiesto è `currency: "EUR"`, importi numerici in euro in `rates.italy`, `rates.europe`, `rates.world`, soglia in `freeShipping.minimumSubtotal` e zone `freeShipping.zones: ["italy", "europe"]`. L’Europa include il Regno Unito e la soglia vale per qualsiasi prodotto.
+In **Impostazioni tema → Consegna → Testo spedizioni** si può gestire il testo mostrato in scheda prodotto e carrello. Nei sorgenti il campo è vuoto e i messaggi neutrali rimandano al checkout. Per includere nel solo ZIP la copia delle quote approvate, impostare `LUCKYLAP_SHIPPING_POLICY_PATH` al percorso del JSON esterno approvato prima di lanciare lo script di packaging. Il formato richiesto è `currency: "EUR"`, importi interi in centesimi in `rates.italy`, `rates.europe`, `rates.world`, soglia in centesimi in `freeShipping.minimumSubtotal` e zone `freeShipping.zones: ["italy", "europe"]`. L’Europa include il Regno Unito e la soglia vale per qualsiasi prodotto.
 
 Il generatore inserisce il richtext soltanto in `config/settings_data.json` dentro l’archivio, senza modificare il file dei sorgenti. Senza variabile d’ambiente conserva i settings dei sorgenti. Questo testo comunica le condizioni approvate: non configura zone, tariffe, checkout o impostazioni del negozio. Prima della pubblicazione verificarne la corrispondenza con la configurazione effettiva Shopify.
 
-La nuova sezione è renderizzata in Liquid: testo, prodotto e link restano presenti senza JavaScript. Lo scroll nativo governa la sequenza in entrambe le direzioni; la preferenza di movimento ridotto usa la posa statica. Il controllo di sintassi e degli eventi dell’adapter non sostituisce una verifica nell’editor Shopify su una copia non pubblicata. L’integrazione del 25 novembre è stata preparata offline; lo ZIP va rigenerato dopo il collaudo finale della scena.
+La nuova sezione è renderizzata in Liquid: testo, copertina e collegamento restano presenti senza JavaScript. Il video parte automaticamente senza audio e può essere messo in pausa. Movimento ridotto o risparmio dati conservano il poster fino al comando manuale; uscita dal viewport e cambio scheda mettono in pausa. Il controllo di sintassi e degli eventi dell’adapter non sostituisce una verifica nell’editor Shopify su una copia non pubblicata. L’integrazione del 25 novembre è stata preparata offline; rigenerare lo ZIP dopo ogni aggiornamento dei filmati.
 
 Per validare i sorgenti usare il `validate.mjs` della skill Shopify installata, in modalità `--api liquid --theme-path … --files …`, con l’elenco di tutti i file del tema. Dopo modifiche ai sorgenti rigenerare e ricontrollare lo ZIP; i documenti di questa cartella e lo script di packaging non entrano nell’archivio.
 

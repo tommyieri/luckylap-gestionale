@@ -1,6 +1,6 @@
 # LuckyLap Studio: nuova anteprima dello shop
 
-**Stato: anteprima ripresa sulla base dell’analisi e del nuovo brief del founder.** Home con sequenza del ricamo GT3 RS → F40, materiali operativi preparati e tema nativo confezionabile; nessuna pubblicazione nello store. Limiti e controlli in VERIFICHE.md.
+**Stato: anteprima ripresa sulla base dell’analisi e del nuovo brief del founder.** Home con video automatico dei sei ricami, materiali operativi preparati e tema nativo confezionabile; nessuna pubblicazione nello store. Limiti e controlli in VERIFICHE.md.
 
 Una proposta di redesign da esplorare prima della pubblicazione: home, cataloghi T-shirt e cappellini, nove schede prodotto, ricerca, borsa, storia del brand e percorso club/eventi/negozi. È un progetto autonomo nella cartella `previews/`; non cambia le pagine del gestionale.
 
@@ -18,9 +18,9 @@ Home, collezioni e pagine prodotto sono navigabili anche con URL diretti. La pre
 
 ## Direzione proposta
 
-Verde LuckyLap, fondo chiaro, logo originale, fotografia del prodotto indossato e titoli ampi. La scelta del modello è già nella prima schermata. Il dettaglio del ricamo dà sostanza al racconto; i fondatori e le collaborazioni completano il mondo del brand. La maglieria viene annunciata senza simulare prodotti già acquistabili.
+Verde LuckyLap, fondo chiaro, logo originale, immagini ampie e titoli ariosi. La prima schermata è un video con tutte le T-shirt. Il dettaglio del ricamo dà sostanza al racconto; i fondatori e le collaborazioni completano il mondo del brand. La maglieria viene annunciata senza simulare prodotti già acquistabili.
 
-Il movimento accompagna ingresso della home, cambio modello e apertura dei pannelli. Le preferenze di movimento ridotto disattivano animazioni e transizioni; non ci sono autoplay o scorrimenti forzati. I fatti di prodotto sono registrati in [PRODUCT.md](PRODUCT.md); direzione visiva e movimento in [DESIGN.md](DESIGN.md).
+Il video parte automaticamente, senza audio e senza dipendere dallo scorrimento. Il visitatore può metterlo in pausa. Con movimento ridotto o risparmio dati viene mostrato il poster finché non sceglie di riprodurlo. I fatti di prodotto sono registrati in [PRODUCT.md](PRODUCT.md); direzione visiva e movimento in [DESIGN.md](DESIGN.md).
 
 ## Catalogo e borsa
 
@@ -49,8 +49,10 @@ node previews/luckylap-studio/shopify/package-theme.mjs
 
 Taste Skill è stato usato come riferimento insieme a Impeccable; il suo gate headless completo non è stato eseguito e non viene dichiarato superato. Sono documentati i controlli realmente svolti sul browser e sul tema.
 
-## La nuova scena di ricamo
+## Il filmato dei sei ricami
 
-Il cliente controlla la sequenza con lo scroll: GT3 RS sul capo navy, distacco, passaggio fra sette contorni corrispondenti e F40 ricomposta sulla T-shirt bianca. Si può tornare indietro, passare direttamente al catalogo o ridurre il movimento. GSAP, ScrollTrigger e MorphSVGPlugin 3.15.1 sono serviti localmente; fonti e licenza in vendor/README.md. La transizione usa contorni normalizzati per l’animazione: non certifica il disegno digitale di una macchina da ricamo. Gli originali raster del brand sono conservati separati.
+Sequenza in loop di 24 secondi: GT3 RS navy → 300 SL azzurra → 964 bianca → F40 bianca → 512 TR bianca → Project ’88 bianca → GT3 RS. Il ricamo si stacca, si ingrandisce, cambia silhouette e torna sul capo seguente. È un’animazione composta da livelli fotografici, originali grafici e contorni intermedi semplificati; non è una ripresa della fabbricazione né una simulazione fisica della tessitura.
+
+I sorgenti riproducibili sono in [video/](video/README.md). HyperFrames esporta due MP4, orizzontale e verticale, con GSAP e MorphSVGPlugin 3.15.1 usati soltanto durante la produzione. La pagina carica il video finito, non queste librerie. Il tentativo di generazione Higgsfield è stato rifiutato da entrambi i collegamenti prima dell’avvio di un job; il filmato locale segue il medesimo brief.
 
 Per mostrare le condizioni approvate, avviare il server con LUCKYLAP_SHIPPING_POLICY_PATH verso un JSON privato esterno, con currency, rates (italy/europe/world) e freeShipping (minimumSubtotal/zones). Importi in centesimi. Senza configurazione il sito rimanda alle condizioni dello shop e non inventa tariffe. Nessuna cifra commerciale è salvata come listino nel codice. Lo stesso file può alimentare il packaging del tema; il richtext viene aggiunto soltanto nel file ZIP generato, senza modificare i settings sorgenti.

@@ -2,10 +2,7 @@
   "sections": {
     "hero": {
       "type": "embroidery-hero",
-      "settings": {
-        "gt3_product": "gt3rs-tshirt",
-        "f40_product": "f40-tshirt"
-      }
+      "settings": {}
     },
     "collection": {
       "type": "featured-collection",

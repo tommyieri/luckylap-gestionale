@@ -1,11 +1,3 @@
-.no-js [data-embroidery-section] .motion-models,
-.no-js [data-embroidery-section] .motion-instruction,
-.no-js [data-embroidery-section] .motion-progress {
+.no-js [data-embroidery-section] .embroidery-video-toggle {
   display: none;
-}
-[data-embroidery-section] .motion-product-info {
-  align-items: baseline;
-}
-[data-embroidery-section] [data-motion-price] {
-  white-space: nowrap;
 }

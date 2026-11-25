@@ -82,7 +82,7 @@ Questo documento descrive esclusivamente il preview pubblico LuckyLap Studio. Il
 
 - Verde profondo e superfici cartacee.
 - Titoli ampi, peso medio e ritmo arioso.
-- Fotografia del prodotto e movimento controllato dal visitatore.
+- Fotografia del prodotto e filmato automatico con pausa esplicita.
 
 ## Colors
 
@@ -102,7 +102,7 @@ Mona Sans è servita localmente con il nome CSS `Mona`, con Arial come fallback.
 
 Contenitore massimo di 1600px e margini fluidi; sezioni scandite da grandi pause verticali. Il catalogo passa da tre a due colonne a 850px; su mobile mantiene due colonne con intervalli ridotti. A 850px la navigazione diventa menu, a 600px cambiano impaginazione e densità.
 
-La scena iniziale ha uno stage alto 100svh, minimo 650px desktop e 620px mobile. Il percorso animato occupa 285svh desktop e 255svh sotto 600px; CTA e collegamento alla collezione restano disponibili.
+La scena iniziale occupa una sola schermata sotto l’header. Il video riempie lo spazio della grande immagine di apertura; copy e CTA restano nel DOM in basso a sinistra. Il telefono riceve una composizione verticale dedicata. Non ci sono pin o lunghezze artificiali di scorrimento.
 
 ## Elevation & Depth
 
@@ -116,7 +116,7 @@ Pulsanti, campi e superfici hanno angoli netti. Bordi sottili e fotografie quadr
 
 Azioni piene verdi, chiare su verde, oppure contornate. Hover breve con sollevamento di 2px; focus visibile di 2px, distanziato di 5px. Filtri e selettori espongono lo stato premuto; i dialoghi hanno chiusura esplicita. La ricerca è un campo con sola linea inferiore.
 
-La scena GSAP 3.15.1 segue lo scroll: la GT3 RS esce dalla T-shirt, sette parti SVG corrispondenti diventano F40 e rientrano nel capo bianco. Agli estremi compaiono dettagli fotografici ufficiali isolati tramite filtri SVG; i contorni normalizzati intermedi non sono vettori certificati del ricamo. Le basi dei capi sono asset elaborati. Non simulare una tessitura fisica del filo. Preferenza di movimento ridotto, comando dedicato e assenza delle librerie producono una presentazione statica selezionabile.
+Il filmato di 24 secondi mostra tutte e sei le grafiche: GT3 RS, 300 SL, 964, F40, 512 TR e Project ’88. Ogni ricamo si stacca dal capo, si ingrandisce, cambia forma e rientra nella T-shirt successiva; il sesto passaggio ritorna al primo. Le basi dei capi sono asset elaborati, i dettagli e i disegni sono del brand, i contorni intermedi sono semplificazioni dichiarate. Non simulare una tessitura fisica del filo. L’export HyperFrames usa GSAP; la pagina riproduce soltanto l’MP4. Pausa, preferenza di movimento ridotto, risparmio dati, cambio scheda e uscita dal viewport governano la riproduzione.
 
 ## Do's and Don'ts
 
@@ -127,5 +127,5 @@ La scena GSAP 3.15.1 segue lo scroll: la GT3 RS esce dalla T-shirt, sette parti 
 
 ### Don't:
 
-- **Don't** avviare automaticamente la trasformazione: il visitatore la controlla scorrendo.
+- **Don't** legare il video allo scroll o imporre lo scorrimento per raggiungere la collezione.
 - **Don't** presentare i contorni animati come tracciati originali esatti del prodotto.

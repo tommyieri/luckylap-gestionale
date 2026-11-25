@@ -1,78 +1,77 @@
 {% liquid
-  assign gt3_product = section.settings.gt3_product
-  assign f40_product = section.settings.f40_product
-  assign gt3_url = gt3_product.url | default: routes.all_products_collection_url
-  assign f40_url = f40_product.url | default: routes.all_products_collection_url
-  assign gt3_name = gt3_product.title | default: 'GT3 RS'
-  assign f40_name = f40_product.title | default: 'F40'
-  assign gt3_label = 'embroidery.gt3_action' | t
-  assign f40_label = 'embroidery.f40_action' | t
-  assign gt3_object_name = 'embroidery.gt3_object' | t
-  assign f40_object_name = 'embroidery.f40_object' | t
-  assign gt3_price = 'embroidery.check_price' | t
-  assign f40_price = 'embroidery.check_price' | t
-  if gt3_product != blank
-    assign gt3_price = gt3_product.price | money | strip_html
-  else
-    assign gt3_label = 'embroidery.collection_action' | t
-    assign gt3_object_name = 'embroidery.collection_object' | t
+  assign desktop_video_url = 'hero-ricami.mp4' | asset_url
+  assign mobile_video_url = 'hero-ricami-mobile.mp4' | asset_url
+  assign desktop_poster_url = 'hero-ricami-poster.webp' | asset_url
+  assign mobile_poster_url = 'hero-ricami-mobile-poster.webp' | asset_url
+  assign desktop_sources = section.settings.desktop_video.sources | where: 'format', 'mp4' | sort: 'height'
+  assign mobile_sources = section.settings.mobile_video.sources | where: 'format', 'mp4' | sort: 'height'
+  assign desktop_source = desktop_sources | first
+  assign mobile_source = mobile_sources | first
+  for candidate in desktop_sources
+    if candidate.height <= 1080
+      assign desktop_source = candidate
+    endif
+  endfor
+  for candidate in mobile_sources
+    if candidate.height <= 1080
+      assign mobile_source = candidate
+    endif
+  endfor
+  if desktop_source != blank
+    assign desktop_video_url = desktop_source.url
+    assign mobile_video_url = desktop_source.url
+    assign desktop_poster_url = section.settings.desktop_video.preview_image | image_url: width: 1920
+    assign mobile_poster_url = desktop_poster_url
   endif
-  if f40_product != blank
-    assign f40_price = f40_product.price | money | strip_html
-  else
-    assign f40_label = 'embroidery.collection_action' | t
-    assign f40_object_name = 'embroidery.collection_object' | t
+  if mobile_source != blank
+    assign mobile_video_url = mobile_source.url
+    assign mobile_poster_url = section.settings.mobile_video.preview_image | image_url: width: 1080
+  endif
+  if section.settings.desktop_poster != blank
+    assign desktop_poster_url = section.settings.desktop_poster | image_url: width: 1920
+  endif
+  if section.settings.mobile_poster != blank
+    assign mobile_poster_url = section.settings.mobile_poster | image_url: width: 1080
+  endif
+  assign collection_url = '#shop'
+  if section.settings.collection != blank
+    assign collection_url = section.settings.collection.url
   endif
 %}
 {{ 'embroidery-scene.css' | asset_url | stylesheet_tag }}
 {{ 'embroidery-shopify.css' | asset_url | stylesheet_tag }}
-<div data-embroidery-section data-gt3-url="{{ gt3_url | escape }}" data-f40-url="{{ f40_url | escape }}" data-gt3-name="{{ gt3_object_name | escape }}" data-f40-name="{{ f40_object_name | escape }}" data-gt3-label="{{ gt3_name | escape }}" data-f40-label="{{ f40_name | escape }}" data-gt3-price="{{ gt3_price | escape }}" data-f40-price="{{ f40_price | escape }}" data-gt3-action="{{ gt3_label | escape }}" data-f40-action="{{ f40_label | escape }}" data-reduce-motion="{{ 'embroidery.reduce_motion' | t | escape }}" data-enable-motion="{{ 'embroidery.enable_motion' | t | escape }}">
+<div data-embroidery-section data-pause-video="{{ 'embroidery.pause_video' | t | escape }}" data-pause-video-label="{{ 'embroidery.pause_video_label' | t | escape }}" data-play-video="{{ 'embroidery.play_video' | t | escape }}" data-play-video-label="{{ 'embroidery.play_video_label' | t | escape }}" data-retry-video="{{ 'embroidery.retry_video' | t | escape }}" data-video-unavailable="{{ 'embroidery.video_unavailable' | t | escape }}">
   <section class="embroidery-story" aria-labelledby="MotionTitle-{{ section.id }}" data-embroidery-story>
     <div class="embroidery-stage">
+      <div class="embroidery-video-media" aria-hidden="true">
+        <picture class="embroidery-video-poster" data-embroidery-poster><source media="(max-width: 600px)" srcset="{{ mobile_poster_url }}"><img src="{{ desktop_poster_url }}" alt="" width="1920" height="1080" fetchpriority="high" decoding="async" loading="eager"></picture>
+        <video id="EmbroideryHeroVideo-{{ section.id }}" class="embroidery-hero-video" data-embroidery-video data-src="{{ desktop_video_url }}" data-mobile-src="{{ mobile_video_url }}" data-poster="{{ desktop_poster_url }}" data-mobile-poster="{{ mobile_poster_url }}" poster="{{ desktop_poster_url }}" width="1920" height="1080" muted autoplay loop playsinline preload="none" tabindex="-1"></video>
+      </div>
       <div class="motion-copy">
-        <h1 id="MotionTitle-{{ section.id }}">{{ 'embroidery.heading_first' | t }}<br>{{ 'embroidery.heading_second' | t }}</h1>
-        <p>{{ 'embroidery.intro' | t }}<br>{{ 'embroidery.original_designs' | t }}<br class="desktop-only"> {{ 'embroidery.made_in_italy' | t }}</p>
-        <div class="motion-actions"><a class="btn btn-light" data-motion-product href="{{ gt3_url }}">{{ gt3_label }} <svg aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M4 12h16m-6-6 6 6-6 6"/></svg></a><a class="motion-skip" href="#shop">{{ 'embroidery.collection_action' | t }}</a></div>
-        <p class="motion-instruction"><svg aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M4 12h16m-6-6 6 6-6 6"/></svg>{{ 'embroidery.instruction' | t }}</p>
+        <h1 id="MotionTitle-{{ section.id }}">{{ 'embroidery.heading' | t }}</h1>
+        <p>{{ 'embroidery.description' | t }}</p>
+        <div class="motion-actions"><a class="btn btn-light" href="{{ collection_url }}">{{ 'embroidery.shop_action' | t }} <svg aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M4 12h16m-6-6 6 6-6 6"/></svg></a></div>
       </div>
-      <div class="motion-media" aria-hidden="true">
-        <div class="motion-world">
-          <img class="motion-shirt motion-shirt-navy" src="{{ 'animation-shirt-navy.webp' | asset_url }}" alt="" width="900" height="1125" fetchpriority="high" loading="eager">
-          <img class="motion-shirt motion-shirt-white" src="{{ 'animation-shirt-white.webp' | asset_url }}" alt="" width="900" height="1125" loading="eager">
-          <div class="motion-car">
-            <svg viewBox="0 0 900 300" class="motion-car-art">
-              <defs>
-                <filter id="MotionWhiteThread-{{ section.id }}" color-interpolation-filters="sRGB"><feColorMatrix type="matrix" values="1 0 0 0 0  0 1 0 0 0  0 0 1 0 0  .85 .85 .85 0 -1"/></filter>
-                <filter id="MotionRedThread-{{ section.id }}" color-interpolation-filters="sRGB"><feColorMatrix type="matrix" values="1 0 0 0 0  0 1 0 0 0  0 0 1 0 0  5 -2.5 -2.5 0 -.1"/></filter>
-              </defs>
-              <svg class="motion-thread-gt3" x="0" y="0" width="900" height="300" viewBox="310 545 590 205" preserveAspectRatio="xMidYMid meet"><image href="{{ 'gt3rs-tee-detail.webp' | asset_url }}" width="1200" height="800" filter="url(#MotionWhiteThread-{{ section.id }})"/></svg>
-              <g class="motion-vector" fill="none" stroke="#f1f3e9" stroke-width="3.2" stroke-linecap="round" stroke-linejoin="round">{% for part in (0..6) %}<path data-motion-part="{{ part }}" d="M0 0"/>{% endfor %}</g>
-              <svg class="motion-thread-f40" x="0" y="0" width="900" height="300" viewBox="210 650 640 210" preserveAspectRatio="xMidYMid meet"><image href="{{ 'f40-tee-detail.webp' | asset_url }}" width="1086" height="1448" filter="url(#MotionRedThread-{{ section.id }})"/></svg>
-            </svg>
-          </div>
-        </div>
-      </div>
-      <div class="motion-selection">
-        <div class="motion-models" role="group" aria-label="{{ 'embroidery.explore' | t }}"><button type="button" data-motion-model="gt3" aria-pressed="true">GT3 RS</button><span aria-hidden="true">→</span><button type="button" data-motion-model="f40" aria-pressed="false">F40</button></div>
-        <div class="motion-product-info"><span data-motion-name>{{ gt3_name | escape }}</span><span data-motion-price>{{ gt3_price }}</span></div>
-        <div class="motion-progress" aria-hidden="true"><span></span></div>
-        <button class="motion-mode" type="button" data-motion-mode hidden>{{ 'embroidery.reduce_motion' | t }}</button>
-      </div>
+      <button class="embroidery-video-toggle" type="button" aria-controls="EmbroideryHeroVideo-{{ section.id }}" aria-label="{{ 'embroidery.play_video_label' | t | escape }}" data-embroidery-video-toggle hidden><span aria-hidden="true" data-embroidery-video-icon>▶</span><span data-embroidery-video-label>{{ 'embroidery.play_video' | t }}</span></button>
+      <p class="embroidery-video-status" role="status" aria-live="polite" data-embroidery-video-status></p>
     </div>
   </section>
 </div>
 {% schema %}
 {
-  "name": "Ricamo in movimento",
+  "name": "Video dei ricami",
   "tag": "div",
   "class": "embroidery-hero-section",
   "limit": 1,
   "enabled_on": { "templates": ["index"] },
   "settings": [
-    { "type": "paragraph", "content": "Scena controllata dallo scorrimento. I capi e i dettagli fotografici seguono i disegni GT3 RS e F40: seleziona i prodotti corrispondenti." },
-    { "type": "product", "id": "gt3_product", "label": "T-shirt GT3 RS" },
-    { "type": "product", "id": "f40_product", "label": "T-shirt F40" }
+    { "type": "paragraph", "content": "Il video incluso viene riprodotto senza audio. Puoi sostituirlo con video caricati nei File Shopify e scegliere copertine dedicate. La preferenza di movimento ridotto conserva la copertina fino alla riproduzione manuale." },
+    { "type": "video", "id": "desktop_video", "label": "Video desktop" },
+    { "type": "video", "id": "mobile_video", "label": "Video mobile", "info": "Se scegli solo un nuovo video desktop, verrà usato anche su mobile." },
+    { "type": "image_picker", "id": "desktop_poster", "label": "Copertina desktop" },
+    { "type": "image_picker", "id": "mobile_poster", "label": "Copertina mobile" },
+    { "type": "collection", "id": "collection", "label": "Collezione del pulsante", "info": "Se non selezioni una collezione, il pulsante porta alla selezione nella home." }
   ],
-  "presets": [{ "name": "Ricamo in movimento" }]
+  "presets": [{ "name": "Video dei ricami" }]
 }
 {% endschema %}

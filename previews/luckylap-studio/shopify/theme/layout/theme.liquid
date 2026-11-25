@@ -16,9 +16,6 @@
     {% endstyle %}
     <script src="{{ 'theme.js' | asset_url }}" defer></script>
     {% if template.name == 'index' %}
-      <script src="{{ 'gsap-3.15.1.min.js' | asset_url }}" defer></script>
-      <script src="{{ 'ScrollTrigger-3.15.1.min.js' | asset_url }}" defer></script>
-      <script src="{{ 'MorphSVGPlugin-3.15.1.min.js' | asset_url }}" defer></script>
       <script type="module" src="{{ 'embroidery-shopify.js' | asset_url }}"></script>
     {% endif %}
     {{ content_for_header }}

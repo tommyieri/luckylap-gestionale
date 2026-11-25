@@ -143,22 +143,15 @@
     "image_alt": "The LuckyLap founders wearing T-shirts with embroidered car silhouettes"
   },
   "embroidery": {
-    "heading_first": "Passion",
-    "heading_second": "takes shape.",
-    "intro": "T-shirts for car enthusiasts.",
-    "original_designs": "Original drawings. Machine embroidery",
-    "made_in_italy": "made in Italy.",
-    "gt3_action": "Discover the GT3 RS",
-    "f40_action": "Discover the F40",
-    "collection_action": "Explore the collection",
-    "gt3_object": "the GT3 RS",
-    "f40_object": "the F40",
-    "collection_object": "the collection",
-    "check_price": "Check in the shop",
-    "instruction": "Scroll to bring the embroidery to life.",
-    "explore": "Explore the embroidery",
-    "reduce_motion": "Reduce motion",
-    "enable_motion": "Enable motion"
+    "heading": "Passion comes to life.",
+    "description": "T-shirts with machine embroidery made in Italy.",
+    "shop_action": "Explore the T-shirts",
+    "pause_video": "Pause",
+    "pause_video_label": "Pause the embroidery video",
+    "play_video": "Play",
+    "play_video_label": "Play the embroidery video",
+    "retry_video": "Try again",
+    "video_unavailable": "The video is unavailable. You can explore the T-shirts."
   },
   "fit_gift": {
     "heading_first": "A detail",

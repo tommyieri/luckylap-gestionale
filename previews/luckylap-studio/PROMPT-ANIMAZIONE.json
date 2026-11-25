@@ -12,7 +12,22 @@
       "source": "media/f40-tee.webp",
       "output": "media/animation-shirt-white.webp",
       "prompt": "Use case: precise-object-edit and background-extraction. This exact white T-shirt product photograph is the edit target. Produce a clean animation base layer: remove ONLY the small red embroidered F40 car on the center chest, and remove the gray background to genuine transparent alpha. Keep the EXACT existing white cotton shirt silhouette, front-view framing and its position and scale, folds, seams, lighting, neck label and red LuckyLap sleeve embroidery. Reconstruct only the tiny removed chest graphic area naturally as the same white cotton. Full shirt visible and centered in square frame. Preserve exact garment edges. No added wording or elements. This is an animation layer of the actual product, not a new plain-shirt product."
+    },
+    {
+      "source": "media/300sl-tee.webp",
+      "output": "media/animation-shirt-blue.webp",
+      "prompt": "Edit ONLY this authorized LuckyLap product photo into a clean compositing layer for a hero animation. Remove ONLY the small car embroidery in the center of the chest, reconstruct that tiny area with the exact surrounding cotton texture. Also remove the plain grey studio background completely to transparent alpha. Preserve the real T-shirt exactly: same original fabric color, front-facing flat-lay pose, outline, sleeves, neck and sleeve labels and LuckyLap signature on the right sleeve, tags if present, all natural folds and shading. Do not redesign or improve the garment, no added embroidery, no change to sleeve signature colors or typography. Whole T-shirt fully visible, centered, near edges with a small safe margin, portrait 4:5 canvas, transparent background. High fidelity photographic cutout, retain fine cotton texture. It is an animation layer only, not a new product."
+    },
+    {
+      "source": "Foto 964 bianca ufficiale Drive / CDN Shopify 3.png?v=1778189914",
+      "output": "media/animation-shirt-964-white.webp",
+      "prompt": "Edit ONLY this authorized LuckyLap product photo into a clean compositing layer for a hero animation. Remove ONLY the small car embroidery in the center of the chest, reconstruct that tiny area with the exact surrounding cotton texture. Also remove the plain grey studio background completely to transparent alpha. Preserve the real T-shirt exactly: same original fabric color, front-facing flat-lay pose, outline, sleeves, neck and sleeve labels and LuckyLap signature on the right sleeve, tags if present, all natural folds and shading. Do not redesign or improve the garment, no added embroidery, no change to sleeve signature colors or typography. Whole T-shirt fully visible, centered, near edges with a small safe margin, portrait 4:5 canvas, transparent background. High fidelity photographic cutout, retain fine cotton texture. It is an animation layer only, not a new product."
+    },
+    {
+      "source": "media/project88-tee.webp",
+      "output": "media/animation-shirt-project88.webp",
+      "prompt": "Edit ONLY this authorized LuckyLap product photo into a clean compositing layer for a hero animation. Remove ONLY the small car embroidery in the center of the chest, reconstruct that tiny area with the exact surrounding cotton texture. Also remove the plain grey studio background completely to transparent alpha. Preserve the real T-shirt exactly: same original fabric color, front-facing flat-lay pose, outline, sleeves, neck and sleeve labels and LuckyLap signature on the right sleeve, tags if present, all natural folds and shading. Do not redesign or improve the garment, no added embroidery, no change to sleeve signature colors or typography. Whole T-shirt fully visible, centered, near edges with a small safe margin, portrait 4:5 canvas, transparent background. High fidelity photographic cutout, retain fine cotton texture. It is an animation layer only, not a new product."
     }
   ],
-  "postprocessing": "Conversione e ridimensionamento WebP con alpha, width 900, quality 88; nessun altro ritocco dopo generazione."
+  "postprocessing": "Primi due asset: conversione WebP con alpha width900 quality88. Tre livelli aggiunti: resize contain900×1125, WebP quality90 alphaQuality100. Nessun ritocco semantico manuale."
 }

@@ -1,4 +1,5 @@
 import { createServer } from "node:http";
+import { createReadStream } from "node:fs";
 import { readFile, stat } from "node:fs/promises";
 import { dirname, extname, resolve, sep } from "node:path";
 import { fileURLToPath } from "node:url";
@@ -16,6 +17,8 @@ const types = {
   ".svg": "image/svg+xml",
   ".ttf": "font/ttf",
   ".json": "application/json; charset=utf-8",
+  ".mp4": "video/mp4",
+  ".jpg": "image/jpeg",
 };
 // Associazioni limitate a foto ufficiali verificate visivamente il 24/11/2026.
 // Il catalogo pubblico non assegna queste immagini alle varianti colore.
@@ -143,9 +146,46 @@ const server = createServer(async (request, response) => {
   if (pathname === "/" || /^\/(products|collections|pages)\//.test(pathname))
     target = resolve(root, "index.html");
   try {
-    if (!(await stat(target)).isFile()) throw new Error("not_found");
+    const file = await stat(target);
+    if (!file.isFile()) throw new Error("not_found");
     response.setHeader("Content-Type", types[extname(target)] || "application/octet-stream");
     response.setHeader("Cache-Control", "no-cache");
+    if (extname(target) === ".mp4") {
+      response.setHeader("Accept-Ranges", "bytes");
+      let start = 0;
+      let end = file.size - 1;
+      if (request.headers.range) {
+        const match = /^bytes=(\d*)-(\d*)$/.exec(request.headers.range);
+        if (match && (match[1] || match[2])) {
+          start = match[1] ? Number(match[1]) : Math.max(0, file.size - Number(match[2]));
+          end = match[1] && match[2] ? Math.min(Number(match[2]), end) : end;
+        }
+        if (
+          !match ||
+          (!match[1] && !match[2]) ||
+          !Number.isSafeInteger(start) ||
+          !Number.isSafeInteger(end) ||
+          start < 0 ||
+          start > end ||
+          start >= file.size
+        ) {
+          response.writeHead(416, { "Content-Range": `bytes */${file.size}` });
+          response.end();
+          return;
+        }
+        response.statusCode = 206;
+        response.setHeader("Content-Range", `bytes ${start}-${end}/${file.size}`);
+      }
+      response.setHeader("Content-Length", end - start + 1);
+      if (request.method === "HEAD") response.end();
+      else {
+        const stream = createReadStream(target, { start, end });
+        stream.on("error", () => response.destroy());
+        response.on("close", () => stream.destroy());
+        stream.pipe(response);
+      }
+      return;
+    }
     response.end(request.method === "HEAD" ? undefined : await readFile(target));
   } catch {
     response.writeHead(404);

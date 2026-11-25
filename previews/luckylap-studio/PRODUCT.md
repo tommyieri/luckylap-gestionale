@@ -21,6 +21,8 @@ Capire immediatamente che cosa vende il brand, riconoscere le silhouette, osserv
 
 Il founder ha richiesto un’anteprima completa, moderna e interattiva, ha delegato la scelta estetica e ha chiesto di usare anche Taste Skill. La direzione è uno showroom digitale con verde del brand e fotografie ampie. La pubblicazione e le impostazioni Shopify restano soggette al suo OK esplicito. Questo lavoro non applica migrazioni, non modifica il database e non invia messaggi.
 
+Il brief successivo sostituisce lo scroll della prima prova con un video automatico contenente tutte le sei T-shirt, in ordine GT3 RS navy, 300 SL azzurra, 964 bianca, F40, 512 TR, Project ’88. L’animazione mostra il disegno che esce dal tessuto, cambia forma e torna nel capo seguente. Non aggiunge nuove grafiche o capi.
+
 ## Confini della prova
 
 La preview usa borsa locale di sessione e collegamento al carrello dello shop esistente; soltanto un clic esplicito del visitatore apre quel collegamento. Il tema Shopify separato usa form e checkout nativi. La validazione locale non equivale alla prova del tema installato né a misurazioni di conversione. Nessun risultato di test agenti è presentato come comportamento di clienti reali.

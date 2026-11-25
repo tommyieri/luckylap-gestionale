@@ -1,6 +1,6 @@
 # Librerie per la sequenza di ricamo
 
-GSAP, ScrollTrigger e MorphSVGPlugin **3.15.1**, distribuzione ufficiale da npm/jsDelivr. Nessuna dipendenza globale e nessuna richiesta a CDN dal sito: i file sono serviti localmente e inclusi nel tema.
+GSAP, ScrollTrigger e MorphSVGPlugin **3.15.1**, distribuzione ufficiale da npm/jsDelivr. Nessuna dipendenza globale. GSAP e MorphSVGPlugin sono ora usati soltanto durante la produzione locale del video HyperFrames: la home e il tema Shopify riproducono l’MP4 e non caricano queste librerie. ScrollTrigger resta tra i materiali della precedente prova, senza essere caricato.
 
 - https://github.com/greensock/GSAP
 - https://cdn.jsdelivr.net/npm/gsap@3.15.1/dist/gsap.min.js
