@@ -14,6 +14,34 @@ export type ShopifySyncSnapshot = {
 };
 export type ShopifySyncStatus =
   { status: "ready"; snapshot: ShopifySyncSnapshot } | { status: "unavailable" };
+export type ShopifyOrderReview = {
+  orderGid: string;
+  reasons: string[];
+  observedAt: string;
+};
+
+/** Groups only the bounded review sample, never a total count of affected orders. */
+export function groupShopifyReviews(reviews: ShopifySyncSnapshot["reviews"]): ShopifyOrderReview[] {
+  const orders = new Map<string, ShopifyOrderReview>();
+  for (const review of reviews) {
+    const previous = orders.get(review.orderGid);
+    if (!previous) {
+      orders.set(review.orderGid, {
+        orderGid: review.orderGid,
+        reasons: [review.reason],
+        observedAt: review.observedAt,
+      });
+      continue;
+    }
+    if (!previous.reasons.includes(review.reason)) previous.reasons.push(review.reason);
+    if (Date.parse(review.observedAt) > Date.parse(previous.observedAt))
+      previous.observedAt = review.observedAt;
+  }
+  return [...orders.values()].sort(
+    (a, b) =>
+      Date.parse(b.observedAt) - Date.parse(a.observedAt) || a.orderGid.localeCompare(b.orderGid),
+  );
+}
 const record = (value: unknown): Record<string, unknown> | null =>
   value !== null && typeof value === "object" && !Array.isArray(value)
     ? (value as Record<string, unknown>)
@@ -129,6 +157,7 @@ const reasonGroups: [string[], string][] = [
       "shop_configuration_required",
       "shop_mismatch",
       "token_access_denied",
+      "token_missing_scopes",
       "access_denied",
       "token_invalid_response",
     ],

@@ -4,7 +4,11 @@ import { validShopifyTokenCredentials, type ShopifyTokenCredentials } from "./wo
 import { abortable, boundedPhase, workerJson } from "./worker-io";
 
 export type ShopifyTokenFailure =
-  "token_access_denied" | "token_throttled" | "token_unavailable" | "token_invalid_response";
+  | "token_access_denied"
+  | "token_missing_scopes"
+  | "token_throttled"
+  | "token_unavailable"
+  | "token_invalid_response";
 export type ShopifyTokenResult =
   { ok: true; token: string } | { ok: false; code: ShopifyTokenFailure };
 export type ShopifyTokenProvider = {
@@ -119,17 +123,18 @@ export function createShopifyTokenProvider(
               row.expires_in < 1 ||
               row.expires_in > 86400 ||
               typeof row.scope !== "string" ||
-              row.scope.length > 8192 ||
-              !row.scope
-                .split(",")
-                .map((scope) => scope.trim())
-                .includes("read_orders") ||
-              !row.scope
-                .split(",")
-                .map((scope) => scope.trim())
-                .includes("read_products")
+              row.scope.length > 8192
             )
               return { ok: false, code: "token_invalid_response" };
+            const scopes = new Set(row.scope.split(",").map((scope) => scope.trim()));
+            if (
+              !scopes.has("read_orders") ||
+              !scopes.has("read_products") ||
+              !["read_locations", "read_inventory", "read_markets_home"].some((scope) =>
+                scopes.has(scope),
+              )
+            )
+              return { ok: false, code: "token_missing_scopes" };
             if (activeIdentity === key && generation === requestGeneration) {
               cached = {
                 token: row.access_token,
