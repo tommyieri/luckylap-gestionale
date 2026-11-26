@@ -99,6 +99,21 @@ export type ShopifyTransactionObservation = {
   sourceUpdatedAt: string;
   observedAt: string;
 };
+export type PacklinkTransaction = {
+  id: string;
+  connectionId: string;
+  shopDomain: string;
+  providerTransactionId: string;
+  providerType: "LABELS_ORDER" | "REFUND";
+  kind: "shipping_charge" | "shipping_refund";
+  cents: number;
+  currency: "EUR";
+  occurredAt: string;
+  shipmentReferences: string[];
+  shopifyOrderGid: string | null;
+  sourceDigest: string;
+  observedAt: string;
+};
 export type FinanceWorkSnapshot = {
   entries: ManualEntry[];
   facts: SalesFact[];
@@ -107,6 +122,7 @@ export type FinanceWorkSnapshot = {
   refunds: ObservedRefund[];
   shopifyFinancials: ShopifyFinancials[];
   shopifyTransactions: ShopifyTransactionObservation[];
+  packlinkTransactions?: PacklinkTransaction[];
 };
 
 export function centsLabel(value: number) {

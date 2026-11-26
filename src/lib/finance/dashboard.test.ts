@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import type { FinanceSnapshot, FinanceTransaction } from "./model";
-import type { FinanceWorkSnapshot, ManualEntry } from "../finance-work/model";
+import type { FinanceWorkSnapshot, ManualEntry, PacklinkTransaction } from "../finance-work/model";
 import {
   buildFinanceDashboard,
   financeAccountSeries,
@@ -48,6 +48,103 @@ const row = (
 const imports = (...transactions: FinanceTransaction[]): FinanceSnapshot => ({
   batches: [],
   transactions,
+});
+const packlink = (overrides: Partial<PacklinkTransaction> = {}): PacklinkTransaction => ({
+  id: "92000000-0000-4000-8000-000000000001",
+  connectionId: "92000000-0000-4000-8000-000000000002",
+  shopDomain: "synthetic.myshopify.com",
+  providerTransactionId: "SYN-TX-1",
+  providerType: "LABELS_ORDER",
+  kind: "shipping_charge",
+  cents: 731,
+  currency: "EUR",
+  occurredAt: "2026-06-10T23:30:00Z",
+  shipmentReferences: ["SYN_SHIPMENT_1"],
+  shopifyOrderGid: null,
+  sourceDigest: "a".repeat(64),
+  observedAt: "2026-06-11T08:00:00Z",
+  ...overrides,
+});
+describe("movimenti Packlink", () => {
+  it("registra spese e rimborsi una volta, nel giorno di Roma e senza attribuzione bancaria", () => {
+    const snapshot = work();
+    snapshot.packlinkTransactions = [
+      packlink(),
+      packlink({
+        id: "92000000-0000-4000-8000-000000000003",
+        providerTransactionId: "SYN-TX-2",
+        providerType: "REFUND",
+        kind: "shipping_refund",
+        cents: 231,
+      }),
+    ];
+    const original = structuredClone(snapshot);
+    const result = buildFinanceDashboard(imports(), snapshot, today);
+    expect(result.movements.map((row) => row.cents).sort()).toEqual([-731n, 231n]);
+    expect(result.accounts).toEqual([]);
+    expect(result.movements).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          id: `packlink:${snapshot.packlinkTransactions[0].id}`,
+          source: "packlink",
+          sourceId: snapshot.packlinkTransactions[0].id,
+          date: "2026-06-11",
+          category: "Spedizioni",
+          account: null,
+          pending: false,
+          transfer: false,
+        }),
+      ]),
+    );
+    expect(result.movements[0].allocationNote).toContain(
+      "non prova un addebito o accredito bancario",
+    );
+    expect(result.movements[0].href).toBeUndefined();
+    expect(snapshot).toEqual(original);
+    expect(
+      JSON.stringify(result, (_, value) => (typeof value === "bigint" ? String(value) : value)),
+    ).not.toMatch(/providerTransactionId|connectionId|shipmentReferences|sourceDigest/);
+    expect(() =>
+      buildFinanceDashboard(
+        imports(),
+        { ...snapshot, packlinkTransactions: [packlink(), packlink()] },
+        today,
+      ),
+    ).toThrow("Movimenti Finance duplicati.");
+  });
+  it("collega solo un ordine Shopify della stessa origine con riferimento interamente uguale", () => {
+    const snapshot = work();
+    const orderId = "93000000-0000-4000-8000-000000000001";
+    snapshot.orders = [
+      {
+        id: orderId,
+        source: "shopify_canonical",
+        channel: "shopify_web",
+        reference: "synthetic.myshopify.com/gid://shopify/Order/200",
+        totalCents: 731,
+        cancelledCents: 0,
+        refundDueCents: 0,
+      },
+    ];
+    snapshot.packlinkTransactions = [packlink({ shopifyOrderGid: "gid://shopify/Order/200" })];
+    const linked = () => buildFinanceDashboard(imports(), snapshot, today).movements[0].href;
+    expect(linked()).toBe(`/sales/${orderId}`);
+    snapshot.orders[0].source = "manual_declaration";
+    expect(linked()).toBeUndefined();
+    snapshot.orders[0].source = "shopify_canonical";
+    for (const reference of [
+      "other.myshopify.com/gid://shopify/Order/200",
+      "gid://shopify/Order/200",
+      "synthetic.myshopify.com/gid://shopify/Order/2000",
+      "Nome simile",
+    ]) {
+      snapshot.orders[0].reference = reference;
+      expect(linked()).toBeUndefined();
+    }
+    snapshot.orders[0].reference = "synthetic.myshopify.com/gid://shopify/Order/200";
+    snapshot.orders.push({ ...snapshot.orders[0], id: "93000000-0000-4000-8000-000000000002" });
+    expect(linked()).toBeUndefined();
+  });
 });
 const entry = (overrides: Partial<ManualEntry> = {}): ManualEntry => ({
   id: "manual-one",

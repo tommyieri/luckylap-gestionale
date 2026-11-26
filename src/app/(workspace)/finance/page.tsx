@@ -3,6 +3,7 @@ import Link from "next/link";
 import { redirect } from "next/navigation";
 import { SensitiveAreaSessionBar } from "@/components/auth-sensitive-area-form";
 import { FinanceImportsView } from "@/components/finance-imports-view";
+import { PacklinkSyncHealth } from "@/components/packlink-sync-health";
 import { FinancePreviewNotice } from "@/components/consignment-monthly-finance";
 import { PanelActions, WorkspacePanel } from "@/components/workspace-panel";
 import { isSensitiveAreaEligible } from "@/lib/auth/model";
@@ -10,6 +11,7 @@ import { verifiedSensitiveAccess } from "@/lib/auth/sensitive-access";
 import { verifiedMember } from "@/lib/auth/server";
 import { loadFinanceImports } from "@/lib/finance/server";
 import { readFinanceWork } from "@/lib/finance-work/server";
+import { readPacklinkSyncStatus } from "@/lib/packlink/status-server";
 import { readDashboardSettlements } from "@/lib/finance/dashboard-server";
 import { localReportDate } from "@/lib/finance/model";
 import { buildFinanceDashboard } from "@/lib/finance/dashboard";
@@ -132,15 +134,17 @@ export default async function FinancePage({
   // All reads use this user's session and the database Finance RLS policies.
   // The consignment panel and the shop payments in the balances share one read.
   // Names only label «Modificato da …»: without them the line says «un membro del team».
-  const [snapshot, work, settlements, consignment, names, legacy, archive] = await Promise.all([
-    loadFinanceImports(supabase).catch(() => null),
-    readFinanceWork(supabase).catch(() => null),
-    readDashboardSettlements(supabase).catch(() => null),
-    readConsignmentMonthlyFinance(supabase, access.member).catch(() => null),
-    readFinanceProfileNames(supabase).catch(() => ({})),
-    readConsignmentFinance(supabase, access.member).catch(() => null),
-    loadFinanceConsignmentArchive(supabase, access.member).catch(() => null),
-  ]);
+  const [snapshot, work, settlements, consignment, names, legacy, archive, packlinkStatus] =
+    await Promise.all([
+      loadFinanceImports(supabase).catch(() => null),
+      readFinanceWork(supabase).catch(() => null),
+      readDashboardSettlements(supabase).catch(() => null),
+      readConsignmentMonthlyFinance(supabase, access.member).catch(() => null),
+      readFinanceProfileNames(supabase).catch(() => ({})),
+      readConsignmentFinance(supabase, access.member).catch(() => null),
+      loadFinanceConsignmentArchive(supabase, access.member).catch(() => null),
+      readPacklinkSyncStatus(supabase),
+    ]);
   const reportDate = localReportDate(new Date());
   if (
     !snapshot ||
@@ -176,6 +180,7 @@ export default async function FinancePage({
   return (
     <>
       <SensitiveAreaSessionBar area="finance" />
+      <PacklinkSyncHealth status={packlinkStatus} />
       <FinanceImportsView
         key={access.member.userId}
         actorId={access.member.userId}

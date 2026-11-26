@@ -221,4 +221,5 @@ const sourceLabel: Record<FinanceMovement["source"], string> = {
   refund: "Rimborso Shopify",
   consignment: "Pagamento conto vendita",
   shop_payment: "Pagamento del resoconto conto vendita",
+  packlink: "Transazione di spedizione Packlink osservata",
 };

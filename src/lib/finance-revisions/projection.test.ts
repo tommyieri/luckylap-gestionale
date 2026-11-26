@@ -48,6 +48,56 @@ const head = (overrides: Partial<FinanceRevisionRecord> = {}): FinanceRevisionRe
   ...overrides,
 });
 describe("single effective Finance movement projection", () => {
+  it("non fa riapparire Packlink dopo eliminazione e replay della fonte, poi ripristina una sola voce", () => {
+    const observed = movement({
+      id: `packlink:${id(1)}`,
+      source: "packlink",
+      cents: -731n,
+      account: null,
+      category: "Spedizioni",
+    });
+    const deleted = head({
+      sourceKind: "packlink",
+      action: "delete",
+      deleted: true,
+      values: {
+        ...head().values,
+        direction: "expense",
+        amountCents: 731,
+        account: null,
+        category: "Spedizioni",
+      },
+    });
+    const first = applyFinanceRevisions([observed], [deleted], "2026-10-22");
+    expect(first.active).toEqual([]);
+    expect(first.deleted).toHaveLength(1);
+    const replay = applyFinanceRevisions(
+      [{ ...observed, description: "Nuova lettura della stessa fonte immutabile" }],
+      [deleted],
+      "2026-10-22",
+    );
+    expect(replay.active).toEqual([]);
+    expect(replay.deleted[0].cents).toBe(-731n);
+    const restored = applyFinanceRevisions(
+      [observed],
+      [
+        {
+          ...deleted,
+          action: "restore",
+          version: 2,
+          previousVersion: 1,
+          restoredFromVersion: 0,
+          deleted: false,
+        },
+      ],
+      "2026-10-22",
+    );
+    expect(restored.active).toHaveLength(1);
+    expect(restored.active[0]).toMatchObject({ source: "packlink", cents: -731n, account: null });
+    expect(restored.deleted).toEqual([]);
+    expect(revisedAccountBalances(restored.active)).toEqual([]);
+    expect(observed).not.toHaveProperty("revision");
+  });
   it("replaces value once while preserving original data and a later source replay", () => {
     const original = movement(),
       revised = applyFinanceRevisions([original], [head()], "2026-10-22");

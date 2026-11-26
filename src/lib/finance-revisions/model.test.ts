@@ -31,6 +31,54 @@ const command = () => ({
   },
 });
 describe("Finance revision command contract", () => {
+  it("instrada Packlink alla revisione generica, con eliminazione e ripristino senza ordine", () => {
+    expect(financeRevisionTarget("packlink", id(2))).toEqual({
+      type: "revision",
+      ref: { sourceKind: "packlink", sourceId: id(2) },
+    });
+    expect(financeRevisionDeletable("packlink")).toBe(true);
+    expect(
+      parseFinanceRevisionCommand({
+        ...command(),
+        payload: {
+          ...command().payload,
+          source_kind: "packlink",
+          values: { ...values, target_account: "Conto sintetico" },
+        },
+      }),
+    ).toBeNull();
+    for (const action of ["update", "delete", "restore"] as const) {
+      const base = { ...command().payload, source_kind: "packlink", action, expected_version: 2 };
+      const { values: _values, ...shared } = base;
+      const payload =
+        action === "update"
+          ? base
+          : action === "restore"
+            ? { ...shared, restore_version: 0 }
+            : shared;
+      expect(parseFinanceRevisionCommand({ ...command(), payload })?.payload.source_kind).toBe(
+        "packlink",
+      );
+    }
+    expect(
+      revisionOriginalFromDatabase({
+        source_kind: "packlink",
+        source_id: id(2),
+        values,
+        deleted: false,
+        order_id: null,
+      })?.orderId,
+    ).toBeNull();
+    expect(
+      revisionOriginalFromDatabase({
+        source_kind: "packlink",
+        source_id: id(2),
+        values,
+        deleted: false,
+        order_id: id(3),
+      }),
+    ).toBeNull();
+  });
   it("freezes normalized values, source and version; future dates and zero remain explicit", () => {
     expect(parseFinanceRevisionCommand(command())?.payload).toMatchObject({
       source_id: id(2),

@@ -19,6 +19,7 @@ const sourceKinds = new Set([
   "refund",
   "consignment_settlement",
   "shop_payment",
+  "packlink",
 ]);
 const noStore = {
   "Cache-Control": "private, no-cache, no-store, must-revalidate, max-age=0",

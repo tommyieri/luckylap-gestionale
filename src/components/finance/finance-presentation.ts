@@ -9,6 +9,7 @@ export const FINANCE_SOURCE_LABELS: Record<FinanceMovement["source"], string> = 
   refund: "Rimborso Shopify",
   consignment: "Incasso conto vendita",
   shop_payment: "Pagamento del negozio",
+  packlink: "Packlink",
 };
 export function revisionAuthorLine(
   revision: NonNullable<RevisedMovement["revision"]>,

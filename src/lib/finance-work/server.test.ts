@@ -16,6 +16,9 @@ function fixture({
   aal = "aal1",
   finance = true,
   unlocked = true,
+  packlinkRows = [] as unknown[],
+  packlinkCount = undefined as number | undefined,
+  packlinkError = false,
 } = {}) {
   const rows = workRows(),
     tables: Record<string, unknown[]> = {
@@ -27,6 +30,7 @@ function fixture({
       shopify_refund_observations: rows.refunds,
       shopify_order_financials: rows.shopifyFinancials,
       shopify_transaction_observations: rows.shopifyTransactions,
+      packlink_transactions: packlinkRows,
     };
   const auth = {
     getUser: vi.fn().mockResolvedValue({
@@ -54,8 +58,14 @@ function fixture({
     }),
     range: vi.fn((start: number, end: number) =>
       Promise.resolve({
-        error: null,
-        count: tables[table]?.length ?? null,
+        error:
+          table === "packlink_transactions" && packlinkError
+            ? { message: "PRIVATE_SENTINEL" }
+            : null,
+        count:
+          table === "packlink_transactions" && packlinkCount !== undefined
+            ? packlinkCount
+            : (tables[table]?.length ?? null),
         data: tables[table]?.slice(start, end + 1) ?? null,
       }),
     ),
@@ -70,6 +80,33 @@ function fixture({
   return { client: { auth, from, rpc } as unknown as SupabaseClient, auth, from, rpc };
 }
 describe("Finance authorization and command receipts", () => {
+  it("legge tutte le pagine Packlink e rifiuta errori o conteggi non completi", async () => {
+    const packlinkRows = Array.from({ length: 201 }, (_, n) => ({
+      id: workId(500 + n),
+      connection_id: workId(100),
+      shop_domain: "synthetic.myshopify.com",
+      provider_transaction_id: `SYN-TX-${n}`,
+      provider_type: "LABELS_ORDER",
+      kind: "shipping_charge",
+      amount_cents: 731,
+      currency: "EUR",
+      occurred_at: "2026-06-10T10:00:00Z",
+      shipment_references: [],
+      shopify_order_gid: null,
+      source_digest: "a".repeat(64),
+      observed_at: "2026-06-10T10:01:00Z",
+    }));
+    const complete = fixture({ packlinkRows });
+    const result = await readFinanceWork(complete.client);
+    expect(result.status === "ready" && result.snapshot.packlinkTransactions?.length).toBe(201);
+    expect(complete.from).toHaveBeenCalledWith("packlink_transactions");
+    await expect(
+      readFinanceWork(fixture({ packlinkRows, packlinkCount: 202 }).client),
+    ).rejects.toThrow("Lettura Finance non completa.");
+    await expect(readFinanceWork(fixture({ packlinkError: true }).client)).rejects.toThrow(
+      "Lettura Finance non completa.",
+    );
+  });
   it.each([
     { member: false },
     { signedIn: false },
@@ -129,6 +166,7 @@ describe("Finance authorization and command receipts", () => {
         "shopify_refund_observations",
         "shopify_order_financials",
         "shopify_transaction_observations",
+        "packlink_transactions",
       ]),
     );
     expect(f.from.mock.calls.some((call) => call[0] === "finance_import_transactions")).toBe(false);

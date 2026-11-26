@@ -1,10 +1,12 @@
 import type { FinanceWorkSnapshot } from "../finance-work/model";
 import { localReportDate, transactionTiming, type FinanceSnapshot } from "./model";
 import { FINANCE_CATEGORY_GROUPS, financeCategoryGroup } from "./categories";
+import { isUuid } from "../sales/model";
 
 export type FinanceMovement = {
   id: string;
-  source: "budgetflow" | "manual" | "payment" | "refund" | "consignment" | "shop_payment";
+  source:
+    "budgetflow" | "manual" | "payment" | "refund" | "consignment" | "shop_payment" | "packlink";
   sourceId: string;
   date: string;
   cents: bigint;
@@ -238,6 +240,39 @@ export function buildFinanceDashboard(
       future: date > reportDate,
       transfer: false,
       allocationNote: "Conto del rimborso non attribuito.",
+    });
+  }
+  for (const row of work.packlinkTransactions ?? []) {
+    const date = inRome(row.occurredAt);
+    const matchingOrders =
+      row.shopifyOrderGid === null
+        ? []
+        : work.orders.filter((order) => {
+            return (
+              order.source === "shopify_canonical" &&
+              isUuid(order.id) &&
+              order.reference === `${row.shopDomain}/${row.shopifyOrderGid}`
+            );
+          });
+    movements.push({
+      id: `packlink:${row.id}`,
+      source: "packlink",
+      sourceId: row.id,
+      date,
+      cents: workCents(row.cents) * (row.kind === "shipping_charge" ? -1n : 1n),
+      account: null,
+      targetAccount: null,
+      category: "Spedizioni",
+      description:
+        row.kind === "shipping_charge"
+          ? "Spesa di spedizione Packlink osservata"
+          : "Rimborso di spedizione Packlink osservato",
+      pending: false,
+      future: date > reportDate,
+      transfer: false,
+      allocationNote:
+        "Fonte Packlink osservata. Conto non attribuito: la transazione non prova un addebito o accredito bancario.",
+      ...(matchingOrders.length === 1 ? { href: `/sales/${matchingOrders[0].id}` } : {}),
     });
   }
   for (const row of settlements) {

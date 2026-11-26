@@ -7,6 +7,7 @@ export const FINANCE_REVISION_SOURCES = [
   "payment",
   "refund",
   "consignment_settlement",
+  "packlink",
 ] as const;
 export type FinanceRevisionSource = (typeof FINANCE_REVISION_SOURCES)[number];
 /**
@@ -265,7 +266,8 @@ export function revisionOriginalFromDatabase(value: unknown): FinanceRevisionOri
     !sourceKind(row.source_kind) ||
     !revisionUuid(row.source_id) ||
     typeof row.deleted !== "boolean" ||
-    !(row.order_id === null || revisionUuid(row.order_id))
+    !(row.order_id === null || revisionUuid(row.order_id)) ||
+    (row.source_kind === "packlink" && row.order_id !== null)
   )
     return null;
   return {

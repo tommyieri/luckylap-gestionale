@@ -16,9 +16,9 @@ const attachment = {
 };
 const pdf = new Blob(["%PDF-1.4\n%%EOF"], { type: "application/pdf" });
 
-function request(file = pdf, origin = host) {
+function request(file = pdf, origin = host, source = "manual") {
   const body = new FormData();
-  body.set("source", "manual");
+  body.set("source", source);
   body.set("sourceId", sourceId);
   body.set("file", file, "Ricevuta demo.pdf");
   return new Request(endpoint, {
@@ -31,6 +31,46 @@ function request(file = pdf, origin = host) {
 beforeEach(() => vi.resetAllMocks());
 
 describe("allegati Finance", () => {
+  it("permette allegati Packlink solo tramite il controllo Finance e mantiene il conteggio completo", async () => {
+    access.mockResolvedValue({ allowed: false, status: 403 });
+    const url = `${endpoint}?source=packlink&sourceId=${sourceId}`;
+    expect((await GET(new Request(url))).status).toBe(403);
+    const list = vi
+      .fn()
+      .mockResolvedValueOnce({
+        data: [{ id: attachment.id, file_name: attachment.file_name }],
+        count: 1,
+        error: null,
+      })
+      .mockResolvedValueOnce({ data: [], count: 1, error: null });
+    const query = {
+      select: vi.fn().mockReturnThis(),
+      eq: vi.fn().mockReturnThis(),
+      order: vi.fn().mockReturnThis(),
+      limit: list,
+    };
+    access.mockResolvedValue({ allowed: true, supabase: { from: () => query } });
+    expect((await GET(new Request(url))).status).toBe(200);
+    expect(query.eq).toHaveBeenCalledWith("source_kind", "packlink");
+    expect((await GET(new Request(url))).status).toBe(503);
+  });
+  it("mantiene la fonte Packlink nell'upload senza aggirare il comando DB", async () => {
+    const rpc = vi
+      .fn()
+      .mockResolvedValueOnce({ data: attachment })
+      .mockResolvedValueOnce({ data: true });
+    const upload = vi.fn().mockResolvedValue({ error: null });
+    const download = vi.fn().mockResolvedValue({ data: pdf });
+    access.mockResolvedValue({
+      allowed: true,
+      supabase: { rpc, storage: { from: () => ({ upload, download }) } },
+    });
+    expect((await POST(request(pdf, host, "packlink"))).status).toBe(201);
+    expect(rpc.mock.calls[0][1]).toMatchObject({
+      p_source_kind: "packlink",
+      p_source_id: sourceId,
+    });
+  });
   it("nega download senza Finance e un caricamento con origine esterna", async () => {
     access.mockResolvedValue({ allowed: false, status: 403 });
     expect((await GET(new Request(`${endpoint}?id=${attachment.id}`))).status).toBe(403);

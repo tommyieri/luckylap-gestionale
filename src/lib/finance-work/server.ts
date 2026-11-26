@@ -46,6 +46,10 @@ const selections = {
     "shopify_transaction_observations",
     "order_id,transaction_gid,kind,status,amount_cents,currency,gateway,parent_gid,processed_at,source_updated_at,observed_at",
   ],
+  packlinkTransactions: [
+    "packlink_transactions",
+    "id,connection_id,shop_domain,provider_transaction_id,provider_type,kind,amount_cents,currency,occurred_at,shipment_references,shopify_order_gid,source_digest,observed_at",
+  ],
 } as const;
 export async function readFinanceWork(supabase: SupabaseClient) {
   const access = await financeWorkAccess(supabase);

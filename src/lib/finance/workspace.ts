@@ -54,6 +54,7 @@ const SOURCES = [
   "refund",
   "consignment",
   "shop_payment",
+  "packlink",
 ] as const;
 const firstDay = "0001-01-01";
 const lastDay = "9999-12-31";

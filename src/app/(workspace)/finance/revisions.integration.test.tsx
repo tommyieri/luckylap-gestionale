@@ -6,6 +6,7 @@ const mocks = vi.hoisted(() => ({
   gate: vi.fn(),
   imports: vi.fn(),
   work: vi.fn(),
+  packlink: vi.fn(),
   settlements: vi.fn(),
   monthly: vi.fn(),
   legacy: vi.fn(),
@@ -46,6 +47,10 @@ vi.mock("@/lib/finance/preview", () => import("../../../lib/finance/preview"));
 vi.mock("@/lib/finance/dashboard", () => import("../../../lib/finance/dashboard"));
 vi.mock("@/lib/finance/dashboard-server", () => ({ readDashboardSettlements: mocks.settlements }));
 vi.mock("@/lib/finance-work/server", () => ({ readFinanceWork: mocks.work }));
+vi.mock("@/lib/packlink/status-server", () => ({ readPacklinkSyncStatus: mocks.packlink }));
+vi.mock("@/components/packlink-sync-health", () => ({
+  PacklinkSyncHealth: () => <div>Stato Packlink</div>,
+}));
 vi.mock("@/lib/consignment/shop-finance", () => ({
   readConsignmentMonthlyFinance: mocks.monthly,
   dashboardShopPaymentsFromRows: () => [],
@@ -77,9 +82,11 @@ import FinancePage from "./page";
 import FinanceWorkPage from "./work/page";
 import ShopPaymentPage from "./incasso/[id]/page";
 type Page = ReactElement<{ children: ReactElement<Record<string, unknown>>[] }>;
-/** Le pagine Finance aperte sono la striscia «Chiudi Finance» seguita dal contenuto. */
+/** Le pagine aperte iniziano con «Chiudi Finance» e terminano con il contenuto. */
 const opened = (page: unknown) => {
-  const [bar, content] = (page as Page).props.children;
+  const children = (page as Page).props.children;
+  const bar = children[0],
+    content = children.at(-1);
   expect(bar!.props).toEqual({ area: "finance" });
   return content!;
 };
@@ -110,6 +117,7 @@ beforeEach(() => {
   mocks.gate.mockResolvedValue(true);
   mocks.imports.mockResolvedValue({ batches: [], transactions: [] });
   mocks.work.mockResolvedValue({ status: "ready", member, snapshot: work });
+  mocks.packlink.mockResolvedValue({ status: "unavailable" });
   mocks.settlements.mockResolvedValue([]);
   mocks.monthly.mockResolvedValue({
     status: "ready",
@@ -129,6 +137,7 @@ describe("callsite e gate Finance con revisioni", () => {
     expect(overview.props.revisionOriginals).toBe(context.originals);
     expect(overview.props.deletedShopPayments).toEqual([]);
     expect(overview.props.names).toEqual({ [id]: "Membro sintetico" });
+    expect(mocks.packlink).toHaveBeenCalledExactlyOnceWith({});
     await expect(async () => FinanceWorkPage()).rejects.toThrow(
       "redirect:/finance?vista=movements&nuovo=expense",
     );
@@ -163,6 +172,7 @@ describe("callsite e gate Finance con revisioni", () => {
       "redirect:/auth/area/finance",
     );
     expect(mocks.imports).not.toHaveBeenCalled();
+    expect(mocks.packlink).not.toHaveBeenCalled();
     expect(mocks.context).not.toHaveBeenCalled();
     expect(mocks.history).not.toHaveBeenCalled();
   });
@@ -179,6 +189,7 @@ describe("callsite e gate Finance con revisioni", () => {
       expect(mocks.gate).toHaveBeenCalledTimes(2);
       expect(mocks.gate).toHaveBeenCalledWith({}, current, "finance");
       expect(mocks.imports).not.toHaveBeenCalled();
+      expect(mocks.packlink).not.toHaveBeenCalled();
       expect(mocks.context).not.toHaveBeenCalled();
       expect(mocks.history).not.toHaveBeenCalled();
     },
@@ -218,6 +229,7 @@ describe("callsite e gate Finance con revisioni", () => {
       }
       expect(mocks.gate).not.toHaveBeenCalled();
       expect(mocks.imports).not.toHaveBeenCalled();
+      expect(mocks.packlink).not.toHaveBeenCalled();
       expect(mocks.context).not.toHaveBeenCalled();
       expect(mocks.history).not.toHaveBeenCalled();
     },
@@ -234,6 +246,7 @@ describe("callsite e gate Finance con revisioni", () => {
       renderToStaticMarkup(await ShopPaymentPage({ params: Promise.resolve({ id }) })),
     ).not.toContain("data-area-bar");
     expect(mocks.member).not.toHaveBeenCalled();
+    expect(mocks.packlink).not.toHaveBeenCalled();
     expect(mocks.context).not.toHaveBeenCalled();
     expect(mocks.history).not.toHaveBeenCalled();
   });
