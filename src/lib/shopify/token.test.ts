@@ -26,7 +26,7 @@ const result = (extra: Record<string, unknown> = {}) =>
   Response.json({
     access_token: token,
     expires_in: 86399,
-    scope: "read_orders,read_products",
+    scope: "read_orders,read_products,read_locations",
     ...extra,
   });
 const signal = () => new AbortController().signal;
@@ -178,9 +178,8 @@ describe("Shopify client credentials lifecycle", () => {
     { expires_in: "86399" },
     { expires_in: 0 },
     { expires_in: 86401 },
-    { scope: "read_orders" },
-    { scope: "read_products" },
     { scope: null },
+    { scope: "x".repeat(8193) },
   ])("rejects invalid grant responses without caching them %j", async (change) => {
     const fetcher = vi.fn().mockImplementation(async () => result(change));
     const provider = createShopifyTokenProvider({ fetch: fetcher });
@@ -189,6 +188,57 @@ describe("Shopify client credentials lifecycle", () => {
       code: "token_invalid_response",
     });
     await provider.get(credentials, signal());
+    expect(fetcher).toHaveBeenCalledTimes(2);
+  });
+  it.each(["read_locations", "read_inventory", "read_markets_home"])(
+    "accepts the documented Location scope alternative %s",
+    async (locationScope) => {
+      const fetcher = vi
+        .fn()
+        .mockImplementation(async () =>
+          result({ scope: ` read_products, ${locationScope}, read_orders,read_orders ` }),
+        );
+      const provider = createShopifyTokenProvider({ fetch: fetcher });
+      expect(await provider.get(credentials, signal())).toEqual({ ok: true, token });
+      expect(await provider.get(credentials, signal())).toEqual({ ok: true, token });
+      expect(fetcher).toHaveBeenCalledOnce();
+    },
+  );
+  it.each([
+    "",
+    "read_orders",
+    "read_products",
+    "read_orders,read_products",
+    "read_orders,read_locations",
+    "read_products,read_locations",
+    "read_orders,read_products,write_locations",
+    "read_orders,read_products,read_locations_extra",
+    "read_orders,read_products,READ_LOCATIONS",
+  ])("distinguishes missing scopes from a malformed grant without caching (%s)", async (scope) => {
+    const fetcher = vi.fn().mockImplementation(async () => result({ scope }));
+    const provider = createShopifyTokenProvider({ fetch: fetcher });
+    expect(await provider.get(credentials, signal())).toEqual({
+      ok: false,
+      code: "token_missing_scopes",
+    });
+    expect(await provider.get(credentials, signal())).toEqual({
+      ok: false,
+      code: "token_missing_scopes",
+    });
+    expect(fetcher).toHaveBeenCalledTimes(2);
+  });
+  it("obtains a usable token after the granted scopes are corrected", async () => {
+    const fetcher = vi
+      .fn()
+      .mockImplementationOnce(async () => result({ scope: "read_orders,read_products" }))
+      .mockImplementation(async () => result());
+    const provider = createShopifyTokenProvider({ fetch: fetcher });
+    expect(await provider.get(credentials, signal())).toEqual({
+      ok: false,
+      code: "token_missing_scopes",
+    });
+    expect(await provider.get(credentials, signal())).toEqual({ ok: true, token });
+    expect(await provider.get(credentials, signal())).toEqual({ ok: true, token });
     expect(fetcher).toHaveBeenCalledTimes(2);
   });
   it.each([

@@ -1,5 +1,6 @@
 import "server-only";
 import {
+  groupShopifyReviews,
   shopifyReviewHref,
   shopifyReviewLabel,
   type ShopifySyncStatus,
@@ -33,17 +34,28 @@ export function ShopifySyncHealth({
       </section>
     );
   const { snapshot: s } = status;
+  const reviews = groupShopifyReviews(s.reviews);
   return (
     <section className={styles.section} aria-labelledby="shopify-sync-title">
       <div className={styles.heading}>
         <h2 id="shopify-sync-title">Collegamento Shopify</h2>
-        <span>{!s.configured ? "Da collegare" : s.enabled ? "Attivo" : "In pausa"}</span>
+        <span>
+          {!s.configured
+            ? "Da collegare"
+            : !s.enabled
+              ? "In pausa"
+              : s.counters.review > 0
+                ? "Richiede attenzione"
+                : "Attivo"}
+        </span>
       </div>
       <p className={styles.caption}>
         {!s.configured
           ? "Il collegamento degli ordini Shopify deve ancora essere completato."
           : s.enabled
-            ? "Gli aggiornamenti ricevuti da Shopify vengono verificati prima di aggiornare ordini, disponibilità fisica e Finance."
+            ? s.counters.review > 0
+              ? "Alcuni aggiornamenti ricevuti da Shopify non sono stati applicati e richiedono una verifica prima di aggiornare ordini, disponibilità fisica e Finance."
+              : "Gli aggiornamenti ricevuti da Shopify vengono verificati prima di aggiornare ordini, disponibilità fisica e Finance."
             : "La sincronizzazione degli ordini è in pausa. Le nuove notifiche restano in attesa della riattivazione."}{" "}
         L’inventario commerciale Shopify resta distinto dal pronto fisico di Magadzino.
       </p>
@@ -57,18 +69,22 @@ export function ShopifySyncHealth({
       </p>
       {s.counters.review > 0 && (
         <div className={styles.reviews} role="group" aria-labelledby="shopify-review-title">
-          <h3 id="shopify-review-title">Casi da verificare · {s.counters.review}</h3>
+          <h3 id="shopify-review-title">Ordini da verificare</h3>
           <p className={styles.reviewHelp}>
-            Se compare un caso, avvisa Tommi. Non registrare a mano lo stesso ordine.
+            Gli aggiornamenti da verificare sono raggruppati per ordine. Se compare un caso, avvisa
+            Tommi. Non registrare a mano lo stesso ordine.
           </p>
           <ul>
-            {s.reviews.map((r, index) => {
+            {reviews.map((r) => {
               const href = shopifyReviewHref(shopDomain, r.orderGid);
+              const reasons = [...new Set(r.reasons.map(shopifyReviewLabel))];
               return (
-                <li key={`${r.orderGid}:${r.observedAt}:${index}`}>
+                <li key={r.orderGid}>
                   <div>
-                    <strong>{shopifyReviewLabel(r.reason)}</strong>
-                    <span>{date(r.observedAt)} (ora di Roma)</span>
+                    {reasons.map((reason) => (
+                      <strong key={reason}>{reason}</strong>
+                    ))}
+                    <span>Ultima segnalazione: {date(r.observedAt)} (ora di Roma)</span>
                   </div>
                   {href && (
                     <a href={href} target="_blank" rel="noopener noreferrer">
@@ -81,7 +97,10 @@ export function ShopifySyncHealth({
             })}
           </ul>
           {s.counters.review > s.reviews.length && (
-            <p className={styles.reviewHelp}>Qui sono mostrati i {s.reviews.length} più recenti.</p>
+            <p className={styles.reviewHelp}>
+              Sono raggruppate le {s.reviews.length} notifiche più recenti. Altri ordini da
+              verificare potrebbero non essere visibili.
+            </p>
           )}
         </div>
       )}

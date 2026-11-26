@@ -158,7 +158,9 @@ export async function runShopifyWorker(
       let token = await getToken();
       if (!token.ok) {
         const outcome =
-          token.code === "token_access_denied" || token.code === "token_invalid_response"
+          token.code === "token_access_denied" ||
+          token.code === "token_invalid_response" ||
+          token.code === "token_missing_scopes"
             ? "review"
             : "retry";
         if (
@@ -207,7 +209,9 @@ export async function runShopifyWorker(
             if (
               !(await finalize(
                 job,
-                token.code === "token_access_denied" || token.code === "token_invalid_response"
+                token.code === "token_access_denied" ||
+                  token.code === "token_invalid_response" ||
+                  token.code === "token_missing_scopes"
                   ? "review"
                   : "retry",
                 token.code,

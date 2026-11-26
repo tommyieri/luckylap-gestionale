@@ -1,5 +1,10 @@
 import { describe, expect, it } from "vitest";
-import { shopifySyncSnapshotFrom, shopifyReviewHref, shopifyReviewLabel } from "./status-model";
+import {
+  groupShopifyReviews,
+  shopifySyncSnapshotFrom,
+  shopifyReviewHref,
+  shopifyReviewLabel,
+} from "./status-model";
 export const statusFixture = () => ({
   configured: true,
   enabled: true,
@@ -69,6 +74,48 @@ describe("minimal Shopify health projection", () => {
   });
   it("uses human labels and a neutral fallback without echoing opaque reason codes", () => {
     expect(shopifyReviewLabel("unmapped_sku")).toContain("SKU");
+    expect(shopifyReviewLabel("token_missing_scopes")).toBe(
+      "Il collegamento Shopify richiede una verifica degli accessi.",
+    );
     expect(shopifyReviewLabel("brand_new_safe_code")).not.toContain("brand_new_safe_code");
+  });
+  it("groups the supplied sample by order, retaining unique reasons and the latest observation", () => {
+    const reviews = [
+      {
+        orderGid: "gid://shopify/Order/100",
+        reason: "unmapped_sku",
+        observedAt: "2026-10-21T12:00:00Z",
+      },
+      {
+        orderGid: "gid://shopify/Order/200",
+        reason: "access_denied",
+        observedAt: "2026-10-21T12:30:00Z",
+      },
+      {
+        orderGid: "gid://shopify/Order/100",
+        reason: "access_denied",
+        observedAt: "2026-10-21T15:00:00+02:00",
+      },
+      {
+        orderGid: "gid://shopify/Order/100",
+        reason: "unmapped_sku",
+        observedAt: "2026-10-21T12:15:00Z",
+      },
+    ];
+    const original = structuredClone(reviews);
+    expect(groupShopifyReviews(reviews)).toEqual([
+      {
+        orderGid: "gid://shopify/Order/100",
+        reasons: ["unmapped_sku", "access_denied"],
+        observedAt: "2026-10-21T15:00:00+02:00",
+      },
+      {
+        orderGid: "gid://shopify/Order/200",
+        reasons: ["access_denied"],
+        observedAt: "2026-10-21T12:30:00Z",
+      },
+    ]);
+    expect(reviews).toEqual(original);
+    expect(groupShopifyReviews([])).toEqual([]);
   });
 });

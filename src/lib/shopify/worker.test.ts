@@ -223,6 +223,7 @@ describe("Shopify lease → canonical read → atomic apply orchestration", () =
     ["token_throttled", "retry", 120],
     ["token_access_denied", "review", 60],
     ["token_invalid_response", "review", 60],
+    ["token_missing_scopes", "review", 60],
   ])("persists token failure %s as %s", async (code, outcome, seconds) => {
     const state = setup();
     state.get.mockResolvedValue({ ok: false, code });
@@ -268,6 +269,19 @@ describe("Shopify lease → canonical read → atomic apply orchestration", () =
     expect(result.counts.retry).toBe(1);
     expect(state.read).toHaveBeenCalledOnce();
     expect(state.apply).not.toHaveBeenCalled();
+  });
+  it("leaves a grant without the required scopes in review after renewal", async () => {
+    const state = setup();
+    state.read.mockResolvedValue({ status: "unavailable", code: "access_denied", message: "" });
+    state.get
+      .mockResolvedValueOnce({ ok: true, token: "synthetic-first-admin-token" })
+      .mockResolvedValueOnce({ ok: false, code: "token_missing_scopes" });
+    const result = await runShopifyWorker(config, new AbortController().signal, state.dependencies);
+    expect(result.counts.review).toBe(1);
+    expect(result.counts.retry).toBe(0);
+    expect(state.read).toHaveBeenCalledOnce();
+    expect(state.apply).not.toHaveBeenCalled();
+    expect(state.finish.mock.calls[0]!.slice(1, 3)).toEqual(["review", "token_missing_scopes"]);
   });
   it("rejects a ready DTO for a foreign order before atomic apply", async () => {
     const state = setup();
