@@ -9,6 +9,9 @@ const mocks = vi.hoisted(() => ({
   client: vi.fn(() => {
     throw Error("Nessuna chiamata a Supabase nei test.");
   }),
+  packlink: vi.fn(() => {
+    throw Error("Nessuna lettura Packlink nell’anteprima.");
+  }),
 }));
 vi.mock("../../../app/finance/budget-actions", () => ({
   loadFinanceBudgets: vi.fn(),
@@ -27,6 +30,8 @@ vi.mock("@/lib/auth/server", () => ({ verifiedMember: vi.fn() }));
 vi.mock("@/lib/auth/sensitive-access", () => ({ verifiedSensitiveAccess: vi.fn() }));
 vi.mock("@/lib/finance/server", () => ({ loadFinanceImports: vi.fn() }));
 vi.mock("@/lib/finance-work/server", () => ({ readFinanceWork: vi.fn() }));
+vi.mock("@/lib/packlink/status-server", () => ({ readPacklinkSyncStatus: mocks.packlink }));
+vi.mock("@/components/packlink-sync-health", () => ({ PacklinkSyncHealth: () => null }));
 vi.mock("@/lib/finance/dashboard-server", () => ({ readDashboardSettlements: vi.fn() }));
 vi.mock("@/lib/finance/consignment-server", () => ({ loadFinanceConsignmentArchive: vi.fn() }));
 vi.mock("@/lib/consignment/finance", () => ({ readConsignmentFinance: vi.fn() }));
@@ -93,6 +98,7 @@ describe("anteprima locale di Finance (00-sequenza §1.5)", () => {
     expect(html).toMatch(/<button[^>]*disabled=""[^>]*>Chiudi Finance<\/button>/);
     expect(mocks.config).not.toHaveBeenCalled();
     expect(mocks.client).not.toHaveBeenCalled();
+    expect(mocks.packlink).not.toHaveBeenCalled();
     const receivables = renderToStaticMarkup(
       (await FinancePage({
         searchParams: Promise.resolve({ vista: "receivables" }),

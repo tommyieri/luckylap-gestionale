@@ -10,6 +10,7 @@ import {
   type ObservedRefund,
   type ShopifyFinancials,
   type ShopifyTransactionObservation,
+  type PacklinkTransaction,
 } from "./model";
 export type WorkRows = {
   entries: unknown[];
@@ -20,6 +21,7 @@ export type WorkRows = {
   refunds: unknown[];
   shopifyFinancials: unknown[];
   shopifyTransactions: unknown[];
+  packlinkTransactions?: unknown[];
 };
 function fail(): never {
   throw new Error("Lettura Finance non completa.");
@@ -39,6 +41,85 @@ const transactionGid = (v: unknown) =>
   typeof v === "string" && /^gid:\/\/shopify\/OrderTransaction\/[1-9]\d{0,19}$/.test(v)
     ? v
     : fail();
+const packlinkKeys = [
+  "id",
+  "connection_id",
+  "shop_domain",
+  "provider_transaction_id",
+  "provider_type",
+  "kind",
+  "amount_cents",
+  "currency",
+  "occurred_at",
+  "shipment_references",
+  "shopify_order_gid",
+  "source_digest",
+  "observed_at",
+] as const;
+const packlinkReference = (value: unknown) =>
+  typeof value === "string" && /^[A-Za-z0-9_-]{1,100}$/.test(value) ? value : fail();
+const packlinkTransactionId = (value: unknown) =>
+  typeof value === "string" && /^[A-Za-z0-9][A-Za-z0-9._:-]{0,119}$/.test(value) ? value : fail();
+const packlinkDate = (value: unknown) => {
+  if (
+    typeof value !== "string" ||
+    !/^\d{4}-\d{2}-\d{2}T(?:[01]\d|2[0-3]):[0-5]\d:[0-5]\d(?:\.\d{1,9})?(?:Z|[+-](?:[01]\d|2[0-3]):[0-5]\d)$/.test(
+      value,
+    )
+  )
+    fail();
+  const day = value.slice(0, 10);
+  if (!calendarDay(day)) fail();
+  return date(value);
+};
+function packlinkFromRow(raw: unknown): PacklinkTransaction {
+  const row = obj(raw);
+  if (
+    Object.keys(row).length !== packlinkKeys.length ||
+    Object.keys(row).some((key) => !(packlinkKeys as readonly string[]).includes(key))
+  )
+    fail();
+  const providerType = choice(row.provider_type, ["LABELS_ORDER", "REFUND"]);
+  const kind = choice(row.kind, ["shipping_charge", "shipping_refund"]);
+  if (
+    (providerType === "LABELS_ORDER") !== (kind === "shipping_charge") ||
+    row.currency !== "EUR" ||
+    cents(row.amount_cents) < 1
+  )
+    fail();
+  if (!Array.isArray(row.shipment_references) || row.shipment_references.length > 20) fail();
+  const shipmentReferences = row.shipment_references.map(packlinkReference);
+  unique(shipmentReferences);
+  const orderGid = row.shopify_order_gid;
+  if (
+    typeof row.shop_domain !== "string" ||
+    !/^[a-z0-9]([a-z0-9-]{0,61}[a-z0-9])?\.myshopify\.com$/.test(row.shop_domain)
+  )
+    fail();
+  if (
+    orderGid !== null &&
+    (typeof orderGid !== "string" ||
+      !/^gid:\/\/shopify\/Order\/[1-9]\d{0,19}$/.test(orderGid) ||
+      BigInt(orderGid.split("/").at(-1)!) > 18446744073709551615n)
+  )
+    fail();
+  if (typeof row.source_digest !== "string" || !/^[a-f0-9]{64}$/.test(row.source_digest)) fail();
+  return {
+    id: id(row.id),
+    connectionId: id(row.connection_id),
+    shopDomain: row.shop_domain,
+    providerTransactionId: packlinkTransactionId(row.provider_transaction_id),
+    providerType,
+    kind,
+    cents: cents(row.amount_cents),
+    currency: "EUR",
+    occurredAt: packlinkDate(row.occurred_at),
+    shipmentReferences,
+    shopifyOrderGid: orderGid as string | null,
+    sourceDigest: row.source_digest,
+    observedAt: packlinkDate(row.observed_at),
+  };
+}
 const totalKeys = [
   "originalTotalCents",
   "currentTotalCents",
@@ -71,6 +152,10 @@ function financialTotals(value: unknown): ShopifyFinancials["totals"] {
   ) as ShopifyFinancials["totals"];
 }
 export function financeWorkFromRows(rows: WorkRows): FinanceWorkSnapshot {
+  if (rows.packlinkTransactions !== undefined && !Array.isArray(rows.packlinkTransactions)) fail();
+  const packlinkTransactions = (rows.packlinkTransactions ?? []).map(packlinkFromRow);
+  unique(packlinkTransactions.map((row) => row.id));
+  unique(packlinkTransactions.map((row) => `${row.connectionId}:${row.providerTransactionId}`));
   const voids: FinanceVoid[] = rows.voids.map((raw) => {
     const r = obj(raw);
     return {
@@ -337,5 +422,14 @@ export function financeWorkFromRows(rows: WorkRows): FinanceWorkSnapshot {
     (a, b) =>
       b.observedAt.localeCompare(a.observedAt) || a.transactionGid.localeCompare(b.transactionGid),
   );
-  return { entries, facts, payments, orders, refunds, shopifyFinancials, shopifyTransactions };
+  return {
+    entries,
+    facts,
+    payments,
+    orders,
+    refunds,
+    shopifyFinancials,
+    shopifyTransactions,
+    packlinkTransactions,
+  };
 }

@@ -228,7 +228,7 @@ try {
     .filter((entry) => entry.endsWith(".sql") && entry !== migrationName)
     .sort()) {
     let sql = readFileSync(new URL(name, migrations), "utf8");
-    if (name.endsWith("_shopify_scheduler.sql")) {
+    if (name.endsWith("_shopify_scheduler.sql") || name.endsWith("_packlink_scheduler.sql")) {
       let replaced = 0;
       sql = sql.replace(
         /^create extension if not exists (?:pg_cron|pg_net|supabase_vault) with schema [a-z_]+;$/gm,

@@ -105,6 +105,30 @@ beforeEach(() => {
 });
 afterEach(() => vi.unstubAllGlobals());
 describe("scheda contestuale dei movimenti", () => {
+  it("presenta Packlink e il collegamento verificato alla vendita senza un conto inventato", async () => {
+    const shipping: FinanceMovement = {
+      ...movement,
+      id: `packlink:${movement.sourceId}`,
+      source: "packlink",
+      account: null,
+      category: "Spedizioni",
+      description: "Spesa di spedizione Packlink osservata",
+      allocationNote: "Fonte Packlink osservata. Conto non attribuito.",
+      href: `/sales/${movement.sourceId}`,
+    };
+    const tree = render({ ...props, movement: shipping, readOnly: true });
+    effects(dialog);
+    const contents = nodes(tree)
+      .flatMap((node) => [node.props.children].flat(Infinity))
+      .filter((value) => typeof value === "string")
+      .join(" ");
+    expect(contents).toContain("Packlink");
+    expect(contents).toContain("Conto non attribuito");
+    expect(nodes(tree).some((node) => node.props.href === `/sales/${movement.sourceId}`)).toBe(
+      true,
+    );
+    expect(harness.load).not.toHaveBeenCalled();
+  });
   it("in anteprima mostra i dati sintetici senza leggere lo storico", async () => {
     const tree = render({ ...props, readOnly: true });
     effects(dialog);

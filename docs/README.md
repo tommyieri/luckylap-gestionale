@@ -60,6 +60,7 @@ Alcuni documenti scritti prima del modello attuale chiedono ancora una sessione 
 - [Panoramica, movimenti e incassi attesi](finance-dashboard.md): destinazioni di `/finance`, ricerca e filtri nell’indirizzo, saldo dai movimenti, flussi e categorie.
 - [Inserimento, correzioni e fonti collegate](finance-work.md): nuovo movimento diretto, scheda con storico, contratti delle fonti e compatibilità di `/finance/work`.
 - [Nucleo delle revisioni Finance](finance-revisions.md): fonti immutabili, correzioni complete, residui condivisi con Vendite e vecchio conto vendita; in produzione dal 23 ottobre 2026.
+- [Costi Packlink in Finance](packlink-finance.md): lettura automatica di addebiti e rimborsi, collegamento agli ordini, scheduler, fonti immutabili e procedura di attivazione.
 
 ## Conto vendita
 

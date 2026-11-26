@@ -1,6 +1,100 @@
 import { describe, expect, it } from "vitest";
 import { financeWorkFromRows } from "./read";
 import { workId, workRows, shopifyWorkRows } from "./fixtures";
+const packlinkRow = (n = 1) => ({
+  id: workId(100 + n),
+  connection_id: workId(100),
+  shop_domain: "synthetic.myshopify.com",
+  provider_transaction_id: `SYN-TX-${n}`,
+  provider_type: "LABELS_ORDER",
+  kind: "shipping_charge",
+  amount_cents: 731,
+  currency: "EUR",
+  occurred_at: "2026-06-10T23:30:00.123456Z",
+  shipment_references: ["SYN_SHIPMENT_1"],
+  shopify_order_gid: null,
+  source_digest: "a".repeat(64),
+  observed_at: "2026-06-11T08:00:00Z",
+});
+describe("lettura Packlink minima e completa", () => {
+  it("conserva spesa e rimborso come osservazioni senza dati cliente né mutazioni", () => {
+    const rows = {
+      ...workRows(),
+      packlinkTransactions: [
+        packlinkRow(),
+        {
+          ...packlinkRow(2),
+          provider_type: "REFUND",
+          kind: "shipping_refund",
+          shopify_order_gid: "gid://shopify/Order/200",
+        },
+      ],
+    };
+    const original = structuredClone(rows);
+    expect(financeWorkFromRows(rows).packlinkTransactions).toMatchObject([
+      {
+        providerType: "LABELS_ORDER",
+        kind: "shipping_charge",
+        cents: 731,
+        currency: "EUR",
+        shopDomain: "synthetic.myshopify.com",
+        shopifyOrderGid: null,
+        occurredAt: "2026-06-10T23:30:00.123456Z",
+      },
+      {
+        providerType: "REFUND",
+        kind: "shipping_refund",
+        shopifyOrderGid: "gid://shopify/Order/200",
+      },
+    ]);
+    expect(rows).toEqual(original);
+    expect(financeWorkFromRows(workRows()).packlinkTransactions).toEqual([]);
+  });
+  it.each([
+    { amount_cents: 0 },
+    { amount_cents: -1 },
+    { amount_cents: 1.2 },
+    { amount_cents: "731" },
+    { currency: "USD" },
+    { provider_type: "REFUND" },
+    { kind: "unknown" },
+    { provider_transaction_id: "x".repeat(121) },
+    { provider_transaction_id: "" },
+    { shipment_references: ["x".repeat(101)] },
+    { shipment_references: ["SYN", "SYN"] },
+    { shipment_references: Array.from({ length: 21 }, (_, n) => `SYN_${n}`) },
+    { shipment_references: ["invalid@example.test"] },
+    { shipment_references: null },
+    { connection_id: "not-a-uuid" },
+    { shop_domain: "https://synthetic.myshopify.com" },
+    { shopify_order_gid: "gid://shopify/Product/200" },
+    { shopify_order_gid: "gid://shopify/Order/18446744073709551616" },
+    { source_digest: "not-a-digest" },
+    { occurred_at: "2026-02-30T10:00:00Z" },
+    { occurred_at: "2026-06-10" },
+    { occurred_at: "2026-06-10T24:00:00Z" },
+    { observed_at: "not-a-date" },
+    { customer_email: "synthetic@example.test" },
+  ])("rifiuta la riga Packlink incompleta o alterata %j", (change) => {
+    expect(() =>
+      financeWorkFromRows({
+        ...workRows(),
+        packlinkTransactions: [{ ...packlinkRow(), ...change }],
+      }),
+    ).toThrow("Lettura Finance non completa.");
+  });
+  it("rifiuta identità duplicate anche su UUID differenti e campi mancanti", () => {
+    const first = packlinkRow();
+    expect(() =>
+      financeWorkFromRows({
+        ...workRows(),
+        packlinkTransactions: [first, { ...first, id: workId(999) }],
+      }),
+    ).toThrow();
+    const { observed_at: _removed, ...missing } = first;
+    expect(() => financeWorkFromRows({ ...workRows(), packlinkTransactions: [missing] })).toThrow();
+  });
+});
 describe("Finance facts remain distinct", () => {
   it("links sale/payment/cancellation without converting them to manual entries or double counting an incasso", () => {
     const rows = workRows(),

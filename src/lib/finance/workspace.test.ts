@@ -50,6 +50,17 @@ const dashboard = (...movements: RevisedMovement<FinanceMovement>[]): FinanceDas
 });
 
 describe("contesto Finance nell’indirizzo", () => {
+  it("conserva il filtro Packlink senza confonderlo con le altre spese", () => {
+    const selected = view({ tab: "movements", source: "packlink", period: "all" });
+    const params = new URL(financeViewHref(selected), "https://synthetic.invalid").searchParams;
+    expect(parseFinanceView(params, today).source).toBe("packlink");
+    const shipping = movement("packlink", {
+      source: "packlink",
+      id: "packlink:synthetic",
+      account: null,
+    });
+    expect(filterFinanceMovements([shipping, movement("manual")], selected)).toEqual([shipping]);
+  });
   it("apre la panoramica del mese con soli consuntivi", () => {
     expect(parseFinanceView({}, today)).toEqual({
       tab: "overview",

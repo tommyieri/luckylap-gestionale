@@ -160,7 +160,7 @@ try {
   if (!policyFile) throw Error("Migrazione password membri assente.");
   for (const file of files.filter((name) => name !== policyFile)) {
     let source = readFileSync(new URL(file, migrationDirectory), "utf8");
-    if (file.endsWith("_shopify_scheduler.sql")) {
+    if (file.endsWith("_shopify_scheduler.sql") || file.endsWith("_packlink_scheduler.sql")) {
       // Only unavailable external extension installation is omitted. The actual
       // scheduler DDL, ACL, ownership and application functions still compile.
       let count = 0;

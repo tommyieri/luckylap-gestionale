@@ -227,7 +227,7 @@ try {
     .sort();
   for (const file of files) {
     let source = readFileSync(new URL(file, migrationDirectory), "utf8");
-    if (file.endsWith("_shopify_scheduler.sql"))
+    if (file.endsWith("_shopify_scheduler.sql") || file.endsWith("_packlink_scheduler.sql"))
       source = source.replace(
         /^create extension if not exists (?:pg_cron|pg_net|supabase_vault) with schema [a-z_]+;$/gm,
         "-- Interfaccia esterna già fornita nello schema del test.",
